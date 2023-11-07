@@ -1,10 +1,9 @@
-import pandas
 
-mydataset = {
-  'cars': ["BMW", "Volvo", "Ford"],
-  'passings': [3, 7, 2]
-}
+import geopandas as gpd
 
-myvar = pandas.DataFrame(mydataset)
+filepath = "data/Rijstroken/rijstroken.dbf"
 
-print(myvar)
+# Read file using gpd.read_file()
+data = gpd.read_file(filepath)
+
+print(data.head(2))
