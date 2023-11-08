@@ -13,6 +13,6 @@ def FindDataInExtent(filepath: str, extent: shapely.box) -> gpd.GeoDataFrame:
     # Determine if data intersects extent
     data['inextent'] = data['geometry'].apply(lambda geom: intersects(geom, extent))
 
-    print(data.head())
+    print(data[['geometry', 'inextent']].head())
 
     return data[data['inextent']]
