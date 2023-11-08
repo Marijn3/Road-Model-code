@@ -5,6 +5,7 @@ fileConvergentie = "data/Convergenties/convergenties.dbf"
 fileDivergentie = "data/Divergenties/divergenties.dbf"
 fileRijstrooksignaleringen = "data/Rijstrooksignaleringen/strksignaleringn.dbf"
 fileMengstroken = "data/Mengstroken/mengstroken.dbf"
+fileRijstroken = "data/Rijstroken/rijstroken.dbf"
 
 # Determine the extent of the frame (Vught)
 north = 409832.1696
@@ -17,6 +18,12 @@ dfConvergentie = FindDataInExtent(fileConvergentie, extent)
 dfDivergentie = FindDataInExtent(fileDivergentie, extent)
 dfRijstrooksignaleringen = FindDataInExtent(fileRijstrooksignaleringen, extent)
 dfMengstroken = FindDataInExtent(fileMengstroken, extent)
+dfRijstroken = FindDataInExtent(fileRijstroken, extent)
 
 # Dubbele entries rstrksgn verwijderen
 dfRijstrooksignaleringen = dfRijstrooksignaleringen[dfRijstrooksignaleringen['CODE'] == 'KP']
+
+# Adapt columns
+# data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+
+print(dfRijstroken[['geometry', 'inextent']].head())
