@@ -1,4 +1,23 @@
 import shapely
+import geopandas as gpd
+
+
+def FindDataInExtent(filepath: str, extent: tuple[4]) -> gpd.GeoDataFrame:
+    data = gpd.read_file(filepath)
+    print(data.columns)
+    # print(data.head())
+    # print(data['IBN'].unique())
+
+    # Adapt columns
+    data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+    data['x'] = data['geometry'].apply(lambda point: point.x)
+    data['y'] = data['geometry'].apply(lambda point: point.y)
+
+    # Determine data in extent
+    xmin, ymin, xmax, ymax = extent
+    data['inextent'] = (data['x'] >= xmin) & (data['x'] <= xmax) & (data['y'] >= ymin) & (data['y'] <= ymax)
+
+    return data[data['inextent']]
 
 
 def ExtractLineStringCoordinates(ls: shapely.LineString) -> list[list[float, float]]:
@@ -7,15 +26,3 @@ def ExtractLineStringCoordinates(ls: shapely.LineString) -> list[list[float, flo
 
 def ExtractPointCoordinates(point: shapely.Point) -> list[float, float]:
     return list(point.coords)
-
-
-def CheckLineInExtent(lg: list[list[float, float]], extent) -> bool:
-    for (x, y) in lg:
-        if CheckPointInExtent(x, y, extent):
-            return True
-    return False
-
-
-def CheckPointInExtent(x, y, extent):
-    xmin, ymin, xmax, ymax = extent
-    return xmin <= x <= xmax and ymin <= y <= ymax
