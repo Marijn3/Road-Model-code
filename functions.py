@@ -9,7 +9,7 @@ def FindDataInExtent(filepath: str, extent: tuple[4]) -> gpd.GeoDataFrame:
     # print(data['IBN'].unique())
 
     # Adapt columns
-    data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+    # data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
     data['x'] = data['geometry'].apply(lambda point: point.x)
     data['y'] = data['geometry'].apply(lambda point: point.y)
 
@@ -22,7 +22,3 @@ def FindDataInExtent(filepath: str, extent: tuple[4]) -> gpd.GeoDataFrame:
 
 def ExtractLineStringCoordinates(ls: shapely.LineString) -> list[list[float, float]]:
     return list(ls.coords)
-
-
-def ExtractPointCoordinates(point: shapely.Point) -> list[float, float]:
-    return list(point.coords)
