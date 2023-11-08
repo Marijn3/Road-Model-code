@@ -19,6 +19,5 @@ dfRijstrooksignaleringen = FindDataInExtent(fileRijstrooksignaleringen, extent)
 # Dubbele entries rstrksgn verwijderen
 dfRijstrooksignaleringen = dfRijstrooksignaleringen[dfRijstrooksignaleringen['CODE'] == 'KP']
 
-print(dfConvergentie.head())
-print(dfDivergentie.head())
-print(dfRijstrooksignaleringen.head())
+
+
