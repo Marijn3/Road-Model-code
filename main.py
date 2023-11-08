@@ -1,30 +1,15 @@
 
 import geopandas as gpd
-import shapely
+from functions import *
 
 filepath = "data/Rijstroken/rijstroken.dbf"
 
 data = gpd.read_file(filepath)
 
-
-def ExtractLineStringCoordinates(ls: shapely.LineString) -> list[list[float, float]]:
-    return list(ls.coords)
-
-
-def CheckLineInExtent(lg: list[list[float, float]], extent) -> bool:
-    for (x, y) in lg:
-        if CheckPointInExtent(x, y, extent):
-            return True
-    return False
-
-
-def CheckPointInExtent(x, y, extent):
-    xmin, ymin, xmax, ymax = extent
-    return xmin <= x <= xmax and ymin <= y <= ymax
-
-# print(data.columns)
+print(data.columns)
 data_A2 = data[data['WEGNUMMER'] == '002']
-# print(data_A2.head())
+data_A2.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+print(data_A2.head())
 
 linestring = data_A2['geometry'][3]
 linegeometry = ExtractLineStringCoordinates(linestring)
