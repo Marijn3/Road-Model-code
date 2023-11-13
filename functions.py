@@ -1,31 +1,31 @@
-import shapely
-from shapely import *
 import geopandas as gpd
+import shapely.geometry
+from shapely.geometry import box
 import csv
 
 
 class DataFrameLoader:
+    LOCATIONS_CSV_PATH = 'data/locations.csv'
+
+    # List all data layer files to be loaded.
+    FILE_PATHS = [
+        "data/Convergenties/convergenties.dbf",
+        "data/Divergenties/divergenties.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        "data/Rijstroken/rijstroken.dbf",
+        "data/Kantstroken/kantstroken.dbf",
+        "data/Mengstroken/mengstroken.dbf",
+        "data/Maximum snelheid/max_snelheden.dbf",
+    ]
+
     def __init__(self):
-        # List all files to be loaded.
-        self.file_paths = [
-            "data/Convergenties/convergenties.dbf",
-            "data/Divergenties/divergenties.dbf",
-            "data/Rijstrooksignaleringen/strksignaleringn.dbf",
-            "data/Rijbanen/rijbanen.dbf",
-            "data/Rijstroken/rijstroken.dbf",
-            "data/Kantstroken/kantstroken.dbf",
-            "data/Mengstroken/mengstroken.dbf",
-            "data/Maximum snelheid/max_snelheden.dbf",
-            "data/Signaleringen/signaleringen.dbf",
-            "data/Wegcategorie naar beleving/wegcat_beleving.dbf"
-        ]
         self.data = {}
         self.extent = None
 
     # Call this to load data for a specific location.
     def load_data_frames(self, location: str):
         self.__get_extent(location)
-        for file_path in self.file_paths:
+        for file_path in DataFrameLoader.FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
 
@@ -38,9 +38,9 @@ class DataFrameLoader:
         coords = self.__load_extent_from_csv(location)
 
         if coords:
-            self.extent = box(xmin=coords["west"], ymin=coords["south"], xmax=coords["east"], ymax=coords["north"])
+            self.extent = box(minx=coords["west"], miny=coords["south"], maxx=coords["east"], maxy=coords["north"])
         else:
-            raise ValueError(f"Invalid place: {location}")
+            raise ValueError(f"Invalid place: {location}. Please provide a valid location.")
 
     def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         # All data that intersects extent is considered 'in the extent'.
@@ -61,14 +61,19 @@ class DataFrameLoader:
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
-        with open('data/locations.csv', 'r') as file:
-            csv_reader = csv.DictReader(file, delimiter=';')
-            for row in csv_reader:
-                if row['location'] == location:
-                    return {
-                        'north': float(row['north']),
-                        'east': float(row['east']),
-                        'south': float(row['south']),
-                        'west': float(row['west']),
-                    }
-        return {}  # Return empty dictionary if the location is not found
+        try:
+            with open(DataFrameLoader.LOCATIONS_CSV_PATH, 'r') as file:
+                csv_reader = csv.DictReader(file, delimiter=';')
+                for row in csv_reader:
+                    if row['location'] == location:
+                        return {
+                            'north': float(row['north']),
+                            'east': float(row['east']),
+                            'south': float(row['south']),
+                            'west': float(row['west']),
+                        }
+            return {}  # Return empty dictionary if the location is not found
+        except FileNotFoundError:
+            raise FileNotFoundError(f"File was not found: {DataFrameLoader.LOCATIONS_CSV_PATH}")
+        except csv.Error as e:
+            raise ValueError(f"Error reading csv file: {e}")
