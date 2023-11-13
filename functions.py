@@ -5,10 +5,10 @@ import csv
 
 
 class DataFrameLoader:
-    LOCATIONS_CSV_PATH = 'data/locations.csv'
+    __LOCATIONS_CSV_PATH = 'data/locations.csv'
 
     # List all data layer files to be loaded.
-    FILE_PATHS = [
+    __FILE_PATHS = [
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
@@ -25,7 +25,7 @@ class DataFrameLoader:
     # Call this to load data for a specific location.
     def load_data_frames(self, location: str):
         self.__get_extent(location)
-        for file_path in DataFrameLoader.FILE_PATHS:
+        for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
 
@@ -62,7 +62,7 @@ class DataFrameLoader:
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
         try:
-            with open(DataFrameLoader.LOCATIONS_CSV_PATH, 'r') as file:
+            with open(DataFrameLoader.__LOCATIONS_CSV_PATH, 'r') as file:
                 csv_reader = csv.DictReader(file, delimiter=';')
                 for row in csv_reader:
                     if row['location'] == location:
@@ -74,6 +74,6 @@ class DataFrameLoader:
                         }
             return {}  # Return empty dictionary if the location is not found
         except FileNotFoundError:
-            raise FileNotFoundError(f"File was not found: {DataFrameLoader.LOCATIONS_CSV_PATH}")
+            raise FileNotFoundError(f"File was not found: {DataFrameLoader.__LOCATIONS_CSV_PATH}")
         except csv.Error as e:
             raise ValueError(f"Error reading csv file: {e}")
