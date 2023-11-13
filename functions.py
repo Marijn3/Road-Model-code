@@ -13,15 +13,19 @@ class DataFrameLoader:
             "data/Rijstroken/rijstroken.dbf"
         ]
         self.data = {}
+        self.extent = None
 
-    def load_data_frames(self):
+    def load_extent(self, place: str):
+        self.extent = GetExtent(place)
+
+    def load_data_frames(self, place: str):
+        self.load_extent(place)
         for file_path in self.file_paths:
             df_type = self.extract_df_type(file_path)
             self.data[df_type] = self.load_data_frame(file_path)
 
-    @staticmethod
-    def load_data_frame(file_path):
-        return LoadDataFrame(file_path)
+    def load_data_frame(self, file_path):
+        return LoadDataFrame(file_path, self.extent)
 
     @staticmethod
     def extract_df_type(file_path):
@@ -31,13 +35,12 @@ class DataFrameLoader:
         return df_type
 
 
-def LoadDataFrame(filepath: str) -> gpd.GeoDataFrame:
+def LoadDataFrame(filepath: str, extent: shapely.box) -> gpd.GeoDataFrame:
     data = gpd.read_file(filepath)
 
     # Remove unused columns
     data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
 
-    extent = GetExtent("Vught")
     return SelectDataInExtent(data, extent)
 
 
