@@ -6,12 +6,18 @@ import csv
 
 class DataFrameLoader:
     def __init__(self):
+        # List all files to be loaded.
         self.file_paths = [
             "data/Convergenties/convergenties.dbf",
             "data/Divergenties/divergenties.dbf",
             "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+            "data/Rijbanen/rijbanen.dbf",
+            "data/Rijstroken/rijstroken.dbf",
+            "data/Kantstroken/kantstroken.dbf",
             "data/Mengstroken/mengstroken.dbf",
-            "data/Rijstroken/rijstroken.dbf"
+            "data/Maximum snelheid/max_snelheden.dbf",
+            "data/Signaleringen/signaleringen.dbf",
+            "data/Wegcategorie naar beleving/wegcat_beleving.dbf"
         ]
         self.data = {}
         self.extent = None
