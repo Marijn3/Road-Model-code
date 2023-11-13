@@ -1,4 +1,5 @@
 import geopandas as gpd
+import pandas as pd
 import shapely.geometry
 from shapely.geometry import box
 import csv
@@ -43,18 +44,19 @@ class DataFrameLoader:
         for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
+            self.__drop_columns(self.data[df_layer_name])
+            self.__edit_columns(self.data[df_layer_name])
             self.data[df_layer_name].info()
 
     def __load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         """
-        Load a relevant parts of a GeoDataFrame from a shapefile.
+        Load the extent-intersecting parts of a GeoDataFrame from a shapefile.
         Args:
             file_path (str): The path to the shapefile.
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with selected data.
         """
         data = gpd.read_file(file_path)
-        self.__drop_columns(data)
         return self.__select_data_in_extent(data)
 
     def __get_extent(self, location: str) -> shapely.box:
@@ -105,8 +107,18 @@ class DataFrameLoader:
         Args:
             data (gpd.GeoDataFrame): The GeoDataFrame.
         """
-        # These columns are unused in this project.
-        data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+        # These columns are not necessary in this project.
+        data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
+
+    @staticmethod
+    def __edit_columns(data: gpd.GeoDataFrame):
+        """
+        Edit columns variable types of the GeoDataFrame.
+        Args:
+            data (gpd.GeoDataFrame): The GeoDataFrame.
+        """
+        # These column variable types should be changed.
+        data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
@@ -138,9 +150,9 @@ class DataFrameLoader:
             raise ValueError(f"Error reading csv file: {e}")
 
     def edit_data(self):
+        """ TODO: Docstring """
 
-
-        # Remove double entries in Rijstrooksignaleringen
+        # Select only the KP (kruis-pijl) signalling in Rijstrooksignaleringen
         self.data['Rijstrooksignaleringen'] = (
             self.data)['Rijstrooksignaleringen'][self.data['Rijstrooksignaleringen']['CODE'] == 'KP']
 
