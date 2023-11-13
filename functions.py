@@ -15,26 +15,17 @@ class DataFrameLoader:
         self.data = {}
         self.extent = None
 
+    # Use this function to load data for a specific location.
     def load_data_frames(self, place: str):
         self.get_extent(place)
         for file_path in self.file_paths:
-            df_type = self.extract_type(file_path)
-            self.data[df_type] = self.load_data_frame(file_path)
+            df_layer_name = self.get_layer_name(file_path)
+            self.data[df_layer_name] = self.load_data_frame(file_path)
 
     def load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         data = gpd.read_file(file_path)
-
-        # Remove unused columns
-        data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
-
-        return self.select_data_in_extent(data, self.extent)
-
-    @staticmethod
-    def extract_type(file_path):
-        # Folder name is extracted as the type name.
-        parts = file_path.split("/")
-        df_type = parts[-2]
-        return df_type
+        self.drop_columns(data)
+        return self.select_data_in_extent(data)
 
     def get_extent(self, place: str) -> shapely.box:
         definedplaces = {
@@ -50,7 +41,18 @@ class DataFrameLoader:
             raise ValueError(f"Invalid place: {place}")
 
     @staticmethod
-    def select_data_in_extent(data: gpd.GeoDataFrame, extent: shapely.box) -> gpd.GeoDataFrame:
+    def get_layer_name(file_path) -> str:
+        # Folder name is extracted as the name.
+        parts = file_path.split("/")
+        folder_name = parts[-2]
+        return folder_name
+
+    @staticmethod
+    def drop_columns(data: gpd.GeoDataFrame):
+        # These columns are unused
+        data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+
+    def select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         # All data that intersects extent is considered 'in the extent'.
-        data['inextent'] = data['geometry'].apply(lambda geom: geom.intersects(extent))
+        data['inextent'] = data['geometry'].apply(lambda geom: geom.intersects(self.extent))
         return data[data['inextent']]
