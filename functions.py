@@ -44,7 +44,6 @@ class DataFrameLoader:
         for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
-            self.__drop_columns(self.data[df_layer_name])
             self.__edit_columns(self.data[df_layer_name])
             self.data[df_layer_name].info()
 
@@ -101,7 +100,7 @@ class DataFrameLoader:
         return folder_name
 
     @staticmethod
-    def __drop_columns(data: gpd.GeoDataFrame):
+    def __edit_columns(data: gpd.GeoDataFrame):
         """
         Drop unused columns from the GeoDataFrame.
         Args:
@@ -110,13 +109,6 @@ class DataFrameLoader:
         # These columns are not necessary in this project.
         data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
 
-    @staticmethod
-    def __edit_columns(data: gpd.GeoDataFrame):
-        """
-        Edit columns variable types of the GeoDataFrame.
-        Args:
-            data (gpd.GeoDataFrame): The GeoDataFrame.
-        """
         # These column variable types should be changed.
         data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
 
@@ -151,6 +143,14 @@ class DataFrameLoader:
 
     def edit_data(self):
         """ TODO: Docstring """
+
+        # Dataframes with VNRWOL columns must have it converted to integer
+        for key in ['Rijstroken', 'Mengstroken', 'Kantstroken']:
+            self.data[key]['VNRWOL'] = pd.to_numeric(self.data[key]['VNRWOL'], errors='coerce').astype('Int64')
+
+        # VOLGNRSTRK to integer, supporting NaN values
+        self.data['Rijstroken']['VOLGNRSTRK'] = (
+            pd.to_numeric(self.data['Rijstroken']['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
         # Select only the KP (kruis-pijl) signalling in Rijstrooksignaleringen
         self.data['Rijstrooksignaleringen'] = (
