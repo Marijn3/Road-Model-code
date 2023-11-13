@@ -1,18 +1,12 @@
 from functions import *
 
-fileConvergentie           = "data/Convergenties/convergenties.dbf"
-fileDivergentie            = "data/Divergenties/divergenties.dbf"
-fileRijstrooksignaleringen = "data/Rijstrooksignaleringen/strksignaleringn.dbf"
-fileMengstroken            = "data/Mengstroken/mengstroken.dbf"
-fileRijstroken             = "data/Rijstroken/rijstroken.dbf"
-
-dfConvergentie           = LoadDataFrame(fileConvergentie)
-dfDivergentie            = LoadDataFrame(fileDivergentie)
-dfRijstrooksignaleringen = LoadDataFrame(fileRijstrooksignaleringen)
-dfMengstroken            = LoadDataFrame(fileMengstroken)
-dfRijstroken             = LoadDataFrame(fileRijstroken)
+# Load all files and store the GeoDataFrames in the class
+df = DataFrameLoader()
+df.load_data_frames("Vught")
 
 # Remove double entries
-dfRijstrooksignaleringen = dfRijstrooksignaleringen[dfRijstrooksignaleringen['CODE'] == 'KP']
+df.data['Rijstrooksignaleringen'] = df.data['Rijstrooksignaleringen'][df.data['Rijstrooksignaleringen']['CODE'] == 'KP']
 
-print(dfRijstroken[['geometry', 'inextent']].head())
+print(df.data['Convergenties'])
+print(df.data['Divergenties'])
+print(df.data['Rijstroken'][['geometry', 'inextent']].head())
