@@ -43,6 +43,7 @@ class DataFrameLoader:
         for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
+            self.data[df_layer_name].info()
 
     def __load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         """
@@ -135,3 +136,11 @@ class DataFrameLoader:
             raise FileNotFoundError(f"File was not found: {DataFrameLoader.__LOCATIONS_CSV_PATH}")
         except csv.Error as e:
             raise ValueError(f"Error reading csv file: {e}")
+
+    def edit_data(self):
+
+
+        # Remove double entries in Rijstrooksignaleringen
+        self.data['Rijstrooksignaleringen'] = (
+            self.data)['Rijstrooksignaleringen'][self.data['Rijstrooksignaleringen']['CODE'] == 'KP']
+
