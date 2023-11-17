@@ -164,3 +164,45 @@ class DataFrameLoader:
         self.data['Rijstrooksignaleringen'] = (
             self.data)['Rijstrooksignaleringen'][self.data['Rijstrooksignaleringen']['CODE'] == 'KP']
 
+
+class RoadModel:
+    def __init__(self):
+        self.sections = {}
+
+    def load_from_dataframe(self, df: pd.DataFrame):
+        """
+        Load road sections and attributes from a DataFrame.
+        Args:
+            df (pd.DataFrame): DataFrame containing columns 'start_km', 'end_km', and 'attributes'.
+        """
+        for index, row in df.iterrows():
+            start_km = row['BEGINKM']
+            end_km = row['EINDKM']
+            attributes = row.drop(['BEGINKM', 'EINDKM']).to_dict()
+            self.add_section(start_km, end_km, attributes)
+
+    def add_section(self, start_km: float, end_km: float, attributes: dict):
+        """
+        Add a road section between start_km and end_km and apply attributes.
+        Args:
+            start_km (float): Starting kilometer point of the road section.
+            end_km (float): Ending kilometer point of the road section.
+            attributes (dict): Attributes to be assigned to the road section.
+        """
+        self.sections[start_km] = {'end_km': end_km, 'attributes': attributes}
+
+    def get_section(self, km: float) -> dict:
+        """
+        Find the attributes of a road section at a specific km.
+        Args:
+            km (float): Kilometer point to retrieve the road section for.
+        Returns:
+            dict or None: Attributes of the road section at the specified kilometer point.
+        """
+        for beginkm, section_info in self.sections.items():
+            if beginkm <= km <= section_info['end_km']:
+                return section_info['attributes']
+        return {}
+
+
+
