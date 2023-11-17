@@ -1,7 +1,10 @@
 import geopandas as gpd
+import pandas as pd
 import shapely.geometry
 from shapely.geometry import box
 import csv
+
+pd.set_option('display.max_columns', None)
 
 
 class DataFrameLoader:
@@ -19,20 +22,19 @@ class DataFrameLoader:
 
     # List all data layer files to be loaded.
     __FILE_PATHS = [
-        "data/Convergenties/convergenties.dbf",
-        "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        # "data/Convergenties/convergenties.dbf",
+        # "data/Divergenties/divergenties.dbf",
+        # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
         "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
-        "data/Mengstroken/mengstroken.dbf",
-        "data/Maximum snelheid/max_snelheden.dbf",
+        # "data/Mengstroken/mengstroken.dbf",
+        # "data/Maximum snelheid/max_snelheden.dbf",
     ]
 
     def __init__(self):
         self.data = {}
         self.extent = None
 
-    # Call this to load data for a specific location.
     def load_data_frames(self, location: str):
         """
         Load GeoDataFrames for each layer based on the specified location.
@@ -43,17 +45,21 @@ class DataFrameLoader:
         for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
+            self.__edit_columns(self.data[df_layer_name])
+
+            # TEMP print statement
+            # print(df_layer_name)
+            # print(self.data[df_layer_name].drop(columns=['geometry']).head(3))
 
     def __load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         """
-        Load a relevant parts of a GeoDataFrame from a shapefile.
+        Load the extent-intersecting parts of a GeoDataFrame from a shapefile.
         Args:
             file_path (str): The path to the shapefile.
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with selected data.
         """
         data = gpd.read_file(file_path)
-        self.__drop_columns(data)
         return self.__select_data_in_extent(data)
 
     def __get_extent(self, location: str) -> shapely.box:
@@ -98,14 +104,17 @@ class DataFrameLoader:
         return folder_name
 
     @staticmethod
-    def __drop_columns(data: gpd.GeoDataFrame):
+    def __edit_columns(data: gpd.GeoDataFrame):
         """
         Drop unused columns from the GeoDataFrame.
         Args:
             data (gpd.GeoDataFrame): The GeoDataFrame.
         """
-        # These columns are unused in this project.
-        data.drop(columns=['FK_VELD4', 'IBN'], inplace=True)
+        # These columns are not necessary in this project.
+        data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
+
+        # These column variable types should be changed.
+        data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
@@ -135,3 +144,23 @@ class DataFrameLoader:
             raise FileNotFoundError(f"File was not found: {DataFrameLoader.__LOCATIONS_CSV_PATH}")
         except csv.Error as e:
             raise ValueError(f"Error reading csv file: {e}")
+
+    def edit_data(self):
+        """
+        Run basic edits on the GeoDataFrames.
+        * Data type conversion
+        * Double data entry deletion
+        """
+
+        # Dataframes with VNRWOL columns must have it converted to integer
+        for key in ['Rijstroken', 'Mengstroken', 'Kantstroken']:
+            self.data[key]['VNRWOL'] = pd.to_numeric(self.data[key]['VNRWOL'], errors='coerce').astype('Int64')
+
+        # VOLGNRSTRK to integer, supporting NaN values
+        self.data['Rijstroken']['VOLGNRSTRK'] = (
+            pd.to_numeric(self.data['Rijstroken']['VOLGNRSTRK'], errors='coerce').astype('Int64'))
+
+        # Select only the KP (kruis-pijl) signalling in Rijstrooksignaleringen
+        self.data['Rijstrooksignaleringen'] = (
+            self.data)['Rijstrooksignaleringen'][self.data['Rijstrooksignaleringen']['CODE'] == 'KP']
+
