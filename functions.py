@@ -4,6 +4,8 @@ import shapely.geometry
 from shapely.geometry import box
 import csv
 
+pd.set_option('display.max_columns', None)
+
 
 class DataFrameLoader:
     """
@@ -20,20 +22,19 @@ class DataFrameLoader:
 
     # List all data layer files to be loaded.
     __FILE_PATHS = [
-        "data/Convergenties/convergenties.dbf",
-        "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        # "data/Convergenties/convergenties.dbf",
+        # "data/Divergenties/divergenties.dbf",
+        # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
         "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
-        "data/Mengstroken/mengstroken.dbf",
-        "data/Maximum snelheid/max_snelheden.dbf",
+        # "data/Mengstroken/mengstroken.dbf",
+        # "data/Maximum snelheid/max_snelheden.dbf",
     ]
 
     def __init__(self):
         self.data = {}
         self.extent = None
 
-    # Call this to load data for a specific location.
     def load_data_frames(self, location: str):
         """
         Load GeoDataFrames for each layer based on the specified location.
@@ -45,7 +46,10 @@ class DataFrameLoader:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
             self.__edit_columns(self.data[df_layer_name])
-            self.data[df_layer_name].info()
+
+            # TEMP print statement
+            # print(df_layer_name)
+            # print(self.data[df_layer_name].drop(columns=['geometry']).head(3))
 
     def __load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         """
@@ -142,7 +146,11 @@ class DataFrameLoader:
             raise ValueError(f"Error reading csv file: {e}")
 
     def edit_data(self):
-        """ TODO: Docstring """
+        """
+        Run basic edits on the GeoDataFrames.
+        * Data type conversion
+        * Double data entry deletion
+        """
 
         # Dataframes with VNRWOL columns must have it converted to integer
         for key in ['Rijstroken', 'Mengstroken', 'Kantstroken']:
