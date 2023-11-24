@@ -169,31 +169,40 @@ class RoadModel:
     def __init__(self):
         self.sections = {}
 
-    def load_from_dataframe(self, df: pd.DataFrame):
+    def import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
         Load road sections and attributes from a DataFrame.
         Args:
-            df (pd.DataFrame): DataFrame containing columns 'start_km', 'end_km', and 'attributes'.
+            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
+            df_name (str): Name of dataframe to be imported.
         """
-        for index, row in df.iterrows():
+        if df_name == 'Rijstroken':
+            columns_of_interest = ['OMSCHR', 'IZI_SIDE']
+        if df_name == 'Kantstroken':
+            columns_of_interest = 'OMSCHR'
+
+        dataframe = dfl.data[df_name]
+        for index, row in dataframe.iterrows():
             start_km = row['BEGINKM']
             end_km = row['EINDKM']
-            attributes = row.drop(['BEGINKM', 'EINDKM']).to_dict()
-            self.add_section(start_km, end_km, attributes)
+            # columns = row.drop(['BEGINKM', 'EINDKM']).to_dict()
+            columns = row[columns_of_interest].to_dict()
+            self.add_section(start_km, end_km, columns)
 
-    def add_section(self, start_km: float, end_km: float, attributes: dict):
+    def add_section(self, start_km: float, end_km: float, columns: dict):
         """
-        Add a road section between start_km and end_km and apply attributes.
+        Add a road section between start_km and end_km and apply properties.
         Args:
             start_km (float): Starting kilometer point of the road section.
             end_km (float): Ending kilometer point of the road section.
-            attributes (dict): Attributes to be assigned to the road section.
+            columns (dict): Attributes to be assigned to the road section.
         """
-        self.sections[start_km] = {'end_km': end_km, 'attributes': attributes}
+        properties = columns
+        self.sections[start_km] = {'end_km': end_km, 'properties': properties}
 
-    def get_section(self, km: float) -> dict:
+    def get_properties_at(self, km: float) -> dict:
         """
-        Find the attributes of a road section at a specific km.
+        Find the properties of a road section at a specific km.
         Args:
             km (float): Kilometer point to retrieve the road section for.
         Returns:
@@ -201,8 +210,6 @@ class RoadModel:
         """
         for beginkm, section_info in self.sections.items():
             if beginkm <= km <= section_info['end_km']:
-                return section_info['attributes']
+                # Returns the first entry found (not all entries found)
+                return section_info['properties']
         return {}
-
-
-
