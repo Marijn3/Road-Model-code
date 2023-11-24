@@ -6,7 +6,7 @@ dfl.load_data_frames("Vught")
 # df.edit_data()
 
 road = RoadModel()
-road.import_dataframe(dfl, 'Rijstroken')
+road.import_dataframes(dfl)
 
 # Inspect...
 print(road.get_properties_at(121.5))

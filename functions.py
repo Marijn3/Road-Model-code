@@ -169,6 +169,10 @@ class RoadModel:
     def __init__(self):
         self.sections = {}
 
+    def import_dataframes(self, dfl: DataFrameLoader):
+        self.import_dataframe(dfl, 'Rijstroken')
+        self.import_dataframe(dfl, 'Kantstroken')
+
     def import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
         Load road sections and attributes from a DataFrame.
@@ -179,7 +183,7 @@ class RoadModel:
         if df_name == 'Rijstroken':
             columns_of_interest = ['OMSCHR', 'IZI_SIDE']
         if df_name == 'Kantstroken':
-            columns_of_interest = 'OMSCHR'
+            columns_of_interest = ['OMSCHR', 'IZI_SIDE']
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
