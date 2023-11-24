@@ -168,10 +168,16 @@ class DataFrameLoader:
 class RoadModel:
     def __init__(self):
         self.sections = {}
+        self.section_index = 0
 
     def import_dataframes(self, dfl: DataFrameLoader):
+        """
+        Load road attributes from all DataFrames.
+        Args:
+            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
+        """
         self.import_dataframe(dfl, 'Rijstroken')
-        self.import_dataframe(dfl, 'Kantstroken')
+        # self.import_dataframe(dfl, 'Kantstroken')
 
     def import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
@@ -180,40 +186,41 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
         """
-        if df_name == 'Rijstroken':
-            columns_of_interest = ['OMSCHR', 'IZI_SIDE']
-        if df_name == 'Kantstroken':
-            columns_of_interest = ['OMSCHR', 'IZI_SIDE']
+        columns_of_interest = ['OMSCHR']
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            start_km = row['BEGINKM']
-            end_km = row['EINDKM']
-            # columns = row.drop(['BEGINKM', 'EINDKM']).to_dict()
-            columns = row[columns_of_interest].to_dict()
-            self.add_section(start_km, end_km, columns)
+            self.add_section(row, columns_of_interest)
 
-    def add_section(self, start_km: float, end_km: float, columns: dict):
+    def add_section(self, row: pd.Series, columns_of_interest: list[str]):
         """
         Add a road section between start_km and end_km and apply properties.
         Args:
-            start_km (float): Starting kilometer point of the road section.
-            end_km (float): Ending kilometer point of the road section.
-            columns (dict): Attributes to be assigned to the road section.
+            row (pd.Series): A row from a dataframe.
+            columns_of_interest (list[str]): list of column names to be extracted
         """
-        properties = columns
-        self.sections[start_km] = {'end_km': end_km, 'properties': properties}
+        side = row['IZI_SIDE']
+        start_km = row['BEGINKM']
+        end_km = row['EINDKM']
+        properties = row[columns_of_interest].to_dict()
+        self.sections[self.section_index] = {'side': side,
+                                             'start_km': start_km,
+                                             'end_km': end_km,
+                                             'properties': properties}
+        self.section_index += 1
 
-    def get_properties_at(self, km: float) -> dict:
+    def get_properties_at(self, km: float, side: str) -> dict:
         """
         Find the properties of a road section at a specific km.
         Args:
             km (float): Kilometer point to retrieve the road section for.
+            side (str): Side of the road to retrieve the road section for.
         Returns:
             dict or None: Attributes of the road section at the specified kilometer point.
         """
-        for beginkm, section_info in self.sections.items():
-            if beginkm <= km <= section_info['end_km']:
-                # Returns the first entry found (not all entries found)
-                return section_info['properties']
+        for section_index, section_info in self.sections.items():
+            if section_info['side'] == side:
+                if section_info['start_km'] <= km <= section_info['end_km']:
+                    # Returns the first entry found (not all entries found)
+                    return section_info['properties']
         return {}

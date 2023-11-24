@@ -9,4 +9,4 @@ road = RoadModel()
 road.import_dataframes(dfl)
 
 # Inspect...
-print(road.get_properties_at(121.5))
+print(road.get_properties_at(121.5, 'L'))
