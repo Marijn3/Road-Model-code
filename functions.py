@@ -221,6 +221,5 @@ class RoadModel:
         for section_index, section_info in self.sections.items():
             if section_info['side'] == side:
                 if section_info['start_km'] <= km <= section_info['end_km']:
-                    # Returns the first entry found (not all entries found)
-                    return section_info['properties']
+                    print(section_info['properties'])
         return {}
