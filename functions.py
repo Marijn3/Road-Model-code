@@ -51,6 +51,14 @@ class DataFrameLoader:
             # print(df_layer_name)
             # print(self.data[df_layer_name].drop(columns=['geometry']).head(3))
 
+        column = self.data['Rijstroken']['OMSCHR']
+        lane_mapping = {'1 -> 1': 1, '2 -> 2': 2, '3 -> 3': 3, '4 -> 4': 4, '5 -> 5': 5}
+        self.data['Rijstroken']['nLanes'] = self.convert_column(column, lane_mapping)
+
+    @staticmethod
+    def convert_column(column: pd.Series, mapping: dict):
+        return column.apply(lambda df: mapping.get(df, df))
+
     def __load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         """
         Load the extent-intersecting parts of a GeoDataFrame from a shapefile.
@@ -160,7 +168,7 @@ class DataFrameLoader:
         self.data['Rijstroken']['VOLGNRSTRK'] = (
             pd.to_numeric(self.data['Rijstroken']['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
-        # Select only the KP (kruis-pijl) signalling in Rijstrooksignaleringen
+        # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
         self.data['Rijstrooksignaleringen'] = (
             self.data)['Rijstrooksignaleringen'][self.data['Rijstrooksignaleringen']['CODE'] == 'KP']
 
@@ -186,7 +194,7 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
         """
-        columns_of_interest = ['OMSCHR']
+        columns_of_interest = ['nLanes']
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
