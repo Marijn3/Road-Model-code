@@ -45,19 +45,7 @@ class DataFrameLoader:
         for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_data_frame(file_path)
-            self.__edit_columns(self.data[df_layer_name])
-
-            # TEMP print statement
-            # print(df_layer_name)
-            # print(self.data[df_layer_name].drop(columns=['geometry']).head(3))
-
-        column = self.data['Rijstroken']['OMSCHR']
-        lane_mapping = {'1 -> 1': 1, '2 -> 2': 2, '3 -> 3': 3, '4 -> 4': 4, '5 -> 5': 5}
-        self.data['Rijstroken']['nLanes'] = self.convert_column(column, lane_mapping)
-
-    @staticmethod
-    def convert_column(column: pd.Series, mapping: dict):
-        return column.apply(lambda df: mapping.get(df, df))
+            self.__edit_columns(df_layer_name)
 
     def __load_data_frame(self, file_path: str) -> gpd.GeoDataFrame:
         """
@@ -111,18 +99,42 @@ class DataFrameLoader:
         folder_name = parts[-2]
         return folder_name
 
-    @staticmethod
-    def __edit_columns(data: gpd.GeoDataFrame):
+    def __edit_columns(self, df_name: str):
         """
-        Drop unused columns from the GeoDataFrame.
+        Edit columns from the GeoDataFrame.
         Args:
-            data (gpd.GeoDataFrame): The GeoDataFrame.
+            df_name (str): The name of the GeoDataFrame.
         """
+        data = self.data[df_name]
+
         # These columns are not necessary in this project.
         data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
 
         # These column variable types should be changed.
         data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
+
+        # Dataframes with VNRWOL columns should have it converted to integer
+        if df_name in ['Rijstroken', 'Mengstroken', 'Kantstroken']:
+            data['VNRWOL'] = pd.to_numeric(data['VNRWOL'], errors='coerce').astype('Int64')
+
+        # More specific data edits
+        if df_name == 'Rijstroken':
+            lane_mapping = {'1 -> 1': 1, '2 -> 2': 2, '3 -> 3': 3, '4 -> 4': 4, '5 -> 5': 5}
+            data['nLanes'] = data['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
+            data.drop(columns=['OMSCHR'])
+
+            # VOLGNRSTRK to integer, supporting NaN values
+            data['VOLGNRSTRK'] = (pd.to_numeric(data['VOLGNRSTRK'], errors='coerce').astype('Int64'))
+
+        elif df_name == 'Kantstroken':
+            data['Vluchtstrook'] = data['OMSCHR'] == 'Vluchtstrook'
+            data['Spitsstrook'] = data['OMSCHR'] == 'Spitsstrook'
+            data['Puntstuk'] = data['OMSCHR'] == 'Puntstuk'  # TODO: Add support for more options
+            data.drop(columns=['OMSCHR'])
+
+        elif df_name == 'Rijstrooksignaleringen':
+            # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
+            data = data[data['CODE'] == 'KP']
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
@@ -153,25 +165,6 @@ class DataFrameLoader:
         except csv.Error as e:
             raise ValueError(f"Error reading csv file: {e}")
 
-    def edit_data(self):
-        """
-        Run basic edits on the GeoDataFrames.
-        * Data type conversion
-        * Double data entry deletion
-        """
-
-        # Dataframes with VNRWOL columns must have it converted to integer
-        for key in ['Rijstroken', 'Mengstroken', 'Kantstroken']:
-            self.data[key]['VNRWOL'] = pd.to_numeric(self.data[key]['VNRWOL'], errors='coerce').astype('Int64')
-
-        # VOLGNRSTRK to integer, supporting NaN values
-        self.data['Rijstroken']['VOLGNRSTRK'] = (
-            pd.to_numeric(self.data['Rijstroken']['VOLGNRSTRK'], errors='coerce').astype('Int64'))
-
-        # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
-        self.data['Rijstrooksignaleringen'] = (
-            self.data)['Rijstrooksignaleringen'][self.data['Rijstrooksignaleringen']['CODE'] == 'KP']
-
 
 class RoadModel:
     def __init__(self):
@@ -184,8 +177,8 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.import_dataframe(dfl, 'Rijstroken')
-        # self.import_dataframe(dfl, 'Kantstroken')
+        # self.import_dataframe(dfl, 'Rijstroken')
+        self.import_dataframe(dfl, 'Kantstroken')
 
     def import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
@@ -194,7 +187,8 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
         """
-        columns_of_interest = ['nLanes']
+        # columns_of_interest = ['nLanes']
+        columns_of_interest = ['Vluchtstrook']
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
@@ -231,3 +225,5 @@ class RoadModel:
                 if section_info['start_km'] <= km <= section_info['end_km']:
                     print(section_info['properties'])
         return {}
+
+        # assert sum([]) == 1, 'Alert, more than one kantstroken active'
