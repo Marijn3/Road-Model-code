@@ -113,8 +113,8 @@ class DataFrameLoader:
         # These column variable types should be changed.
         data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
 
-        # Dataframes with VNRWOL columns should have it converted to integer
-        if df_name in ['Rijstroken', 'Mengstroken', 'Kantstroken']:
+        # All 'stroken' dataframes have VNRWOL columns which should be converted to integer
+        if 'stroken' in df_name:
             data['VNRWOL'] = pd.to_numeric(data['VNRWOL'], errors='coerce').astype('Int64')
 
         # More specific data edits
@@ -177,7 +177,7 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        # self.import_dataframe(dfl, 'Rijstroken')
+        self.import_dataframe(dfl, 'Rijstroken')
         self.import_dataframe(dfl, 'Kantstroken')
 
     def import_dataframe(self, dfl: DataFrameLoader, df_name: str):
@@ -187,8 +187,10 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
         """
-        # columns_of_interest = ['nLanes']
-        columns_of_interest = ['Vluchtstrook']
+        if df_name == 'Rijstroken':
+            columns_of_interest = ['nLanes']
+        if df_name == 'Kantstroken':
+            columns_of_interest = ['Vluchtstrook', 'Spitsstrook', 'Puntstuk']
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
@@ -210,6 +212,7 @@ class RoadModel:
                                              'end_km': end_km,
                                              'properties': properties}
         self.section_index += 1
+        # Add method to handle propagating properties with intersecting sections!
 
     def get_properties_at(self, km: float, side: str) -> dict:
         """
