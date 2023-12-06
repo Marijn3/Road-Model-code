@@ -206,11 +206,13 @@ class RoadModel:
         side = row['IZI_SIDE']
         start_km = row['BEGINKM']
         end_km = row['EINDKM']
+        geometry = row['geometry']
         properties = row[columns_of_interest].to_dict()
         self.sections[self.section_index] = {'side': side,
                                              'start_km': start_km,
                                              'end_km': end_km,
-                                             'properties': properties}
+                                             'properties': properties,
+                                             'geometry': geometry}
         self.section_index += 1
         # Add method to handle propagating properties with intersecting sections!
 
@@ -227,6 +229,7 @@ class RoadModel:
             if section_info['side'] == side:
                 if section_info['start_km'] <= km <= section_info['end_km']:
                     print(section_info['properties'])
+                    print(section_info['geometry'])
         return {}
 
         # assert sum([]) == 1, 'Alert, more than one kantstroken active'
