@@ -216,20 +216,21 @@ class RoadModel:
         self.section_index += 1
         # Add method to handle propagating properties with intersecting sections!
 
-    def get_properties_at(self, km: float, side: str) -> dict:
+    def get_properties_at(self, km: float, side: str) -> list:
         """
         Find the properties of a road section at a specific km.
         Args:
             km (float): Kilometer point to retrieve the road section for.
             side (str): Side of the road to retrieve the road section for.
         Returns:
-            dict or None: Attributes of the road section at the specified kilometer point.
+            list: Attributes of the road section at the specified kilometer point.
         """
+        geom = []
         for section_index, section_info in self.sections.items():
             if section_info['side'] == side:
                 if section_info['start_km'] <= km <= section_info['end_km']:
                     print(section_info['properties'])
-                    print(section_info['geometry'])
-        return {}
+                    geom.append(section_info['geometry'])
+        return geom
 
         # assert sum([]) == 1, 'Alert, more than one kantstroken active'
