@@ -205,6 +205,9 @@ class RoadModel:
             row (pd.Series): A row from a dataframe.
             columns_of_interest (list[str]): list of column names to be extracted
         """
+
+        # Assumption: Rijstroken layer covers ALL roads and is used as the base.
+
         side = row['IZI_SIDE']
         start_km = row['BEGINKM']
         end_km = row['EINDKM']
@@ -231,15 +234,31 @@ class RoadModel:
         geometry = row['geometry']
 
         # Method to handle propagating properties with intersecting sections.
-        # Assumption: Rijstroken layer covers ALL roads and is used as the base.
-        for section in self.sections:
-            self.__check_overlap(geometry, section['geometry'])
+        overlap_present = False
 
         # Determine overlapping section
-        
-        # Add overlapping section
+        for section in self.sections:
+            overlap, overlap_size = self.__check_overlap(geometry, section['geometry'])
+            overlap_present = overlap_size != 0  # If overlap size is not 0, there is overlap
 
-        # Change other sections
+        # Determine overlap case
+        if overlap_present:
+            if section['BEGINKM'] == start_km or section['EINDKM'] == end_km:
+                if section['BEGINKM'] == start_km and section['EINDKM'] == end_km:
+                    # Fully equal case. 1 resulting section.
+                else:
+                    # 1/2 equal case. 2 resulting sections.
+            else:
+               # 0/2 equal case. 3 resulting sections.
+
+        # Add overlapping section
+        self.sections[self.section_index] = {'side': side,
+                                             'start_km': start_km,
+                                             'end_km': end_km,
+                                             'properties': properties,
+                                             'geometry': geometry}
+
+        # Update other sections
         self.sections[self.section_index] = {'side': side,
                                              'start_km': start_km,
                                              'end_km': end_km,
@@ -248,14 +267,12 @@ class RoadModel:
         self.section_index += 1
 
     @staticmethod
-    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry):
+    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple(shapely.geometry, int):
         """
         """
         overlap = shapely.shared_paths(geometry1, geometry2)
         overlap_size = shapely.get_num_coordinates(overlap)
-
-        # If overlap size is not 0, there is overlap
-        return overlap_size != 0
+        return overlap, overlap_size
 
     def get_properties_at(self, km: float, side: str) -> list:
         """
