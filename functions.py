@@ -191,6 +191,8 @@ class RoadModel:
             columns_of_interest = ['nLanes']
         if df_name == 'Kantstroken':
             columns_of_interest = ['Vluchtstrook', 'Spitsstrook', 'Puntstuk']
+        else:
+            columns_of_interest = []
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
@@ -206,8 +208,8 @@ class RoadModel:
         side = row['IZI_SIDE']
         start_km = row['BEGINKM']
         end_km = row['EINDKM']
-        geometry = row['geometry']
         properties = row[columns_of_interest].to_dict()
+        geometry = row['geometry']
         self.sections[self.section_index] = {'side': side,
                                              'start_km': start_km,
                                              'end_km': end_km,
@@ -215,6 +217,16 @@ class RoadModel:
                                              'geometry': geometry}
         self.section_index += 1
         # Add method to handle propagating properties with intersecting sections!
+
+    @staticmethod
+    def check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry):
+        """
+        """
+        overlap = shapely.shared_paths(geometry1, geometry2)
+        overlap_size = shapely.get_num_coordinates(overlap)
+
+        # If overlap size is not 0, there is overlap
+        return overlap_size != 0
 
     def get_properties_at(self, km: float, side: str) -> list:
         """
