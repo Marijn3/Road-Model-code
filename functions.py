@@ -198,7 +198,7 @@ class RoadModel:
         for index, row in dataframe.iterrows():
             self.__add_section(row, columns_of_interest)
 
-    def __add_section(self, row: pd.Series, columns_of_interest: list[str]):
+    def __start_section(self, row: pd.Series, columns_of_interest: list[str]):
         """
         Add a road section between start_km and end_km and apply properties.
         Args:
@@ -216,7 +216,36 @@ class RoadModel:
                                              'properties': properties,
                                              'geometry': geometry}
         self.section_index += 1
-        # Add method to handle propagating properties with intersecting sections!
+
+    def __add_section(self, row: pd.Series, columns_of_interest: list[str]):
+        """
+        Add a road section between start_km and end_km and apply properties.
+        Args:
+            row (pd.Series): A row from a dataframe.
+            columns_of_interest (list[str]): list of column names to be extracted
+        """
+        side = row['IZI_SIDE']
+        start_km = row['BEGINKM']
+        end_km = row['EINDKM']
+        properties = row[columns_of_interest].to_dict()
+        geometry = row['geometry']
+
+        # Method to handle propagating properties with intersecting sections.
+        # Assumption: Rijstroken layer covers ALL roads and is used as the base.
+        for section in self.sections:
+            self.__check_overlap(geometry, section['geometry'])
+
+        # Determine overlapping section
+        
+        # Add overlapping section
+
+        # Change other sections
+        self.sections[self.section_index] = {'side': side,
+                                             'start_km': start_km,
+                                             'end_km': end_km,
+                                             'properties': properties,
+                                             'geometry': geometry}
+        self.section_index += 1
 
     @staticmethod
     def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry):
