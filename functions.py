@@ -177,10 +177,10 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.import_dataframe(dfl, 'Rijstroken')
-        self.import_dataframe(dfl, 'Kantstroken')
+        self.__import_dataframe(dfl, 'Rijstroken')
+        self.__import_dataframe(dfl, 'Kantstroken')
 
-    def import_dataframe(self, dfl: DataFrameLoader, df_name: str):
+    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
         Load road sections and attributes from a DataFrame.
         Args:
@@ -196,9 +196,9 @@ class RoadModel:
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            self.add_section(row, columns_of_interest)
+            self.__add_section(row, columns_of_interest)
 
-    def add_section(self, row: pd.Series, columns_of_interest: list[str]):
+    def __add_section(self, row: pd.Series, columns_of_interest: list[str]):
         """
         Add a road section between start_km and end_km and apply properties.
         Args:
@@ -219,7 +219,7 @@ class RoadModel:
         # Add method to handle propagating properties with intersecting sections!
 
     @staticmethod
-    def check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry):
+    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry):
         """
         """
         overlap = shapely.shared_paths(geometry1, geometry2)
@@ -245,4 +245,4 @@ class RoadModel:
                     geom.append(section_info['geometry'])
         return geom
 
-        # assert sum([]) == 1, 'Alert, more than one kantstroken active'
+        # assert sum([]) == 1, 'Alert: more than one kantstroken property active'
