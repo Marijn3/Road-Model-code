@@ -237,16 +237,12 @@ class RoadModel:
                 if begin_a == begin_b and end_a == end_b:
                     # Fully equal case. 1 resulting section. 1 possible combination.
                     # print('Found equal geometries with equal start and end. Combining the properties...')
-                    # print(self.sections[overlap_index]['properties'])
                     self.sections[overlap_index]['properties'].update(prop_b)  # add new property
-                    # print(self.sections[overlap_index]['properties'])
-                    # Adjust geometry if necessary
                 else:
                     # 1/2 equal case. 2 resulting sections. 4 possible combinations.
                     # print('Found equal geometries with equal start OR end. Determining sections...')
 
                     geom_a_and_b = overlap_section['geometry']
-                    prop_a = overlap_section['properties'].copy()
                     geom_a = geom_a_and_b.symmetric_difference(geom_b)
 
                     # [Update overlapping section]
@@ -262,6 +258,10 @@ class RoadModel:
                     # Update properties
                     self.sections[overlap_index]['properties'].update(prop_b)
 
+                    prop_a = self.sections[overlap_index]['properties'].copy()
+                    for key in list(prop_b.keys()):
+                        del prop_a[key]  # TODO: fix this for testcase 3
+
                     # [Add remaining section]
                     if begin_a == begin_b:
                         begin = midpoint
@@ -269,6 +269,8 @@ class RoadModel:
                     if end_a == end_b:
                         begin = max(begin_a, begin_b)
                         end = midpoint
+
+                    print(prop_a)
 
                     self.sections[self.section_index] = {'side': side_b,
                                                          'start_km': begin,
