@@ -237,15 +237,21 @@ class RoadModel:
         overlap_present = False
 
         # Determine overlapping section
-        for section in self.sections:
+        for section_index, section in self.sections:
             overlap, overlap_size = self.__check_overlap(geometry, section['geometry'])
-            overlap_present = overlap_size != 0  # If overlap size is not 0, there is overlap
+            overlap_present = overlap_size != 0  # If overlap geometry size is not 0, there is overlap
+            if overlap_present:
+                overlap_section = section
+                overlap_index = section_index
+                break
 
         # Determine overlap case
         if overlap_present:
-            if section['BEGINKM'] == start_km or section['EINDKM'] == end_km:
-                if section['BEGINKM'] == start_km and section['EINDKM'] == end_km:
+            if overlap_section['BEGINKM'] == start_km or overlap_section['EINDKM'] == end_km:
+                if overlap_section['BEGINKM'] == start_km and overlap_section['EINDKM'] == end_km:
                     # Fully equal case. 1 resulting section.
+                    self.sections[overlap_index]['properties'].update(properties) # add new property
+                    # ADjust geometry if necessary
                 else:
                     # 1/2 equal case. 2 resulting sections.
             else:
@@ -271,7 +277,9 @@ class RoadModel:
         """
         """
         overlap = shapely.shared_paths(geometry1, geometry2)
+        print(overlap)
         overlap_size = shapely.get_num_coordinates(overlap)
+        print(overlap_size)
         return overlap, overlap_size
 
     def get_properties_at(self, km: float, side: str) -> list:
