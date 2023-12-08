@@ -30,7 +30,6 @@ class TestRoadModel(unittest.TestCase):
 
         road_model.import_dataframes(dfl)
 
-        print('test complete -------------')
         self.assertEqual(len(road_model.sections), 2)
         # TODO: Add more assertions...
 
@@ -39,28 +38,34 @@ class TestRoadModel(unittest.TestCase):
         dfl = DataFrameLoader()
 
         # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
-                                        'BEGINKM': [0, 1],
-                                        'EINDKM': [1, 3],
-                                        'nLanes': [2, 2],
+        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
+                                        'BEGINKM': [0, 1, 1],
+                                        'EINDKM': [1, 3, 2],
+                                        'nLanes': [2, 2, 1],
                                         'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                     shapely.LineString([[1, 0], [1, 2]]) ]})
+                                                     shapely.LineString([[1, 0], [1, 2]]),
+                                                     shapely.LineString([[1, 0], [2, 0]]) ]})
 
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
-                                         'BEGINKM': [0, 1],
-                                         'EINDKM': [1, 2],
-                                         'Vluchtstrook': [True, False],
-                                         'Spitsstrook': [False, False],
-                                         'Puntstuk': [False, True],
+        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
+                                         'BEGINKM': [0, 1, 1],
+                                         'EINDKM': [1, 2, 2],
+                                         'Vluchtstrook': [True, False, True],
+                                         'Spitsstrook': [False, False, False],
+                                         'Puntstuk': [False, True, False],
                                          'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                      shapely.LineString([[1, 0], [1, 1]]) ]})
+                                                      shapely.LineString([[1, 0], [1, 1]]),
+                                                      shapely.LineString([[1, 0], [2, 0]]) ]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
         road_model.import_dataframes(dfl)
 
-        print('test complete -------------')
-        self.assertEqual(len(road_model.sections), 3)
+        self.assertEqual(len(road_model.sections), 4)
+
+        road_model.get_properties_at(0.5, 'L')
+        road_model.get_properties_at(1.5, 'L')
+        road_model.get_properties_at(2.5, 'L')
+
         # TODO: Add more assertions...
 
 

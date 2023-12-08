@@ -222,7 +222,7 @@ class RoadModel:
             if overlap_present:
                 overlap_section = section
                 overlap_index = section_index
-                print(section, section_index)
+                # print(section, section_index)
                 # Assumption that sections only intersect with ONE other section
                 # TODO: Remove assumption
                 break
@@ -236,14 +236,14 @@ class RoadModel:
             if begin_a == begin_b or end_a == end_b:
                 if begin_a == begin_b and end_a == end_b:
                     # Fully equal case. 1 resulting section. 1 possible combination.
-                    print('Found equal geometries with equal start and end. Combining the properties...')
+                    # print('Found equal geometries with equal start and end. Combining the properties...')
                     # print(self.sections[overlap_index]['properties'])
                     self.sections[overlap_index]['properties'].update(prop_b)  # add new property
                     # print(self.sections[overlap_index]['properties'])
                     # Adjust geometry if necessary
                 else:
                     # 1/2 equal case. 2 resulting sections. 4 possible combinations.
-                    print('Found equal geometries with equal start OR end. Determining sections...')
+                    # print('Found equal geometries with equal start OR end. Determining sections...')
 
                     geom_a_and_b = overlap_section['geometry']
                     prop_a = overlap_section['properties'].copy()
@@ -277,8 +277,8 @@ class RoadModel:
                                                          'geometry': geom_a}
 
                     # Verify results (TEMP)
-                    print(self.sections[overlap_index])
-                    print(self.sections[self.section_index])
+                    #print(self.sections[overlap_index])
+                    #print(self.sections[self.section_index])
 
                     self.section_index += 1
 
@@ -316,8 +316,8 @@ class RoadModel:
         geom = []
         for section_index, section_info in self.sections.items():
             if section_info['side'] == side:
-                if section_info['start_km'] <= km <= section_info['end_km']:
-                    print(section_info['properties'])
+                if section_info['start_km'] <= km < section_info['end_km']:
+                    print("Properties at", km, "km:", section_info['properties'])
                     geom.append(section_info['geometry'])
         return geom
 
