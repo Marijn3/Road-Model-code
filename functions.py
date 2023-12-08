@@ -189,7 +189,7 @@ class RoadModel:
         """
         if df_name == 'Rijstroken':
             columns_of_interest = ['nLanes']
-        if df_name == 'Kantstroken':
+        elif df_name == 'Kantstroken':
             columns_of_interest = ['Vluchtstrook', 'Spitsstrook', 'Puntstuk']
         else:
             columns_of_interest = []
@@ -198,28 +198,6 @@ class RoadModel:
         for index, row in dataframe.iterrows():
             self.__add_section(row, columns_of_interest)
 
-    def __start_section(self, row: pd.Series, columns_of_interest: list[str]):
-        """
-        Add a road section between start_km and end_km and apply properties.
-        Args:
-            row (pd.Series): A row from a dataframe.
-            columns_of_interest (list[str]): list of column names to be extracted
-        """
-
-        # Assumption: Rijstroken layer covers ALL roads and is used as the base.
-
-        side = row['IZI_SIDE']
-        start_km = row['BEGINKM']
-        end_km = row['EINDKM']
-        properties = row[columns_of_interest].to_dict()
-        geometry = row['geometry']
-        self.sections[self.section_index] = {'side': side,
-                                             'start_km': start_km,
-                                             'end_km': end_km,
-                                             'properties': properties,
-                                             'geometry': geometry}
-        self.section_index += 1
-
     def __add_section(self, row: pd.Series, columns_of_interest: list[str]):
         """
         Add a road section between start_km and end_km and apply properties.
@@ -227,6 +205,8 @@ class RoadModel:
             row (pd.Series): A row from a dataframe.
             columns_of_interest (list[str]): list of column names to be extracted
         """
+        # print("Now adding section", self.section_index)
+
         side = row['IZI_SIDE']
         start_km = row['BEGINKM']
         end_km = row['EINDKM']
@@ -234,52 +214,52 @@ class RoadModel:
         geometry = row['geometry']
 
         # Method to handle propagating properties with intersecting sections.
-        overlap_present = False
-
         # Determine overlapping section
-        for section_index, section in self.sections:
+        overlap_present = False
+        for section_index, section in self.sections.items():
             overlap, overlap_size = self.__check_overlap(geometry, section['geometry'])
             overlap_present = overlap_size != 0  # If overlap geometry size is not 0, there is overlap
             if overlap_present:
                 overlap_section = section
                 overlap_index = section_index
+                # print(section, section_index)
+                # Assumption that sections only intersect with ONE other section
+                # TODO: Remove assumption
                 break
 
         # Determine overlap case
         if overlap_present:
-            if overlap_section['BEGINKM'] == start_km or overlap_section['EINDKM'] == end_km:
-                if overlap_section['BEGINKM'] == start_km and overlap_section['EINDKM'] == end_km:
+            if overlap_section['start_km'] == start_km or overlap_section['end_km'] == end_km:
+                if overlap_section['start_km'] == start_km and overlap_section['end_km'] == end_km:
                     # Fully equal case. 1 resulting section.
-                    self.sections[overlap_index]['properties'].update(properties) # add new property
-                    # ADjust geometry if necessary
+                    print('Found equal geometries with equal start and end. Combining the properties...')
+                    print(self.sections[overlap_index]['properties'])
+                    self.sections[overlap_index]['properties'].update(properties)  # add new property
+                    print(self.sections[overlap_index]['properties'])
+                    # Adjust geometry if necessary
                 else:
+                    print('1/2')
                     # 1/2 equal case. 2 resulting sections.
             else:
-               # 0/2 equal case. 3 resulting sections.
+                print('0/2')
+                # 0/2 equal case. 3 resulting sections.
+        else:
+            # Add section regularly
+            self.sections[self.section_index] = {'side': side,
+                                                 'start_km': start_km,
+                                                 'end_km': end_km,
+                                                 'properties': properties,
+                                                 'geometry': geometry}
+            self.section_index += 1
 
-        # Add overlapping section
-        self.sections[self.section_index] = {'side': side,
-                                             'start_km': start_km,
-                                             'end_km': end_km,
-                                             'properties': properties,
-                                             'geometry': geometry}
-
-        # Update other sections
-        self.sections[self.section_index] = {'side': side,
-                                             'start_km': start_km,
-                                             'end_km': end_km,
-                                             'properties': properties,
-                                             'geometry': geometry}
-        self.section_index += 1
 
     @staticmethod
-    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple(shapely.geometry, int):
+    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple[shapely.geometry, int]:
         """
         """
         overlap = shapely.shared_paths(geometry1, geometry2)
-        print(overlap)
         overlap_size = shapely.get_num_coordinates(overlap)
-        print(overlap_size)
+        # print("There is", overlap_size, "overlap with existing geometries.")
         return overlap, overlap_size
 
     def get_properties_at(self, km: float, side: str) -> list:
