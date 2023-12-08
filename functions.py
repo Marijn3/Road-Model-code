@@ -207,49 +207,91 @@ class RoadModel:
         """
         # print("Now adding section", self.section_index)
 
-        side = row['IZI_SIDE']
-        start_km = row['BEGINKM']
-        end_km = row['EINDKM']
-        properties = row[columns_of_interest].to_dict()
-        geometry = row['geometry']
+        side_b = row['IZI_SIDE']
+        begin_b = row['BEGINKM']
+        end_b = row['EINDKM']
+        prop_b = row[columns_of_interest].to_dict()
+        geom_b = row['geometry']
 
         # Method to handle propagating properties with intersecting sections.
         # Determine overlapping section
         overlap_present = False
         for section_index, section in self.sections.items():
-            overlap, overlap_size = self.__check_overlap(geometry, section['geometry'])
+            overlap, overlap_size = self.__check_overlap(geom_b, section['geometry'])
             overlap_present = overlap_size != 0  # If overlap geometry size is not 0, there is overlap
             if overlap_present:
                 overlap_section = section
                 overlap_index = section_index
-                # print(section, section_index)
+                print(section, section_index)
                 # Assumption that sections only intersect with ONE other section
                 # TODO: Remove assumption
                 break
 
         # Determine overlap case
         if overlap_present:
-            if overlap_section['start_km'] == start_km or overlap_section['end_km'] == end_km:
-                if overlap_section['start_km'] == start_km and overlap_section['end_km'] == end_km:
-                    # Fully equal case. 1 resulting section.
+            begin_a = overlap_section['start_km']
+            end_a = overlap_section['end_km']
+            begin_b = begin_b
+            end_b = end_b
+            if begin_a == begin_b or end_a == end_b:
+                if begin_a == begin_b and end_a == end_b:
+                    # Fully equal case. 1 resulting section. 1 possible combination.
                     print('Found equal geometries with equal start and end. Combining the properties...')
-                    print(self.sections[overlap_index]['properties'])
-                    self.sections[overlap_index]['properties'].update(properties)  # add new property
-                    print(self.sections[overlap_index]['properties'])
+                    # print(self.sections[overlap_index]['properties'])
+                    self.sections[overlap_index]['properties'].update(prop_b)  # add new property
+                    # print(self.sections[overlap_index]['properties'])
                     # Adjust geometry if necessary
                 else:
-                    print('1/2')
-                    # 1/2 equal case. 2 resulting sections.
+                    # 1/2 equal case. 2 resulting sections. 4 possible combinations.
+                    print('Found equal geometries with equal start OR end. Determining sections...')
+
+                    geom_a_and_b = overlap_section['geometry']
+                    prop_a = overlap_section['properties'].copy()
+                    geom_a = geom_a_and_b.symmetric_difference(geom_b)
+
+                    # [Update overlapping section]
+                    # Update start or end point (using midpoint)
+                    if begin_a == begin_b:
+                        midpoint = min(end_a, end_b)
+                        self.sections[overlap_index]['end_km'] = midpoint
+                    if end_a == end_b:
+                        midpoint = max(begin_a, begin_b)
+                        self.sections[overlap_index]['start_km'] = midpoint
+                    # Reduce geometry
+                    self.sections[overlap_index]['geometry'] = geom_b
+                    # Update properties
+                    self.sections[overlap_index]['properties'].update(prop_b)
+
+                    # [Add remaining section]
+                    if begin_a == begin_b:
+                        begin = midpoint
+                        end = max(end_a, end_b)
+                    if end_a == end_b:
+                        begin = max(begin_a, begin_b)
+                        end = midpoint
+
+                    self.sections[self.section_index] = {'side': side_b,
+                                                         'start_km': begin,
+                                                         'end_km': end,
+                                                         'properties': prop_a,
+                                                         'geometry': geom_a}
+
+                    # Verify results (TEMP)
+                    print(self.sections[overlap_index])
+                    print(self.sections[self.section_index])
+
+                    self.section_index += 1
+
             else:
                 print('0/2')
-                # 0/2 equal case. 3 resulting sections.
+                # 0/2 equal case. 3 resulting sections. 4 possible combinations
         else:
             # Add section regularly
-            self.sections[self.section_index] = {'side': side,
-                                                 'start_km': start_km,
-                                                 'end_km': end_km,
-                                                 'properties': properties,
-                                                 'geometry': geometry}
+            self.sections[self.section_index] = {'side': side_b,
+                                                 'start_km': begin_b,
+                                                 'end_km': end_b,
+                                                 'properties': prop_b,
+                                                 'geometry': geom_b}
             self.section_index += 1
 
 
