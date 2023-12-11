@@ -216,14 +216,15 @@ class RoadModel:
         # Method to handle propagating properties with intersecting sections.
         overlap_present = False
         for other_section_index, other_section in self.sections.items():
-            overlap_geometry, overlap_size = self.__check_overlap(new_section_geometry, other_section['geometry'])
-            overlap_present = overlap_size != 0  # If overlap geometry size is not 0, there is an overlapping segment.
+            # TODO: First, dismiss all sections which have a completely different begin and end range. THIS SAVES TIME.
+
+            overlap_geometry, overlap_present = self.__check_overlap(new_section_geometry, other_section['geometry'])
 
             # Assumption that new section only intersects with ONE other section. TODO: Remove assumption
             if overlap_present:
                 break
 
-        # Determine overlap case
+        # Determine what kind of overlap it is and thus what should be done to resolve it.
         if overlap_present:
             other_section_side = other_section['side']
             other_section_begin = other_section['start_km']
@@ -253,40 +254,52 @@ class RoadModel:
 
                     # Check that there is a non-empty remaining geometry.
                     assert shapely.get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-                    assert shapely.get_num_geometries == 1, 'Remaining geometry has multiple geometries.'
+                    # assert shapely.get_num_geometries == 1, 'Remaining geometry has multiple geometries.'
 
                     # Desired behaviour:
                     # - Add overlapping section (by updating the original other_section)
                     #   - Determine start and end of section
                     #   - Apply both properties
                     #   - Reduce geometry size
-                    # - Add remaining section
-                    #   - Determine start and end of section
-                    #   - Apply relevant property
-                    #   - Increase index
 
                     if new_section_begin == other_section_begin:
-                        midpoint = min(other_section_end, new_section_end)
+                        midpoint = min(new_section_end, other_section_end)
                         self.sections[other_section_index]['end_km'] = midpoint
                     elif new_section_end == other_section_end:
-                        midpoint = max(other_section_begin, new_section_begin)
+                        midpoint = max(new_section_begin, other_section_begin)
                         self.sections[other_section_index]['start_km'] = midpoint
 
                     self.sections[other_section_index]['properties'].update(new_section_properties)
 
                     self.sections[other_section_index]['geometry'] = overlap_geometry
 
+                    # Desired behaviour:
+                    # - Add remaining section (by deriving the remainder)
+                    #   - Determine start and end of section
+                    #   - Apply relevant properties
+                    #   - Increase index
+
+                    remainder_properties = {}
+
                     if new_section_begin == other_section_begin:
-                        begin = midpoint
-                        end = max(other_section_end, new_section_end)
+                        remainder_begin = min(new_section_end, other_section_end)
+                        remainder_end = max(new_section_end, other_section_end)
+                        if new_section_end < other_section_end:
+                            remainder_properties = other_section_properties
+                        else:
+                            remainder_properties = new_section_properties
                     if new_section_end == other_section_end:
-                        begin = max(other_section_begin, new_section_begin)
-                        end = midpoint
+                        remainder_begin = min(new_section_begin, other_section_begin)
+                        remainder_end = max(new_section_begin, other_section_begin)
+                        if new_section_begin < other_section_begin:
+                            remainder_properties = new_section_properties
+                        else:
+                            remainder_properties = other_section_properties
 
                     self.sections[self.section_index] = {'side': new_section_side,
-                                                         'start_km': begin,
-                                                         'end_km': end,
-                                                         'properties': prop_a,
+                                                         'start_km': remainder_begin,
+                                                         'end_km': remainder_end,
+                                                         'properties': remainder_properties,
                                                          'geometry': remaining_geometry}
 
                     # Verify results (TEMP)
@@ -312,10 +325,14 @@ class RoadModel:
     def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple[shapely.geometry, int]:
         """
         """
-        overlap_geometry = shapely.shared_paths(geometry1, geometry2)
-        overlap_size = shapely.get_num_coordinates(overlap_geometry)
-        # print("There is", overlap_size, "overlap with existing geometries.")
-        return overlap_geometry, overlap_size
+        overlap_geometry = shapely.intersection(geometry1, geometry2)
+        # overlap_size = shapely.get_num_coordinates(overlap_geometry)
+        if isinstance(overlap_geometry, shapely.Point):
+            print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
+            return shapely.LineString(), False
+        if isinstance(overlap_geometry, shapely.LineString):
+            print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
+            return overlap_geometry, True
 
     def get_properties_at(self, km: float, side: str) -> list:
         """
