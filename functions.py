@@ -207,76 +207,87 @@ class RoadModel:
         """
         # print("Now adding section", self.section_index)
 
-        side_b = row['IZI_SIDE']
-        begin_b = row['BEGINKM']
-        end_b = row['EINDKM']
-        prop_b = row[columns_of_interest].to_dict()
-        geom_b = row['geometry']
+        new_section_side = row['IZI_SIDE']
+        new_section_begin = row['BEGINKM']
+        new_section_end = row['EINDKM']
+        new_section_properties = row[columns_of_interest].to_dict()
+        new_section_geometry = row['geometry']
 
         # Method to handle propagating properties with intersecting sections.
-        # Determine overlapping section
         overlap_present = False
-        for section_index, section in self.sections.items():
-            overlap, overlap_size = self.__check_overlap(geom_b, section['geometry'])
-            overlap_present = overlap_size != 0  # If overlap geometry size is not 0, there is overlap
+        for other_section_index, other_section in self.sections.items():
+            overlap_geometry, overlap_size = self.__check_overlap(new_section_geometry, other_section['geometry'])
+            overlap_present = overlap_size != 0  # If overlap geometry size is not 0, there is an overlapping segment.
+
+            # Assumption that new section only intersects with ONE other section. TODO: Remove assumption
             if overlap_present:
-                overlap_section = section
-                overlap_index = section_index
-                # print(section, section_index)
-                # Assumption that sections only intersect with ONE other section
-                # TODO: Remove assumption
                 break
 
         # Determine overlap case
         if overlap_present:
-            begin_a = overlap_section['start_km']
-            end_a = overlap_section['end_km']
-            begin_b = begin_b
-            end_b = end_b
-            if begin_a == begin_b or end_a == end_b:
-                if begin_a == begin_b and end_a == end_b:
-                    # Fully equal case. 1 resulting section. 1 possible combination.
-                    # print('Found equal geometries with equal start and end. Combining the properties...')
-                    self.sections[overlap_index]['properties'].update(prop_b)  # add new property
+            other_section_side = other_section['side']
+            other_section_begin = other_section['start_km']
+            other_section_end = other_section['end_km']
+            other_section_properties = other_section['properties']
+            other_section_geometry = other_section['geometry']
+
+            if other_section_begin == new_section_begin or other_section_end == new_section_end:
+                # Fully equal case, with 1 resulting section. 1 possible combination.
+                if other_section_begin == new_section_begin and other_section_end == new_section_end:
+                    print('Found equal geometries with equal start and end. Combining the properties...')
+
+                    # Check that indeed both geometries are the same, otherwise crash.
+                    assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries encountered.'
+
+                    # Desired behaviour:
+                    # - Add new_section's property to original entry.
+                    # - Change nothing else.
+
+                    self.sections[other_section_index]['properties'].update(new_section_properties)
+
+                # 1/2 equal case. 2 resulting sections. 4 possible combinations.
                 else:
-                    # 1/2 equal case. 2 resulting sections. 4 possible combinations.
-                    # print('Found equal geometries with equal start OR end. Determining sections...')
+                    print('Found equal geometries with equal start OR end. Determining sections...')
 
-                    geom_a_and_b = overlap_section['geometry']
-                    geom_a = geom_a_and_b.symmetric_difference(geom_b)
+                    remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
 
-                    # [Update overlapping section]
-                    # Update start or end point (using midpoint)
-                    if begin_a == begin_b:
-                        midpoint = min(end_a, end_b)
-                        self.sections[overlap_index]['end_km'] = midpoint
-                    if end_a == end_b:
-                        midpoint = max(begin_a, begin_b)
-                        self.sections[overlap_index]['start_km'] = midpoint
-                    # Reduce geometry
-                    self.sections[overlap_index]['geometry'] = geom_b
-                    # Update properties
-                    self.sections[overlap_index]['properties'].update(prop_b)
+                    # Check that there is a non-empty remaining geometry.
+                    assert shapely.get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+                    assert shapely.get_num_geometries == 1, 'Remaining geometry has multiple geometries.'
 
-                    prop_a = self.sections[overlap_index]['properties'].copy()
-                    for key in list(prop_b.keys()):
-                        del prop_a[key]  # TODO: fix this for testcase 3
+                    # Desired behaviour:
+                    # - Add overlapping section (by updating the original other_section)
+                    #   - Determine start and end of section
+                    #   - Apply both properties
+                    #   - Reduce geometry size
+                    # - Add remaining section
+                    #   - Determine start and end of section
+                    #   - Apply relevant property
+                    #   - Increase index
 
-                    # [Add remaining section]
-                    if begin_a == begin_b:
+                    if new_section_begin == other_section_begin:
+                        midpoint = min(other_section_end, new_section_end)
+                        self.sections[other_section_index]['end_km'] = midpoint
+                    elif new_section_end == other_section_end:
+                        midpoint = max(other_section_begin, new_section_begin)
+                        self.sections[other_section_index]['start_km'] = midpoint
+
+                    self.sections[other_section_index]['properties'].update(new_section_properties)
+
+                    self.sections[other_section_index]['geometry'] = overlap_geometry
+
+                    if new_section_begin == other_section_begin:
                         begin = midpoint
-                        end = max(end_a, end_b)
-                    if end_a == end_b:
-                        begin = max(begin_a, begin_b)
+                        end = max(other_section_end, new_section_end)
+                    if new_section_end == other_section_end:
+                        begin = max(other_section_begin, new_section_begin)
                         end = midpoint
 
-                    print(prop_a)
-
-                    self.sections[self.section_index] = {'side': side_b,
+                    self.sections[self.section_index] = {'side': new_section_side,
                                                          'start_km': begin,
                                                          'end_km': end,
                                                          'properties': prop_a,
-                                                         'geometry': geom_a}
+                                                         'geometry': remaining_geometry}
 
                     # Verify results (TEMP)
                     #print(self.sections[overlap_index])
@@ -284,27 +295,27 @@ class RoadModel:
 
                     self.section_index += 1
 
+            # 0/2 equal case. 3 resulting sections. 4 possible combinations
             else:
                 print('0/2')
-                # 0/2 equal case. 3 resulting sections. 4 possible combinations
+
         else:
             # Add section regularly
-            self.sections[self.section_index] = {'side': side_b,
-                                                 'start_km': begin_b,
-                                                 'end_km': end_b,
-                                                 'properties': prop_b,
-                                                 'geometry': geom_b}
+            self.sections[self.section_index] = {'side': new_section_side,
+                                                 'start_km': new_section_begin,
+                                                 'end_km': new_section_end,
+                                                 'properties': new_section_properties,
+                                                 'geometry': new_section_geometry}
             self.section_index += 1
-
 
     @staticmethod
     def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple[shapely.geometry, int]:
         """
         """
-        overlap = shapely.shared_paths(geometry1, geometry2)
-        overlap_size = shapely.get_num_coordinates(overlap)
+        overlap_geometry = shapely.shared_paths(geometry1, geometry2)
+        overlap_size = shapely.get_num_coordinates(overlap_geometry)
         # print("There is", overlap_size, "overlap with existing geometries.")
-        return overlap, overlap_size
+        return overlap_geometry, overlap_size
 
     def get_properties_at(self, km: float, side: str) -> list:
         """
