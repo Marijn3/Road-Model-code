@@ -132,6 +132,11 @@ class TestRoadModel(unittest.TestCase):
 
         road_model.import_dataframes(dfl)
 
+        self.assertEqual(len(road_model.sections), 3)
+        self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
+                             {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
+                             'Incorrect lane properties')
+
 
 if __name__ == '__main__':
     unittest.main()

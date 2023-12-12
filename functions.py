@@ -232,6 +232,8 @@ class RoadModel:
             other_section_properties = other_section['properties']
             other_section_geometry = other_section['geometry']
 
+            assert new_section_side == other_section_side, "Overlap not on the same side of the road."
+
             if other_section_begin == new_section_begin or other_section_end == new_section_end:
                 # Fully equal case, with 1 resulting section. 1 possible combination.
                 if other_section_begin == new_section_begin and other_section_end == new_section_end:
@@ -306,7 +308,63 @@ class RoadModel:
 
             # 0/2 equal case, with 3 resulting sections. 4 possible combinations
             else:
-                print('Found partly overlapping geometries. Determining sections...')
+                # print('Found partly overlapping geometries. Determining sections...')
+
+                remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
+
+                # Check that there is a non-empty remaining geometry.
+                assert shapely.get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+                assert isinstance(remaining_geometry, shapely.MultiLineString), 'Incorrect remaining geometry'
+
+                # Desired behaviour:
+                # - Add overlapping section (by updating the original other_section)
+                #   - Determine start and end of middle section
+                #   - Apply both properties
+                #   - Reduce geometry size
+
+                logpoints = [new_section_begin, new_section_end, other_section_begin, other_section_end]
+                logpoints.sort()
+
+                self.sections[other_section_index]['start_km'] = logpoints[1]
+                self.sections[other_section_index]['end_km'] = logpoints[2]
+                self.sections[other_section_index]['properties'].update(new_section_properties)
+                self.sections[other_section_index]['geometry'] = overlap_geometry
+
+                # Desired behaviour:
+                # - Add new sections (by deriving the remainders)
+                #   - Determine start and end of remainder sections
+                #   - Select property of remainder sections
+                #   - Increase index
+
+                remaining_geometries = [geom for geom in remaining_geometry.geoms]
+
+                # First, the left section:
+                if new_section_begin < other_section_begin:
+                    remainder_properties = new_section_properties
+                else:
+                    remainder_properties = other_section_properties
+
+                self.sections[self.section_index] = {'side': new_section_side,
+                                                     'start_km': logpoints[0],
+                                                     'end_km': logpoints[1],
+                                                     'properties': remainder_properties,
+                                                     'geometry': remaining_geometries[0]}
+
+                self.section_index += 1
+
+                # Then, the right section:
+                if new_section_end < other_section_end:
+                    remainder_properties = other_section_properties
+                else:
+                    remainder_properties = new_section_properties
+
+                self.sections[self.section_index] = {'side': new_section_side,
+                                                     'start_km': logpoints[2],
+                                                     'end_km': logpoints[3],
+                                                     'properties': remainder_properties,
+                                                     'geometry': remaining_geometries[1]}
+
+                self.section_index += 1
 
         else:
             # Add section regularly
