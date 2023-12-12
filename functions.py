@@ -376,8 +376,20 @@ class RoadModel:
             self.section_index += 1
 
     @staticmethod
-    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple[shapely.geometry, int]:
+    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple[shapely.geometry, bool]:
         """
+        Finds the overlap geometry between two Shapely geometries.
+        Args:
+            geometry1 (shapely.geometry): The first Shapely geometry.
+            geometry2 (shapely.geometry): The second Shapely geometry.
+        Returns:
+            tuple[shapely.geometry, bool]: A tuple containing the overlap geometry
+            and a boolean indicating whether there is an overlap (True) or not (False).
+        Note:
+            The function uses the `intersection` method from Shapely to compute the overlap
+            between the two geometries.
+            If the geometries do not overlap or have a point of intersection, the function
+            returns an empty LineString and False.
         """
         overlap_geometry = shapely.intersection(geometry1, geometry2)
         # overlap_size = shapely.get_num_coordinates(overlap_geometry)
