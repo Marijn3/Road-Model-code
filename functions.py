@@ -235,7 +235,7 @@ class RoadModel:
             if other_section_begin == new_section_begin or other_section_end == new_section_end:
                 # Fully equal case, with 1 resulting section. 1 possible combination.
                 if other_section_begin == new_section_begin and other_section_end == new_section_end:
-                    print('Found equal geometries with equal start and end. Combining the properties...')
+                    # print('Found equal geometries with equal start and end. Combining the properties...')
 
                     # Check that indeed both geometries are the same, otherwise crash.
                     assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries encountered.'
@@ -246,9 +246,9 @@ class RoadModel:
 
                     self.sections[other_section_index]['properties'].update(new_section_properties)
 
-                # 1/2 equal case. 2 resulting sections. 4 possible combinations.
+                # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
                 else:
-                    print('Found equal geometries with equal start OR end. Determining sections...')
+                    # print('Found equal geometries with equal start OR end. Determining sections...')
 
                     remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
 
@@ -274,9 +274,9 @@ class RoadModel:
                     self.sections[other_section_index]['geometry'] = overlap_geometry
 
                     # Desired behaviour:
-                    # - Add remaining section (by deriving the remainder)
-                    #   - Determine start and end of section
-                    #   - Apply relevant properties
+                    # - Add new section (by deriving the remainder)
+                    #   - Determine start and end of remainder section
+                    #   - Select property of remainder section
                     #   - Increase index
 
                     remainder_properties = {}
@@ -302,15 +302,11 @@ class RoadModel:
                                                          'properties': remainder_properties,
                                                          'geometry': remaining_geometry}
 
-                    # Verify results (TEMP)
-                    #print(self.sections[overlap_index])
-                    #print(self.sections[self.section_index])
-
                     self.section_index += 1
 
-            # 0/2 equal case. 3 resulting sections. 4 possible combinations
+            # 0/2 equal case, with 3 resulting sections. 4 possible combinations
             else:
-                print('0/2')
+                print('Found partly overlapping geometries. Determining sections...')
 
         else:
             # Add section regularly
@@ -328,27 +324,29 @@ class RoadModel:
         overlap_geometry = shapely.intersection(geometry1, geometry2)
         # overlap_size = shapely.get_num_coordinates(overlap_geometry)
         if isinstance(overlap_geometry, shapely.Point):
-            print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
+            # print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
             return shapely.LineString(), False
         if isinstance(overlap_geometry, shapely.LineString):
-            print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
+            # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
             return overlap_geometry, True
 
-    def get_properties_at(self, km: float, side: str) -> list:
+    def get_properties_at(self, km: float, side: str) -> dict:
         """
         Find the properties of a road section at a specific km.
         Args:
             km (float): Kilometer point to retrieve the road section for.
             side (str): Side of the road to retrieve the road section for.
         Returns:
-            list: Attributes of the road section at the specified kilometer point.
+            dict: Attributes of the road section at the specified kilometer point.
         """
-        geom = []
+        sections = []
         for section_index, section_info in self.sections.items():
             if section_info['side'] == side:
                 if section_info['start_km'] <= km < section_info['end_km']:
-                    print("Properties at", km, "km:", section_info['properties'])
-                    geom.append(section_info['geometry'])
-        return geom
+                    # print("Properties at", km, "km:", section_info['properties'])
+                    sections.append(section_info['properties'])
+        # if len(sections) > 1:
+            # print("^ This slice has two roadlines.")
+        return sections
 
         # assert sum([]) == 1, 'Alert: more than one kantstroken property active'
