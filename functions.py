@@ -414,14 +414,28 @@ class RoadModel:
             If the geometries do not overlap or have a point of intersection, the function
             returns an empty LineString and False.
         """
-        overlap_geometry = shapely.intersection(geometry1, geometry2)  # Returns it as separate sections. UNDESIRED
+        overlap_geometry = shapely.shared_paths(geometry1, geometry2)
         # overlap_size = shapely.get_num_coordinates(overlap_geometry)
-        if shapely.get_num_coordinates(overlap_geometry) < 2:
+
+        # Convert overlap geometry type
+        if isinstance(overlap_geometry, shapely.GeometryCollection):
+            overlap_geometry = overlap_geometry.geoms[0]
+        if isinstance(overlap_geometry, shapely.MultiLineString):
+            if overlap_geometry.is_empty:
+                return shapely.LineString(), False
+            else:
+                overlap_geometry = overlap_geometry.geoms[0]
+
+        if isinstance(overlap_geometry, shapely.LineString):
+            # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
+            return overlap_geometry, True
+
+        if isinstance(overlap_geometry, shapely.Point):
             # print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
             return shapely.LineString(), False
         else:
-            # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
-            return overlap_geometry, True
+            print('Something went wrong with determining the overlap geometry.')
+            return shapely.LineString(), False
 
     def get_properties_at(self, km: float, side: str) -> dict:
         """
