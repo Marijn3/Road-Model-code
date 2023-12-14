@@ -107,6 +107,9 @@ class DataFrameLoader:
         """
         data = self.data[df_name]
 
+        # The geometry column can be rounded TODO: Find why it does not work.
+        data['geometry'] = data['geometry'].apply(lambda geom: shapely.set_precision(geom, 0.01))
+
         # These columns are not necessary in this project.
         data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
 
@@ -187,6 +190,7 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
         """
+        print('Currently importing', df_name, '...')
         if df_name == 'Rijstroken':
             columns_of_interest = ['nLanes']
         elif df_name == 'Kantstroken':
@@ -211,6 +215,7 @@ class RoadModel:
         new_section_begin = row['BEGINKM']
         new_section_end = row['EINDKM']
         new_section_properties = row[columns_of_interest].to_dict()
+        new_section_geometry = row['geometry']
         new_section_geometry = row['geometry']
 
         # Method to handle propagating properties with intersecting sections.
@@ -251,16 +256,21 @@ class RoadModel:
                 other_section_properties = other_section['properties']
                 other_section_geometry = other_section['geometry']
 
+                print('---')
+                print('New section geom:', row['geometry'])
+                print('Other section geom:', other_section_geometry)
+                print('Overlap geom:', overlap_geometry)
+
                 assert new_section_side == other_section_side, "Overlap not on the same side of the road."
 
                 # Determine what kind of overlap it is and thus what should be done to resolve it.
                 if other_section_begin == new_section_begin or other_section_end == new_section_end:
                     # Fully equal case, with 1 resulting section. 1 possible combination.
                     if other_section_begin == new_section_begin and other_section_end == new_section_end:
-                        # print('Found equal geometries with equal start and end. Combining the properties...')
+                        #print('Found equal geometries with equal start and end. Combining the properties...')
 
                         # Check that indeed both geometries are the same, otherwise crash.
-                        assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries encountered.'
+                        assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries.'
 
                         # Desired behaviour:
                         # - Add new_section's property to original entry.
@@ -270,13 +280,13 @@ class RoadModel:
 
                     # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
                     else:
-                        # print('Found equal geometries with equal start OR end. Determining sections...')
+                        #print('Found equal geometries with equal start OR end. Determining sections...')
 
                         remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
-
+                        print('Remaining geometry:', remaining_geometry)
                         # Check that there is a non-empty remaining geometry.
                         assert shapely.get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-                        # assert shapely.get_num_geometries == 1, 'Remaining geometry has multiple geometries.'
+                        assert shapely.get_num_geometries(remaining_geometry) == 1, 'Remaining geometry has multiple geometries.'
 
                         # Desired behaviour:
                         # - Add overlapping section (by updating the original other_section)
@@ -404,12 +414,12 @@ class RoadModel:
             If the geometries do not overlap or have a point of intersection, the function
             returns an empty LineString and False.
         """
-        overlap_geometry = shapely.intersection(geometry1, geometry2)
+        overlap_geometry = shapely.intersection(geometry1, geometry2)  # Returns it as separate sections. UNDESIRED
         # overlap_size = shapely.get_num_coordinates(overlap_geometry)
-        if isinstance(overlap_geometry, shapely.Point):
+        if shapely.get_num_coordinates(overlap_geometry) < 2:
             # print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
             return shapely.LineString(), False
-        if isinstance(overlap_geometry, shapely.LineString):
+        else:
             # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
             return overlap_geometry, True
 
