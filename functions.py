@@ -419,18 +419,28 @@ class RoadModel:
 
         # Convert overlap geometry type
         if isinstance(overlap_geometry, shapely.GeometryCollection):
-            overlap_geometry = overlap_geometry.geoms[0]
+            forwards = shapely.get_num_geometries(overlap_geometry.geoms[0])
+            backwards = shapely.get_num_geometries(overlap_geometry.geoms[1])
+            if forwards == 0 or backwards == 0:
+                return shapely.LineString(), False
+            elif forwards == 1:
+                overlap_geometry = overlap_geometry.geoms[0]
+            elif backwards == 1:
+                overlap_geometry = overlap_geometry.geoms[1]
+            else:
+                print('Not supposed to happen.')
+
         if isinstance(overlap_geometry, shapely.MultiLineString):
             if overlap_geometry.is_empty:
                 return shapely.LineString(), False
             else:
+                print(shapely.get_num_geometries(overlap_geometry), overlap_geometry)
                 overlap_geometry = overlap_geometry.geoms[0]
 
         if isinstance(overlap_geometry, shapely.LineString):
             # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
             return overlap_geometry, True
-
-        if isinstance(overlap_geometry, shapely.Point):
+        elif isinstance(overlap_geometry, shapely.Point):
             # print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
             return shapely.LineString(), False
         else:
