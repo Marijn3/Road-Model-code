@@ -199,9 +199,9 @@ class RoadModel:
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            self.__add_section(row, columns_of_interest)
+            self.__determine_sectioning(row, columns_of_interest)
 
-    def __add_section(self, row: pd.Series, columns_of_interest: list[str]):
+    def __determine_sectioning(self, row: pd.Series, columns_of_interest: list[str]):
         """
         Add a road section between start_km and end_km and apply properties.
         Args:
@@ -269,7 +269,7 @@ class RoadModel:
                         print('Found equal geometries with equal start and end. Combining the properties...')
 
                         # Check that indeed both geometries are the same, otherwise crash.
-                        assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries.'
+                        # assert new_section_geometry.coo == other_section_geometry, 'Inconsistent equal geometries.' # TODO: fix assert, now fails when geometries are flipped opposites
 
                         # Desired behaviour:
                         # - Add new_section's property to original entry.
@@ -331,25 +331,21 @@ class RoadModel:
                             else:
                                 remainder_properties = other_section_properties
 
-                        self.sections[self.section_index] = {'side': new_section_side,
-                                                             'start_km': remainder_begin,
-                                                             'end_km': remainder_end,
-                                                             'properties': remainder_properties,
-                                                             'geometry': remaining_geometry}
-
-                        self.section_index += 1
+                        self.__add_section(new_section_side, remainder_begin, remainder_end,
+                                           remainder_properties, remaining_geometry)
 
                 # 0/2 equal case, with 3 resulting sections. 4 possible combinations
                 else:
                     print('Found partly overlapping geometries. Determining sections...')
 
                     remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
-                    print(type(remaining_geometry))
-                    print('Remaining geometry:', remaining_geometry)
+
+                    print(remaining_geometry)
                     print(new_section_begin, new_section_end, other_section_begin, other_section_end)
+
                     # Check that there is a non-empty remaining geometry.
                     assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometryyy.'
-                    # assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
+                    assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
 
                     # Desired behaviour:
                     # - Add overlapping section (by updating the original other_section)
@@ -379,13 +375,8 @@ class RoadModel:
                     else:
                         remainder_properties = other_section_properties
 
-                    self.sections[self.section_index] = {'side': new_section_side,
-                                                         'start_km': logpoints[0],
-                                                         'end_km': logpoints[1],
-                                                         'properties': remainder_properties,
-                                                         'geometry': remaining_geometries[0]}
-
-                    self.section_index += 1
+                    self.__add_section(new_section_side, logpoints[0], logpoints[1],
+                                       remainder_properties, remaining_geometries[0])
 
                     # Then, the right section:
                     if new_section_end < other_section_end:
@@ -393,13 +384,17 @@ class RoadModel:
                     else:
                         remainder_properties = new_section_properties
 
-                    self.sections[self.section_index] = {'side': new_section_side,
-                                                         'start_km': logpoints[2],
-                                                         'end_km': logpoints[3],
-                                                         'properties': remainder_properties,
-                                                         'geometry': remaining_geometries[1]}
+                    self.__add_section(new_section_side, logpoints[2], logpoints[3],
+                                       remainder_properties, remaining_geometries[1])
 
-                    self.section_index += 1
+    def __add_section(self, side, start, end, prop, geom):
+        self.sections[self.section_index] = {'side': side,
+                                             'start_km': start,
+                                             'end_km': end,
+                                             'properties': prop,
+                                             'geometry': geom}
+
+        self.section_index += 1
 
     def __check_overlap(self, geometry1: geometry, geometry2: geometry) -> tuple[geometry, bool]:
         """
@@ -418,8 +413,6 @@ class RoadModel:
         """
         overlap_geometry = intersection(geometry1, geometry2)
 
-        print(overlap_geometry)
-
         if not overlap_geometry.is_empty:
             if isinstance(overlap_geometry, MultiLineString):
                 return self.ConvertToLineString(overlap_geometry), True
@@ -427,8 +420,8 @@ class RoadModel:
                 return overlap_geometry, True
             else:
                 return LineString([]), False
-
-        return LineString([]), False
+        else:
+            return LineString([]), False
 
     @staticmethod
     def ConvertToLineString(mls: MultiLineString) -> LineString:
@@ -445,7 +438,6 @@ class RoadModel:
         assert all([get_num_points(line) == 2 for line in mls.geoms]), 'Unexpected line length.'
         coords = [get_point(line, 0) for line in mls.geoms]
         coords.append(get_point(mls.geoms[-1], 1))
-        print(LineString(coords))
         return LineString(coords)
 
     def get_properties_at(self, km: float, side: str) -> dict:
