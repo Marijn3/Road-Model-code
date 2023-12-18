@@ -387,13 +387,21 @@ class RoadModel:
                     self.__add_section(new_section_side, logpoints[2], logpoints[3],
                                        remainder_properties, remaining_geometries[1])
 
-    def __add_section(self, side, start, end, prop, geom):
+    def __add_section(self, side: str, start: float, end: float, prop: dict, geom: LineString):
+        """
+        Adds a section to the sections variable and increases the index.
+        Args:
+            side (str): Side of the road ('L' or 'R').
+            start (float): Start registration kilometre.
+            end (float): End registration kilometre.
+            prop (dict): All properties that belong to the section.
+            geom (LineString): The geometry of the section.
+        """
         self.sections[self.section_index] = {'side': side,
                                              'start_km': start,
                                              'end_km': end,
                                              'properties': prop,
                                              'geometry': geom}
-
         self.section_index += 1
 
     def __check_overlap(self, geometry1: geometry, geometry2: geometry) -> tuple[geometry, bool]:
