@@ -14,8 +14,8 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 1],
                                         'EINDKM': [1, 2],
                                         'nLanes': [2, 2],
-                                        'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                     shapely.LineString([[1, 0], [1, 1]]) ]})
+                                        'geometry': [LineString([[0, 0], [1, 0]]),
+                                                     LineString([[1, 0], [1, 1]]) ]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
                                          'BEGINKM': [0, 1],
@@ -23,8 +23,8 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True, False],
                                          'Spitsstrook': [False, False],
                                          'Puntstuk': [False, True],
-                                         'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                      shapely.LineString([[1, 0], [1, 1]]) ]})
+                                         'geometry': [LineString([[0, 0], [1, 0]]),
+                                                      LineString([[1, 0], [1, 1]]) ]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -42,9 +42,9 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 1, 1],
                                         'EINDKM': [1, 3, 2],
                                         'nLanes': [2, 2, 1],
-                                        'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                     shapely.LineString([[1, 0], [1, 2]]),
-                                                     shapely.LineString([[1, 0], [2, 0]]) ]})
+                                        'geometry': [LineString([[0, 0], [1, 0]]),
+                                                     LineString([[1, 0], [1, 2]]),
+                                                     LineString([[1, 0], [2, 0]]) ]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
                                          'BEGINKM': [0, 1, 1],
@@ -52,9 +52,9 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True, False, True],
                                          'Spitsstrook': [False, False, False],
                                          'Puntstuk': [False, True, False],
-                                         'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                      shapely.LineString([[1, 0], [1, 1]]),
-                                                      shapely.LineString([[1, 0], [2, 0]]) ]})
+                                         'geometry': [LineString([[0, 0], [1, 0]]),
+                                                      LineString([[1, 0], [1, 1]]),
+                                                      LineString([[1, 0], [2, 0]]) ]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -77,9 +77,9 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 1, 1],
                                         'EINDKM': [1, 2, 2],
                                         'nLanes': [2, 2, 1],
-                                        'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                     shapely.LineString([[1, 0], [1, 1]]),
-                                                     shapely.LineString([[1, 0], [2, 0]])]})
+                                        'geometry': [LineString([[0, 0], [1, 0]]),
+                                                     LineString([[1, 0], [1, 1]]),
+                                                     LineString([[1, 0], [2, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
                                          'BEGINKM': [0, 1, 1],
@@ -87,9 +87,9 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True, False, True],
                                          'Spitsstrook': [False, False, False],
                                          'Puntstuk': [False, True, False],
-                                         'geometry': [shapely.LineString([[0, 0], [1, 0]]),
-                                                      shapely.LineString([[1, 0], [1, 1]]),
-                                                      shapely.LineString([[1, 0], [3, 0]])]})
+                                         'geometry': [LineString([[0, 0], [1, 0]]),
+                                                      LineString([[1, 0], [1, 1]]),
+                                                      LineString([[1, 0], [3, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -118,7 +118,7 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0],
                                         'EINDKM': [2],
                                         'nLanes': [2],
-                                        'geometry': [shapely.LineString([[0, 0], [2, 0]])]})
+                                        'geometry': [LineString([[0, 0], [2, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
@@ -126,7 +126,7 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [shapely.LineString([[1, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1, 0], [3, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -146,8 +146,8 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 2],
                                         'EINDKM': [2, 4],
                                         'nLanes': [2, 2],
-                                        'geometry': [shapely.LineString([[0, 0], [2, 0]]),
-                                                     shapely.LineString([[2, 0], [4, 0]])]})
+                                        'geometry': [LineString([[0, 0], [2, 0]]),
+                                                     LineString([[2, 0], [4, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
@@ -155,7 +155,7 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [shapely.LineString([[1, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1, 0], [3, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -175,8 +175,8 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 2],
                                         'EINDKM': [2, 4],
                                         'nLanes': [2, 2],
-                                        'geometry': [shapely.LineString([[0, 0], [0.5, 0], [1, 0], [1.5, 0], [2, 0]]),
-                                                     shapely.LineString([[2, 0], [2.5, 0], [3, 0], [3.5, 0], [4, 0]])]})
+                                        'geometry': [LineString([[0, 0], [0.5, 0], [1, 0], [1.5, 0], [2, 0]]),
+                                                     LineString([[2, 0], [2.5, 0], [3, 0], [3.5, 0], [4, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
@@ -184,7 +184,7 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [shapely.LineString([[1, 0], [1.5, 0], [2, 0], [2.5, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1, 0], [1.5, 0], [2, 0], [2.5, 0], [3, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 

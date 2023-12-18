@@ -68,7 +68,7 @@ class DataFrameLoader:
         coords = self.__load_extent_from_csv(location)
 
         if coords:
-            self.extent = box(minx=coords["west"], miny=coords["south"], maxx=coords["east"], maxy=coords["north"])
+            self.extent = box(xmin=coords["west"], ymin=coords["south"], xmax=coords["east"], ymax=coords["north"])
         else:
             raise ValueError(f"Invalid place: {location}. Please provide a valid location.")
 
@@ -231,7 +231,7 @@ class RoadModel:
                                              'index': other_section_index})
                 break
 
-        if len(overlapping_sections) == 0:
+        if not overlap_present:
             # No overlap with other sections. Add section regularly
             self.sections[self.section_index] = {'side': new_section_side,
                                                  'start_km': new_section_begin,
@@ -395,7 +395,6 @@ class RoadModel:
 
                     self.section_index += 1
 
-
     def __check_overlap(self, geometry1: geometry, geometry2: geometry) -> tuple[geometry, bool]:
         """
         Finds the overlap geometry between two Shapely geometries.
@@ -418,14 +417,16 @@ class RoadModel:
             if overlap_geometry.is_empty:
                 return LineString(), False
             else:
-                return self.ConvertToLineString(overlap_geometry)
+                return self.ConvertToLineString(overlap_geometry), True
                 overlap_geometry = overlap_geometry.geoms[0]
+        else:
+            print(overlap_geometry, "is a different type.")
 
         if isinstance(overlap_geometry, LineString):
-            # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
+            print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
             return overlap_geometry, True
         elif isinstance(overlap_geometry, Point):
-            # print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
+            print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
             return LineString(), False
         else:
             # print('Something went wrong with determining the overlap geometry of', overlap_geometry)
