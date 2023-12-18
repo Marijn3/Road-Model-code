@@ -1,7 +1,6 @@
 import geopandas as gpd
 import pandas as pd
-import shapely.geometry
-from shapely.geometry import box
+from shapely import *
 import csv
 
 pd.set_option('display.max_columns', None)
@@ -15,7 +14,7 @@ class DataFrameLoader:
        __LOCATIONS_CSV_PATH (str): The file path for the locations csv file.
        __FILE_PATHS (list): List of file paths for shapefiles to be loaded.
        data (dict): Dictionary to store GeoDataFrames for each layer.
-       extent (shapely.geometry.box): The extent of the specified location.
+       extent (box): The extent of the specified location.
    """
 
     __LOCATIONS_CSV_PATH = 'data/locations.csv'
@@ -58,7 +57,7 @@ class DataFrameLoader:
         data = gpd.read_file(file_path)
         return self.__select_data_in_extent(data)
 
-    def __get_extent(self, location: str) -> shapely.box:
+    def __get_extent(self, location: str) -> box:
         """
         Determine the extent box of the specified location from coordinates.
         Args:
@@ -107,8 +106,8 @@ class DataFrameLoader:
         """
         data = self.data[df_name]
 
-        # The geometry column can be rounded TODO: Find why it does not work.
-        data['geometry'] = data['geometry'].apply(lambda geom: shapely.set_precision(geom, 0.01))
+        # The geometry column can be rounded
+        data['geometry'] = data['geometry'].apply(lambda geom: set_precision(geom, 0.01))
 
         # These columns are not necessary in this project.
         data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
@@ -209,13 +208,12 @@ class RoadModel:
             row (pd.Series): A row from a dataframe.
             columns_of_interest (list[str]): list of column names to be extracted
         """
-        # print("Now adding section", self.section_index)
+        print("Now adding section", self.section_index)
 
         new_section_side = row['IZI_SIDE']
         new_section_begin = row['BEGINKM']
         new_section_end = row['EINDKM']
         new_section_properties = row[columns_of_interest].to_dict()
-        new_section_geometry = row['geometry']
         new_section_geometry = row['geometry']
 
         # Method to handle propagating properties with intersecting sections.
@@ -225,6 +223,7 @@ class RoadModel:
             # TODO: First, dismiss all sections which have a completely different begin and end range. THIS SAVES TIME.
 
             overlap_geometry, overlap_present = self.__check_overlap(new_section_geometry, other_section['geometry'])
+            print(overlap_geometry, overlap_present)
 
             if overlap_present:
                 overlapping_sections.append({'geom': overlap_geometry,
@@ -267,7 +266,7 @@ class RoadModel:
                 if other_section_begin == new_section_begin or other_section_end == new_section_end:
                     # Fully equal case, with 1 resulting section. 1 possible combination.
                     if other_section_begin == new_section_begin and other_section_end == new_section_end:
-                        #print('Found equal geometries with equal start and end. Combining the properties...')
+                        print('Found equal geometries with equal start and end. Combining the properties...')
 
                         # Check that indeed both geometries are the same, otherwise crash.
                         assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries.'
@@ -280,13 +279,13 @@ class RoadModel:
 
                     # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
                     else:
-                        #print('Found equal geometries with equal start OR end. Determining sections...')
+                        print('Found equal geometries with equal start OR end. Determining sections...')
 
                         remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
                         print('Remaining geometry:', remaining_geometry)
                         # Check that there is a non-empty remaining geometry.
-                        assert shapely.get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-                        assert shapely.get_num_geometries(remaining_geometry) == 1, 'Remaining geometry has multiple geometries.'
+                        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+                        assert get_num_geometries(remaining_geometry) == 1, 'Remaining geometry has multiple geometries.'
 
                         # Desired behaviour:
                         # - Add overlapping section (by updating the original other_section)
@@ -338,13 +337,13 @@ class RoadModel:
 
                 # 0/2 equal case, with 3 resulting sections. 4 possible combinations
                 else:
-                    # print('Found partly overlapping geometries. Determining sections...')
+                    print('Found partly overlapping geometries. Determining sections...')
 
                     remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
 
                     # Check that there is a non-empty remaining geometry.
-                    assert shapely.get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-                    assert isinstance(remaining_geometry, shapely.MultiLineString), 'Incorrect remaining geometry'
+                    assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+                    assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
 
                     # Desired behaviour:
                     # - Add overlapping section (by updating the original other_section)
@@ -397,16 +396,14 @@ class RoadModel:
                     self.section_index += 1
 
 
-
-    @staticmethod
-    def __check_overlap(geometry1: shapely.geometry, geometry2: shapely.geometry) -> tuple[shapely.geometry, bool]:
+    def __check_overlap(self, geometry1: geometry, geometry2: geometry) -> tuple[geometry, bool]:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
-            geometry1 (shapely.geometry): The first Shapely geometry.
-            geometry2 (shapely.geometry): The second Shapely geometry.
+            geometry1 (geometry): The first Shapely geometry.
+            geometry2 (geometry): The second Shapely geometry.
         Returns:
-            tuple[shapely.geometry, bool]: A tuple containing the overlap geometry
+            tuple[geometry, bool]: A tuple containing the overlap geometry
             and a boolean indicating whether there is an overlap (True) or not (False).
         Note:
             The function uses the `intersection` method from Shapely to compute the overlap
@@ -414,38 +411,42 @@ class RoadModel:
             If the geometries do not overlap or have a point of intersection, the function
             returns an empty LineString and False.
         """
-        overlap_geometry = shapely.shared_paths(geometry1, geometry2)
-        # overlap_size = shapely.get_num_coordinates(overlap_geometry)
+        overlap_geometry = intersection(geometry1, geometry2)
+        # overlap_size = get_num_coordinates(overlap_geometry)
 
-        # Convert overlap geometry type
-        if isinstance(overlap_geometry, shapely.GeometryCollection):
-            forwards = shapely.get_num_geometries(overlap_geometry.geoms[0])
-            backwards = shapely.get_num_geometries(overlap_geometry.geoms[1])
-            if forwards == 0 or backwards == 0:
-                return shapely.LineString(), False
-            elif forwards == 1:
-                overlap_geometry = overlap_geometry.geoms[0]
-            elif backwards == 1:
-                overlap_geometry = overlap_geometry.geoms[1]
-            else:
-                print('Not supposed to happen.')
-
-        if isinstance(overlap_geometry, shapely.MultiLineString):
+        if isinstance(overlap_geometry, MultiLineString):
             if overlap_geometry.is_empty:
-                return shapely.LineString(), False
+                return LineString(), False
             else:
-                print(shapely.get_num_geometries(overlap_geometry), overlap_geometry)
+                return self.ConvertToLineString(overlap_geometry)
                 overlap_geometry = overlap_geometry.geoms[0]
 
-        if isinstance(overlap_geometry, shapely.LineString):
+        if isinstance(overlap_geometry, LineString):
             # print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
             return overlap_geometry, True
-        elif isinstance(overlap_geometry, shapely.Point):
+        elif isinstance(overlap_geometry, Point):
             # print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
-            return shapely.LineString(), False
+            return LineString(), False
         else:
-            print('Something went wrong with determining the overlap geometry.')
-            return shapely.LineString(), False
+            # print('Something went wrong with determining the overlap geometry of', overlap_geometry)
+            return LineString(), False
+
+    @staticmethod
+    def ConvertToLineString(mls: MultiLineString) -> LineString:
+        """
+        Converts MultiLineString objects resulting fron the intersection function into LineStrings.
+        Args:
+            mls (MultiLineString): The MultiLineString geometry.
+        Returns:
+            LineString: LineString representation of the same MultiLineString.
+        Note:
+            The function expects a very specific format of MultiLineStrings.
+            An assert statement is added to help prevent other uses.
+        """
+        assert all([get_num_points(line) == 2 for line in mls.geoms]), 'Unexpected line length.'
+        coords = [get_point(line, 0) for line in mls.geoms]
+        coords.append(get_point(mls.geoms[-1], 1))
+        return LineString(coords)
 
     def get_properties_at(self, km: float, side: str) -> dict:
         """
