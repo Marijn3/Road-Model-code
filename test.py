@@ -1,11 +1,11 @@
 import unittest
-import pandas as pd
 from functions import *
 
 
 class TestRoadModel(unittest.TestCase):
 
     def test_equal_sections(self):
+        print('Test equal sections')
         road_model = RoadModel()
         dfl = DataFrameLoader()
 
@@ -31,7 +31,6 @@ class TestRoadModel(unittest.TestCase):
         road_model.import_dataframes(dfl)
 
         self.assertEqual(len(road_model.sections), 2)
-        # TODO: Add more assertions...
 
     def test_half_equal_sections(self):
         road_model = RoadModel()
@@ -61,12 +60,6 @@ class TestRoadModel(unittest.TestCase):
         road_model.import_dataframes(dfl)
 
         self.assertEqual(len(road_model.sections), 4)
-
-        # road_model.get_properties_at(0.5, 'L')
-        # road_model.get_properties_at(1.5, 'L')
-        # road_model.get_properties_at(2.5, 'L')
-
-        # TODO: Add more assertions...
 
     def test_half_equal_sections_reverse(self):
         road_model = RoadModel()
