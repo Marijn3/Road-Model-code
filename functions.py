@@ -411,26 +411,12 @@ class RoadModel:
             returns an empty LineString and False.
         """
         overlap_geometry = intersection(geometry1, geometry2)
-        # overlap_size = get_num_coordinates(overlap_geometry)
 
         if isinstance(overlap_geometry, MultiLineString):
-            if overlap_geometry.is_empty:
-                return LineString(), False
-            else:
+            if not overlap_geometry.is_empty:
                 return self.ConvertToLineString(overlap_geometry), True
-                overlap_geometry = overlap_geometry.geoms[0]
-        else:
-            print(overlap_geometry, "is a different type.")
 
-        if isinstance(overlap_geometry, LineString):
-            print("The geometries", geometry1, "and", geometry2, "overlap in", overlap_geometry, ".")
-            return overlap_geometry, True
-        elif isinstance(overlap_geometry, Point):
-            print("The geometries", geometry1, "and", geometry2, "are connected in", overlap_geometry, ".")
-            return LineString(), False
-        else:
-            # print('Something went wrong with determining the overlap geometry of', overlap_geometry)
-            return LineString(), False
+        return LineString([]), False
 
     @staticmethod
     def ConvertToLineString(mls: MultiLineString) -> LineString:
