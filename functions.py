@@ -21,13 +21,13 @@ class DataFrameLoader:
 
     # List all data layer files to be loaded.
     __FILE_PATHS = [
-        # "data/Convergenties/convergenties.dbf",
-        # "data/Divergenties/divergenties.dbf",
-        # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
         "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
         # "data/Mengstroken/mengstroken.dbf",
         # "data/Maximum snelheid/max_snelheden.dbf",
+        # "data/Convergenties/convergenties.dbf",
+        # "data/Divergenties/divergenties.dbf",
+        # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
     def __init__(self):
@@ -181,6 +181,7 @@ class RoadModel:
         """
         self.__import_dataframe(dfl, 'Rijstroken')
         self.__import_dataframe(dfl, 'Kantstroken')
+        # self.__import_dataframe(dfl, 'Maximum snelheid')
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
@@ -194,6 +195,8 @@ class RoadModel:
             columns_of_interest = ['nLanes']
         elif df_name == 'Kantstroken':
             columns_of_interest = ['Vluchtstrook', 'Spitsstrook', 'Puntstuk']
+        elif df_name == 'Maximum snelheid':
+            columns_of_interest = ['OMSCHR']
         else:
             columns_of_interest = []
 
@@ -269,7 +272,7 @@ class RoadModel:
                         print('Found equal geometries with equal start and end. Combining the properties...')
 
                         # Check that indeed both geometries are the same, otherwise crash.
-                        # assert new_section_geometry.coo == other_section_geometry, 'Inconsistent equal geometries.' # TODO: fix assert, now fails when geometries are flipped opposites
+                        # assert new_section_geometry == other_section_geometry, 'Inconsistent equal geometries.' # TODO: fix assert, now fails when geometries are flipped opposites
 
                         # Desired behaviour:
                         # - Add new_section's property to original entry.
@@ -287,9 +290,9 @@ class RoadModel:
                         if is_empty(remaining_geometry):
                             remaining_geometry = new_section_geometry.difference(other_section_geometry)
 
-                        # Check that there is a non-empty remaining geometry.
+                        # Check that there is a non-empty valid remaining geometry.
                         assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-                        assert get_num_geometries(remaining_geometry) == 1, 'Remaining geometry has multiple geometries.'
+                        assert get_num_geometries(remaining_geometry) == 1, 'Remaining part has multiple geometries.'
 
                         # Desired behaviour:
                         # - Add overlapping section (by updating the original other_section)
@@ -461,10 +464,10 @@ class RoadModel:
         for section_index, section_info in self.sections.items():
             if section_info['side'] == side:
                 if section_info['start_km'] <= km < section_info['end_km']:
-                    # print("Properties at", km, "km:", section_info['properties'])
                     sections.append(section_info['properties'])
-        # if len(sections) > 1:
-            # print("^ This slice has two roadlines.")
+        if len(sections) > 1:
+            print("Warning: This slice has two roadlines.")
+        print(sections)
         return sections
 
         # assert sum([]) == 1, 'Alert: more than one kantstroken property active'
