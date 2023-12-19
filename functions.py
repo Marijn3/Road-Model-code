@@ -476,6 +476,9 @@ class RoadModel:
         coords.append(get_point(mls.geoms[-1], 1))
         return LineString(coords)
 
+    def get_sections(self) -> list:
+        return [section for section in self.sections.values()]
+
     def get_properties_at(self, km: float, side: str) -> dict:
         """
         Find the properties of a road section at a specific km.
