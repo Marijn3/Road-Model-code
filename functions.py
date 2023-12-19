@@ -275,7 +275,7 @@ class RoadModel:
                 if len(registration_points) == 2:
                     assert new_section_geometry.equals(other_section_geometry), 'Inconsistent geometries.'
                     print('Found equal geometries with equal start and end. Combining the properties...')
-                    self.__update_section(other_section_index, new_section_properties)
+                    self.__update_section(other_section_index, props=new_section_properties)
 
                 # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
                 # Desired behaviour:
@@ -349,15 +349,8 @@ class RoadModel:
                     logpoints = [new_section_begin, new_section_end, other_section_begin, other_section_end]
                     logpoints.sort()
 
-                    self.sections[other_section_index]['km_range'] = sorted([logpoints[1], logpoints[2]])
-                    self.sections[other_section_index]['properties'].update(new_section_properties)
-                    self.sections[other_section_index]['geometry'] = overlap_geometry
-
-                    print("Adjusted the properties of section", other_section_index, ":",
-                          self.sections[other_section_index]['side'],
-                          self.sections[other_section_index]['km_range'],
-                          self.sections[other_section_index]['properties'],
-                          self.sections[other_section_index]['geometry'])
+                    self.__update_section(other_section_index, logpoints[1:3],
+                                          new_section_properties, overlap_geometry)
 
                     # Add new sections
                     remaining_geometries = [geom for geom in remaining_geometry.geoms]
@@ -385,6 +378,7 @@ class RoadModel:
         Returns:
             Boolean value indicating whether the sections overlap or not.
         """
+        print(range2, 'testaaa')
         min1, max1 = min(range1), max(range1)
         min2, max2 = min(range2), max(range2)
         overlap = max(min1, min2) <= min(max1, max2)
@@ -395,11 +389,11 @@ class RoadModel:
         ...
         Prints log of update.
         """
-        assert any(km_range, props, geom), 'No update required.'
+        assert any([km_range, props, geom]), 'No update required.'
+        if km_range:
+            self.sections[index]['km_range'] = sorted(km_range)
         if props:
             self.sections[index]['properties'].update(props)
-        if km_range:
-            self.sections[index]['km_range'] = km_range
         if geom:
             self.sections[index]['geometry'] = geom
 
@@ -410,7 +404,7 @@ class RoadModel:
         Adds a section to the sections variable and increases the index.
         Args:
             side (str): Side of the road ('L' or 'R').
-            kmrange (list[int]): Start and end registration kilometre.
+            km_range (list[int]): Start and end registration kilometre.
             prop (dict): All properties that belong to the section.
             geom (LineString): The geometry of the section.
         Prints:
@@ -420,7 +414,7 @@ class RoadModel:
                                              'km_range': sorted(km_range),
                                              'properties': prop,
                                              'geometry': geom}
-        print("Section", self.section_index, ":", side, km_range, prop)
+        self.__log_section(self.section_index)
         self.section_index += 1
 
     def __log_section(self, index: int):
@@ -458,7 +452,7 @@ class RoadModel:
             return LineString([]), False
         else:
             if isinstance(overlap_geometry, MultiLineString):
-                return self.ConvertToLineString(overlap_geometry), True
+                return self.convert_to_LineString(overlap_geometry), True
             elif isinstance(overlap_geometry, LineString):
                 return overlap_geometry, True
             else:
@@ -499,5 +493,3 @@ class RoadModel:
             print("Warning: This slice has two roadlines.")
         print(sections)
         return sections
-
-        # assert sum([]) == 1, 'Alert: more than one kantstroken property active'
