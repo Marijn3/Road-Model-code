@@ -257,7 +257,6 @@ class RoadModel:
                 other_section_properties = other_section['properties']
                 other_section_geometry = other_section['geometry']
 
-                # print('Km:', new_section_begin, new_section_end, other_section_begin, other_section_end)
                 print('New section geom:', row['geometry'])
                 print('Other section geom:', other_section_geometry)
                 print('Overlap geom:', overlap_geometry)
@@ -277,15 +276,7 @@ class RoadModel:
                 if len(registration_points) == 2:
                     # Check that indeed both geometries are the same, otherwise crash.
                     assert new_section_geometry.equals(other_section_geometry), 'Inconsistent geometries.'
-
-                    print('Found equal geometries with equal start and end. Combining the properties...')
-                    self.sections[other_section_index]['properties'].update(new_section_properties)
-
-                    print("Adjusted the properties of section", other_section_index, "to:",
-                          self.sections[other_section_index]['side'],
-                          self.sections[other_section_index]['km_range'],
-                          self.sections[other_section_index]['properties'],
-                          self.sections[other_section_index]['geometry'])
+                    self.__update_section(other_section_index, new_section_properties)
 
                 # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
                 # Desired behaviour:
@@ -414,6 +405,20 @@ class RoadModel:
         min2, max2 = min(range2), max(range2)
         overlap = max(min1, min2) <= min(max1, max2)
         return overlap
+
+    def __update_section(self, index: int, props: dict):
+        """
+        ...
+        Prints log of update.
+        """
+        print('Found equal geometries with equal start and end. Combining the properties...')
+        self.sections[index]['properties'].update(props)
+
+        print("Adjusted the properties of section", index, "to:",
+              self.sections[index]['side'],
+              self.sections[index]['km_range'],
+              self.sections[index]['properties'],
+              self.sections[index]['geometry'])
 
     def __add_section(self, side: str, start: float, end: float, prop: dict, geom: LineString):
         """
