@@ -180,7 +180,7 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_dataframe(dfl, 'Rijstroken')
-        self.__import_dataframe(dfl, 'Kantstroken')
+        # self.__import_dataframe(dfl, 'Kantstroken')
         # self.__import_dataframe(dfl, 'Maximum snelheid')
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
