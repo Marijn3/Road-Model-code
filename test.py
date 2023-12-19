@@ -33,6 +33,7 @@ class TestRoadModel(unittest.TestCase):
         self.assertEqual(len(road_model.sections), 2)
 
     def test_half_equal_sections(self):
+        print('Test half equal sections')
         road_model = RoadModel()
         dfl = DataFrameLoader()
 
@@ -62,6 +63,7 @@ class TestRoadModel(unittest.TestCase):
         self.assertEqual(len(road_model.sections), 4)
 
     def test_half_equal_sections_reverse(self):
+        print('Test half equal sections reversed')
         road_model = RoadModel()
         dfl = DataFrameLoader()
 
@@ -103,6 +105,7 @@ class TestRoadModel(unittest.TestCase):
                              "Incorrect lane properties.")
 
     def test_neither_equal_sections(self):
+        print('Test neither equal sections')
         road_model = RoadModel()
         dfl = DataFrameLoader()
 
@@ -131,6 +134,7 @@ class TestRoadModel(unittest.TestCase):
                              'Incorrect lane properties')
 
     def test_double_overlap_sections(self):
+        print('Test double overlap sections')
         road_model = RoadModel()
         dfl = DataFrameLoader()
 
@@ -160,6 +164,7 @@ class TestRoadModel(unittest.TestCase):
                              'Incorrect lane properties')
 
     def test_segmented_sections(self):
+        print('Test segmented sections')
         road_model = RoadModel()
         dfl = DataFrameLoader()
 
