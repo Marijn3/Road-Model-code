@@ -228,7 +228,7 @@ class RoadModel:
             # First, dismiss all sections which have a completely different begin and end range. THIS SAVES TIME.
             if self.__determine_range_overlap([new_section_begin, new_section_end], other_section['km_range']):
 
-                overlap_geometry, overlap_present = self.__check_overlap(new_section_geometry, other_section['geometry'])
+                overlap_geometry, overlap_present = self.__get_overlap(new_section_geometry, other_section['geometry'])
 
                 if overlap_present:
                     overlapping_sections.append({'geom': overlap_geometry,
@@ -288,11 +288,7 @@ class RoadModel:
                 #   - Select property of remainder section
                 #   - Increase index
                 elif len(registration_points) == 3:
-                    remaining_geometry = other_section_geometry.difference(new_section_geometry)
-
-                    # If empty, try the other way around.
-                    if is_empty(remaining_geometry):
-                        remaining_geometry = new_section_geometry.difference(other_section_geometry)
+                    remaining_geometry = self.__get_remainder(new_section_geometry, other_section_geometry)
 
                     print('Remaining geom:', remaining_geometry)
 
@@ -332,7 +328,7 @@ class RoadModel:
 
                 # 0/2 equal case, with 3 resulting sections. 4 possible combinations
                 # Desired behaviour:
-                # - Determine appropriate problem splitting
+                # - Determine appropriate problem splitting TODO: change code to do this.
                 elif len(registration_points) == 4:
                     remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
 
@@ -340,7 +336,7 @@ class RoadModel:
                     # print(get_num_geometries(remaining_geometry))
 
                     # Check that there is a non-empty remaining geometry.
-                    assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometryyy.'
+                    assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
                     assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
 
                     print('Found partly overlapping geometries. Determining problem splitting...')
@@ -352,14 +348,13 @@ class RoadModel:
                     self.__update_section(other_section_index, logpoints[1:3],
                                           new_section_properties, overlap_geometry)
 
-                    # Add new sections
+                    # Create new sections
                     remaining_geometries = [geom for geom in remaining_geometry.geoms]
                     assert len(remaining_geometries) == 2, 'There are too many remaining geometries in the geom below.'
                     for i in [0, 1]:
                         remaining_properties = {}
-                        _, new_overlap = self.__check_overlap(remaining_geometries[i], new_section_geometry)
-                        _, other_overlap = self.__check_overlap(remaining_geometries[i], other_section_geometry)
-                        print(new_overlap, other_overlap)
+                        _, new_overlap = self.__get_overlap(remaining_geometries[i], new_section_geometry)
+                        _, other_overlap = self.__get_overlap(remaining_geometries[i], other_section_geometry)
                         if new_overlap:
                             remainder_properties = new_section_properties
                         elif other_overlap:
@@ -378,7 +373,6 @@ class RoadModel:
         Returns:
             Boolean value indicating whether the sections overlap or not.
         """
-        print(range2, 'testaaa')
         min1, max1 = min(range1), max(range1)
         min2, max2 = min(range2), max(range2)
         overlap = max(min1, min2) <= min(max1, max2)
@@ -431,14 +425,31 @@ class RoadModel:
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
 
-    def __check_overlap(self, geometry1: geometry, geometry2: geometry) -> tuple[geometry, bool]:
+    def __get_remainder(self, section1, section2) -> LineString:
+        """
+        Finds the geometry that two Shapely LineStrings do NOT have in common.
+        Args:
+            section1 (LineString): The first Shapely LineString.
+            section2 (LineString): The second Shapely LineString.
+        Returns:
+            LineString describing the geometry that is the difference between the two provided sections.
+        """
+        remaining_geometry = section1.difference(section2)
+
+        # If empty, try the other way around.
+        if is_empty(remaining_geometry):
+            remaining_geometry = section2.difference(section1)
+
+        return remaining_geometry
+
+    def __get_overlap(self, geometry1: LineString, geometry2: LineString) -> tuple[LineString, bool]:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
-            geometry1 (geometry): The first Shapely geometry.
-            geometry2 (geometry): The second Shapely geometry.
+            geometry1 (LineString): The first Shapely LineString.
+            geometry2 (LineString): The second Shapely LineString.
         Returns:
-            tuple[geometry, bool]: A tuple containing the overlap geometry
+            tuple[LineString, bool]: A tuple containing the overlap geometry (LineString)
             and a boolean indicating whether there is an overlap (True) or not (False).
         Note:
             The function uses the `intersection` method from Shapely to compute the overlap
