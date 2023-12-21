@@ -248,6 +248,7 @@ class RoadModel:
             print('Registration points:', registration_points)
             print('This will result in', len(registration_points)-1, 'sections.')
 
+            print("HEY", self.get_section_info_at(0.7, 'L'))
             # Loop over all overlap instances.
             while len(overlap_sections) > 0:
                 print("Number of overlapping sections:", len(overlap_sections))
@@ -515,3 +516,11 @@ class RoadModel:
             print("Warning: This slice has two roadlines.")
         print(sections)
         return sections
+
+    def get_section_info_at(self, km: float, side: str) -> list[dict]:
+        section_info = []
+        for section_index, section in self.sections.items():
+            if section['side'] == side:
+                if min(section['km_range']) <= km <= max(section['km_range']):
+                    section_info.append(section)
+        return section_info
