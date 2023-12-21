@@ -232,15 +232,12 @@ class RoadModel:
             new_section (dict): All relevaant information related to the new section.
         """
 
-        new_section['side'] = 0
-        new_section_begin = 0
-
         overlapping_sections = []
         for other_section_index, other_section in self.sections.items():
             # First, dismiss all sections which have a completely different begin and end range. THIS SAVES TIME.
-            if self.__determine_range_overlap([new_section_begin, new_section_end], other_section['km_range']):
+            if self.__determine_range_overlap(new_section['km_range'], other_section['km_range']):
 
-                overlap_geometry, overlap_present = self.__get_overlap(new_section_geometry, other_section['geometry'])
+                overlap_geometry, overlap_present = self.__get_overlap(new_section['geometry'], other_section['geometry'])
 
                 if overlap_present:
                     overlapping_sections.append({'geom': overlap_geometry,
@@ -250,8 +247,7 @@ class RoadModel:
         if not overlapping_sections:
             # No overlap with other sections. Add section regularly
             print("This is a new section without overlap.")
-            self.__add_section(new_section['side'], [new_section_begin, new_section_end],
-                               new_section_properties, new_section_geometry)
+            self.__add_section(new_section['side'], new_section['km_range'], new_section['properties'], new_section['geometry'])
         else:
             # Loop over all overlap instances.
             while len(overlapping_sections) > 0:
@@ -262,22 +258,15 @@ class RoadModel:
                 other_section_index = overlapping_sections[0]['index']
                 overlapping_sections.pop(0)
 
-                other_section_side = other_section['side']
-                other_section_range = other_section['km_range']
-                other_section_begin = min(other_section_range)
-                other_section_end = max(other_section_range)
-                other_section_properties = other_section['properties']
-                other_section_geometry = other_section['geometry']
+                print('New section geom:', new_section['geometry'])
+                print('Other section geom:', other_section['geometry'])
+                print('Overlap geom:', overlap_geometry) # TODO: make this in the same shape
 
-                print('New section geom:', row['geometry'])
-                print('Other section geom:', other_section_geometry)
-                print('Overlap geom:', overlap_geometry)
-
-                assert new_section['side'] == other_section_side, "The overlap is not on the same side of the road."
+                assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
 
                 # Set has only unique values
-                registration_points = sorted({new_section_begin, new_section_end,
-                                              other_section_begin, other_section_end})
+                registration_points = sorted({new_section['km_range'][0], new_section['km_range'][1],
+                                              other_section['km_range'][0], other_section['km_range'][1]})
                 # print(registration_points).
 
                 # Fully equal case, with 1 resulting section. 1 possible combination.
@@ -285,9 +274,9 @@ class RoadModel:
                 # - Add new_section's property to original entry.
                 # - Change nothing else.
                 if len(registration_points) == 2:
-                    assert new_section_geometry.equals(other_section_geometry), 'Inconsistent geometries.'
+                    assert new_section['geometry'].equals(other_section['geometry']), 'Inconsistent geometries.'
                     print('Found equal geometries with equal start and end. Combining the properties...')
-                    self.__update_section(other_section_index, props=new_section_properties)
+                    self.__update_section(other_section_index, props=new_section['properties'])
 
                 # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
                 # Desired behaviour:
@@ -300,7 +289,7 @@ class RoadModel:
                 #   - Select property of remainder section
                 #   - Increase index
                 elif len(registration_points) == 3:
-                    remaining_geometry = self.__get_remainder(new_section_geometry, other_section_geometry)
+                    remaining_geometry = self.__get_remainder(new_section['geometry'], other_section['geometry'])
 
                     print('Remaining geom:', remaining_geometry)
 
@@ -313,27 +302,27 @@ class RoadModel:
                     # Update other section
                     midpoint = registration_points[1]
 
-                    if new_section_begin == other_section_begin:
-                        km_range = [midpoint, new_section_begin]
-                    elif new_section_end == other_section_end:
-                        km_range = [midpoint, new_section_end]
+                    if new_section['km_range'][0] == other_section['km_range'][0]:
+                        km_range = [midpoint, new_section['km_range'][0]]
+                    elif new_section['km_range'][1] == other_section['km_range'][1]:
+                        km_range = [midpoint, new_section['km_range'][0]]
 
-                    self.__update_section(other_section_index, km_range, new_section_properties, overlap_geometry)
+                    self.__update_section(other_section_index, km_range, new_section['properties'], overlap_geometry)
 
                     # Create new section
                     remainder_properties = {}
 
                     # Determine relevant registration point
-                    if new_section_begin == other_section_begin:
-                        used_points = [midpoint, new_section_begin]
-                    elif new_section_end == other_section_end:
-                        used_points = [midpoint, new_section_end]
+                    if new_section['begin'] == other_section['begin']:
+                        used_points = [midpoint, new_section['begin']]
+                    elif new_section['end'] == other_section['end']:
+                        used_points = [midpoint, new_section['end']]
                     remainder_rp = [point for point in registration_points if point not in used_points][0]
 
-                    if remainder_rp == new_section_begin or new_section_end:
-                        remainder_properties = new_section_properties
-                    elif remainder_rp == other_section_begin or other_section_end:
-                        remainder_properties = other_section_properties
+                    if remainder_rp == new_section['begin'] or new_section['end']:
+                        remainder_properties = new_section['properties']
+                    elif remainder_rp == other_section['begin'] or other_section['end']:
+                        remainder_properties = other_section['properties']
 
                     self.__add_section(new_section['side'], [remainder_rp, midpoint],
                                        remainder_properties, remaining_geometry)
@@ -342,7 +331,7 @@ class RoadModel:
                 # Desired behaviour:
                 # - Determine appropriate problem splitting TODO: change code to do this.
                 elif len(registration_points) == 4:
-                    remaining_geometry = other_section_geometry.symmetric_difference(new_section_geometry)
+                    remaining_geometry = other_section['geometry'].symmetric_difference(new_section['geometry'])
 
                     print('Remaining geom:', remaining_geometry)
                     # print(get_num_geometries(remaining_geometry))
@@ -354,23 +343,23 @@ class RoadModel:
                     print('Found partly overlapping geometries. Determining problem splitting...')
 
                     # Overlapping section
-                    logpoints = [new_section_begin, new_section_end, other_section_begin, other_section_end]
+                    logpoints = [new_section['begin'], new_section['end'], other_section['begin'], other_section['end']]
                     logpoints.sort()
 
                     self.__update_section(other_section_index, logpoints[1:3],
-                                          new_section_properties, overlap_geometry)
+                                          new_section['properties'], overlap_geometry)
 
                     # Create new sections
                     remaining_geometries = [geom for geom in remaining_geometry.geoms]
                     assert len(remaining_geometries) == 2, 'There are too many remaining geometries in the geom below.'
                     for i in [0, 1]:
                         remaining_properties = {}
-                        _, new_overlap = self.__get_overlap(remaining_geometries[i], new_section_geometry)
-                        _, other_overlap = self.__get_overlap(remaining_geometries[i], other_section_geometry)
+                        _, new_overlap = self.__get_overlap(remaining_geometries[i], new_section['geometry'])
+                        _, other_overlap = self.__get_overlap(remaining_geometries[i], other_section['geometry'])
                         if new_overlap:
-                            remainder_properties = new_section_properties
+                            remainder_properties = new_section['properties']
                         elif other_overlap:
-                            remainder_properties = other_section_properties
+                            remainder_properties = other_section['properties']
 
                         self.__add_section(new_section['side'], [logpoints[i*2], logpoints[i*2+1]],
                                            remainder_properties, remaining_geometries[i])
