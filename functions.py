@@ -480,28 +480,11 @@ class RoadModel:
         overlap_geometry = intersection(geometry1, geometry2)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
-            return self.__convert_to_LineString(overlap_geometry)
+            return line_merge(overlap_geometry)
         elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return overlap_geometry
         else:
             return LineString([])
-
-    @staticmethod
-    def __convert_to_LineString(mls: MultiLineString) -> LineString:
-        """
-        Converts MultiLineString objects resulting fron the intersection function into LineStrings.
-        Args:
-            mls (MultiLineString): The MultiLineString geometry.
-        Returns:
-            LineString: LineString representation of the same MultiLineString.
-        Note:
-            The function expects a very specific format of MultiLineStrings.
-            An assert statement is added to help prevent other uses.
-        """
-        assert all([get_num_points(line) == 2 for line in mls.geoms]), 'Unexpected line length.'
-        coords = [get_point(line, 0) for line in mls.geoms]
-        coords.append(get_point(mls.geoms[-1], 1))
-        return LineString(coords)
 
     def get_properties_at(self, km: float, side: str) -> dict:
         """
