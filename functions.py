@@ -236,7 +236,7 @@ class RoadModel:
         if not overlapping_sections:
             # No overlap with other sections. Add section regularly
             print("This is a new section without overlap.")
-            self.__add_section(new_section['side'], new_section['km_range'], new_section['properties'], new_section['geometry'])
+            self.__add_section(new_section)
         else:
             # Loop over all overlap instances.
             while len(overlapping_sections) > 0:
@@ -313,8 +313,13 @@ class RoadModel:
                     elif remainder_rp == other_section['km_range'][0] or remainder_rp == other_section['km_range'][1]:
                         remainder_properties = other_section['properties']
 
-                    self.__add_section(new_section['side'], [remainder_rp, midpoint],
-                                       remainder_properties, remaining_geometry)
+                    remainder_section = {
+                        'side': new_section['side'],
+                        'km_range': [remainder_rp, midpoint],
+                        'properties': remainder_properties,
+                        'geometry': remaining_geometry
+                    }
+                    self.__add_section(remainder_section)
 
                 # 0/2 equal case, with 3 resulting sections. 4 possible combinations
                 # Desired behaviour:
@@ -340,13 +345,12 @@ class RoadModel:
                                           new_section['properties'], overlap_geometry)
 
                     # Create new sections
-                    remaining_geometries = [geom for geom in remaining_geometry.geoms]
-                    remainder_properties = {}
-                    assert len(remaining_geometries) == 2, 'There are too many remaining geometries in the geom below.'
+                    remainder_geometries = [geom for geom in remaining_geometry.geoms]
+                    assert len(remainder_geometries) == 2, 'There are too many remaining geometries in the geom below.'
                     for i in [0, 1]:
-                        remaining_properties = {}
-                        new_overlap = self.__get_overlap(remaining_geometries[i], new_section['geometry'])
-                        other_overlap = self.__get_overlap(remaining_geometries[i], other_section['geometry'])
+                        remainder_properties = {}
+                        new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
+                        other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
                         if not new_overlap.is_empty:
                             remainder_properties = new_section['properties']
                         elif not other_overlap.is_empty:
@@ -354,8 +358,13 @@ class RoadModel:
                         else:
                             raise Exception('Something went wrong.')
 
-                        self.__add_section(new_section['side'], [logpoints[i*2], logpoints[i*2+1]],
-                                           remainder_properties, remaining_geometries[i])
+                        remainder_section = {
+                            'side': new_section['side'],
+                            'km_range': [logpoints[i*2], logpoints[i*2+1]],
+                            'properties': remainder_properties,
+                            'geometry': remainder_geometries[i]
+                        }
+                        self.__add_section(remainder_section)
 
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
@@ -374,8 +383,13 @@ class RoadModel:
 
     def __update_section(self, index: int, km_range: list = None, props: dict = None, geom: LineString = None):
         """
-        ...
-        Prints log of update.
+        Updates one or more properties of a section at a given index.
+        Prints log of section update.
+        Args:
+            index (int): Index of section to be updated
+            km_range (list[float]): Start and end registration kilometre.
+            props (dict): All properties that belong to the section.
+            geom (LineString): The geometry of the section.
         """
         assert any([km_range, props, geom]), 'No update required.'
         if km_range:
@@ -384,24 +398,21 @@ class RoadModel:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
-
         self.__log_section_change(index)
 
-    def __add_section(self, side: str, km_range: list[int], prop: dict, geom: LineString):
+    def __add_section(self, new_section: dict):
         """
         Adds a section to the sections variable and increases the index.
         Args:
-            side (str): Side of the road ('L' or 'R').
-            km_range (list[int]): Start and end registration kilometre.
-            prop (dict): All properties that belong to the section.
-            geom (LineString): The geometry of the section.
+            new_section (dict): Containing:
+                - side (str): Side of the road ('L' or 'R').
+                - km_range (list[float]): Start and end registration kilometre.
+                - properties (dict): All properties that belong to the section.
+                - geometry (LineString): The geometry of the section.
         Prints:
             Newly added section properties to log window.
         """
-        self.sections[self.section_index] = {'side': side,
-                                             'km_range': sorted(km_range),
-                                             'properties': prop,
-                                             'geometry': geom}
+        self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
         self.section_index += 1
 
