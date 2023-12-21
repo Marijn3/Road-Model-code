@@ -229,20 +229,9 @@ class RoadModel:
         """
         Determine how to merge new section to existing sections.
         Args:
-            new_section (dict): All relevaant information related to the new section.
+            new_section (dict): All relevant information related to the new section.
         """
-
-        overlapping_sections = []
-        for other_section_index, other_section in self.sections.items():
-            # First, dismiss all sections which have a completely different begin and end range. THIS SAVES TIME.
-            if self.__determine_range_overlap(new_section['km_range'], other_section['km_range']):
-
-                overlap_geometry, overlap_present = self.__get_overlap(new_section['geometry'], other_section['geometry'])
-
-                if overlap_present:
-                    overlapping_sections.append({'geom': overlap_geometry,
-                                                 'section': other_section,
-                                                 'index': other_section_index})
+        overlapping_sections = self.__get_overlapping_sections(new_section)
 
         if not overlapping_sections:
             # No overlap with other sections. Add section regularly
@@ -428,7 +417,8 @@ class RoadModel:
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
 
-    def __get_remainder(self, section1, section2) -> LineString:
+    @staticmethod
+    def __get_remainder(section1, section2) -> LineString:
         """
         Finds the geometry that two Shapely LineStrings do NOT have in common.
         Args:
@@ -445,15 +435,29 @@ class RoadModel:
 
         return remaining_geometry
 
-    def __get_overlap(self, geometry1: LineString, geometry2: LineString) -> tuple[LineString, bool]:
+    def __get_overlapping_sections(self, section_a: dict):
+        overlapping_sections = []
+        for section_b_index, section_b in self.sections.items():
+            # First, dismiss all sections which have a completely different begin and end range,
+            # which prevents the more complex self.__get_overlap() function from being called.
+            if self.__determine_range_overlap(section_a['km_range'], section_b['km_range']):
+
+                overlap_geometry = self.__get_overlap(section_a['geometry'], section_b['geometry'])
+
+                if not overlap_geometry.is_empty:
+                    overlapping_sections.append({'index': section_b_index,
+                                                 'section': section_b,
+                                                 'geom': overlap_geometry})
+        return overlapping_sections
+
+    def __get_overlap(self, geometry1: LineString, geometry2: LineString) -> LineString:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
             geometry1 (LineString): The first Shapely LineString.
             geometry2 (LineString): The second Shapely LineString.
         Returns:
-            tuple[LineString, bool]: A tuple containing the overlap geometry (LineString)
-            and a boolean indicating whether there is an overlap (True) or not (False).
+            LineString: The overlap geometry (or an empty LineString).
         Note:
             The function uses the `intersection` method from Shapely to compute the overlap
             between the two geometries.
@@ -462,18 +466,15 @@ class RoadModel:
         """
         overlap_geometry = intersection(geometry1, geometry2)
 
-        if overlap_geometry.is_empty:
-            return LineString([]), False
+        if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
+            return self.__convert_to_LineString(overlap_geometry)
+        elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
+            return overlap_geometry
         else:
-            if isinstance(overlap_geometry, MultiLineString):
-                return self.convert_to_LineString(overlap_geometry), True
-            elif isinstance(overlap_geometry, LineString):
-                return overlap_geometry, True
-            else:
-                return LineString([]), False
+            return LineString([])
 
     @staticmethod
-    def convert_to_LineString(mls: MultiLineString) -> LineString:
+    def __convert_to_LineString(mls: MultiLineString) -> LineString:
         """
         Converts MultiLineString objects resulting fron the intersection function into LineStrings.
         Args:
