@@ -238,6 +238,16 @@ class RoadModel:
             print("This is a new section without overlap.")
             self.__add_section(new_section)
         else:
+            # Determine all registration points
+            registration_points = set(new_section['km_range'])
+
+            for overlap_section in overlap_sections:
+                for point in overlap_section['section_info']['km_range']:
+                    registration_points.add(point)
+
+            print('Registration points:', registration_points)
+            print('This will result in', len(registration_points)-1, 'sections.')
+
             # Loop over all overlap instances.
             while len(overlap_sections) > 0:
                 print("Number of overlapping sections:", len(overlap_sections))
