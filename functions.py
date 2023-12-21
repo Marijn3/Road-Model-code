@@ -1,6 +1,7 @@
 import geopandas as gpd
 import pandas as pd
 from shapely import *
+from shapely.ops import split, linemerge
 import csv
 from statistics import mean
 
@@ -208,7 +209,7 @@ class RoadModel:
             section_info = self.__extract_row_properties(row, columns_of_interest)
 
             print("")
-            print("Now adding section", self.section_index, ":", section_info['side'],
+            print("Now adding section:", section_info['side'],
                   section_info['km_range'], section_info['properties'], section_info['geometry'])
 
             self.__determine_sectioning(section_info)
@@ -228,7 +229,7 @@ class RoadModel:
 
     def __determine_sectioning(self, new_section: dict):
         """
-        Determine how to merge new section to existing sections.
+        Determine how to merge provided section with existing sections.
         Args:
             new_section (dict): All relevant information related to the new section.
         """
@@ -239,7 +240,7 @@ class RoadModel:
             print("This is a new section without overlap.")
             self.__add_section(new_section)
         else:
-            # Determine all registration points
+            # Determine all km registration points
             registration_points = set(new_section['km_range'])
 
             for overlap_section in overlap_sections:
@@ -249,17 +250,36 @@ class RoadModel:
             print('Registration points:', registration_points)
             print('This will result in', len(registration_points) - 1, 'sections.')
 
+            # Determine all breaking points
+            breaking_points = new_section['geometry'].boundary
+            for overlap_section in overlap_sections:
+                breaking_points = breaking_points.union(overlap_section['section_info']['geometry'].boundary)
+
+            print('All geometric breaking points: ', breaking_points)
+
+            # Determine all section geometries
+            geoms = [overlap_section['section_info']['geometry'] for overlap_section in overlap_sections]
+            geoms.append(new_section['geometry'])
+            merged_line = linemerge(geoms)
+            full_geometry = unary_union([merged_line]) # TODO: finish and check implementation
+            print('The split geometry:', full_geometry)
+
             # This is the info picker implementation.
             i = 0
             while i < len(registration_points)-1:
                 section_reg_points = list(registration_points)[i:i + 2]
-                existing_section_info = self.get_section_info_at(mean(section_reg_points), new_section['side'])[0]
+                print(section_reg_points)
+                print(mean(section_reg_points))
+                info_list = self.get_section_info_at(mean(section_reg_points), new_section['side'])
+                print(info_list, 'yoyo')
+                if info_list:
+                    existing_section_info = info_list[0]
+                else:
+                    raise Exception("That shouldn't happen")
 
                 overlap_geometry = self.__get_overlap(existing_section_info['geometry'], new_section['geometry'])
 
-                print(existing_section_info['properties'], new_section['properties'])
-                props = existing_section_info['properties'].update(new_section['properties'])
-                print(props)
+                props = existing_section_info['properties'] | new_section['properties']
 
                 created_section = {'side': existing_section_info['side'],
                                    'km_range': section_reg_points,
@@ -268,8 +288,6 @@ class RoadModel:
                 self.__add_section(created_section)
 
                 i += 1
-
-            print("HEY", self.get_section_info_at(0.7, 'L'))
 
             # Loop over all overlap instances.
             # while len(overlap_sections) > 0:
