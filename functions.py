@@ -231,21 +231,21 @@ class RoadModel:
         Args:
             new_section (dict): All relevant information related to the new section.
         """
-        overlapping_sections = self.__get_overlapping_sections(new_section)
+        overlap_sections = self.__get_overlapping_sections(new_section)
 
-        if not overlapping_sections:
+        if not overlap_sections:
             # No overlap with other sections. Add section regularly
             print("This is a new section without overlap.")
             self.__add_section(new_section)
         else:
             # Loop over all overlap instances.
-            while len(overlapping_sections) > 0:
-                print("Number of overlapping sections:", len(overlapping_sections))
+            while len(overlap_sections) > 0:
+                print("Number of overlapping sections:", len(overlap_sections))
                 # Extract relevant overlap properties of the first item and remove it from the list
-                overlap_geometry = overlapping_sections[0]['geom']
-                other_section = overlapping_sections[0]['section']
-                other_section_index = overlapping_sections[0]['index']
-                overlapping_sections.pop(0)
+                overlap_geometry = overlap_sections[0]['geom']
+                other_section = overlap_sections[0]['section_info']
+                other_section_index = overlap_sections[0]['index']
+                overlap_sections.pop(0)
 
                 print('New section geom:', new_section['geometry'])
                 print('Other section geom:', other_section['geometry'])
@@ -448,7 +448,7 @@ class RoadModel:
 
         return remaining_geometry
 
-    def __get_overlapping_sections(self, section_a: dict):
+    def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
             # First, dismiss all sections which have a completely different begin and end range,
@@ -459,11 +459,12 @@ class RoadModel:
 
                 if not overlap_geometry.is_empty:
                     overlapping_sections.append({'index': section_b_index,
-                                                 'section': section_b,
+                                                 'section_info': section_b,
                                                  'geom': overlap_geometry})
         return overlapping_sections
 
-    def __get_overlap(self, geometry1: LineString, geometry2: LineString) -> LineString:
+    @staticmethod
+    def __get_overlap(geometry1: LineString, geometry2: LineString) -> LineString:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
