@@ -204,24 +204,36 @@ class RoadModel:
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            self.__determine_sectioning(row, columns_of_interest)
+            section_info = self.__extract_row_properties(row, columns_of_interest)
 
-    def __determine_sectioning(self, row: pd.Series, columns_of_interest: list[str]):
+            print("")
+            print("Now adding section", self.section_index, ":", section_info['side'],
+                  section_info['range'], section_info['properties'], section_info['geometry'])
+
+            self.__determine_sectioning(section_info)
+
+    @staticmethod
+    def __extract_row_properties(row: pd.Series, columns_of_interest: list[str]):
+        """
+        Turns the contents of a road data Dataframe row into a dictionary with the relevant entries.
+        Args:
+            row (pd.Series): Row containing information about the road section
+            columns_of_interest (list[str]): List of column names from Dataframe to be extracted.
+        """
+        return {'side': row['IZI_SIDE'],
+                'km_range': [row['BEGINKM'], row['EINDKM']],
+                'properties': row[columns_of_interest].to_dict(),
+                'geometry': row['geometry']}
+
+    def __determine_sectioning(self, new_section: dict):
         """
         Determine how to merge new section to existing sections.
         Args:
-            row (pd.Series): A row from a dataframe.
-            columns_of_interest (list[str]): list of column names to be extracted
+            new_section (dict): All relevaant information related to the new section.
         """
-        new_section_side = row['IZI_SIDE']
-        new_section_begin = row['BEGINKM']
-        new_section_end = row['EINDKM']
-        new_section_properties = row[columns_of_interest].to_dict()
-        new_section_geometry = row['geometry']
 
-        print("")
-        print("Now adding section", self.section_index, ":", new_section_side, [new_section_begin, new_section_end],
-                                                             new_section_properties, new_section_geometry)
+        new_section['side'] = 0
+        new_section_begin = 0
 
         overlapping_sections = []
         for other_section_index, other_section in self.sections.items():
@@ -238,7 +250,7 @@ class RoadModel:
         if not overlapping_sections:
             # No overlap with other sections. Add section regularly
             print("This is a new section without overlap.")
-            self.__add_section(new_section_side, [new_section_begin, new_section_end],
+            self.__add_section(new_section['side'], [new_section_begin, new_section_end],
                                new_section_properties, new_section_geometry)
         else:
             # Loop over all overlap instances.
@@ -261,7 +273,7 @@ class RoadModel:
                 print('Other section geom:', other_section_geometry)
                 print('Overlap geom:', overlap_geometry)
 
-                assert new_section_side == other_section_side, "The overlap is not on the same side of the road."
+                assert new_section['side'] == other_section_side, "The overlap is not on the same side of the road."
 
                 # Set has only unique values
                 registration_points = sorted({new_section_begin, new_section_end,
@@ -323,7 +335,7 @@ class RoadModel:
                     elif remainder_rp == other_section_begin or other_section_end:
                         remainder_properties = other_section_properties
 
-                    self.__add_section(new_section_side, [remainder_rp, midpoint],
+                    self.__add_section(new_section['side'], [remainder_rp, midpoint],
                                        remainder_properties, remaining_geometry)
 
                 # 0/2 equal case, with 3 resulting sections. 4 possible combinations
@@ -360,7 +372,7 @@ class RoadModel:
                         elif other_overlap:
                             remainder_properties = other_section_properties
 
-                        self.__add_section(new_section_side, [logpoints[i*2], logpoints[i*2+1]],
+                        self.__add_section(new_section['side'], [logpoints[i*2], logpoints[i*2+1]],
                                            remainder_properties, remaining_geometries[i])
 
     @staticmethod
