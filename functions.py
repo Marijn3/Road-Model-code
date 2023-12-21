@@ -345,12 +345,14 @@ class RoadModel:
                     assert len(remaining_geometries) == 2, 'There are too many remaining geometries in the geom below.'
                     for i in [0, 1]:
                         remaining_properties = {}
-                        _, new_overlap = self.__get_overlap(remaining_geometries[i], new_section['geometry'])
-                        _, other_overlap = self.__get_overlap(remaining_geometries[i], other_section['geometry'])
-                        if new_overlap:
+                        new_overlap = self.__get_overlap(remaining_geometries[i], new_section['geometry'])
+                        other_overlap = self.__get_overlap(remaining_geometries[i], other_section['geometry'])
+                        if not new_overlap.is_empty:
                             remainder_properties = new_section['properties']
-                        elif other_overlap:
+                        elif not other_overlap.is_empty:
                             remainder_properties = other_section['properties']
+                        else:
+                            raise Exception('Something went wrong.')
 
                         self.__add_section(new_section['side'], [logpoints[i*2], logpoints[i*2+1]],
                                            remainder_properties, remaining_geometries[i])
