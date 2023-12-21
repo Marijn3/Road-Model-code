@@ -193,6 +193,35 @@ class TestRoadModel(unittest.TestCase):
                              {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
 
+    def test_two_remainders(self):
+        print('Test two remainders')
+        road_model = RoadModel()
+        dfl = DataFrameLoader()
+
+        # Add test data
+        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
+                                        'BEGINKM': [0],
+                                        'EINDKM': [4],
+                                        'nLanes': [5],
+                                        'geometry': [LineString([[0, 0], [4, 0]])]})
+
+        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
+                                         'BEGINKM': [1],
+                                         'EINDKM': [3],
+                                         'Vluchtstrook': [True],
+                                         'Spitsstrook': [False],
+                                         'Puntstuk': [False],
+                                         'geometry': [LineString([[1, 0], [1.5, 0], [2, 0], [2.5, 0], [3, 0]])]})
+
+        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
+
+        road_model.import_dataframes(dfl)
+
+        self.assertEqual(len(road_model.sections), 3)
+        self.assertDictEqual(road_model.get_properties_at(2, 'L')[0],
+                             {'nLanes': 5, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
+                             'Incorrect lane properties')
+
 
 if __name__ == '__main__':
     unittest.main()
