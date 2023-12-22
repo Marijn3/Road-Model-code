@@ -9,12 +9,10 @@ road.import_dataframes(dfl)
 
 LANE_WIDTH = 5
 
-corner1_x, corner1_y = get_coordinates(dfl.extent)[0]
-corner2_x, corner2_y = get_coordinates(dfl.extent)[2]
-viewbox_x = (corner1_x + corner2_x)/2
-viewbox_y = (corner1_y + corner2_y)/2
-viewbox_width = abs(corner2_x - corner1_x)
-viewbox_height = abs(corner2_y - corner1_y)
+top_left_x, top_left_y = get_coordinates(dfl.extent)[1]
+bottom_right_x, bottom_right_y = get_coordinates(dfl.extent)[3]
+viewbox_width = 3*abs(top_left_x - bottom_right_x)
+viewbox_height = 3*abs(top_left_y - bottom_right_y)
 
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
@@ -31,7 +29,7 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
 dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000))
 
 # Background
-dwg.add(svgwrite.shapes.Rect(insert=(viewbox_x, viewbox_y), size=(viewbox_width, viewbox_height), fill="green"))
+dwg.add(svgwrite.shapes.Rect(insert=(top_left_x-viewbox_width, top_left_y-viewbox_height), size=(viewbox_width, viewbox_height), fill="green"))
 
 # Roads
 sections = road.get_sections()
@@ -39,7 +37,7 @@ for section in sections:
     svg_add_section(section['geometry'], section['properties'], dwg)
 
 # viewBox
-dwg.viewbox(minx=viewbox_x, miny=viewbox_y, width=viewbox_width, height=viewbox_height)
+dwg.viewbox(minx=top_left_x-viewbox_width, miny=top_left_y-viewbox_height, width=viewbox_width, height=viewbox_height)
 
 # Save SVG file
 dwg.save(pretty=True, indent=2)
