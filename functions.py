@@ -298,8 +298,8 @@ class RoadModel:
 
                 print('Found equal geometries with equal start OR end. Determining sections...')
 
-                # Update other section
-                midpoint = registration_points[1]
+                # Update other_section
+                midpoint = get_middle_value(registration_points)
 
                 if new_section['km_range'][0] == other_section['km_range'][0]:
                     km_range = [midpoint, new_section['km_range'][0]]
@@ -523,3 +523,10 @@ class RoadModel:
                 if min(section['km_range']) <= km <= max(section['km_range']):
                     section_info.append(section)
         return section_info
+
+
+def get_middle_value(input_set):
+    assert len(input_set) == 3, 'Incorrect set length.'
+    sorted_set = sorted(input_set)
+    return sorted_set[1]
+
