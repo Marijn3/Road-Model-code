@@ -2,6 +2,28 @@ import unittest
 from functions import *
 
 
+class TestGeneral(unittest.TestCase):
+
+    def test_rp_processing(self):
+        print('Test registration point processing')
+        range1 = [1, 2]
+        range2 = [1, 3]
+        midpoint, overlapping_point, unique_points, extreme_point = process_registration_points(range1, range2)
+        self.assertEqual(midpoint, 2)
+        self.assertEqual(overlapping_point, 1)
+        self.assertEqual(unique_points, [2, 3])
+        self.assertEqual(extreme_point, 3)
+
+        print('Test registration point processing, different points')
+        range1 = [9, 4]
+        range2 = [6, 4]
+        midpoint, overlapping_point, unique_points, extreme_point = process_registration_points(range1, range2)
+        self.assertEqual(midpoint, 6)
+        self.assertEqual(overlapping_point, 4)
+        self.assertEqual(unique_points, [6, 9])
+        self.assertEqual(extreme_point, 9)
+
+
 class TestRoadModel(unittest.TestCase):
 
     def test_equal_sections(self):
