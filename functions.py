@@ -107,8 +107,8 @@ class DataFrameLoader:
         """
         data = self.data[df_name]
 
-        # The geometry column can be rounded
-        data['geometry'] = data['geometry'].apply(lambda geom: set_precision(geom, 0.01))
+        # The geometry column can be rounded (use 0.01 for cm or 1 for meter precision)
+        data['geometry'] = data['geometry'].apply(lambda geom: set_precision(geom, 1))
 
         # These columns are not necessary in this project.
         data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
@@ -241,12 +241,11 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            # No overlap with other sections. Add section regularly.
             print("This is a new section without overlap.")
             self.__add_section(new_section)
             return
 
-        # Loop over all overlap instances.
+        # Loop over all overlapping sections.
         print("Number of overlapping sections to handle:", len(overlap_sections))
         for overlap_section in overlap_sections:
             # Extract relevant overlap properties
@@ -324,10 +323,18 @@ class RoadModel:
             #   - Update geometry to overlapping part
             elif len(registration_points) == 4:
                 remaining_geometry = other_section['geometry'].symmetric_difference(new_section['geometry'])
-
                 # Check that there is a non-empty remaining geometry.
-                assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
                 assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
+                assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+
+                # Determine relevant remainder geometries
+                remainder_geometries = [geom for geom in remaining_geometry.geoms]
+                if get_num_geometries(remaining_geometry) > 2:
+                    sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
+                    # Keep only the largest two geometries
+                    remainder_geometries = sorted_geometries[:2]
+                    print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
+                assert len(remainder_geometries) == 2, 'Unexpected amount of remaining geometries.'
 
                 print('Found partly overlapping geometries. Determining sections...')
 
@@ -336,9 +343,7 @@ class RoadModel:
                 registration_points.sort()
                 taken_points = []
 
-                # Determine geometries
-                remainder_geometries = [geom for geom in remaining_geometry.geoms]
-                assert len(remainder_geometries) == 2, 'There is an unexpected amount of remaining geometries.'
+
 
                 # Create new section(s)
                 for i in [0, 1]:
@@ -472,6 +477,14 @@ class RoadModel:
         # If empty, try the other way around.
         if is_empty(remaining_geometry):
             remaining_geometry = section2.difference(section1)
+
+        # Determine relevant remainder geometries
+        if isinstance(remaining_geometry, MultiLineString):
+            remainder_geometries = [geom for geom in remaining_geometry.geoms]
+            sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
+            # Keep only the largest geometry
+            remaining_geometry = sorted_geometries[0]
+            print('Warning: More than 1 remaining geometry. Removed', sorted_geometries[1:])
 
         print('Remaining geometry:', remaining_geometry)
         return remaining_geometry
