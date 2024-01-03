@@ -83,6 +83,9 @@ class TestRoadModel(unittest.TestCase):
         road_model.import_dataframes(dfl)
 
         self.assertEqual(len(road_model.sections), 4)
+        self.assertDictEqual(road_model.get_properties_at(2.5, 'L')[0],
+                             {'nLanes': 2},
+                             "Incorrect lane properties.")
 
     def test_half_equal_sections_reverse(self):
         print('Test half equal sections reversed')
@@ -217,6 +220,9 @@ class TestRoadModel(unittest.TestCase):
         self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
                              {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
+        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
+                             {'nLanes': 2},
+                             'Incorrect lane properties')
 
     def test_two_remainders(self):
         print('Test two remainders')
@@ -245,6 +251,9 @@ class TestRoadModel(unittest.TestCase):
         self.assertEqual(len(road_model.sections), 3)
         self.assertDictEqual(road_model.get_properties_at(2, 'L')[0],
                              {'nLanes': 5, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
+                             'Incorrect lane properties')
+        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
+                             {'nLanes': 5},
                              'Incorrect lane properties')
 
 
