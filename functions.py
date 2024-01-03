@@ -181,9 +181,25 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.__import_dataframe(dfl, 'Rijstroken', ['nLanes'])
+        self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
         self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
         # self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
+
+    def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
+        """
+        Load road sections and attributes from the first DataFrame, without checking for overlap.
+        Args:
+            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
+            df_name (str): Name of dataframe to be imported.
+            columns_of_interest (list): Names of dataframe columns to be imported.
+        Note:
+            There is no overlap check! Ensure that there is no overlap within the layer itself.
+        """
+        print('Status: importing', df_name, '...')
+        dataframe = dfl.data[df_name]
+        for index, row in dataframe.iterrows():
+            section_info = self.__extract_row_properties(row, columns_of_interest)
+            self.__add_section(section_info)
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -193,10 +209,7 @@ class RoadModel:
             df_name (str): Name of dataframe to be imported.
             columns_of_interest (list): Names of dataframe columns to be imported.
         """
-        # print('Currently importing', df_name, '...')
-
-        # TODO: First import can be made simpler, by ignoring overlap (as long as there is no inter-layer overlap)
-
+        print('Status: importing', df_name, '...')
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
             section_info = self.__extract_row_properties(row, columns_of_interest)
