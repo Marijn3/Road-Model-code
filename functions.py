@@ -334,6 +334,7 @@ class RoadModel:
                 # Determine registration points
                 registration_points = new_section['km_range'] + other_section['km_range']
                 registration_points.sort()
+                taken_points = []
 
                 # Determine geometries
                 remainder_geometries = [geom for geom in remaining_geometry.geoms]
@@ -373,7 +374,11 @@ class RoadModel:
                             raise Exception('Something went wrong.')
 
                         # Determine registration points
-                        remainder_points = get_range_diff(section_points, registration_points[1:3])
+                        if not taken_points:
+                            remainder_points = get_range_diff(section_points, registration_points[1:3])
+                            taken_points = remainder_points
+                        else:
+                            remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
 
                         self.__add_section({
                             'side': new_section['side'],
@@ -510,14 +515,14 @@ class RoadModel:
         else:
             return LineString([])
 
-    def get_properties_at(self, km: float, side: str) -> dict:
+    def get_properties_at(self, km: float, side: str) -> list[dict]:
         """
         Find the properties of a road section at a specific km.
         Args:
             km (float): Kilometer point to retrieve the road section for.
             side (str): Side of the road to retrieve the road section for.
         Returns:
-            dict: Attributes of the road section at the specified kilometer point.
+            list[dict]: Attributes of the road section(s) at the specified kilometer point.
         """
         sections = []
         for section_index, section_info in self.sections.items():
@@ -526,7 +531,12 @@ class RoadModel:
                     sections.append(section_info['properties'])
         if len(sections) > 1:
             print("Warning: This slice has two roadlines.")
-        print('Properties at', km, 'km:', sections)
+            i = 0
+            for section in sections:
+                i += 1
+                print('Properties at', km, 'km (', i, '):', section)
+        else:
+            print('Properties at', km, 'km:', sections[0])
         return sections
 
     def print_section_info(self):
