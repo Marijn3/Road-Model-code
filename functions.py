@@ -2,6 +2,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely import *
 import csv
+from copy import deepcopy
 
 pd.set_option('display.max_columns', None)
 
@@ -250,14 +251,10 @@ class RoadModel:
         for overlap_section in overlap_sections:
             # Extract relevant overlap properties
             other_section_index = overlap_section['index']
-            other_section = overlap_section['section_info']
-            overlap_geometry = overlap_section['geom']
+            other_section = deepcopy(overlap_section['section_info'])  # Prevents aliasing
+            overlap_geometry = deepcopy(overlap_section['geom'])
 
             assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
-
-            # print('New section geom:', new_section['geometry'])
-            # print('Other section geom:', other_section['geometry'])
-            # print('Overlap geom:', overlap_geometry)
 
             # Determine all km registration points
             registration_points = set(new_section['km_range']) | set(other_section['km_range'])
@@ -327,7 +324,6 @@ class RoadModel:
             #   - Update geometry to overlapping part
             elif len(registration_points) == 4:
                 remaining_geometry = other_section['geometry'].symmetric_difference(new_section['geometry'])
-                print('Remaining geometry:', remaining_geometry)
 
                 # Check that there is a non-empty remaining geometry.
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
@@ -390,6 +386,7 @@ class RoadModel:
                 self.__update_section(other_section_index, registration_points[1:3],
                                       new_section['properties'], overlap_geometry)
 
+        self.print_section_info()
 
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
@@ -531,6 +528,11 @@ class RoadModel:
             print("Warning: This slice has two roadlines.")
         print('Properties at', km, 'km:', sections)
         return sections
+
+    def print_section_info(self):
+        for section_index, section_info in self.sections.items():
+            print("Section", section_index, 'has km-range', section_info['km_range'],
+                  'and properties:', section_info['properties'])
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         section_info = []
