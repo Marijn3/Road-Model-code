@@ -1,4 +1,3 @@
-import geopandas
 import geopandas as gpd
 import pandas as pd
 from shapely import *
@@ -256,15 +255,12 @@ class RoadModel:
 
             assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
 
-            print('New section geom:', new_section['geometry'])
-            print('Other section geom:', other_section['geometry'])
-            print('Overlap geom:', overlap_geometry)
+            # print('New section geom:', new_section['geometry'])
+            # print('Other section geom:', other_section['geometry'])
+            # print('Overlap geom:', overlap_geometry)
 
             # Determine all km registration points
-            registration_points = set(new_section['km_range'])
-            for point in other_section['km_range']:
-                registration_points.add(point)
-
+            registration_points = set(new_section['km_range']) | set(other_section['km_range'])
             print('Registration points:', registration_points)
             print('This will result in', len(registration_points) - 1, 'section(s).')
 
@@ -279,18 +275,15 @@ class RoadModel:
 
             # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
             # Desired behaviour:
-            # - Add overlapping section (by updating the original other_section)
-            #   - Determine start and end of section
-            #   - Apply both properties
-            #   - Reduce geometry size
+            # - Determine start and end of sections.
             # - Add new section (by deriving the remainder)
-            #   - Determine start and end of remainder section
             #   - Select property of remainder section
-            #   - Increase index
+            #   - Add section, increase index
+            # - Update overlapping section (adjusting the original other_section)
+            #   - Update with new_section properties
+            #   - Update geometry to overlapping part
             elif len(registration_points) == 3:
                 remaining_geometry = self.__get_remainder(new_section['geometry'], other_section['geometry'])
-
-                print('Remaining geom:', remaining_geometry)
 
                 # Check that there is a non-empty valid remaining geometry.
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
@@ -298,38 +291,31 @@ class RoadModel:
 
                 print('Found equal geometries with equal start OR end. Determining sections...')
 
-                # Update other_section
-                midpoint = get_middle_value(registration_points)
+                # Determine new section registration points
+                midpoint, overlapping_point, unique_points, extreme_point = (
+                    process_registration_points(new_section['km_range'], other_section['km_range']))
 
-                if new_section['km_range'][0] == other_section['km_range'][0]:
-                    km_range = [midpoint, new_section['km_range'][0]]
-                elif new_section['km_range'][1] == other_section['km_range'][1]:
-                    km_range = [midpoint, new_section['km_range'][0]]
-
-                self.__update_section(other_section_index, km_range, new_section['properties'], overlap_geometry)
-
-                # Create new section
-                remainder_properties = {}
-
-                # Determine relevant registration point
-                if new_section['km_range'][0] == other_section['km_range'][0]:
-                    used_points = [midpoint, new_section['km_range'][0]]
-                elif new_section['km_range'][1] == other_section['km_range'][1]:
-                    used_points = [midpoint, new_section['km_range'][1]]
-                remainder_rp = [point for point in registration_points if point not in used_points][0]
-
-                if remainder_rp == new_section['km_range'][0] or remainder_rp == new_section['km_range'][1]:
+                # Determine new section properties
+                if extreme_point in new_section['km_range']:
                     remainder_properties = new_section['properties']
-                elif remainder_rp == other_section['km_range'][0] or remainder_rp == other_section['km_range'][1]:
+                elif extreme_point in other_section['km_range']:
                     remainder_properties = other_section['properties']
+                else:
+                    raise Exception("No match found for extreme registration point.")
 
-                remainder_section = {
+                # Add new section
+                self.__add_section({
                     'side': new_section['side'],
-                    'km_range': [remainder_rp, midpoint],
+                    'km_range': sorted(unique_points),
                     'properties': remainder_properties,
                     'geometry': remaining_geometry
-                }
-                self.__add_section(remainder_section)
+                })
+
+                # Update other_section
+                self.__update_section(index=other_section_index,
+                                      km_range=[midpoint, overlapping_point],
+                                      props=new_section['properties'],
+                                      geom=overlap_geometry)
 
             # 0/2 equal case, with 3 resulting sections. 4 possible combinations
             # Desired behaviour:
@@ -397,7 +383,7 @@ class RoadModel:
         Prints log of section update.
         Args:
             index (int): Index of section to be updated
-            km_range (list[float]): Start and end registration kilometre.
+            km_range (list[float]): Start and end registration kilometre. No sorting needed.
             props (dict): All properties that belong to the section.
             geom (LineString): The geometry of the section.
         """
@@ -416,7 +402,7 @@ class RoadModel:
         Args:
             new_section (dict): Containing:
                 - side (str): Side of the road ('L' or 'R').
-                - km_range (list[float]): Start and end registration kilometre.
+                - km_range (list[float]): Start and end registration kilometre. Sort by convention before function.
                 - properties (dict): All properties that belong to the section.
                 - geometry (LineString): The geometry of the section.
         Prints:
@@ -456,6 +442,7 @@ class RoadModel:
         if is_empty(remaining_geometry):
             remaining_geometry = section2.difference(section1)
 
+        print('Remaining geom:', remaining_geometry)
         return remaining_geometry
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
@@ -529,4 +516,15 @@ def get_middle_value(input_set):
     assert len(input_set) == 3, 'Incorrect set length.'
     sorted_set = sorted(input_set)
     return sorted_set[1]
+
+
+def process_registration_points(rp1: list, rp2: list) -> (int, int, list[int], int):
+    s1 = set(rp1)
+    s2 = set(rp2)
+    all_points = s1 | s2
+    midpoint = get_middle_value(all_points)
+    overlapping_point = s1.intersection(s2)
+    unique_points = s1.symmetric_difference(s2)
+    extreme_point = unique_points.symmetric_difference({midpoint})
+    return midpoint, overlapping_point.pop(), sorted(unique_points), extreme_point.pop()
 
