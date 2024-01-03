@@ -181,26 +181,19 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.__import_dataframe(dfl, 'Rijstroken')
-        self.__import_dataframe(dfl, 'Kantstroken')
-        # self.__import_dataframe(dfl, 'Maximum snelheid')
+        self.__import_dataframe(dfl, 'Rijstroken', ['nLanes'])
+        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
+        # self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
 
-    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
+    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
         Load road sections and attributes from a DataFrame.
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
+            columns_of_interest (list): Names of dataframe columns to be imported.
         """
         # print('Currently importing', df_name, '...')
-        if df_name == 'Rijstroken':
-            columns_of_interest = ['nLanes']
-        elif df_name == 'Kantstroken':
-            columns_of_interest = ['Vluchtstrook', 'Spitsstrook', 'Puntstuk']
-        elif df_name == 'Maximum snelheid':
-            columns_of_interest = ['OMSCHR']
-        else:
-            columns_of_interest = []
 
         # TODO: First import can be made simpler, by ignoring overlap (as long as there is no inter-layer overlap)
 
@@ -397,7 +390,7 @@ class RoadModel:
             #
             #         # Create new sections
             #         remainder_geometries = [geom for geom in remaining_geometry.geoms]
-            #         assert len(remainder_geometries) == 2, 'There are too many remaining geometries in the geom below.'
+            #         assert len(remainder_geometries) == 2, 'There are too many remaining geometries in the geom below'
             #         for i in [0, 1]:
             #             remainder_properties = {}
             #             new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
