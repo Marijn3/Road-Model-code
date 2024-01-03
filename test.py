@@ -184,6 +184,9 @@ class TestRoadModel(unittest.TestCase):
         self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
                              {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
+        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
+                             {'nLanes': 2},
+                             'Incorrect lane properties')
 
     def test_segmented_sections(self):
         print('Test segmented sections')

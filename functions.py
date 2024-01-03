@@ -279,7 +279,7 @@ class RoadModel:
             # - Add new section (by deriving the remainder)
             #   - Select property of remainder section
             #   - Add section, increase index
-            # - Update overlapping section (adjusting the original other_section)
+            # - Update overlapping section (by adjusting the original other_section)
             #   - Update with new_section properties
             #   - Update geometry to overlapping part
             elif len(registration_points) == 3:
@@ -319,48 +319,54 @@ class RoadModel:
 
             # 0/2 equal case, with 3 resulting sections. 4 possible combinations
             # Desired behaviour:
-            # - Determine appropriate problem splitting TODO: change code to do this.
+            # - Determine registration points
+            # - Determine geometries
+            # - Add 2 new sections with the appropriate properties
+            # - Update overlapping section (by adjusting the original other_section)
+            #   - Update with new_section properties
+            #   - Update geometry to overlapping part
             elif len(registration_points) == 4:
                 remaining_geometry = other_section['geometry'].symmetric_difference(new_section['geometry'])
-
                 print('Remaining geom:', remaining_geometry)
-                # print(get_num_geometries(remaining_geometry))
 
                 # Check that there is a non-empty remaining geometry.
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
                 assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
 
-                print('Found partly overlapping geometries. Determining problem splitting...')
+                print('Found partly overlapping geometries. Determining sections...')
 
-                # Overlapping section
-                logpoints = [new_section['km_range'][0], new_section['km_range'][1],
-                             other_section['km_range'][0], other_section['km_range'][1]]
-                logpoints.sort()
+                # Determine registration points
+                registration_points = new_section['km_range'] + other_section['km_range']
+                registration_points.sort()
 
-                self.__update_section(other_section_index, logpoints[1:3],
-                                      new_section['properties'], overlap_geometry)
+                # Determine geometries
+                remainder_geometries = [geom for geom in remaining_geometry.geoms]
+                assert len(remainder_geometries) == 2, 'There is an unexpected amount of remaining geometries.'
 
                 # Create new sections
-                remainder_geometries = [geom for geom in remaining_geometry.geoms]
-                assert len(remainder_geometries) == 2, 'There are too many remaining geometries in the geom below'
                 for i in [0, 1]:
-                    remainder_properties = {}
+                    # Determine which geometry this remainder is part of
                     new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
                     other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
-                    if not new_overlap.is_empty:
+                    assert sum([new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
+
+                    if other_overlap.is_empty and not new_overlap.is_empty:
                         remainder_properties = new_section['properties']
-                    elif not other_overlap.is_empty:
+                    elif new_overlap.is_empty and not other_overlap.is_empty:
                         remainder_properties = other_section['properties']
                     else:
                         raise Exception('Something went wrong.')
 
-                    remainder_section = {
+                    self.__add_section({
                         'side': new_section['side'],
-                        'km_range': [logpoints[i * 2], logpoints[i * 2 + 1]],
+                        'km_range': [registration_points[i * 2], registration_points[i * 2 + 1]],
                         'properties': remainder_properties,
                         'geometry': remainder_geometries[i]
-                    }
-                    self.__add_section(remainder_section)
+                    })
+
+                # Overlapping section
+                self.__update_section(other_section_index, registration_points[1:3],
+                                      new_section['properties'], overlap_geometry)
 
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
@@ -471,9 +477,9 @@ class RoadModel:
             LineString: The overlap geometry (or an empty LineString).
         Note:
             The function uses the `intersection` method from Shapely to compute the overlap
-            between the two geometries.
+            between the two LineString geometries.
             If the geometries do not overlap or have only a point of intersection, the function
-            returns an empty LineString and False.
+            returns an empty LineString.
         """
         overlap_geometry = intersection(geometry1, geometry2)
 
