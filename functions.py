@@ -1,3 +1,4 @@
+import geopandas
 import geopandas as gpd
 import pandas as pd
 from shapely import *
@@ -266,8 +267,10 @@ class RoadModel:
             # Determine all section geometries
             geoms = [overlap_section['section_info']['geometry'] for overlap_section in overlap_sections]
             geoms.append(new_section['geometry'])
-            merged_line = linemerge(geoms)
-            full_geometry = unary_union([merged_line]) # TODO: finish and check implementation
+            # merged_line = linemerge(geoms)
+            merge = geopandas.GeoSeries(geoms)
+            print('The merged line:', merge)
+            full_geometry = merge.unary_union  # TODO: finish and check implementation
             print('The split geometry:', full_geometry)
 
             # This is the info picker implementation.
@@ -508,7 +511,7 @@ class RoadModel:
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
-            # First, dismiss all sections which have a completely different begin and end range,
+            # First, dismiss all sections which have a non-overlapping range,
             # which prevents the more complex self.__get_overlap() function from being called.
             if self.__determine_range_overlap(section_a['km_range'], section_b['km_range']):
 
