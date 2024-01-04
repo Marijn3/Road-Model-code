@@ -194,11 +194,15 @@ class RoadModel:
         Note:
             There is no overlap check! Ensure that there is no overlap within the layer itself.
         """
-        print('Status: importing', df_name, '...')
+        print('>>> [STATUS:] Importing', df_name, '...')
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
             section_info = self.__extract_row_properties(row, columns_of_interest)
             self.__add_section(section_info)
+
+        # self.print_section_info()
+        print('>>> [STATUS:] Added', self.section_index, 'sections. '
+              'The model has', self.section_index, 'sections in total.')
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -216,12 +220,15 @@ class RoadModel:
         for index, row in dataframe.iterrows():
             section_info = self.__extract_row_properties(row, columns_of_interest)
 
-            print("[LOG:] Now adding section:", section_info['side'],
-                  section_info['km_range'], section_info['properties'], section_info['geometry'])
+            # print("[LOG:] Now adding section:", section_info['side'],
+            #       section_info['km_range'], section_info['properties'], section_info['geometry'])
 
             self.__determine_sectioning(section_info)
 
-        print('>>> [STATUS:] Imported', self.section_index-current_sections, 'sections.')
+        # self.print_section_info()
+
+        print('>>> [STATUS:] Added', self.section_index-current_sections, 'sections. '
+              'The model has', self.section_index, 'sections in total.')
 
     @staticmethod
     def __extract_row_properties(row: pd.Series, columns_of_interest: list[str]):
@@ -326,10 +333,15 @@ class RoadModel:
             #   - Update with new_section properties
             #   - Update geometry to overlapping part
             elif len(registration_points) == 4:
-                remaining_geometry = other_section['geometry'].symmetric_difference(new_section['geometry'])
+                remaining_geometry = symmetric_difference(other_section['geometry'],
+                                                          new_section['geometry'],
+                                                          grid_size=1)
+
                 # Check that there is a non-empty remaining geometry.
                 assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+
+                # print('Found partly overlapping geometries. Determining sections...')
 
                 # Determine relevant remainder geometries
                 remainder_geometries = [geom for geom in remaining_geometry.geoms]
@@ -338,9 +350,6 @@ class RoadModel:
                     # Keep only the largest two geometries
                     remainder_geometries = sorted_geometries[:2]
                     # print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
-                assert len(remainder_geometries) == 2, 'Unexpected amount of remaining geometries.'
-
-                # print('Found partly overlapping geometries. Determining sections...')
 
                 # Determine registration points
                 registration_points = new_section['km_range'] + other_section['km_range']
@@ -349,22 +358,18 @@ class RoadModel:
 
                 # Create new section(s)
                 for i in [0, 1]:
-                    # Determine if there is overlap with the other geometry, then do NOT add a new section
-                    # Check if remainder overlaps another overlap section
-                    any_overlap = False
+                    # Check if remainder overlaps another overlap section. If so, then do NOT add a new section.
+                    any_other_overlap = False
                     for other_overlap in overlap_sections:
                         if other_overlap['geom'] != overlap_geometry:
                             o = self.__get_overlap(remainder_geometries[i], other_overlap['geom'])
                             if not o.is_empty:
-                                any_overlap = True
+                                any_other_overlap = True
                                 # print(remainder_geometries[i], 'overlaps with', other_overlap['geom'], 'but since '
                                 #       'the considered geometry is', other_section['geometry'], ', this is ignored.')
                                 break
 
-                    if any_overlap:
-                        # Don't create new section. It will be done later.
-                        print('Section not added')
-                    else:
+                    if not any_other_overlap:
                         # Determine which geometry this remainder is part of
                         new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
                         other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
@@ -397,8 +402,6 @@ class RoadModel:
                 # Update overlapping section
                 self.__update_section(other_section_index, registration_points[1:3],
                                       new_section['properties'], overlap_geometry)
-
-        # self.print_section_info()
 
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
@@ -474,21 +477,21 @@ class RoadModel:
         Returns:
             LineString describing the geometry that is the difference between the two provided sections.
         """
-        remaining_geometry = section1.difference(section2)
+        remaining_geometry = difference(section1, section2, grid_size=1)
 
         # If empty, try the other way around.
         if is_empty(remaining_geometry):
-            remaining_geometry = section2.difference(section1)
+            remaining_geometry = difference(section2, section1, grid_size=1)
 
         # Determine relevant remainder geometries
         if isinstance(remaining_geometry, MultiLineString):
+            # Keep only the largest geometry. Other geometries are tiny remainder lines
+            # caused by rounding errors elsewhere. These are hereby ignored.
             remainder_geometries = [geom for geom in remaining_geometry.geoms]
             sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
-            # Keep only the largest geometry
             remaining_geometry = sorted_geometries[0]
             # print('Warning: More than 1 remaining geometry. Removed', sorted_geometries[1:])
 
-        # print('Remaining geometry:', remaining_geometry)
         return remaining_geometry
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
@@ -521,7 +524,7 @@ class RoadModel:
             If the geometries do not overlap or have only a point of intersection, the function
             returns an empty LineString.
         """
-        overlap_geometry = intersection(geometry1, geometry2)
+        overlap_geometry = intersection(geometry1, geometry2, grid_size=1)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             return line_merge(overlap_geometry)
