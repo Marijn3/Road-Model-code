@@ -537,7 +537,7 @@ class RoadModel:
     def get_sections(self) -> list:
         return [section for section in self.sections.values()]
 
-    def get_properties_at(self, km: float, side: str) -> dict:
+    def get_properties_at(self, km: float, side: str) -> list[dict]:
         """
         Find the properties of a road section at a specific km.
         Args:
@@ -556,9 +556,9 @@ class RoadModel:
             i = 0
             for section in sections:
                 i += 1
-                print('Properties at', km, 'km (', i, '):', section)
+                print('Properties at', side, ', side', km, 'km (', i, '):', section)
         else:
-            print('Properties at', km, 'km:', sections[0])
+            print('Properties at', side, ', side', km, 'km:', sections[0])
         return sections
 
     def print_section_info(self):
