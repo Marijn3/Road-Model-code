@@ -89,6 +89,7 @@ class DataFrameLoader:
     def __get_layer_name(file_path) -> str:
         """
         Extract the layer name from the file path.
+        Works well with the file paths in the original WEGGEG files.
         Args:
             file_path (str): The path to the file.
         Returns:
@@ -435,7 +436,7 @@ class RoadModel:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
-        self.__log_section_change(index)
+        # self.__log_section_change(index)
 
     def __add_section(self, new_section: dict):
         """
@@ -450,7 +451,7 @@ class RoadModel:
             Newly added section properties to log window.
         """
         self.sections[self.section_index] = new_section
-        self.__log_section(self.section_index)
+        # self.__log_section(self.section_index)
         self.section_index += 1
 
     def __log_section(self, index: int):
