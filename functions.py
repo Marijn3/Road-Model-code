@@ -25,7 +25,7 @@ class DataFrameLoader:
         "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
         # "data/Mengstroken/mengstroken.dbf",
-        # "data/Maximum snelheid/max_snelheden.dbf",
+        "data/Maximum snelheid/max_snelheden.dbf",
         # "data/Convergenties/convergenties.dbf",
         # "data/Divergenties/divergenties.dbf",
         # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
@@ -183,7 +183,7 @@ class RoadModel:
         """
         self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
         self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
-        # self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
+        self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
 
     def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -220,14 +220,9 @@ class RoadModel:
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
             section_info = self.__extract_row_properties(row, columns_of_interest)
-
-            # print("[LOG:] Now adding section:", section_info['side'],
-            #       section_info['km_range'], section_info['properties'], section_info['geometry'])
-
             self.__determine_sectioning(section_info)
 
         # self.print_section_info()
-
         print('>>> [STATUS:] Added', self.section_index-current_sections, 'sections. '
               'The model has', self.section_index, 'sections in total.')
 
@@ -262,7 +257,7 @@ class RoadModel:
         for overlap_section in overlap_sections:
             # Extract relevant overlap properties
             other_section_index = overlap_section['index']
-            other_section = deepcopy(overlap_section['section_info'])  # Prevents aliasing
+            other_section = deepcopy(overlap_section['section_info'])  # Deepcopy prevents aliasing
             overlap_geometry = deepcopy(overlap_section['geom'])
 
             assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
