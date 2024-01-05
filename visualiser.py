@@ -1,56 +1,35 @@
 from functions import *
 import svgwrite
 
-LANE_WIDTH = 5
-
 dfl = DataFrameLoader()
-dfl.load_dataframes("Vught")
+dfl.load_data_frames("Vught")
 
 road = RoadModel()
 road.import_dataframes(dfl)
 
-top_left_x, top_left_y = get_coordinates(dfl.extent)[2]
-bottom_right_x, bottom_right_y = get_coordinates(dfl.extent)[4]
-viewbox_width = abs(top_left_x - bottom_right_x)
-viewbox_height = abs(top_left_y - bottom_right_y)
-ratio = viewbox_height/viewbox_width
+LANE_WIDTH = 5
 
-
-def get_road_color(prop: dict) -> str:
-    # if 'nLanes' not in prop.keys():
-    #     return 'orange'
-    if 'nLanes' in prop.keys():
-        if not isinstance(prop['nLanes'], int):
-            return 'red'
-
-    return 'grey'
-
-
-def get_road_width(prop: dict) -> int:
-    if 'nLanes' in prop.keys():
-        if isinstance(prop['nLanes'], int):
-            return LANE_WIDTH*prop['nLanes']
-
-    return LANE_WIDTH
-
-
-def get_transformed_coords(coords: list[tuple]) -> list[tuple]:
-    return [(point[0], top_left_y - (point[1] - top_left_y)) for point in coords]
+top_left_x, top_left_y = get_coordinates(dfl.extent)[1]
+bottom_right_x, bottom_right_y = get_coordinates(dfl.extent)[3]
+viewbox_width = 3*abs(top_left_x - bottom_right_x)
+viewbox_height = 3*abs(top_left_y - bottom_right_y)
 
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
-    color = get_road_color(prop)
-    width = get_road_width(prop)
-    coords = get_transformed_coords(geom.coords)
-    roadline = svgwrite.shapes.Polyline(points=coords, stroke=color, fill="none", stroke_width=width)
+    if isinstance(prop['nLanes'], int):
+        road_width = LANE_WIDTH*prop['nLanes']
+        roadline = svgwrite.shapes.Polyline(points=geom.coords, stroke='grey', fill="none", stroke_width=road_width)
+    else:
+        road_width = LANE_WIDTH * 2
+        roadline = svgwrite.shapes.Polyline(points=geom.coords, stroke='red', fill="none", stroke_width=road_width)
     svg_dwg.add(roadline)
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000*ratio))
+dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000))
 
 # Background
-dwg.add(svgwrite.shapes.Rect(insert=(top_left_x, top_left_y), size=(viewbox_width, viewbox_height), fill="green"))
+dwg.add(svgwrite.shapes.Rect(insert=(top_left_x-viewbox_width, top_left_y-viewbox_height), size=(viewbox_width, viewbox_height), fill="green"))
 
 # Roads
 sections = road.get_sections()
@@ -58,7 +37,7 @@ for section in sections:
     svg_add_section(section['geometry'], section['properties'], dwg)
 
 # viewBox
-dwg.viewbox(minx=top_left_x, miny=top_left_y, width=viewbox_width, height=viewbox_height)
+dwg.viewbox(minx=top_left_x-viewbox_width, miny=top_left_y-viewbox_height, width=viewbox_width, height=viewbox_height)
 
 # Save SVG file
 dwg.save(pretty=True, indent=2)

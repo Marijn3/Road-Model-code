@@ -182,8 +182,8 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
+        self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
         self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
-        # self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
 
     def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -272,8 +272,6 @@ class RoadModel:
             # - Add new_section's property to original entry.
             # - Change nothing else.
             if len(registration_points) == 2:
-                print(new_section['km_range'], other_section['km_range'])
-                print('check:', new_section['geometry'], other_section['geometry'])
                 assert new_section['geometry'].equals(other_section['geometry']), 'Inconsistent geometries.'
                 print('Found equal geometries with equal start and end. Combining the properties...')
                 self.__update_section(other_section_index, props=new_section['properties'])
