@@ -4,6 +4,21 @@ from functions import *
 
 class TestGeneral(unittest.TestCase):
 
+    def test_range_diff(self):
+        print('Test range function')
+        diff = get_range_diff([1, 8], [2, 5], 2500)
+        self.assertEqual(diff, [5, 8])
+
+        diff = get_range_diff([9, 1], [2, 12], 4000)
+        self.assertEqual(diff, [9, 12])
+
+        diff = get_range_diff([20, 25], [2, 22], 2000)
+        self.assertEqual(diff, [22, 25])
+
+        diff = get_range_diff([4, 6], [1, 10], 3200)
+        print(diff)
+        self.assertEqual(diff, [1, 4])
+
     def test_rp_processing(self):
         print('Test registration point processing')
         range1 = [1, 2]
@@ -36,8 +51,8 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 1],
                                         'EINDKM': [1, 2],
                                         'nLanes': [2, 2],
-                                        'geometry': [LineString([[0, 0], [1, 0]]),
-                                                     LineString([[1, 0], [1, 1]]) ]})
+                                        'geometry': [LineString([[0, 0], [1000, 0]]),
+                                                     LineString([[1000, 0], [1000, 1000]]) ]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
                                          'BEGINKM': [0, 1],
@@ -45,8 +60,8 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True, False],
                                          'Spitsstrook': [False, False],
                                          'Puntstuk': [False, True],
-                                         'geometry': [LineString([[0, 0], [1, 0]]),
-                                                      LineString([[1, 0], [1, 1]]) ]})
+                                         'geometry': [LineString([[0, 0], [1000, 0]]),
+                                                      LineString([[1000, 0], [1000, 1000]]) ]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -64,9 +79,9 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 1, 1],
                                         'EINDKM': [1, 3, 2],
                                         'nLanes': [2, 2, 1],
-                                        'geometry': [LineString([[0, 0], [1, 0]]),
-                                                     LineString([[1, 0], [1, 2]]),
-                                                     LineString([[1, 0], [2, 0]]) ]})
+                                        'geometry': [LineString([[0, 0], [1000, 0]]),
+                                                     LineString([[1000, 0], [1000, 2000]]),
+                                                     LineString([[1000, 0], [2000, 0]]) ]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
                                          'BEGINKM': [0, 1, 1],
@@ -74,9 +89,9 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True, False, True],
                                          'Spitsstrook': [False, False, False],
                                          'Puntstuk': [False, True, False],
-                                         'geometry': [LineString([[0, 0], [1, 0]]),
-                                                      LineString([[1, 0], [1, 1]]),
-                                                      LineString([[1, 0], [2, 0]]) ]})
+                                         'geometry': [LineString([[0, 0], [1000, 0]]),
+                                                      LineString([[1000, 0], [1000, 1]]),
+                                                      LineString([[1000, 0], [2000, 0]]) ]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -97,9 +112,9 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0, 1, 1],
                                         'EINDKM': [1, 2, 2],
                                         'nLanes': [2, 2, 1],
-                                        'geometry': [LineString([[0, 0], [1, 0]]),
-                                                     LineString([[1, 0], [1, 1]]),
-                                                     LineString([[1, 0], [2, 0]])]})
+                                        'geometry': [LineString([[0, 0], [1000, 0]]),
+                                                     LineString([[1000, 0], [1000, 1]]),
+                                                     LineString([[1000, 0], [2000, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
                                          'BEGINKM': [0, 1, 1],
@@ -107,9 +122,9 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True, False, True],
                                          'Spitsstrook': [False, False, False],
                                          'Puntstuk': [False, True, False],
-                                         'geometry': [LineString([[0, 0], [1, 0]]),
-                                                      LineString([[1, 0], [1, 1]]),
-                                                      LineString([[1, 0], [3, 0]])]})
+                                         'geometry': [LineString([[0, 0], [1000, 0]]),
+                                                      LineString([[1000, 0], [1000, 1]]),
+                                                      LineString([[1000, 0], [3000, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -139,15 +154,15 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [0],
                                         'EINDKM': [2],
                                         'nLanes': [2],
-                                        'geometry': [LineString([[0, 0], [2, 0]])]})
+                                        'geometry': [LineString([[0, 0], [2000, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
-                                         'EINDKM': [3],
+                                         'EINDKM': [4],
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [LineString([[1, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1000, 0], [4000, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -166,18 +181,18 @@ class TestRoadModel(unittest.TestCase):
         # Add test data
         rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
                                         'BEGINKM': [0, 2],
-                                        'EINDKM': [2, 4],
-                                        'nLanes': [2, 2],
-                                        'geometry': [LineString([[0, 0], [2, 0]]),
-                                                     LineString([[2, 0], [4, 0]])]})
+                                        'EINDKM': [2, 5],
+                                        'nLanes': [1, 2],
+                                        'geometry': [LineString([[0, 0], [2000, 0]]),
+                                                     LineString([[2000, 0], [5000, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
-                                         'EINDKM': [3],
+                                         'EINDKM': [3.2],
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [LineString([[1, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1000, 0], [3200, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -185,10 +200,43 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(road_model.sections), 4)
         self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
-                             {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
+                             {'nLanes': 1, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
         self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
                              {'nLanes': 2},
+                             'Incorrect lane properties')
+
+    def test_reversed_sections(self):
+        print('Test reversed sections')
+        road_model = RoadModel()
+        dfl = DataFrameLoader()
+
+        # Add test data
+        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
+                                        'BEGINKM': [2, 5],
+                                        'EINDKM': [0, 2],
+                                        'nLanes': [2, 1],
+                                        'geometry': [LineString([[2000, 0], [0, 0]]),
+                                                     LineString([[5000, 0], [2000, 0]])]})
+
+        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['R'],
+                                         'BEGINKM': [3.2],
+                                         'EINDKM': [1],
+                                         'Vluchtstrook': [True],
+                                         'Spitsstrook': [False],
+                                         'Puntstuk': [False],
+                                         'geometry': [LineString([[3200, 0], [1000, 0]])]})
+
+        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
+
+        road_model.import_dataframes(dfl)
+
+        self.assertEqual(len(road_model.sections), 4)
+        self.assertDictEqual(road_model.get_properties_at(1.5, 'R')[0],
+                             {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
+                             'Incorrect lane properties')
+        self.assertDictEqual(road_model.get_properties_at(3.5, 'R')[0],
+                             {'nLanes': 1},
                              'Incorrect lane properties')
 
     def test_segmented_sections(self):
@@ -199,18 +247,18 @@ class TestRoadModel(unittest.TestCase):
         # Add test data
         rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
                                         'BEGINKM': [0, 2],
-                                        'EINDKM': [2, 4],
-                                        'nLanes': [2, 2],
-                                        'geometry': [LineString([[0, 0], [0.5, 0], [1, 0], [1.5, 0], [2, 0]]),
-                                                     LineString([[2, 0], [2.5, 0], [3, 0], [3.5, 0], [4, 0]])]})
+                                        'EINDKM': [2, 5],
+                                        'nLanes': [2, 1],
+                                        'geometry': [LineString([[0, 0], [500, 0], [1000, 0], [1500, 0], [2000, 0]]),
+                                                     LineString([[2000, 0], [2500, 0], [3500, 0], [4000, 0], [5000, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
-                                         'EINDKM': [3],
+                                         'EINDKM': [3.2],
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [LineString([[1, 0], [1.5, 0], [2, 0], [2.5, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1000, 0], [1500, 0], [2000, 0], [2500, 0], [3200, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -221,7 +269,7 @@ class TestRoadModel(unittest.TestCase):
                              {'nLanes': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
         self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
-                             {'nLanes': 2},
+                             {'nLanes': 1},
                              'Incorrect lane properties')
 
     def test_two_remainders(self):
@@ -232,9 +280,9 @@ class TestRoadModel(unittest.TestCase):
         # Add test data
         rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                         'BEGINKM': [0],
-                                        'EINDKM': [4],
+                                        'EINDKM': [6],
                                         'nLanes': [5],
-                                        'geometry': [LineString([[0, 0], [4, 0]])]})
+                                        'geometry': [LineString([[0, 0], [6000, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [1],
@@ -242,7 +290,7 @@ class TestRoadModel(unittest.TestCase):
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [LineString([[1, 0], [1.5, 0], [2, 0], [2.5, 0], [3, 0]])]})
+                                         'geometry': [LineString([[1000, 0], [1500, 0], [2000, 0], [2500, 0], [3000, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -266,15 +314,15 @@ class TestRoadModel(unittest.TestCase):
                                         'BEGINKM': [1],
                                         'EINDKM': [3],
                                         'nLanes': [5],
-                                        'geometry': [LineString([[1, 0], [3, 0]])]})
+                                        'geometry': [LineString([[1000, 0], [3000, 0]])]})
 
         kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
                                          'BEGINKM': [0],
-                                         'EINDKM': [4],
+                                         'EINDKM': [5],
                                          'Vluchtstrook': [True],
                                          'Spitsstrook': [False],
                                          'Puntstuk': [False],
-                                         'geometry': [LineString([[0, 0], [2, 0], [4, 0]])]})
+                                         'geometry': [LineString([[0, 0], [2000, 0], [5000, 0]])]})
 
         dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
 
@@ -284,7 +332,7 @@ class TestRoadModel(unittest.TestCase):
         self.assertDictEqual(road_model.get_properties_at(2, 'L')[0],
                              {'nLanes': 5, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
-        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
+        self.assertDictEqual(road_model.get_properties_at(4, 'L')[0],
                              {'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
                              'Incorrect lane properties')
 

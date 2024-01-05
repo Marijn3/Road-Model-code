@@ -182,8 +182,8 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
-        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
         self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
+        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
 
     def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -273,7 +273,7 @@ class RoadModel:
             # - Change nothing else.
             if len(registration_points) == 2:
                 assert new_section['geometry'].equals(other_section['geometry']), 'Inconsistent geometries.'
-                # print('Found equal geometries with equal start and end. Combining the properties...')
+                print('Found equal geometries with equal start and end. Combining the properties...')
                 self.__update_section(other_section_index, props=new_section['properties'])
 
             # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
@@ -292,7 +292,7 @@ class RoadModel:
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
                 assert isinstance(remaining_geometry, LineString), 'Remaining part is not a LineString.'
 
-                # print('Found equal geometries with equal start OR end. Determining sections...')
+                print('Found equal geometries with equal start OR end. Determining sections...')
 
                 # Determine new section registration points
                 midpoint, overlapping_point, unique_points, extreme_point = (
@@ -329,15 +329,17 @@ class RoadModel:
             #   - Update with new_section properties
             #   - Update geometry to overlapping part
             elif len(registration_points) == 4:
-                remaining_geometry = symmetric_difference(other_section['geometry'],
-                                                          new_section['geometry'],
+                # print(new_section['km_range'], other_section['km_range'])
+
+                remaining_geometry = symmetric_difference(new_section['geometry'],
+                                                          other_section['geometry'],
                                                           grid_size=1)
 
                 # Check that there is a non-empty remaining geometry.
                 assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
 
-                # print('Found partly overlapping geometries. Determining sections...')
+                print('Found partly overlapping geometries. Determining sections...')
 
                 # Determine relevant remainder geometries
                 remainder_geometries = [geom for geom in remaining_geometry.geoms]
@@ -347,46 +349,45 @@ class RoadModel:
                     remainder_geometries = sorted_geometries[:2]
                     # print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
 
-                # Determine registration points
-                registration_points = new_section['km_range'] + other_section['km_range']
-                registration_points.sort()
-                taken_points = []
-
                 # Create new section(s)
+                taken_points = []
                 for i in [0, 1]:
-                    # Check if remainder overlaps another overlap section. If so, then do NOT add a new section.
+                    # Check if remainder overlaps another overlap section. If so, then we will NOT add a new section.
                     any_other_overlap = False
                     for other_overlap in overlap_sections:
                         if other_overlap['geom'] != overlap_geometry:
                             o = self.__get_overlap(remainder_geometries[i], other_overlap['geom'])
                             if not o.is_empty:
                                 any_other_overlap = True
-                                # print(remainder_geometries[i], 'overlaps with', other_overlap['geom'], 'but since '
-                                #       'the considered geometry is', other_section['geometry'], ', this is ignored.')
                                 break
 
                     if not any_other_overlap:
-                        # Determine which geometry this remainder is part of
-                        new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
-                        other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
-                        assert sum([new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
-
-                        # Determine properties
-                        if other_overlap.is_empty and not new_overlap.is_empty:
-                            remainder_properties = new_section['properties']
-                            section_points = new_section['km_range']
-                        elif new_overlap.is_empty and not other_overlap.is_empty:
-                            remainder_properties = other_section['properties']
-                            section_points = other_section['km_range']
-                        else:
-                            raise Exception('Something went wrong.')
-
                         # Determine registration points
-                        if not taken_points:
-                            remainder_points = get_range_diff(section_points, registration_points[1:3])
-                            taken_points = remainder_points
-                        else:
+                        if taken_points:
                             remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
+                        else:
+                            # Determine which geometry this remainder is part of
+                            new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
+                            other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
+                            assert sum(
+                                [new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
+
+                            # Determine properties of the geometry
+                            if other_overlap.is_empty and not new_overlap.is_empty:
+                                remainder_properties = new_section['properties']
+                                section_points = new_section['km_range']
+                                other_points = other_section['km_range']
+                            elif new_overlap.is_empty and not other_overlap.is_empty:
+                                remainder_properties = other_section['properties']
+                                section_points = other_section['km_range']
+                                other_points = new_section['km_range']
+                            else:
+                                raise Exception('Something went wrong.')
+
+                            remainder_length = remainder_geometries[i].length
+                            remainder_points = get_range_diff(section_points, other_points, remainder_length)
+                            # Log for later use
+                            taken_points = remainder_points
 
                         self.__add_section({
                             'side': new_section['side'],
@@ -396,7 +397,7 @@ class RoadModel:
                         })
 
                 # Update overlapping section
-                self.__update_section(other_section_index, registration_points[1:3],
+                self.__update_section(other_section_index, sorted(registration_points)[1:3],
                                       new_section['properties'], overlap_geometry)
 
     @staticmethod
@@ -420,7 +421,7 @@ class RoadModel:
         Prints log of section update.
         Args:
             index (int): Index of section to be updated
-            km_range (list[float]): Start and end registration kilometre. No sorting needed.
+            km_range (list[float]): Start and end registration kilometer. No sorting needed.
             props (dict): All properties that belong to the section.
             geom (LineString): The geometry of the section.
         """
@@ -431,7 +432,7 @@ class RoadModel:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
-        # self.__log_section_change(index)
+        self.__log_section_change(index)
 
     def __add_section(self, new_section: dict):
         """
@@ -446,7 +447,7 @@ class RoadModel:
             Newly added section properties to log window.
         """
         self.sections[self.section_index] = new_section
-        # self.__log_section(self.section_index)
+        self.__log_section(self.section_index)
         self.section_index += 1
 
     def __log_section(self, index: int):
@@ -608,34 +609,50 @@ def process_registration_points(rp1: list, rp2: list) -> (int, int, list[int], i
     return midpoint, overlapping_point.pop(), sorted(unique_points), extreme_point.pop()
 
 
-def get_range_diff(range1: list, range2: list) -> list:
+def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
     """
     Determines the difference between two range elements.
     Args:
         range1 (list): First list indicating a range.
         range2 (list): Second list indicating a range.
+        length_estimate (float): Length (estimate) of the object.
     Returns:
         The range that constitutes the difference between the input ranges.
     Example:
         The difference between the range [1, 8] and [5, 8] can be found as [1, 5].
     Note:
         In case there is a symmetric difference, this function will pick the
-        range difference with the lowest number values and return it.
-        The other difference is ignored. This should be handled outside the function.
+        range difference with a length closest to the object length provided.
+        The assumption is made that the remaining lengths differ. For the
+        WEGGEG data, the assumption is likely to hold. An exception will be
+        raised if this assumption is broken.
     """
+    assert range1 != range2, "Input ranges invalid."
+
     start1, end1 = sorted(range1)
     start2, end2 = sorted(range2)
 
     # Find the common part
     common_start = max(start1, start2)
     common_end = min(end1, end2)
+    start = min(start1, start2, end1, end2)
+    end = max(start1, start2, end1, end2)
 
-    # Find the unique part
-    if start1 < common_start:
-        unique_part = [start1, common_start]
-    elif common_end < end1:
-        unique_part = [common_end, end1]
+    # Find the unique parts
+    unique_part_low = [start, common_start]
+    unique_part_high = [common_end, end]
+
+    # Find which part's length is closest to the length estimate
+    diff1 = abs(length_estimate - get_km_length(unique_part_low))
+    diff2 = abs(length_estimate - get_km_length(unique_part_high))
+
+    if diff1 < diff2:
+        return unique_part_low
+    elif diff2 < diff1:
+        return unique_part_high
     else:
-        raise Exception("Something is wrong with the ranges.")
+        raise Exception("Assumption violated: Remaining lengths are equal and therefore cannot be discerned.")
 
-    return unique_part
+
+def get_km_length(km: list) -> int:
+    return round(1000*abs(km[1] - km[0]))
