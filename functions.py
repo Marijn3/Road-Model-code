@@ -195,15 +195,16 @@ class RoadModel:
         Note:
             There is no overlap check! Ensure that there is no overlap within the layer itself.
         """
-        print('>>> [STATUS:] Importing', df_name, '...')
+        print('[STATUS:] Importing', df_name, '...')
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
             section_info = self.__extract_row_properties(row, columns_of_interest)
             self.__add_section(section_info)
 
         # self.print_section_info()
-        print('>>> [STATUS:] Added', self.section_index, 'sections. '
+        print('[STATUS:] Added', self.section_index, 'sections. '
               'The model has', self.section_index, 'sections in total.')
+        print("")
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -213,8 +214,7 @@ class RoadModel:
             df_name (str): Name of dataframe to be imported.
             columns_of_interest (list): Names of dataframe columns to be imported.
         """
-        print("")
-        print('>>> [STATUS:] Importing', df_name, '...')
+        print('[STATUS:] Importing', df_name, '...')
         current_sections = self.section_index
 
         dataframe = dfl.data[df_name]
@@ -223,8 +223,9 @@ class RoadModel:
             self.__determine_sectioning(section_info)
 
         # self.print_section_info()
-        print('>>> [STATUS:] Added', self.section_index-current_sections, 'sections. '
+        print('[STATUS:] Added', self.section_index-current_sections, 'sections. '
               'The model has', self.section_index, 'sections in total.')
+        print("")
 
     @staticmethod
     def __extract_row_properties(row: pd.Series, columns_of_interest: list[str]):
@@ -272,10 +273,10 @@ class RoadModel:
             # - Add new_section's property to original entry.
             # - Change nothing else.
             if len(registration_points) == 2:
-                print(new_section['km_range'], other_section['km_range'])
-                print('check:', new_section['geometry'], other_section['geometry'])
+                # print(new_section['km_range'], other_section['km_range'])
+                # print('check:', new_section['geometry'], other_section['geometry'])
                 assert new_section['geometry'].equals(other_section['geometry']), 'Inconsistent geometries.'
-                print('Found equal geometries with equal start and end. Combining the properties...')
+                # print('Found equal geometries with equal start and end. Combining the properties...')
                 self.__update_section(other_section_index, props=new_section['properties'])
 
             # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
@@ -294,7 +295,7 @@ class RoadModel:
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
                 assert isinstance(remaining_geometry, LineString), 'Remaining part is not a LineString.'
 
-                print('Found equal geometries with equal start OR end. Determining sections...')
+                # print('Found equal geometries with equal start OR end. Determining sections...')
 
                 # Determine new section registration points
                 midpoint, overlapping_point, unique_points, extreme_point = (
@@ -341,7 +342,7 @@ class RoadModel:
                 assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
                 assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
 
-                print('Found partly overlapping geometries. Determining sections...')
+                # print('Found partly overlapping geometries. Determining sections...')
 
                 # Determine relevant remainder geometries
                 remainder_geometries = [geom for geom in remaining_geometry.geoms]
@@ -434,7 +435,7 @@ class RoadModel:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
-        self.__log_section_change(index)
+        # self.__log_section_change(index)
 
     def __add_section(self, new_section: dict):
         """
@@ -449,18 +450,18 @@ class RoadModel:
             Newly added section properties to log window.
         """
         self.sections[self.section_index] = new_section
-        self.__log_section(self.section_index)
+        # self.__log_section(self.section_index)
         self.section_index += 1
 
     def __log_section(self, index: int):
-        print("[LOG:] Added a new section at index", index, "with:",
+        print("[LOG:] Section", index, "added:",
               self.sections[index]['side'],
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
 
     def __log_section_change(self, index: int):
-        print("[LOG:] Adjusted the properties of section", index, "to:",
+        print("[LOG:] Section", index, "changed:",
               self.sections[index]['side'],
               self.sections[index]['km_range'],
               self.sections[index]['properties'],

@@ -62,3 +62,5 @@ dwg.viewbox(minx=top_left_x, miny=top_left_y, width=viewbox_width, height=viewbo
 
 # Save SVG file
 dwg.save(pretty=True, indent=2)
+
+print("Visualisation finished successfully.")
