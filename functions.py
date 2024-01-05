@@ -356,15 +356,13 @@ class RoadModel:
                 # Create new section(s)
                 taken_points = []
                 for i in [0, 1]:
-                    # Check if remainder overlaps another overlap section. If so, then do NOT add a new section.
+                    # Check if remainder overlaps another overlap section. If so, then we will NOT add a new section.
                     any_other_overlap = False
                     for other_overlap in overlap_sections:
                         if other_overlap['geom'] != overlap_geometry:
                             o = self.__get_overlap(remainder_geometries[i], other_overlap['geom'])
                             if not o.is_empty:
                                 any_other_overlap = True
-                                # print(remainder_geometries[i], 'overlaps with', other_overlap['geom'], 'but since '
-                                #       'the considered geometry is', other_section['geometry'], ', this is ignored.')
                                 break
 
                     if not any_other_overlap:
@@ -383,38 +381,28 @@ class RoadModel:
                         else:
                             raise Exception('Something went wrong.')
 
-                        print(section_points)
-                        print(sorted(registration_points))
+                        print('Section points:', section_points)
+                        print('Reg points:', sorted(registration_points))
+
+                        # Specifically in the case where the section points are the min and max of the registration
+                        # points, the code below fails. A fix for this must be found, as this occurs many times.
 
                         # Determine registration points
                         if not taken_points:
-                            remainder_points = get_range_diff(section_points, sorted(registration_points)[1:3])
+                            remainder_length = remainder_geometries[i].length
+                            if not section_points == sorted(registration_points)[1:3]:
+                                remainder_points = get_range_diff(section_points,
+                                                    sorted(registration_points)[1:3],
+                                                    remainder_length)
+                            else:
+                                remainder_points = get_range_diff(section_points,
+                                                [sorted(registration_points)[0], sorted(registration_points)[3]],
+                                                  remainder_length)
                             taken_points = remainder_points
                         else:
                             remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
 
-                        geometry_length = remainder_geometries[i].length
-                        remainder_length = get_km_length(remainder_points)
-
-                        print('Lengths:', remainder_geometries[i].length, get_km_length(remainder_points), taken_points)
-
-                        # Points must be wrong if the length deviation is more than 30%.
-                        distances_too_far = abs(geometry_length - remainder_length) > 0.3 * geometry_length and abs(
-                            geometry_length - remainder_length) > 15
-
-                        if distances_too_far:
-                            remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
-                            taken_points = remainder_points
-
-                        geometry_length = remainder_geometries[i].length
-                        remainder_length = get_km_length(remainder_points)
-
-                        print('Lengths:', remainder_geometries[i].length, get_km_length(remainder_points), taken_points)
-
-                        distances_too_far = abs(geometry_length - remainder_length) > 0.3 * geometry_length and abs(
-                            geometry_length - remainder_length) > 15
-
-                        assert not distances_too_far, "These geometries do not seem to match"
+                        print('Lengths:', remainder_length, get_km_length(remainder_points))
 
                         self.__add_section({
                             'side': new_section['side'],
@@ -636,22 +624,23 @@ def process_registration_points(rp1: list, rp2: list) -> (int, int, list[int], i
     return midpoint, overlapping_point.pop(), sorted(unique_points), extreme_point.pop()
 
 
-def get_range_diff(range1: list, range2: list) -> list:
+def get_range_diff(range1: list, range2: list, length: float) -> list:
     """
     Determines the difference between two range elements.
     Args:
         range1 (list): First list indicating a range.
         range2 (list): Second list indicating a range.
+        length (float): Length (estimate) of the object.
     Returns:
         The range that constitutes the difference between the input ranges.
     Example:
         The difference between the range [1, 8] and [5, 8] can be found as [1, 5].
     Note:
         In case there is a symmetric difference, this function will pick the
-        range difference with the lowest number values and return it.
-        The other difference is ignored. This should be handled outside the function.
+        range difference with a length closest to the object length provided.
     """
-    # print('jump:', range1, range2)
+    print('Ranges', range1, range2)
+    assert range1 != range2, "Input not good"
 
     start1, end1 = sorted(range1)
     start2, end2 = sorted(range2)
@@ -659,16 +648,32 @@ def get_range_diff(range1: list, range2: list) -> list:
     # Find the common part
     common_start = max(start1, start2)
     common_end = min(end1, end2)
+    start = min(start1, start2, end1, end2) # this introduces another problem case
+    end = max(start1, start2, end1, end2)
 
-    # Find the unique part
-    if start1 < common_start:
-        unique_part = [start1, common_start]
-    elif common_end < end1:
-        unique_part = [common_end, end1]
+    unique_part_low = [start, common_start]
+    unique_part_high = [common_end, end]
+
+    print('unique parts', unique_part_low, unique_part_high)
+    assert unique_part_low != unique_part_high, "Something went wrong"
+
+    unique_part_low_length = get_km_length(unique_part_low)
+    unique_part_high_length = get_km_length(unique_part_high)
+
+    print(length, unique_part_high_length, unique_part_low_length)
+
+    # Find which length is closest to 'length'
+    diff1 = abs(length - unique_part_low_length)
+    diff2 = abs(length - unique_part_high_length)
+
+    print(diff1, diff2)
+
+    if diff1 < diff2:
+        return unique_part_low
+    elif diff2 < diff1:
+        return unique_part_high
     else:
-        raise Exception("Something is wrong with the ranges.")
-
-    return unique_part
+        raise Exception("Lengths are equal and therefore cannot be discerned.")
 
 
 def get_km_length(km: list) -> int:
