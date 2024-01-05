@@ -304,11 +304,7 @@ class RoadModel:
             index (int): Index of section to update.
             overlap_geom (LineString): geometry of the overlapping section.
         """
-        remaining_geometry = self.__get_remainder(new_section['geometry'], other_section['geometry'])
-
-        # Check that there is a non-empty valid remaining geometry.
-        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-        assert isinstance(remaining_geometry, LineString), 'Remaining part is not a LineString.'
+        remaining_geometry = self.__get_remainder_half_equal(new_section['geometry'], other_section['geometry'])
 
         # Determine new section registration points
         midpoint, overlapping_point, unique_points, extreme_point = (
@@ -354,19 +350,7 @@ class RoadModel:
             overlap_geom (LineString): geometry of the overlapping section.
             overlap_sections (list): All overlapping sections.
         """
-        remaining_geometry = symmetric_difference(new_section['geometry'], other_section['geometry'], grid_size=1)
-
-        # Check that there is a non-empty remaining geometry.
-        assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
-        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-
-        # Determine relevant remainder geometries
-        remainder_geometries = [geom for geom in remaining_geometry.geoms]
-        if get_num_geometries(remaining_geometry) > 2:
-            sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
-            # Keep only the largest two geometries
-            remainder_geometries = sorted_geometries[:2]
-            # print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
+        remaining_geometries = self.__get_remainder_unequal(new_section['geometry'], other_section['geometry'])
 
         # Create new section(s)
         taken_points = []
@@ -375,7 +359,7 @@ class RoadModel:
             any_other_overlap = False
             for other_overlap in overlap_sections:
                 if other_overlap['geom'] != overlap_geom:
-                    o = self.__get_overlap(remainder_geometries[i], other_overlap['geom'])
+                    o = self.__get_overlap(remaining_geometries[i], other_overlap['geom'])
                     if not o.is_empty:
                         any_other_overlap = True
                         break
@@ -386,8 +370,8 @@ class RoadModel:
                     remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
                 else:
                     # Determine which geometry this remainder is part of
-                    new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
-                    other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
+                    new_overlap = self.__get_overlap(remaining_geometries[i], new_section['geometry'])
+                    other_overlap = self.__get_overlap(remaining_geometries[i], other_section['geometry'])
                     assert sum(
                         [new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
 
@@ -403,7 +387,7 @@ class RoadModel:
                     else:
                         raise Exception('Something went wrong.')
 
-                    remainder_length = remainder_geometries[i].length
+                    remainder_length = remaining_geometries[i].length
                     remainder_points = get_range_diff(section_points, other_points, remainder_length)
                     print('lengths', remainder_length, get_km_length(remainder_points), get_km_length(other_points))
                     # Log for later use
@@ -413,12 +397,11 @@ class RoadModel:
                     'side': new_section['side'],
                     'km_range': remainder_points,
                     'properties': remainder_properties,
-                    'geometry': remainder_geometries[i]
+                    'geometry': remaining_geometries[i]
                 })
 
         # Update overlapping section
-        self.__update_section(index, sorted(registration_points)[1:3],
-                              new_section['properties'], overlap_geom)
+        self.__update_section(index, sorted(registration_points)[1:3], new_section['properties'], overlap_geom)
 
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
@@ -485,20 +468,20 @@ class RoadModel:
               self.sections[index]['geometry'])
 
     @staticmethod
-    def __get_remainder(section1, section2) -> LineString:
+    def __get_remainder_half_equal(geom1: LineString, geom2: LineString) -> LineString:
         """
         Finds the geometry that two Shapely LineStrings do NOT have in common.
         Args:
-            section1 (LineString): The first Shapely LineString.
-            section2 (LineString): The second Shapely LineString.
+            geom1 (LineString): The first Shapely LineString.
+            geom2 (LineString): The second Shapely LineString.
         Returns:
             LineString describing the geometry that is the difference between the two provided sections.
         """
-        remaining_geometry = difference(section1, section2, grid_size=1)
+        remaining_geometry = difference(geom1, geom2, grid_size=1)
 
         # If empty, try the other way around.
         if is_empty(remaining_geometry):
-            remaining_geometry = difference(section2, section1, grid_size=1)
+            remaining_geometry = difference(geom2, geom1, grid_size=1)
 
         # Determine relevant remainder geometries
         if isinstance(remaining_geometry, MultiLineString):
@@ -510,7 +493,38 @@ class RoadModel:
             remaining_geometry = sorted_geometries[0]
             # print('Warning: More than 1 remaining geometry. Removed', sorted_geometries[1:])
 
+        # Check that there is a non-empty valid remaining geometry.
+        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+        assert isinstance(remaining_geometry, LineString), 'Remaining part is not a LineString.'
+
         return remaining_geometry
+
+    @staticmethod
+    def __get_remainder_unequal(geom1: LineString, geom2: LineString) -> list[LineString]:
+        """
+        Finds the two geometries that two Shapely LineStrings do NOT have in common.
+        Args:
+            geom1 (LineString): The first Shapely LineString.
+            geom2 (LineString): The second Shapely LineString.
+        Returns:
+            List of two LineStrings describing the geometry that
+            is the difference between the two provided sections.
+        """
+        remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
+
+        # Check that there is a non-empty remaining geometry.
+        assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
+        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+
+        # Determine relevant remainder geometries
+        remaining_geoms = [geom for geom in remaining_geometry.geoms]
+        if get_num_geometries(remaining_geometry) > 2:
+            sorted_geoms = sorted(remaining_geoms, key=lambda geom: geom.length, reverse=True)
+            # Keep only the largest two geometries
+            remaining_geoms = sorted_geoms[:2]
+            # print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
+
+        return remaining_geoms
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
