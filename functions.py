@@ -182,8 +182,8 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
-        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
         self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
+        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
 
     def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
         """
@@ -329,15 +329,11 @@ class RoadModel:
             #   - Update with new_section properties
             #   - Update geometry to overlapping part
             elif len(registration_points) == 4:
-                print('boo:', registration_points)
                 # print(new_section['km_range'], other_section['km_range'])
 
                 remaining_geometry = symmetric_difference(new_section['geometry'],
                                                           other_section['geometry'],
                                                           grid_size=1)
-                print('new', new_section['geometry'])
-                print('other', other_section['geometry'])
-                print('remaining:', remaining_geometry)
 
                 # Check that there is a non-empty remaining geometry.
                 assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
@@ -356,7 +352,6 @@ class RoadModel:
                 # Create new section(s)
                 taken_points = []
                 for i in [0, 1]:
-                    print(remainder_geometries[i])
                     # Check if remainder overlaps another overlap section. If so, then we will NOT add a new section.
                     any_other_overlap = False
                     for other_overlap in overlap_sections:
@@ -370,7 +365,6 @@ class RoadModel:
                         # Determine registration points
                         if taken_points:
                             remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
-                            print('we have already used', taken_points, ', so now we use', remainder_points)
                         else:
                             # Determine which geometry this remainder is part of
                             new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
@@ -390,17 +384,10 @@ class RoadModel:
                             else:
                                 raise Exception('Something went wrong.')
 
-                            print('Section points:', section_points, 'Other points:', other_points)
-                            print('Reg points:', sorted(registration_points))
-
                             remainder_length = remainder_geometries[i].length
-
                             remainder_points = get_range_diff(section_points, other_points, remainder_length)
-
+                            # Log for later use
                             taken_points = remainder_points
-
-                        print('Lengths:', remainder_length, get_km_length(taken_points))
-                        print('taken poitns:', taken_points)
 
                         self.__add_section({
                             'side': new_section['side'],
@@ -622,13 +609,13 @@ def process_registration_points(rp1: list, rp2: list) -> (int, int, list[int], i
     return midpoint, overlapping_point.pop(), sorted(unique_points), extreme_point.pop()
 
 
-def get_range_diff(range1: list, range2: list, length: float) -> list:
+def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
     """
     Determines the difference between two range elements.
     Args:
         range1 (list): First list indicating a range.
         range2 (list): Second list indicating a range.
-        length (float): Length (estimate) of the object.
+        length_estimate (float): Length (estimate) of the object.
     Returns:
         The range that constitutes the difference between the input ranges.
     Example:
@@ -636,9 +623,11 @@ def get_range_diff(range1: list, range2: list, length: float) -> list:
     Note:
         In case there is a symmetric difference, this function will pick the
         range difference with a length closest to the object length provided.
+        The assumption is made that the remaining lengths differ. For the
+        WEGGEG data, the assumption is likely to hold. An exception will be
+        raised if this assumption is broken.
     """
-    print('Ranges', range1, range2)
-    assert range1 != range2, "Input not good"
+    assert range1 != range2, "Input ranges invalid."
 
     start1, end1 = sorted(range1)
     start2, end2 = sorted(range2)
@@ -646,32 +635,23 @@ def get_range_diff(range1: list, range2: list, length: float) -> list:
     # Find the common part
     common_start = max(start1, start2)
     common_end = min(end1, end2)
-    start = min(start1, start2, end1, end2) # this introduces another problem case
+    start = min(start1, start2, end1, end2)
     end = max(start1, start2, end1, end2)
 
+    # Find the unique parts
     unique_part_low = [start, common_start]
     unique_part_high = [common_end, end]
 
-    print('unique parts', unique_part_low, unique_part_high)
-    assert unique_part_low != unique_part_high, "Something went wrong"
-
-    unique_part_low_length = get_km_length(unique_part_low)
-    unique_part_high_length = get_km_length(unique_part_high)
-
-    print(length, unique_part_high_length, unique_part_low_length)
-
-    # Find which length is closest to 'length'
-    diff1 = abs(length - unique_part_low_length)
-    diff2 = abs(length - unique_part_high_length)
-
-    print(diff1, diff2)
+    # Find which part's length is closest to the length estimate
+    diff1 = abs(length_estimate - get_km_length(unique_part_low))
+    diff2 = abs(length_estimate - get_km_length(unique_part_high))
 
     if diff1 < diff2:
         return unique_part_low
     elif diff2 < diff1:
         return unique_part_high
     else:
-        raise Exception("Lengths are equal and therefore cannot be discerned.")
+        raise Exception("Assumption violated: Remaining lengths are equal and therefore cannot be discerned.")
 
 
 def get_km_length(km: list) -> int:
