@@ -356,6 +356,7 @@ class RoadModel:
                 # Create new section(s)
                 taken_points = []
                 for i in [0, 1]:
+                    print(remainder_geometries[i])
                     # Check if remainder overlaps another overlap section. If so, then we will NOT add a new section.
                     any_other_overlap = False
                     for other_overlap in overlap_sections:
@@ -366,43 +367,40 @@ class RoadModel:
                                 break
 
                     if not any_other_overlap:
-                        # Determine which geometry this remainder is part of
-                        new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
-                        other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
-                        assert sum([new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
-
-                        # Determine properties of the geometry
-                        if other_overlap.is_empty and not new_overlap.is_empty:
-                            remainder_properties = new_section['properties']
-                            section_points = new_section['km_range']
-                        elif new_overlap.is_empty and not other_overlap.is_empty:
-                            remainder_properties = other_section['properties']
-                            section_points = other_section['km_range']
-                        else:
-                            raise Exception('Something went wrong.')
-
-                        print('Section points:', section_points)
-                        print('Reg points:', sorted(registration_points))
-
-                        # Specifically in the case where the section points are the min and max of the registration
-                        # points, the code below fails. A fix for this must be found, as this occurs many times.
-
                         # Determine registration points
-                        if not taken_points:
-                            remainder_length = remainder_geometries[i].length
-                            if not section_points == sorted(registration_points)[1:3]:
-                                remainder_points = get_range_diff(section_points,
-                                                    sorted(registration_points)[1:3],
-                                                    remainder_length)
-                            else:
-                                remainder_points = get_range_diff(section_points,
-                                                [sorted(registration_points)[0], sorted(registration_points)[3]],
-                                                  remainder_length)
-                            taken_points = remainder_points
-                        else:
+                        if taken_points:
                             remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
+                            print('we have already used', taken_points, ', so now we use', remainder_points)
+                        else:
+                            # Determine which geometry this remainder is part of
+                            new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
+                            other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
+                            assert sum(
+                                [new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
 
-                        print('Lengths:', remainder_length, get_km_length(remainder_points))
+                            # Determine properties of the geometry
+                            if other_overlap.is_empty and not new_overlap.is_empty:
+                                remainder_properties = new_section['properties']
+                                section_points = new_section['km_range']
+                                other_points = other_section['km_range']
+                            elif new_overlap.is_empty and not other_overlap.is_empty:
+                                remainder_properties = other_section['properties']
+                                section_points = other_section['km_range']
+                                other_points = new_section['km_range']
+                            else:
+                                raise Exception('Something went wrong.')
+
+                            print('Section points:', section_points, 'Other points:', other_points)
+                            print('Reg points:', sorted(registration_points))
+
+                            remainder_length = remainder_geometries[i].length
+
+                            remainder_points = get_range_diff(section_points, other_points, remainder_length)
+
+                            taken_points = remainder_points
+
+                        print('Lengths:', remainder_length, get_km_length(taken_points))
+                        print('taken poitns:', taken_points)
 
                         self.__add_section({
                             'side': new_section['side'],
