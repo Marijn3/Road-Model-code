@@ -238,7 +238,7 @@ class RoadModel:
         return {'side': row['IZI_SIDE'],
                 'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': row[columns_of_interest].to_dict(),
-                'geometry': row['geometry']}
+                'geometry': row['geometry']}  # TODO: Flip geom if T
 
     def __determine_sectioning(self, new_section: dict):
         """
@@ -252,6 +252,7 @@ class RoadModel:
             self.__add_section(new_section)
             return
 
+        # TODO: Sort overlap_section by beginkm, then iteratively go through them
         for overlap_section in overlap_sections:
             other_section_index = overlap_section['index']
             other_section = deepcopy(overlap_section['section_info'])  # Deepcopy prevents aliasing
