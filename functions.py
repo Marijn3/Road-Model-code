@@ -214,13 +214,6 @@ class RoadModel:
             row (pd.Series): Row containing information about the road section
             name (str): Name of dataframe.
         """
-        if row['KANTCODE'] == 'T':
-            geom = reverse(row['geometry'])
-        elif row['KANTCODE'] == 'H':
-            geom = row['geometry']
-        else:
-            raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
-
         if name == 'Rijstroken':
             properties = {
                 'Baanpositie': row['IZI_SIDE'],
@@ -253,9 +246,16 @@ class RoadModel:
                 'km': row['KMTR']
             }
 
+        if row['KANTCODE'] == 'T':
+            geom = reverse(row['geometry'])
+        elif row['KANTCODE'] == 'H':
+            geom = row['geometry']
+        else:
+            raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
+
         return {'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
-                'geometry': row['geometry']}
+                'geometry': geom}
 
     def __determine_sectioning(self, new_section: dict):
         """
@@ -269,51 +269,56 @@ class RoadModel:
             self.__add_section(new_section)
             return
 
+        new_section_range = new_section['km_range']
+        new_section_props = new_section['properties']
+        new_section_geom = new_section['geometry']
+
+        # while get_num_coordinates(new_section_geom) != 0:
         for overlap_section in overlap_sections:
-            print(new_section)
-            print(overlap_section['section_info'])
+            overlap_index = overlap_section['index']
+            overlap_section = deepcopy(overlap_section['section_info'])
+            overlap_geom = overlap_section['geometry']
 
-            new_section_start = min(new_section['km_range'])
-            new_section_end = max(new_section['km_range'])
+            other_section_range = overlap_section['km_range']
+            other_section_props = overlap_section['properties']
+            other_section_geom = overlap_section['geometry']
 
-            other_section_start = min(overlap_section['section_info']['km_range'])
-            other_section_end = max(overlap_section['section_info']['km_range'])
+            # TODO: Assert that there is also some overlap in the km?
+            assert self.__determine_range_overlap(new_section_range, other_section_range)
 
-            # TODO: Assert that there is also some overlap in the km!
+            # Case 1: start is equal
+            if min(new_section_range) == min(other_section_range):
+                if max(new_section_range) == max(other_section_range):
+                    assert new_section_geom.equals(other_section_geom), 'Inconsistent geometries.'
+                    self.__update_section(overlap_index, props=new_section_props)
+                    continue
+                if max(new_section_range) < max(other_section_range):
+                    # other_section aanpassen
+                    # ...
+                    continue
+                if max(new_section_range) > max(other_section_range):
+                    self.__update_section(overlap_index, props=new_section_props)
+                    # Trim the new_section range and geometry for another go.
+                    new_section_range = [max(other_section_range), max(new_section_range)]
+                    new_section_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
+                    continue
 
-            # Case 1
-            if new_section_start == other_section_start and new_section_end == other_section_end:
-                # print('Found equal geometries with equal start and end. Combining the properties...')
-                self.__handle_equal_case(new_section,
-                                         deepcopy(overlap_section['section_info']),
-                                         overlap_section['index'])
-                continue
-
-            # Case 2
-            if new_section_start == other_section_start and new_section_end < other_section_end:
-                print('hi')
-
-            # Case 3
-            if new_section_start == other_section_start and new_section_end < other_section_end:
-                print('ho')
-
-            # Case 4: Add section between new_section_start and other_section_start
+            # Case 2: new_section starts earlier.
+            # Add section between new_section_start and other_section_start
             # with new_section properties and geometry
-            if new_section_start < other_section_start:
-                # Take the first of the return value.
-                sec_geom = self.__get_remainder_unequal(new_section['geometry'],
-                                                        overlap_section['section_info']['geometry'])[0]
-
+            if min(new_section_range) < min(other_section_range):
+                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
                 self.__add_section({
-                    'side': 'L',
-                    'km_range': sorted([new_section_start, other_section_start]),
-                    'properties': new_section['properties'],
-                    'geometry': sec_geom
+                    'km_range': sorted([min(new_section_range), min(other_section_range)]),
+                    'properties': new_section_props,
+                    'geometry': added_geom
                 })
+                # Trim the new_section range and geometry for another go.
+                new_section_range = [min(other_section_range), max(new_section_range)]
+                new_section_geom = self.__get_remainder(added_geom, other_section_geom)
 
-
-            # Case 5
-            if new_section_start > other_section_start:
+            # Case 3: new_section starts later
+            if min(new_section_range) > min(other_section_range):
                 # Add section between new_section_start and other_section_start with other_section properties
                 print('ha')
 
@@ -397,39 +402,7 @@ class RoadModel:
               self.sections[index]['geometry'])
 
     @staticmethod
-    def __get_remainder_half_equal(geom1: LineString, geom2: LineString) -> LineString:
-        """
-        Finds the geometry that two Shapely LineStrings do NOT have in common.
-        Args:
-            geom1 (LineString): The first Shapely LineString.
-            geom2 (LineString): The second Shapely LineString.
-        Returns:
-            LineString describing the geometry that is the difference between the two provided sections.
-        """
-        remaining_geometry = difference(geom1, geom2, grid_size=1)
-
-        # If empty, try the other way around.
-        if is_empty(remaining_geometry):
-            remaining_geometry = difference(geom2, geom1, grid_size=1)
-
-        # Determine relevant remainder geometries
-        if isinstance(remaining_geometry, MultiLineString):
-            # Keep only the largest geometry. Other geometries are tiny remainder lines
-            # caused by rounding errors elsewhere. These are hereby ignored.
-            # TODO: Check if this temporary fix can be deleted.
-            remainder_geometries = [geom for geom in remaining_geometry.geoms]
-            sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
-            remaining_geometry = sorted_geometries[0]
-            # print('Warning: More than 1 remaining geometry. Removed', sorted_geometries[1:])
-
-        # Check that there is a non-empty valid remaining geometry.
-        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-        assert isinstance(remaining_geometry, LineString), 'Remaining part is not a LineString.'
-
-        return remaining_geometry
-
-    @staticmethod
-    def __get_remainder_unequal(geom1: LineString, geom2: LineString) -> list[LineString]:
+    def __get_remainder(geom1: LineString, geom2: LineString) -> list[LineString]:
         """
         Finds the two geometries that two Shapely LineStrings do NOT have in common.
         Args:
@@ -438,24 +411,24 @@ class RoadModel:
         Returns:
             List of two LineStrings describing the geometry that
             is the difference between the two provided sections.
+            The order is maintained, so the first item in the list
+            contains the first overlap that is encountered.
         """
         remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
 
-        # Check that there is a non-empty remaining geometry.
-        assert isinstance(remaining_geometry, MultiLineString), f"Incorrect remaining geometry: {remaining_geometry}"
-        assert get_num_coordinates(remaining_geometry) != 0, f"Empty remaining geometry: {remaining_geometry}"
+        print(f"Warning: Empty remaining geometry: {remaining_geometry}")
 
-        # Determine relevant remainder geometries
-        remaining_geoms = [geom for geom in remaining_geometry.geoms]
+        if isinstance(remaining_geometry, LineString):
+            return [remaining_geometry]
 
-        print(remaining_geoms)
-        if get_num_geometries(remaining_geometry) > 2:
-            sorted_geoms = sorted(remaining_geoms, key=lambda geom: geom.length, reverse=True)
-            # Keep only the largest two geometries
-            remaining_geoms = sorted_geoms[:2]
-            print('Warning: More than 2 remaining geometries. Removed', sorted_geoms[2:])
-
-        return remaining_geoms
+        if isinstance(remaining_geometry, MultiLineString):
+            remaining_geometries = [geom for geom in remaining_geometry.geoms]
+            if get_num_geometries(remaining_geometry) > 2:
+                sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
+                # Keep only the largest two geometries
+                remaining_geometries = sorted_geoms[:2]
+                print('Warning: More than 2 remaining geometries. Removed', sorted_geoms[2:])
+            return remaining_geometries
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
