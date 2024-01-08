@@ -17,19 +17,19 @@ ratio = viewbox_height/viewbox_width
 
 
 def get_road_color(prop: dict) -> str:
-    # if 'nLanes' not in prop.keys():
+    # if 'nRijstroken' not in prop.keys():
     #     return 'orange'
-    if 'nLanes' in prop.keys():
-        if not isinstance(prop['nLanes'], int):
+    if 'nRijstroken' in prop.keys():
+        if not isinstance(prop['nRijstroken'], int):
             return 'red'
 
     return 'grey'
 
 
 def get_road_width(prop: dict) -> int:
-    if 'nLanes' in prop.keys():
-        if isinstance(prop['nLanes'], int):
-            return LANE_WIDTH*prop['nLanes']
+    if 'nRijstroken' in prop.keys():
+        if isinstance(prop['nRijstroken'], int):
+            return LANE_WIDTH*prop['nRijstroken']
 
     return LANE_WIDTH
 

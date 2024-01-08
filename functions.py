@@ -75,11 +75,11 @@ class DataFrameLoader:
 
     def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
-        Select data in the specified extent from the GeoDataFrame.
+        Select data that intersects the specified extent from the GeoDataFrame.
         Args:
             data (gpd.GeoDataFrame): The GeoDataFrame.
         Returns:
-            gpd.GeoDataFrame: The GeoDataFrame with only data inside the extent.
+            gpd.GeoDataFrame: The GeoDataFrame with only data that intersects the extent.
         """
         # All data that intersects extent is considered 'in the extent'.
         data['inextent'] = data['geometry'].apply(lambda geom: geom.intersects(self.extent))
@@ -100,45 +100,41 @@ class DataFrameLoader:
         folder_name = parts[-2]
         return folder_name
 
-    def __edit_columns(self, df_name: str):
+    def __edit_columns(self, name: str):
         """
         Edit columns from the GeoDataFrame.
         Args:
-            df_name (str): The name of the GeoDataFrame.
+            name (str): The name of the GeoDataFrame.
         """
-        data = self.data[df_name]
-
-        # The geometry column can be rounded (use 0.01 for cm or 1 for meter precision)
-        data['geometry'] = data['geometry'].apply(lambda geom: set_precision(geom, 1))
-
-        # These columns are not necessary in this project.
-        data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
+        # Use 0.01 rounding for cm precision, or 1 for meter precision
+        self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, 1))
 
         # These column variable types should be changed.
-        data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
+        self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
-        # All 'stroken' dataframes have VNRWOL columns which should be converted to integer
-        if 'stroken' in df_name:
-            data['VNRWOL'] = pd.to_numeric(data['VNRWOL'], errors='coerce').astype('Int64')
+        if name == 'Rijstroken':
+            lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
+                            '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
+                            '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
+                            '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
+                            '5 -> 5': 5}
+            self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
 
-        # More specific data edits
-        if df_name == 'Rijstroken':
-            lane_mapping = {'1 -> 1': 1, '2 -> 2': 2, '3 -> 3': 3, '4 -> 4': 4, '5 -> 5': 5}
-            data['nLanes'] = data['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
-            data.drop(columns=['OMSCHR'])
+            # Convert VOLGNRSTRK to integer, supporting NaN values
+            # self.data[df_name]['VOLGNRWOL'] = (
+            #     pd.to_numeric(self.data[df_name]['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
-            # VOLGNRSTRK to integer, supporting NaN values
-            data['VOLGNRSTRK'] = (pd.to_numeric(data['VOLGNRSTRK'], errors='coerce').astype('Int64'))
-
-        if df_name == 'Kantstroken':
-            data['Vluchtstrook'] = data['OMSCHR'] == 'Vluchtstrook'
-            data['Spitsstrook'] = data['OMSCHR'] == 'Spitsstrook'
-            data['Puntstuk'] = data['OMSCHR'] == 'Puntstuk'  # TODO: Add support for more options
-            data.drop(columns=['OMSCHR'])
-
-        if df_name == 'Rijstrooksignaleringen':
+        if name == 'Rijstrooksignaleringen':
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
-            data = data[data['CODE'] == 'KP']
+            is_kp = self.data[name]['CODE'] == 'KP'
+            self.data[name] = self.data[name][is_kp]
+
+        # These general columns are not further necessary.
+        # self.data[df_name].drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
+
+        # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
+        # if 'stroken' in name:
+        #     self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
@@ -174,6 +170,7 @@ class RoadModel:
     def __init__(self):
         self.sections = {}
         self.section_index = 0
+        self.has_layer = False
 
     def import_dataframes(self, dfl: DataFrameLoader):
         """
@@ -181,46 +178,28 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
-        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
-        self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
+        self.__import_dataframe(dfl, 'Rijstroken')
+        self.__import_dataframe(dfl, 'Kantstroken')
+        self.__import_dataframe(dfl, 'Maximum snelheid')
 
-    def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
-        """
-        Load road sections and attributes from the first DataFrame, without checking for overlap.
-        Args:
-            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
-            df_name (str): Name of dataframe to be imported.
-            columns_of_interest (list): Names of dataframe columns to be imported.
-        Note:
-            There is no overlap check! Ensure that there is no overlap within the layer itself.
-        """
-        print('[STATUS:] Importing', df_name, '...')
-        dataframe = dfl.data[df_name]
-        for index, row in dataframe.iterrows():
-            section_info = self.__extract_row_properties(row, columns_of_interest)
-            self.__add_section(section_info)
-
-        # self.print_section_info()
-        print('[STATUS:] Added', self.section_index, 'sections. '
-              'The model has', self.section_index, 'sections in total.')
-        print("")
-
-    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
+    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
         Load road sections and attributes from a DataFrame.
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
-            columns_of_interest (list): Names of dataframe columns to be imported.
         """
         print('[STATUS:] Importing', df_name, '...')
         current_sections = self.section_index
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            section_info = self.__extract_row_properties(row, columns_of_interest)
-            self.__determine_sectioning(section_info)
+            section_info = self.__extract_row_properties(row, df_name)
+            if self.has_layer:
+                self.__determine_sectioning(section_info)
+            else:
+                self.__add_section(section_info)
+        self.has_layer = True
 
         # self.print_section_info()
         print('[STATUS:] Added', self.section_index-current_sections, 'sections. '
@@ -228,16 +207,47 @@ class RoadModel:
         print("")
 
     @staticmethod
-    def __extract_row_properties(row: pd.Series, columns_of_interest: list[str]):
+    def __extract_row_properties(row: pd.Series, name: str):
         """
         Turns the contents of a road data Dataframe row into a dictionary with the relevant entries.
         Args:
             row (pd.Series): Row containing information about the road section
-            columns_of_interest (list[str]): List of column names from Dataframe to be extracted.
+            name (str): Name of dataframe.
         """
-        return {'side': row['IZI_SIDE'],
-                'km_range': [row['BEGINKM'], row['EINDKM']],
-                'properties': row[columns_of_interest].to_dict(),
+        if name == 'Rijstroken':
+            properties = {
+                'Baanpositie': row['IZI_SIDE'],
+                'nRijstroken': row['nRijstroken'],
+                'Wegnummer': row['WEGNUMMER']
+                # 'Volgnummer': row['VOLGNRWOL']
+            }
+
+        if name == 'Kantstroken':
+            properties = {
+                'Vluchtstrook': row['OMSCHR'] == 'Vluchtstrook',
+                'Spitsstrook': row['OMSCHR'] == 'Spitsstrook',
+                'Puntstuk': row['OMSCHR'] == 'Puntstuk',
+                'RedresseerstrookL': (row['OMSCHR'] == 'Redresseerstrook') &
+                                     (row['IZI_SIDE'] == 'L'),
+                'RedresseerstrookR': (row['OMSCHR'] == 'Redresseerstrook') &
+                                     (row['IZI_SIDE'] == 'R'),
+                'Bufferstrook': row['OMSCHR'] == 'Bufferstrook',
+                'Plusstrook': row['OMSCHR'] == 'Plusstrook',
+            }
+
+        if name == 'Maximum snelheid':
+            properties = {
+                'Snelheid': row['OMSCHR']
+            }
+
+        if name == 'Rijstrooksignaleringen':
+            properties = {
+                'Rijstroken': [int(char) for char in row['RIJSTRKNRS']],
+                'km': row['KMTR']
+            }
+
+        return {'km_range': [row['BEGINKM'], row['EINDKM']],
+                'properties': properties,
                 'geometry': row['geometry']}
 
     def __determine_sectioning(self, new_section: dict):
@@ -256,8 +266,6 @@ class RoadModel:
             other_section_index = overlap_section['index']
             other_section = deepcopy(overlap_section['section_info'])  # Deepcopy prevents aliasing
             overlap_geometry = deepcopy(overlap_section['geom'])
-
-            assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
 
             # Determine all km registration points
             registration_points = set(new_section['km_range']) | set(other_section['km_range'])
@@ -320,7 +328,6 @@ class RoadModel:
 
         # Add new section
         self.__add_section({
-            'side': new_section['side'],
             'km_range': sorted(unique_points),
             'properties': remainder_properties,
             'geometry': remaining_geometry
@@ -394,7 +401,6 @@ class RoadModel:
                     taken_points = remainder_points
 
                 self.__add_section({
-                    'side': new_section['side'],
                     'km_range': remainder_points,
                     'properties': remainder_properties,
                     'geometry': remaining_geometries[i]
@@ -442,7 +448,6 @@ class RoadModel:
         Adds a section to the sections variable and increases the index.
         Args:
             new_section (dict): Containing:
-                - side (str): Side of the road ('L' or 'R').
                 - km_range (list[float]): Start and end registration kilometre. Sort by convention before function.
                 - properties (dict): All properties that belong to the section.
                 - geometry (LineString): The geometry of the section.
@@ -455,14 +460,12 @@ class RoadModel:
 
     def __log_section(self, index: int):
         print("[LOG:] Section", index, "added:",
-              self.sections[index]['side'],
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
 
     def __log_section_change(self, index: int):
         print("[LOG:] Section", index, "changed:",
-              self.sections[index]['side'],
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
@@ -587,7 +590,7 @@ class RoadModel:
         """
         sections = []
         for section_index, section_info in self.sections.items():
-            if section_info['side'] == side:
+            if section_info['properties']['Baanpositie'] == side:
                 if min(section_info['km_range']) <= km <= max(section_info['km_range']):
                     sections.append(section_info['properties'])
         if len(sections) > 1:
@@ -608,7 +611,7 @@ class RoadModel:
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         section_info = []
         for section_index, section in self.sections.items():
-            if section['side'] == side:
+            if section['properties']['Baanpositie'] == side:
                 if min(section['km_range']) <= km <= max(section['km_range']):
                     section_info.append(section)
         return section_info
