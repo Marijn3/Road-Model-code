@@ -259,146 +259,53 @@ class RoadModel:
             self.__add_section(new_section)
             return
 
-        # TODO: Sort overlap_section by beginkm, then iteratively go through them
         for overlap_section in overlap_sections:
-            other_section_index = overlap_section['index']
-            other_section = deepcopy(overlap_section['section_info'])  # Deepcopy prevents aliasing
-            overlap_geometry = deepcopy(overlap_section['geom'])
+            print(new_section)
+            print(overlap_section['section_info'])
 
-            assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
+            new_section_start = min(new_section['km_range'])
+            new_section_end = max(new_section['km_range'])
 
-            # Determine all km registration points
-            registration_points = set(new_section['km_range']) | set(other_section['km_range'])
+            other_section_start = min(overlap_section['section_info']['km_range'])
+            other_section_end = max(overlap_section['section_info']['km_range'])
 
-            if len(registration_points) == 2:
+            # TODO: Assert that there is also some overlap in the km!
+
+            # Case 1
+            if new_section_start == other_section_start and new_section_end == other_section_end:
                 # print('Found equal geometries with equal start and end. Combining the properties...')
-                self.__handle_equal_case(new_section, other_section, other_section_index)
+                self.__handle_equal_case(new_section,
+                                         deepcopy(overlap_section['section_info']),
+                                         overlap_section['index'])
+                continue
 
-            elif len(registration_points) == 3:
-                # print('Found equal geometries with equal start OR end. Determining sections...')
-                self.__handle_half_equal_case(new_section, other_section, other_section_index, overlap_geometry)
+            # Case 2
+            if new_section_start == other_section_start and new_section_end < other_section_end:
+                print('hi')
 
-            elif len(registration_points) == 4:
-                # print('Found partly overlapping geometries. Determining sections...')
-                self.__handle_unequal_case(new_section, other_section, other_section_index,
-                                           registration_points, overlap_geometry, overlap_sections)
+            # Case 3
+            if new_section_start == other_section_start and new_section_end < other_section_end:
+                print('ho')
 
-    def __handle_equal_case(self, new_section: dict, other_section: dict, index: int):
-        """
-        Handles fully equal case, with 1 resulting section. 1 possible combination.
-            - Add new_section's property to original entry.
-            - Change nothing else.
-        Args:
-            new_section (dict): All data pertaining to new section.
-            other_section (dict): All data pertaining to other section.
-            index (int): Index of section to update.
-        """
-        assert new_section['geometry'].equals(other_section['geometry']), 'Inconsistent geometries.'
-        self.__update_section(index, props=new_section['properties'])
-
-    def __handle_half_equal_case(self, new_section: dict, other_section: dict, index: int, overlap_geom: LineString):
-        """
-        Handles 1/2 equal case, with 2 resulting sections. 4 possible combinations.
-            - Determine start and end of sections.
-            - Add new section (by deriving the remainder)
-                - Select property of remainder section
-                - Add section, increase index
-            - Update overlapping section (by adjusting the original other_section)
-                - Update with new_section properties
-                - Update geometry to overlapping part
-        Args:
-            new_section (dict): All data pertaining to new section.
-            other_section (dict): All data pertaining to other section.
-            index (int): Index of section to update.
-            overlap_geom (LineString): geometry of the overlapping section.
-        """
-        remaining_geometry = self.__get_remainder_half_equal(new_section['geometry'], other_section['geometry'])
-
-        # Determine new section registration points
-        midpoint, overlapping_point, unique_points, extreme_point = (
-            process_registration_points(new_section['km_range'], other_section['km_range']))
-
-        # Determine new section properties
-        if extreme_point in new_section['km_range']:
-            remainder_properties = new_section['properties']
-        elif extreme_point in other_section['km_range']:
-            remainder_properties = other_section['properties']
-        else:
-            raise Exception("No match found for extreme registration point.")
-
-        # Add new section
-        self.__add_section({
-            'side': new_section['side'],
-            'km_range': sorted(unique_points),
-            'properties': remainder_properties,
-            'geometry': remaining_geometry
-        })
-
-        # Update other_section
-        self.__update_section(index=index,
-                              km_range=[midpoint, overlapping_point],
-                              props=new_section['properties'],
-                              geom=overlap_geom)
-
-    def __handle_unequal_case(self, new_section: dict, other_section: dict, index: int, registration_points: set,
-                              overlap_geom: LineString, overlap_sections: list[dict]):
-        """
-        Handles 0/2 equal case, with 3 resulting sections. 4 possible combinations
-            - Determine registration points
-            - Determine geometries
-            - Add 2 new sections with the appropriate properties
-            - Update overlapping section (by adjusting the original other_section)
-                  - Update with new_section properties
-                  - Update geometry to overlapping part
-        Args:
-            new_section (dict): All data pertaining to new section.
-            other_section (dict): All data pertaining to other section.
-            index (int): Index of section to update.
-            registration_points (set): All registration points.
-            overlap_geom (LineString): geometry of the overlapping section.
-            overlap_sections (list): All overlapping sections.
-        """
-        remaining_geometries = self.__get_remainder_unequal(new_section['geometry'], other_section['geometry'])
-
-        # Create new sections
-        for i in [0, 1]:
-            remainder_geometry = remaining_geometries[i]
-            # Check if remainder overlaps another overlap section. If so, we will NOT add a new section now.
-            # It is already covered by updating the section in another iteration.
-            any_other_overlap = self.__check_overlap(remainder_geometry, overlap_geom, overlap_sections)
-            # TODO: This is not always the correct way to handle it.
-
-            if not any_other_overlap:
-                # Determine new section properties
-                new_geom_overlap = self.__get_overlap(remainder_geometry, new_section['geometry'])
-                other_geom_overlap = self.__get_overlap(remainder_geometry, other_section['geometry'])
-
-                assert sum([new_geom_overlap.is_empty, other_geom_overlap.is_empty]) == 1, "More than one is true."
-
-                if new_geom_overlap.is_empty:
-                    remainder_properties = other_section['properties']
-                    # section_points = other_section['km_range']
-                elif other_geom_overlap.is_empty:
-                    remainder_properties = new_section['properties']
-                    # section_points = new_section['km_range']
-
-                # Determine new section registration points
-                remainder_points_a = sorted(registration_points)[0:2]
-                remainder_points_b = sorted(registration_points)[2:4]
-
-                remainder_points = get_range_diff(remainder_points_a, remainder_points_b, remainder_geometry.length)
-
-                print(remainder_geometry.length, get_km_length(remainder_points_a), get_km_length(remainder_points_b))
+            # Case 4: Add section between new_section_start and other_section_start
+            # with new_section properties and geometry
+            if new_section_start < other_section_start:
+                # Take the first of the return value.
+                sec_geom = self.__get_remainder_unequal(new_section['geometry'],
+                                                        overlap_section['section_info']['geometry'])[0]
 
                 self.__add_section({
-                    'side': new_section['side'],
-                    'km_range': remainder_points,
-                    'properties': remainder_properties,
-                    'geometry': remainder_geometry
+                    'side': 'L',
+                    'km_range': sorted([new_section_start, other_section_start]),
+                    'properties': new_section['properties'],
+                    'geometry': sec_geom
                 })
 
-        # Update overlapping section
-        self.__update_section(index, sorted(registration_points)[1:3], new_section['properties'], overlap_geom)
+
+            # Case 5
+            if new_section_start > other_section_start:
+                # Add section between new_section_start and other_section_start with other_section properties
+                print('ha')
 
     def __check_overlap(self, geom: LineString, exception_geom: LineString, overlap_sections: list[dict]) -> bool:
         """
@@ -465,7 +372,7 @@ class RoadModel:
             Newly added section properties to log window.
         """
         self.sections[self.section_index] = new_section
-        # self.__log_section(self.section_index)
+        self.__log_section(self.section_index)
         self.section_index += 1
 
     def __log_section(self, index: int):
@@ -533,11 +440,13 @@ class RoadModel:
 
         # Determine relevant remainder geometries
         remaining_geoms = [geom for geom in remaining_geometry.geoms]
+
+        print(remaining_geoms)
         if get_num_geometries(remaining_geometry) > 2:
             sorted_geoms = sorted(remaining_geoms, key=lambda geom: geom.length, reverse=True)
             # Keep only the largest two geometries
             remaining_geoms = sorted_geoms[:2]
-            # print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
+            print('Warning: More than 2 remaining geometries. Removed', sorted_geoms[2:])
 
         return remaining_geoms
 
@@ -548,7 +457,7 @@ class RoadModel:
         Args:
             section_a (dict): All data pertaining to a section.
         Returns:
-            A list of overlap section data.
+            A list of overlap section data, sorted by start_km
         """
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
@@ -562,6 +471,10 @@ class RoadModel:
                     overlapping_sections.append({'index': section_b_index,
                                                  'section_info': section_b,
                                                  'geom': overlap_geometry})
+
+        # For the rest of the implementation, this sorting is assumed.
+        overlapping_sections = sorted(overlapping_sections, key=lambda x: min(x['section_info']['km_range']))
+
         return overlapping_sections
 
     @staticmethod
