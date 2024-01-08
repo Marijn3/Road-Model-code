@@ -358,29 +358,31 @@ class RoadModel:
             # Check if remainder overlaps another overlap section. If so, we will NOT add a new section now.
             # It is already covered by updating the section in another iteration.
             any_other_overlap = self.__check_overlap(remainder_geometry, overlap_geom, overlap_sections)
+            # TODO: This is not always the correct way to handle it.
 
             if not any_other_overlap:
                 # Determine new section properties
                 new_geom_overlap = self.__get_overlap(remainder_geometry, new_section['geometry'])
                 other_geom_overlap = self.__get_overlap(remainder_geometry, other_section['geometry'])
 
-                print(new_geom_overlap)
-                print(other_geom_overlap)
-                print('---')
-
                 assert sum([new_geom_overlap.is_empty, other_geom_overlap.is_empty]) == 1, "More than one is true."
 
                 if new_geom_overlap.is_empty:
                     remainder_properties = other_section['properties']
-                    section_points = other_section['km_range']
+                    # section_points = other_section['km_range']
                 elif other_geom_overlap.is_empty:
                     remainder_properties = new_section['properties']
-                    section_points = new_section['km_range']
+                    # section_points = new_section['km_range']
 
                 # Determine new section registration points
-                remainder_points = section_points # TODO: add actual implementation here.
+                remainder_points_a = sorted(registration_points)[0:2]
+                remainder_points_b = sorted(registration_points)[2:4]
 
-            self.__add_section({
+                remainder_points = get_range_diff(remainder_points_a, remainder_points_b, remainder_geometry.length)
+
+                print(remainder_geometry.length, get_km_length(remainder_points_a), get_km_length(remainder_points_b))
+
+                self.__add_section({
                     'side': new_section['side'],
                     'km_range': remainder_points,
                     'properties': remainder_properties,
@@ -518,8 +520,8 @@ class RoadModel:
         remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
 
         # Check that there is a non-empty remaining geometry.
-        assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
-        assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+        assert isinstance(remaining_geometry, MultiLineString), f"Incorrect remaining geometry: {remaining_geometry}"
+        assert get_num_coordinates(remaining_geometry) != 0, f"Empty remaining geometry: {remaining_geometry}"
 
         # Determine relevant remainder geometries
         remaining_geoms = [geom for geom in remaining_geometry.geoms]
