@@ -235,10 +235,17 @@ class RoadModel:
             row (pd.Series): Row containing information about the road section
             columns_of_interest (list[str]): List of column names from Dataframe to be extracted.
         """
+        if row['KANTCODE'] == 'T':
+            geom = reverse(row['geometry'])
+        elif row['KANTCODE'] == 'H':
+            geom = row['geometry']
+        else:
+            raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
+
         return {'side': row['IZI_SIDE'],
                 'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': row[columns_of_interest].to_dict(),
-                'geometry': row['geometry']}  # TODO: Flip geom if T
+                'geometry': geom}
 
     def __determine_sectioning(self, new_section: dict):
         """
