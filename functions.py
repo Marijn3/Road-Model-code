@@ -247,10 +247,12 @@ class RoadModel:
             }
 
         # Flip geometry so the direction is always in the increasing kilometer direction.
-        if row['KANTCODE'] == 'T':
+        if row['KANTCODE'] == 'H':
+            print(f"Reversing {row['geometry']} to {reverse(row['geometry'])}")
             geom = reverse(row['geometry'])
-        elif row['KANTCODE'] == 'H':
+        elif row['KANTCODE'] == 'T':
             geom = row['geometry']
+            print("Just adding regularly:", geom)
         else:
             raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
 
@@ -287,12 +289,32 @@ class RoadModel:
         other_section_geom = overlap_section_info['geometry']
 
         while get_num_coordinates(new_section_geom) != 0:
+
+            no_further_overlap = is_empty(self.__get_overlap(new_section_geom, other_section_geom))
+            if no_further_overlap:
+                i_overlap += 1
+                print("Moving on to next overlap section")
+
+                if i_overlap > num_overlap_sections:
+                    print('End reached')
+                    break
+
+                overlap_section = overlap_sections[i_overlap]
+                overlap_section_info = deepcopy(overlap_section['section_info'])
+
+                other_section_index = overlap_section['index']
+                other_section_range = overlap_section_info['km_range']
+                other_section_props = overlap_section_info['properties']
+                other_section_geom = overlap_section_info['geometry']
+
             assert self.__determine_range_overlap(new_section_range, other_section_range)
 
             print('New section range:', new_section_range)
+            print('New section props:', new_section_props)
             print('New section geom:', new_section_geom)
 
             print('Other section range:', other_section_range)
+            print('Other section props:', other_section_props)
             print('Other section geom:', other_section_geom)
 
             # Case A: new_section starts earlier.
@@ -328,9 +350,10 @@ class RoadModel:
                 # Update other_section range between new_section_max and other_section_max
                 # with and remaining geometry.
                 # Remove old other_section.
-                if max(new_section_range) < max(other_section_range):
+                elif max(new_section_range) < max(other_section_range):
                     added_geom = self.__get_overlap(new_section_geom, other_section_geom)
-                    both_props = other_section_props.update(new_section_props)
+                    assert not is_empty(added_geom), "No overlap found"
+                    both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'km_range': [min(new_section_range), max(new_section_range)],
                         'properties': both_props,
@@ -346,9 +369,9 @@ class RoadModel:
                 # Add section between new_section_min and other_section_max
                 # with both properties and overlapping geometry.
                 # Remove old other_section, since it has now been completely used.
-                if max(new_section_range) > max(other_section_range):
+                elif max(new_section_range) > max(other_section_range):
                     added_geom = self.__get_overlap(new_section_geom, other_section_geom)
-                    both_props = other_section_props.update(new_section_props)
+                    both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'km_range': [min(new_section_range), max(other_section_range)],
                         'properties': both_props,
@@ -359,7 +382,9 @@ class RoadModel:
                     new_section_geom = self.__get_remainder(new_section_geom, added_geom)[0]
                     # Store old overlap section index to later remove from road model.
                     sections_to_remove.add(other_section_index)
-                    continue
+
+                else:
+                    raise Exception("Something has gone wrong with the ranges.")
 
             # Case C: new_section starts later.
             # Add section between other_section_start and new_section_start
@@ -374,36 +399,15 @@ class RoadModel:
                 # Trim the other_section range and geometry for next iteration.
                 other_section_range = [min(new_section_range), max(other_section_range)]
                 other_section_geom = self.__get_remainder(added_geom, other_section_geom)[0]
-                continue
 
             else:
                 raise Exception("Something has gone wrong with the ranges.")
-
-            print('New section range after:', new_section_range)
-            print('New section geom after:', new_section_geom)
-
-            print('Other section range after:', other_section_range)
-            print('Other section geom after:', other_section_geom)
-
-            no_further_overlap = is_empty(self.__get_overlap(new_section_geom, other_section_geom))
-            if no_further_overlap:
-                i_overlap += 1
-
-                if i_overlap > num_overlap_sections:
-                    print('End reached')
-                    break
-
-                overlap_section = overlap_sections[i_overlap]
-                overlap_section_info = deepcopy(overlap_section['section_info'])
-                other_section_index = overlap_section_info['index']
-                other_section_range = overlap_section_info['km_range']
-                other_section_props = overlap_section_info['properties']
-                other_section_geom = overlap_section_info['geometry']
 
         self.__remove_sections(sections_to_remove)
 
     def __remove_sections(self, sections_to_remove: set[int]):
         for section_index in sections_to_remove:
+            print("Removing section", section_index)
             self.sections.pop(section_index)
 
     def __check_overlap(self, geom: LineString, exception_geom: LineString, overlap_sections: list[dict]) -> bool:
@@ -433,10 +437,11 @@ class RoadModel:
             range2 (list): Second range with float values.
         Returns:
             Boolean value indicating whether the sections overlap or not.
+            Touching sections such as [4, 7] and [7, 8] return False.
         """
         min1, max1 = min(range1), max(range1)
         min2, max2 = min(range2), max(range2)
-        overlap = max(min1, min2) <= min(max1, max2)
+        overlap = max(min1, min2) < min(max1, max2)
         return overlap
 
     def __update_section(self, index: int, km_range: list = None, props: dict = None, geom: LineString = None):
@@ -471,8 +476,15 @@ class RoadModel:
         Prints:
             Newly added section properties to log window.
         """
+        print("[LOG:] Trying to add section", self.section_index, ":",
+              new_section['km_range'],
+              new_section['properties'],
+              new_section['geometry'])
+        print(f"Lengths: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+        assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
         assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
             f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
         self.section_index += 1
@@ -504,7 +516,8 @@ class RoadModel:
         """
         remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
 
-        print(f"Warning: Empty remaining geometry: {remaining_geometry}")
+        if is_empty(remaining_geometry):
+            raise Exception(f"Can not continue. Empty remaining geometry: {remaining_geometry}")
 
         if isinstance(remaining_geometry, LineString):
             return [remaining_geometry]
@@ -513,9 +526,9 @@ class RoadModel:
             remaining_geometries = [geom for geom in remaining_geometry.geoms]
             if get_num_geometries(remaining_geometry) > 2:
                 sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
+                print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[2:])
                 # Keep only the largest two geometries
-                remaining_geometries = sorted_geoms[:2]
-                print('Warning: More than 2 remaining geometries. Removed', sorted_geoms[2:])
+                # remaining_geometries = sorted_geoms[:2]
             return remaining_geometries
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
