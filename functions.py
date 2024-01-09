@@ -274,19 +274,26 @@ class RoadModel:
         new_section_props = new_section['properties']
         new_section_geom = new_section['geometry']
 
-        num_overlap_sections = length(overlap_sections)
-        sections_to_remove = {}
+        num_overlap_sections = len(overlap_sections)
+        sections_to_remove = set()
         i_overlap = 0
         overlap_section = overlap_sections[i_overlap]
+
+        other_section_index = overlap_section['index']
         overlap_section_info = deepcopy(overlap_section['section_info'])
 
-        other_section_index = overlap_section_info['index']
         other_section_range = overlap_section_info['km_range']
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
 
         while get_num_coordinates(new_section_geom) != 0:
             assert self.__determine_range_overlap(new_section_range, other_section_range)
+
+            print('New section range:', new_section_range)
+            print('New section geom:', new_section_geom)
+
+            print('Other section range:', other_section_range)
+            print('Other section geom:', other_section_geom)
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -309,7 +316,8 @@ class RoadModel:
 
                 # Update the overlapping section properties
                 if max(new_section_range) == max(other_section_range):
-                    assert new_section_geom.equals(other_section_geom), 'Inconsistent geometries.'
+                    assert new_section_geom.equals(other_section_geom), (
+                        f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
                                           props=new_section_props)
                     # This is the final iteration.
@@ -371,6 +379,12 @@ class RoadModel:
             else:
                 raise Exception("Something has gone wrong with the ranges.")
 
+            print('New section range after:', new_section_range)
+            print('New section geom after:', new_section_geom)
+
+            print('Other section range after:', other_section_range)
+            print('Other section geom after:', other_section_geom)
+
             no_further_overlap = is_empty(self.__get_overlap(new_section_geom, other_section_geom))
             if no_further_overlap:
                 i_overlap += 1
@@ -386,8 +400,11 @@ class RoadModel:
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
 
+        self.__remove_sections(sections_to_remove)
+
+    def __remove_sections(self, sections_to_remove: set[int]):
         for section_index in sections_to_remove:
-            self.sections[section_index] = {}
+            self.sections.pop(section_index)
 
     def __check_overlap(self, geom: LineString, exception_geom: LineString, overlap_sections: list[dict]) -> bool:
         """
@@ -433,13 +450,15 @@ class RoadModel:
             geom (LineString): The geometry of the section.
         """
         assert any([km_range, props, geom]), 'No update required.'
+        assert km_range and geom or not (km_range or geom), ("Warning: please provide both km_range and geometry "
+                                                             "if either must be changed.")
         if km_range:
             self.sections[index]['km_range'] = sorted(km_range)
         if props:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
-        # self.__log_section_change(index)
+        self.__log_section_change(index)
 
     def __add_section(self, new_section: dict):
         """
@@ -452,6 +471,8 @@ class RoadModel:
         Prints:
             Newly added section properties to log window.
         """
+        assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
+            f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
         self.section_index += 1
