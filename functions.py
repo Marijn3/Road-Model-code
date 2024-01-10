@@ -668,22 +668,29 @@ class MSIRow:
         self.name = name
 
     def define_MSIs(self):
-        i_MSI = 0
-        for MSI_numbering in self.road_properties['Rijstrooksignaleringen']:
-            self.MSIs[i_MSI] = MSI(self.name + str(MSI_numbering), self.road_properties)
-            i_MSI += 1
+        i_msi = 0
+        for msi_numbering in self.road_properties['Rijstrooksignaleringen']:
+            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), self.road_properties)
+            i_msi += 1
 
 
 class MSI:
-
     # All possible legends.
     CROSS = 210
     RIGHT_ARROW = 209
     LEFT_ARROW = 208
     SPEED_50 = 16
+    SPEED_50_FLASHERS = 15
+    SPEED_50_REDRING = 14
     SPEED_70 = 13
+    SPEED_70_FLASHERS = 12
+    SPEED_70_REDRING = 11
     SPEED_80 = 10
+    SPEED_80_FLASHERS = 9
+    SPEED_80_REDRING = 8
     SPEED_90 = 7
+    SPEED_90_FLASHERS = 6
+    SPEED_90_REDRING = 5
     SPEED_100 = 4
     SPEED_ABOVE_100 = 3  # Blank screen
     GREEN_ARROW = 2
@@ -691,9 +698,18 @@ class MSI:
     BLANK = 0
 
     # Legend set definitions
-    displayset_all = {CROSS, RIGHT_ARROW, LEFT_ARROW,
-                      SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
-                      GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
+    displayset_all = {CROSS,
+                      RIGHT_ARROW,
+                      LEFT_ARROW,
+                      SPEED_50, SPEED_50_FLASHERS, SPEED_50_REDRING,
+                      SPEED_70, SPEED_70_FLASHERS, SPEED_70_REDRING,
+                      SPEED_80, SPEED_80_FLASHERS, SPEED_80_REDRING,
+                      SPEED_90, SPEED_90_FLASHERS, SPEED_90_REDRING,
+                      SPEED_100,
+                      SPEED_ABOVE_100,
+                      GREEN_ARROW,
+                      END_OF_RESTRICTIONS,
+                      BLANK}
     displayset_leftmost = displayset_all - {LEFT_ARROW}
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
@@ -702,45 +718,48 @@ class MSI:
         self.road_properties = props
         self.name = name
         self.properties = {
-            'RSU': None,
-            'c': self.name,
-            'd': None,
-            'ds': None,
-            'dt': None,
-            'db': None,
-            'dn': None,
-            'u': None,
-            'us': None,
-            'ut': None,
-            'ub': None,
-            'un': None,
-            'r': None,
-            'l': None,
-            'STAT_V': None,
-            'DYN_V': None,
-            'C_X': None,
-            'C_V': None,
-            'TS': None,
-            'TS_num': None,
-            'TS_right': None,
-            'TS_left': None,
-            'DIF_V_right': None,
-            'DIF_V_left': None,
-            'CW': None,
-            'CW_num': None,
-            'CW_right': None,
-            'CW_left': None,
-            'row': None,
-            'RHL': None,
-            'Exit_Entry': None,
-            'RHL_neighbor': None,
-            'Hard_shoulder_right': None,
-            'Hard_shoulder_left': None,
-            'N_row': None,
-            'N_TS': None,
-            'N_CW': None,
-            'State': None,
+            'RSU': None,  # RSU name
+            'c': self.name,  # Current MSI
+            'd': None,  # MSI downstream
+            'ds': None,  # MSI downstream secondary
+            'dt': None,  # MSI downstream taper
+            'db': None,  # MSI downstream broadening
+            'dn': None,  # MSI downstream narrowing
+            'u': None,  # MSI upstream
+            'us': None,  # MSI upstream secondary
+            'ut': None,  # MSI upstream taper
+            'ub': None,  # MSI upstream broadening
+            'un': None,  # MSI upstream narrowing
+            'r': None,  # MSI left
+            'l': None,  # MSI left
+            'STAT_V': None,  # Static maximum speed
+            'DYN_V': None,  # Dynamic maximum speed [?]
+            'C_X': None,  # True if continue-X relation [?]
+            'C_V': None,  # True if continue-V relation [?]
+            'TS': None,  # All MSIs in CW.
+            'TS_num': None,  # CW numbering.
+            'TS_right': None,  # All MSIs in CW to the right.
+            'TS_left': None,  # All MSIs in CW to the left.
+            'DIF_V_right': None,  # DIF-V influence from the right [?]
+            'DIF_V_left': None,  # DIF-V influence from the left [?]
+            'CW': None,  # All MSIs in CW.
+            'CW_num': None,  # CW numbering.
+            'CW_right': None,  # All MSIs in CW to the right.
+            'CW_left': None,  # All MSIs in CW to the left.
+            'row': None,  # All MSIs in row.
+            'RHL': None,  # True if MSI in RHL.
+            'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
+            'RHL_neighbor': None,  # True if RHL in row.
+            'Hard_shoulder_right': None,  # True if hard shoulder directly to the right.
+            'Hard_shoulder_left': None,  # True if hard shoulder directly to the left.
+            'N_row': None,  # Number of MSIs in row.
+            'N_TS': None,  # Number of MSIs in traffic stream.
+            'N_CW': None,  # Number of MSIs in carriageway.
+            'State': None,  # Active legend. [Not applicable]
         }
 
     def determine_MSI_properties(self):
         self.properties['STAT_V'] = self.road_properties['Snelheid']  # Adjust to updated phrasing
+
+        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties
+        # self.properties['RHL'] = 'Spitsstrook' in self.road_properties  # and numbers_equal (Pseudo)
