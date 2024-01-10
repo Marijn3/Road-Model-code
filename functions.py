@@ -214,37 +214,35 @@ class RoadModel:
             row (pd.Series): Row containing information about the road section
             name (str): Name of dataframe.
         """
+        properties = {}
+
         if name == 'Rijstroken':
+            # Extract some base properties of the road.
             properties = {
                 'Baanpositie': row['IZI_SIDE'],
-                'nRijstroken': row['nRijstroken'],
-                'Wegnummer': row['WEGNUMMER']
-                # 'Volgnummer': row['VOLGNRWOL']
+                'Wegnummer': row['WEGNUMMER'],
+                'nRijstroken': row['nRijstroken']
             }
 
-        if name == 'Kantstroken':
-            properties = {
-                'Vluchtstrook': row['OMSCHR'] == 'Vluchtstrook',
-                'Spitsstrook': row['OMSCHR'] == 'Spitsstrook',
-                'Puntstuk': row['OMSCHR'] == 'Puntstuk',
-                'RedresseerstrookL': (row['OMSCHR'] == 'Redresseerstrook') &
-                                     (row['IZI_SIDE'] == 'L'),
-                'RedresseerstrookR': (row['OMSCHR'] == 'Redresseerstrook') &
-                                     (row['IZI_SIDE'] == 'R'),
-                'Bufferstrook': row['OMSCHR'] == 'Bufferstrook',
-                'Plusstrook': row['OMSCHR'] == 'Plusstrook',
-            }
+            first_lane_number = row['VNRWOL']
+            n_rijstroken = row['nRijstroken']
 
-        if name == 'Maximum snelheid':
-            properties = {
-                'Snelheid': row['OMSCHR']
-            }
+            # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
+            for lane_number in range(first_lane_number, n_rijstroken+1):
+                properties[lane_number] = 'Rijstrook'
 
-        if name == 'Rijstrooksignaleringen':
-            properties = {
-                'Rijstroken': [int(char) for char in row['RIJSTRKNRS']],
-                'km': row['KMTR']
-            }
+        elif name == 'Kantstroken':
+            # Indicate lane number and type of kantstrook. Example: {3: 'Spitsstrook'}
+            lane_number = row['VNRWOL']
+            properties[lane_number] = row['OMSCHR']
+
+        elif name == 'Mengstroken':
+            # Indicate lane number, type of mengstrook and amount of lanes. Example: {4: 'Weefstrook', 1}
+            lane_number = row['VNRWOL']
+            properties[lane_number] = {'type': row['OMSCHR'], 'nLanes': row['AANT_MSK']}
+
+        elif name == 'Maximum snelheid':
+            properties['Maximumsnelheid'] = row['OMSCHR']
 
         # Flip geometry so the direction is always in the increasing kilometer direction.
         if row['KANTCODE'] == 'T':
