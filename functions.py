@@ -659,3 +659,39 @@ def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
 
 def get_km_length(km: list) -> int:
     return round(1000*abs(km[1] - km[0]))
+
+
+class MSI:
+
+    # All possible display options.
+    CROSS = 210
+    RIGHT_ARROW = 209
+    LEFT_ARROW = 208
+    SPEED_50 = 16
+    SPEED_70 = 13
+    SPEED_80 = 10
+    SPEED_90 = 7
+    SPEED_100 = 4
+    SPEED_ABOVE_100 = 3  # Blank screen
+    GREEN_ARROW = 2
+    END_OF_RESTRICTIONS = 1
+    BLANK = 0
+
+    display_all = {CROSS, RIGHT_ARROW, LEFT_ARROW,
+                   SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
+                   GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
+    display_leftmost = {CROSS, RIGHT_ARROW,
+                        SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
+                        GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
+    display_rightmost = {CROSS, LEFT_ARROW,
+                         SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
+                         GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
+
+    def __init__(self, name):
+        self.displayoptions = self.display_all
+        self.road_properties = {}
+        self.name = name
+
+    def inherit_road_properties(self, props: dict):
+        self.road_properties = props
+
