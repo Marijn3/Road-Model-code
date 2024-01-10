@@ -747,9 +747,8 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     return is_empty(opposite_direction_overlap)
 
 
-
 class MSIRow:
-    def __init__(self, props, name):
+    def __init__(self, name: str, props: dict):
         self.MSIs = []
         self.road_properties = props
         self.name = name
@@ -757,7 +756,7 @@ class MSIRow:
     def define_MSIs(self):
         i_msi = 0
         for msi_numbering in self.road_properties['Rijstrooksignaleringen']:
-            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), self.road_properties)
+            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), msi_numbering, self.road_properties)
             i_msi += 1
 
 
@@ -800,13 +799,15 @@ class MSI:
     displayset_leftmost = displayset_all - {LEFT_ARROW}
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
-    def __init__(self, name, props: dict):
+    def __init__(self, name: str, lane_number: int, props: dict):
         self.displayoptions = self.displayset_all
-        self.road_properties = props
         self.name = name
+        self.lane_number = lane_number
+        self.road_properties = props
+
         self.properties = {
-            'RSU': None,  # RSU name
-            'c': self.name,  # Current MSI
+            # 'RSU': None,  # RSU name [Not available]
+            'c': None,  # Current MSI
             'd': None,  # MSI downstream
             'ds': None,  # MSI downstream secondary
             'dt': None,  # MSI downstream taper
@@ -842,11 +843,14 @@ class MSI:
             'N_row': None,  # Number of MSIs in row.
             'N_TS': None,  # Number of MSIs in traffic stream.
             'N_CW': None,  # Number of MSIs in carriageway.
-            'State': None,  # Active legend. [Not applicable]
+            # 'State': None,  # Active legend. [Not applicable]
         }
 
-    def determine_MSI_properties(self):
-        self.properties['STAT_V'] = self.road_properties['Snelheid']  # Adjust to updated phrasing
+    def determine_MSI_relations(self):
+        self.properties['c'] = self.name
 
-        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties
-        # self.properties['RHL'] = 'Spitsstrook' in self.road_properties  # and numbers_equal (Pseudo)
+    def determine_MSI_properties(self):
+        self.properties['STAT_V'] = self.road_properties['Maximumsnelheid']
+
+        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties.items()
+        self.properties['RHL'] = self.road_properties[self.lane_number] = 'Spitsstrook'
