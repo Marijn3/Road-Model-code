@@ -247,10 +247,10 @@ class RoadModel:
             }
 
         # Flip geometry so the direction is always in the increasing kilometer direction.
-        if row['KANTCODE'] == 'H':
+        if row['KANTCODE'] == 'T':
             print(f"Reversing {row['geometry']} to {reverse(row['geometry'])}")
             geom = reverse(row['geometry'])
-        elif row['KANTCODE'] == 'T':
+        elif row['KANTCODE'] == 'H':
             geom = row['geometry']
             print("Just adding regularly:", geom)
         else:
@@ -288,26 +288,25 @@ class RoadModel:
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
 
-        while get_num_coordinates(new_section_geom) != 0:
+        while True:  # get_num_coordinates(new_section_geom) != 0:
 
-            no_further_overlap = self.__get_overlap(new_section_geom, other_section_geom) is None
-            if no_further_overlap:
+            if not self.__get_overlap(new_section_geom, other_section_geom):
+                print("Moving on to next overlap section.")
+
                 i_overlap += 1
-                print("Moving on to next overlap section")
 
                 if i_overlap > num_overlap_sections:
-                    print('End reached')
+                    print('End reached. [Unexpected]')
                     break
 
                 overlap_section = overlap_sections[i_overlap]
-                overlap_section_info = deepcopy(overlap_section['section_info'])
 
                 other_section_index = overlap_section['index']
+                overlap_section_info = deepcopy(overlap_section['section_info'])
+
                 other_section_range = overlap_section_info['km_range']
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
-
-            assert self.__determine_range_overlap(new_section_range, other_section_range)
 
             print('New section range:', new_section_range)
             print('New section props:', new_section_props)
@@ -316,6 +315,9 @@ class RoadModel:
             print('Other section range:', other_section_range)
             print('Other section props:', other_section_props)
             print('Other section geom:', other_section_geom)
+
+            assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
+            assert same_direction(new_section_geom, other_section_geom), f"Geometries not in the same direction: {new_section_geom}, {other_section_geom}"
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -480,8 +482,9 @@ class RoadModel:
               new_section['km_range'],
               new_section['properties'],
               new_section['geometry'])
-        print(f"Lengths: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
         assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
+
+        print(f"Lengths: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
         assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
             f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
@@ -494,12 +497,14 @@ class RoadModel:
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
+        print("")
 
     def __log_section_change(self, index: int):
         print("[LOG:] Section", index, "changed:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
+        print("")
 
     @staticmethod
     def __get_remainder(geom1: LineString, geom2: LineString) -> list[LineString]:
@@ -709,3 +714,15 @@ def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
 
 def get_km_length(km: list) -> int:
     return round(1000*abs(km[1] - km[0]))
+
+
+def same_direction(geom1: LineString, geom2: LineString) -> bool:
+    overlap = shared_paths(geom1, geom2)
+    same_direction_overlap = overlap.geoms[0]
+    opposite_direction_overlap = overlap.geoms[1]
+
+    print(same_direction_overlap, opposite_direction_overlap)
+    assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
+
+    return is_empty(opposite_direction_overlap)
+
