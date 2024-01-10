@@ -290,7 +290,7 @@ class RoadModel:
 
         while get_num_coordinates(new_section_geom) != 0:
 
-            no_further_overlap = is_empty(self.__get_overlap(new_section_geom, other_section_geom))
+            no_further_overlap = self.__get_overlap(new_section_geom, other_section_geom) is None
             if no_further_overlap:
                 i_overlap += 1
                 print("Moving on to next overlap section")
@@ -352,7 +352,7 @@ class RoadModel:
                 # Remove old other_section.
                 elif max(new_section_range) < max(other_section_range):
                     added_geom = self.__get_overlap(new_section_geom, other_section_geom)
-                    assert not is_empty(added_geom), "No overlap found"
+                    assert added_geom, "No overlap found"
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'km_range': [min(new_section_range), max(new_section_range)],
@@ -424,7 +424,7 @@ class RoadModel:
         for other_overlap in overlap_sections:
             if other_overlap['geom'] != exception_geom:
                 o = self.__get_overlap(geom, other_overlap['geom'])
-                if not o.is_empty:
+                if o:
                     return True
         return False
 
@@ -548,7 +548,7 @@ class RoadModel:
 
                 overlap_geometry = self.__get_overlap(section_a['geometry'], section_b['geometry'])
 
-                if not overlap_geometry.is_empty:
+                if overlap_geometry:
                     overlapping_sections.append({'index': section_b_index,
                                                  'section_info': section_b,
                                                  'geom': overlap_geometry})
@@ -559,14 +559,15 @@ class RoadModel:
         return overlapping_sections
 
     @staticmethod
-    def __get_overlap(geometry1: LineString, geometry2: LineString) -> LineString:
+    def __get_overlap(geometry1: LineString, geometry2: LineString) -> LineString | None:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
             geometry1 (LineString): The first Shapely LineString.
             geometry2 (LineString): The second Shapely LineString.
         Returns:
-            LineString: The overlap geometry (or an empty LineString).
+            LineString: The overlap geometry.
+            None: If there is no overlap geometry.
         Note:
             The function uses the `intersection` method from Shapely to compute the overlap
             between the two LineString geometries.
@@ -580,7 +581,7 @@ class RoadModel:
         elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return overlap_geometry
         else:
-            return LineString([])
+            return None
 
     def get_sections(self) -> list:
         return [section for section in self.sections.values()]
