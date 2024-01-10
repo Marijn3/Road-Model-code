@@ -206,14 +206,31 @@ class RoadModel:
               'The model has', self.section_index, 'sections in total.')
         print("")
 
-    @staticmethod
-    def __extract_row_properties(row: pd.Series, name: str):
+    def __extract_row_properties(self, row: pd.Series, name: str):
         """
         Turns the contents of a road data Dataframe row into a dictionary with the relevant entries.
         Args:
             row (pd.Series): Row containing information about the road section
             name (str): Name of dataframe.
         """
+        if isinstance(row['geometry'], (Point, MultiPoint)):
+            return self.__extract_point_properties(row, name)
+        else:
+            return self.__extract_line_properties(row, name)
+
+    @staticmethod
+    def __extract_point_properties(row: pd.Series, name: str):
+        properties = {}
+
+        if name == 'Rijstrooksignaleringen':
+            properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
+
+        return {'km': row['KMTR'],
+                'properties': properties,
+                'geometry': row['geometry']}
+
+    @staticmethod
+    def __extract_line_properties(row: pd.Series, name: str):
         properties = {}
 
         if name == 'Rijstroken':
