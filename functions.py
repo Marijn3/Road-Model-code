@@ -321,16 +321,16 @@ class RoadModel:
             # Add section between new_section_start and other_section_start
             # with new_section properties and geometry
             if min(new_section_range) < min(other_section_range):
-                added_range = [min(new_section_range), min(other_section_range)]
-                added_geom = self.__get_remainder(new_section_geom, other_section_geom, get_km_length(added_range))
+                # Add section...
+                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
                 self.__add_section({
-                    'km_range': added_range,
+                    'km_range': [min(new_section_range), min(other_section_range)],
                     'properties': new_section_props,
                     'geometry': added_geom
                 })
                 # Trim the new_section range and geometry for next iteration.
                 new_section_range = [min(other_section_range), max(new_section_range)]
-                new_section_geom = self.__get_remainder(added_geom, new_section_geom, get_km_length(new_section_range))
+                new_section_geom = self.__get_remainder(added_geom, new_section_geom)[0]
                 continue
 
             # Case B: start is equal.
@@ -359,10 +359,9 @@ class RoadModel:
                         'properties': both_props,
                         'geometry': added_geom
                     })
-                    other_range = [max(new_section_range), max(other_section_range)]
-                    other_geom = self.__get_remainder(added_geom, other_section_geom, get_km_length(other_range))
+                    other_geom = self.__get_remainder(added_geom, other_section_geom)[0]
                     self.__update_section(other_section_index,
-                                          km_range=other_range,
+                                          km_range=[max(new_section_range), max(other_section_range)],
                                           geom=other_geom)
                     # This is the final iteration.
                     break
@@ -372,7 +371,6 @@ class RoadModel:
                 # Remove old other_section, since it has now been completely used.
                 elif max(new_section_range) > max(other_section_range):
                     added_geom = self.__get_overlap(new_section_geom, other_section_geom)
-                    assert added_geom, "No overlap found"
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'km_range': [min(new_section_range), max(other_section_range)],
@@ -381,7 +379,7 @@ class RoadModel:
                     })
                     # Trim the new_section range and geometry for another go.
                     new_section_range = [max(other_section_range), max(new_section_range)]
-                    new_section_geom = self.__get_remainder(new_section_geom, added_geom, get_km_length(new_section_range))
+                    new_section_geom = self.__get_remainder(new_section_geom, added_geom)[0]
                     # Store old overlap section index to later remove from road model.
                     sections_to_remove.add(other_section_index)
 
@@ -392,16 +390,15 @@ class RoadModel:
             # Add section between other_section_start and new_section_start
             # with other_section properties and geometry.
             elif min(new_section_range) > min(other_section_range):
-                added_range = [min(other_section_range), min(new_section_range)]
-                added_geom = self.__get_remainder(new_section_geom, other_section_geom, get_km_length(added_range))
+                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
                 self.__add_section({
-                    'km_range': added_range,
+                    'km_range': [min(other_section_range), min(new_section_range)],
                     'properties': other_section_props,
                     'geometry': added_geom
                 })
                 # Trim the other_section range and geometry for next iteration.
                 other_section_range = [min(new_section_range), max(other_section_range)]
-                other_section_geom = self.__get_remainder(added_geom, other_section_geom, get_km_length(other_section_range))
+                other_section_geom = self.__get_remainder(added_geom, other_section_geom)[0]
 
             else:
                 raise Exception("Something has gone wrong with the ranges.")
@@ -479,6 +476,10 @@ class RoadModel:
         Prints:
             Newly added section properties to log window.
         """
+        print("[LOG:] Trying to add section", self.section_index, ":",
+              new_section['km_range'],
+              new_section['properties'],
+              new_section['geometry'])
         print(f"Lengths: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
         assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
         assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
@@ -501,41 +502,34 @@ class RoadModel:
               self.sections[index]['geometry'])
 
     @staticmethod
-    def __get_remainder(geom1: LineString, geom2: LineString, length_estimate: float) -> LineString:
+    def __get_remainder(geom1: LineString, geom2: LineString) -> list[LineString]:
         """
         Finds the two geometries that two Shapely LineStrings do NOT have in common.
         Args:
             geom1 (LineString): The first Shapely LineString.
             geom2 (LineString): The second Shapely LineString.
-            length_estimate (float): Estimate of length of resulting remainder section.
         Returns:
-            The LineStrings encompassing the geometry that
-            forms the difference between the two provided sections.
-            When there are two options, the geometry is chosen with a
-            length value that is closest to the provided estimate.
+            List of two LineStrings describing the geometry that
+            is the difference between the two provided sections.
+            The order is maintained, so the first item in the list
+            contains the first overlap that is encountered.
         """
         remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
 
         if is_empty(remaining_geometry):
-            raise Exception(f"Cannot continue. Empty remaining geometry: {remaining_geometry}")
+            raise Exception(f"Can not continue. Empty remaining geometry: {remaining_geometry}")
 
         if isinstance(remaining_geometry, LineString):
-            return remaining_geometry
+            return [remaining_geometry]
 
         if isinstance(remaining_geometry, MultiLineString):
-            if get_num_geometries(remaining_geometry) > 2:
-                print('Warning: More than 2 remaining geometries.')
-
-            print(remaining_geometry)
-
             remaining_geometries = [geom for geom in remaining_geometry.geoms]
-            diffs = [abs(geom.length - length_estimate) for geom in remaining_geometries]
-            closest_geometry_index = diffs.index(min(diffs))
-            remaining_geometry = remaining_geometries[closest_geometry_index]
-
-            print(remaining_geometries, diffs, closest_geometry_index, remaining_geometry)
-
-            return remaining_geometry
+            if get_num_geometries(remaining_geometry) > 2:
+                sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
+                print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[2:])
+                # Keep only the largest two geometries
+                # remaining_geometries = sorted_geoms[:2]
+            return remaining_geometries
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
