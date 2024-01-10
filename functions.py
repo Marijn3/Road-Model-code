@@ -661,6 +661,19 @@ def get_km_length(km: list) -> int:
     return round(1000*abs(km[1] - km[0]))
 
 
+class MSIRow:
+    def __init__(self, props, name):
+        self.MSIs = []
+        self.road_properties = props
+        self.name = name
+
+    def define_MSIs(self):
+        i_MSI = 0
+        for MSI_numbering in self.road_properties['Rijstrooksignaleringen']:
+            self.MSIs[i_MSI] = MSI(self.name + str(MSI_numbering), self.road_properties)
+            i_MSI += 1
+
+
 class MSI:
 
     # All possible legends.
@@ -684,13 +697,13 @@ class MSI:
     displayset_leftmost = displayset_all - {LEFT_ARROW}
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
-    def __init__(self, name):
+    def __init__(self, name, props: dict):
         self.displayoptions = self.displayset_all
-        self.road_properties = {}
+        self.road_properties = props
         self.name = name
         self.properties = {
             'RSU': None,
-            'c': None,
+            'c': self.name,
             'd': None,
             'ds': None,
             'dt': None,
@@ -729,10 +742,5 @@ class MSI:
             'State': None,
         }
 
-    def inherit_road_properties(self, props: dict):
-        self.road_properties = props
-
     def determine_MSI_properties(self):
         self.properties['STAT_V'] = self.road_properties['Snelheid']  # Adjust to updated phrasing
-
-
