@@ -133,8 +133,8 @@ class DataFrameLoader:
         # self.data[df_name].drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
 
         # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
-        # if 'stroken' in name:
-        #     self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
+        if 'stroken' in name:
+            self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
@@ -222,6 +222,12 @@ class RoadModel:
     def __extract_point_properties(row: pd.Series, name: str):
         properties = {}
 
+        if name == 'Convergenties':
+            properties['Type convergentie'] = row['TYPE_CONV']
+
+        if name == 'Divergenties':
+            properties['Type divergentie'] = row['TYPE_DIV']
+
         if name == 'Rijstrooksignaleringen':
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
@@ -238,11 +244,10 @@ class RoadModel:
             properties = {
                 'Baanpositie': row['IZI_SIDE'],
                 'Wegnummer': row['WEGNUMMER'],
-                'nRijstroken': row['nRijstroken']
             }
 
             first_lane_number = row['VNRWOL']
-            n_rijstroken = row['nRijstroken']
+            n_rijstroken = int(row['nRijstroken'])  # Always rounds down
 
             # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
             for lane_number in range(first_lane_number, n_rijstroken+1):
