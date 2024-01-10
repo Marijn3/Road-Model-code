@@ -663,7 +663,7 @@ def get_km_length(km: list) -> int:
 
 class MSI:
 
-    # All possible display options.
+    # All possible legends.
     CROSS = 210
     RIGHT_ARROW = 209
     LEFT_ARROW = 208
@@ -677,21 +677,62 @@ class MSI:
     END_OF_RESTRICTIONS = 1
     BLANK = 0
 
-    display_all = {CROSS, RIGHT_ARROW, LEFT_ARROW,
-                   SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
-                   GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
-    display_leftmost = {CROSS, RIGHT_ARROW,
-                        SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
-                        GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
-    display_rightmost = {CROSS, LEFT_ARROW,
-                         SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
-                         GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
+    # Legend set definitions
+    displayset_all = {CROSS, RIGHT_ARROW, LEFT_ARROW,
+                      SPEED_50, SPEED_70, SPEED_80, SPEED_90, SPEED_100, SPEED_ABOVE_100,
+                      GREEN_ARROW, END_OF_RESTRICTIONS, BLANK}
+    displayset_leftmost = displayset_all - {LEFT_ARROW}
+    displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
     def __init__(self, name):
-        self.displayoptions = self.display_all
+        self.displayoptions = self.displayset_all
         self.road_properties = {}
         self.name = name
+        self.properties = {
+            'RSU': None,
+            'c': None,
+            'd': None,
+            'ds': None,
+            'dt': None,
+            'db': None,
+            'dn': None,
+            'u': None,
+            'us': None,
+            'ut': None,
+            'ub': None,
+            'un': None,
+            'r': None,
+            'l': None,
+            'STAT_V': None,
+            'DYN_V': None,
+            'C_X': None,
+            'C_V': None,
+            'TS': None,
+            'TS_num': None,
+            'TS_right': None,
+            'TS_left': None,
+            'DIF_V_right': None,
+            'DIF_V_left': None,
+            'CW': None,
+            'CW_num': None,
+            'CW_right': None,
+            'CW_left': None,
+            'row': None,
+            'RHL': None,
+            'Exit_Entry': None,
+            'RHL_neighbor': None,
+            'Hard_shoulder_right': None,
+            'Hard_shoulder_left': None,
+            'N_row': None,
+            'N_TS': None,
+            'N_CW': None,
+            'State': None,
+        }
 
     def inherit_road_properties(self, props: dict):
         self.road_properties = props
+
+    def determine_MSI_properties(self):
+        self.properties['STAT_V'] = self.road_properties['Snelheid']  # Adjust to updated phrasing
+
 
