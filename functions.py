@@ -174,9 +174,6 @@ class RoadModel:
         self.sections = {}
         self.section_index = 0
         self.has_layer = False
-        self.i = 0
-        self.wrong_sections = pd.DataFrame(columns=['section1', 'section2'])
-        self.right_sections = pd.DataFrame(columns=['section1', 'section2'])
 
     def import_dataframes(self, dfl: DataFrameLoader):
         """
@@ -187,9 +184,6 @@ class RoadModel:
         self.__import_dataframe(dfl, 'Rijstroken')
         self.__import_dataframe(dfl, 'Kantstroken')
         self.__import_dataframe(dfl, 'Maximum snelheid')
-
-        self.wrong_sections.to_csv("wrong.csv")
-        self.right_sections.to_csv("right.csv")
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
@@ -278,17 +272,15 @@ class RoadModel:
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
 
-        geom = row['geometry']
-
         # Flip geometry so the direction is always in the increasing kilometer direction.
-        # if row['KANTCODE'] == 'T':
-        #     print(f"Reversing {row['geometry']} to {reverse(row['geometry'])}")
-        #     geom = reverse(row['geometry'])
-        # elif row['KANTCODE'] == 'H':
-        #     geom = row['geometry']
-        #     print("Just adding regularly:", geom)
-        # else:
-        #     raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
+        if row['KANTCODE'] == 'T':
+            print(f"Reversing {row['geometry']} to {reverse(row['geometry'])}")
+            geom = reverse(row['geometry'])
+        elif row['KANTCODE'] == 'H':
+            geom = row['geometry']
+            print("Just adding regularly:", geom)
+        else:
+            raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
 
         return {'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
@@ -351,18 +343,7 @@ class RoadModel:
             print('Other section geom:', other_section_geom)
 
             assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
-            # assert same_direction(new_section_geom, other_section_geom), f"Geometries not in the same direction: {new_section_geom}, {other_section_geom}"
-
-            # TEMPORARY add wrong items to list.
-            #row_data = {'section1': , 'section2': overlap_section_info}
-            if not same_direction(new_section_geom, other_section_geom):
-                self.wrong_sections.loc[self.i] = [new_section, overlap_section_info]
-                self.i += 1
-                break
-            else:
-                self.right_sections.loc[self.i] = [new_section, overlap_section_info]
-                self.i += 1
-                break
+            assert same_direction(new_section_geom, other_section_geom), f"Geometries not in the same direction: {new_section_geom}, {other_section_geom}"
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -729,8 +710,7 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     opposite_direction_overlap = overlap.geoms[1]
 
     print(same_direction_overlap, opposite_direction_overlap)
-    if not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]):
-        return False
+    assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
 
     return is_empty(opposite_direction_overlap)
 
