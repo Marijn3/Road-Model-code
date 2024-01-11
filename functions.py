@@ -649,44 +649,6 @@ class RoadModel:
         return section_info
 
 
-def get_middle_value(input_set: set) -> any:
-    """
-    Find the middle value of a set of three number values.
-    Args:
-        input_set (set): Set with three number values.
-    Returns:
-        Middle value of set.
-    """
-    assert len(input_set) == 3, 'Incorrect set length.'
-    sorted_set = sorted(input_set)
-    return sorted_set[1]
-
-
-def process_registration_points(rp1: list, rp2: list) -> (int, int, list[int], int):
-    """
-    Determines point properties based on the two given lists of registration points.
-    The assumption is made that two of the four points overlap.
-    Args:
-        rp1 (list): First list of registration points.
-        rp2 (list): Second list of registration points.
-    Returns:
-        The value of the midpoint of the three remaining registration points.
-        The value of the overlapping point between the two lists.
-        The unique points of the two lists, sorted.
-        The extreme point: the unique point which is not the midpoint.
-    """
-    s1 = set(rp1)
-    s2 = set(rp2)
-    all_points = s1 | s2
-    assert len(all_points) == 3, "Assumption violated."
-
-    midpoint = get_middle_value(all_points)
-    overlapping_point = s1.intersection(s2)
-    unique_points = s1.symmetric_difference(s2)
-    extreme_point = unique_points.symmetric_difference({midpoint})
-    return midpoint, overlapping_point.pop(), sorted(unique_points), extreme_point.pop()
-
-
 def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
     """
     Determines the difference between two range elements.
