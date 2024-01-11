@@ -124,6 +124,9 @@ class DataFrameLoader:
             # self.data[df_name]['VOLGNRWOL'] = (
             #     pd.to_numeric(self.data[df_name]['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
+        if name == 'Mengstroken':
+            self.data[name]['nMengstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
+
         if name == 'Rijstrooksignaleringen':
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
             is_kp = self.data[name]['CODE'] == 'KP'
@@ -259,9 +262,12 @@ class RoadModel:
             properties[lane_number] = row['OMSCHR']
 
         elif name == 'Mengstroken':
-            # Indicate lane number, type of mengstrook and amount of lanes. Example: {4: 'Weefstrook', 1}
-            lane_number = row['VNRWOL']
-            properties[lane_number] = {'type': row['OMSCHR'], 'nLanes': row['AANT_MSK']}
+            first_lane_number = row['VNRWOL']
+            n_mengstroken = int(row['nMengstroken'])  # Always rounds down
+
+            # Indicate lane number and type of mengstrook. Example: {4: 'Weefstrook'}
+            for lane_number in range(first_lane_number, n_mengstroken + 1):
+                properties[lane_number] = row['OMSCHR']
 
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
