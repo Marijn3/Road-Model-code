@@ -720,6 +720,7 @@ class MSIRow:
         self.MSIs = []
         self.road_properties = props
         self.name = name
+        self.define_MSIs()
 
     def define_MSIs(self):
         i_msi = 0
@@ -772,6 +773,7 @@ class MSI:
         self.name = name
         self.lane_number = lane_number
         self.road_properties = props
+        self.nLanes = max([lane_number for lane_number in props.keys()])
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
@@ -788,31 +790,41 @@ class MSI:
             'un': None,  # MSI upstream narrowing
             'r': None,  # MSI left
             'l': None,  # MSI left
+
             'STAT_V': None,  # Static maximum speed
             'DYN_V': None,  # Dynamic maximum speed [?]
             'C_X': None,  # True if continue-X relation [?]
             'C_V': None,  # True if continue-V relation [?]
+
             'TS': None,  # All MSIs in CW.
             'TS_num': None,  # CW numbering.
             'TS_right': None,  # All MSIs in CW to the right.
             'TS_left': None,  # All MSIs in CW to the left.
+
             'DIF_V_right': None,  # DIF-V influence from the right [?]
             'DIF_V_left': None,  # DIF-V influence from the left [?]
+
             'CW': None,  # All MSIs in CW.
             'CW_num': None,  # CW numbering.
             'CW_right': None,  # All MSIs in CW to the right.
             'CW_left': None,  # All MSIs in CW to the left.
+
             'row': None,  # All MSIs in row.
-            'RHL': None,  # True if MSI in RHL.
+
+            'RHL': None,  # [V] True if MSI in RHL.
             'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
-            'RHL_neighbor': None,  # True if RHL in row.
-            'Hard_shoulder_right': None,  # True if hard shoulder directly to the right.
-            'Hard_shoulder_left': None,  # True if hard shoulder directly to the left.
-            'N_row': None,  # Number of MSIs in row.
+            'RHL_neighbor': None,  # [V] True if RHL in row.
+            'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
+            'Hard_shoulder_left': None,  # [V] True if hard shoulder directly to the left.
+
+            'N_row': None,  # [~] Number of MSIs in row.
             'N_TS': None,  # Number of MSIs in traffic stream.
             'N_CW': None,  # Number of MSIs in carriageway.
             # 'State': None,  # Active legend. [Not applicable]
         }
+
+        self.determine_MSI_properties()
+        self.determine_MSI_relations()
 
     def determine_MSI_relations(self):
         self.properties['c'] = self.name
@@ -822,3 +834,17 @@ class MSI:
 
         self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties.items()
         self.properties['RHL'] = self.road_properties[self.lane_number] = 'Spitsstrook'
+
+        if self.lane_number < self.nLanes:
+            self.properties['Hard_shoulder_right'] = self.road_properties[self.lane_number + 1] = 'Vluchtstrook'
+        else:
+            self.properties['Hard_shoulder_right'] = False
+
+        if self.lane_number > 1:
+            self.properties['Hard_shoulder_left'] = self.road_properties[self.lane_number - 1] = 'Vluchtstrook'
+        else:
+            self.properties['Hard_shoulder_left'] = False
+
+        self.properties['N_row'] = len(self.road_properties['Rijstrooksignaleringen'])
+
+
