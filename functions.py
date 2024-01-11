@@ -75,11 +75,11 @@ class DataFrameLoader:
 
     def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
-        Select data in the specified extent from the GeoDataFrame.
+        Select data that intersects the specified extent from the GeoDataFrame.
         Args:
             data (gpd.GeoDataFrame): The GeoDataFrame.
         Returns:
-            gpd.GeoDataFrame: The GeoDataFrame with only data inside the extent.
+            gpd.GeoDataFrame: The GeoDataFrame with only data that intersects the extent.
         """
         # All data that intersects extent is considered 'in the extent'.
         data['inextent'] = data['geometry'].apply(lambda geom: geom.intersects(self.extent))
@@ -100,45 +100,44 @@ class DataFrameLoader:
         folder_name = parts[-2]
         return folder_name
 
-    def __edit_columns(self, df_name: str):
+    def __edit_columns(self, name: str):
         """
         Edit columns from the GeoDataFrame.
         Args:
-            df_name (str): The name of the GeoDataFrame.
+            name (str): The name of the GeoDataFrame.
         """
-        data = self.data[df_name]
-
-        # The geometry column can be rounded (use 0.01 for cm or 1 for meter precision)
-        data['geometry'] = data['geometry'].apply(lambda geom: set_precision(geom, 1))
-
-        # These columns are not necessary in this project.
-        data.drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
+        # Use 0.01 rounding for cm precision, or 1 for meter precision
+        self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, 1))
 
         # These column variable types should be changed.
-        data['WEGNUMMER'] = pd.to_numeric(data['WEGNUMMER'], errors='coerce').astype('Int64')
+        self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
-        # All 'stroken' dataframes have VNRWOL columns which should be converted to integer
-        if 'stroken' in df_name:
-            data['VNRWOL'] = pd.to_numeric(data['VNRWOL'], errors='coerce').astype('Int64')
+        if name == 'Rijstroken':
+            lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
+                            '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
+                            '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
+                            '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
+                            '5 -> 5': 5}
+            self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
 
-        # More specific data edits
-        if df_name == 'Rijstroken':
-            lane_mapping = {'1 -> 1': 1, '2 -> 2': 2, '3 -> 3': 3, '4 -> 4': 4, '5 -> 5': 5}
-            data['nLanes'] = data['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
-            data.drop(columns=['OMSCHR'])
+            # Convert VOLGNRSTRK to integer, supporting NaN values
+            # self.data[df_name]['VOLGNRWOL'] = (
+            #     pd.to_numeric(self.data[df_name]['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
-            # VOLGNRSTRK to integer, supporting NaN values
-            data['VOLGNRSTRK'] = (pd.to_numeric(data['VOLGNRSTRK'], errors='coerce').astype('Int64'))
+        if name == 'Mengstroken':
+            self.data[name]['nMengstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
 
-        if df_name == 'Kantstroken':
-            data['Vluchtstrook'] = data['OMSCHR'] == 'Vluchtstrook'
-            data['Spitsstrook'] = data['OMSCHR'] == 'Spitsstrook'
-            data['Puntstuk'] = data['OMSCHR'] == 'Puntstuk'  # TODO: Add support for more options
-            data.drop(columns=['OMSCHR'])
-
-        if df_name == 'Rijstrooksignaleringen':
+        if name == 'Rijstrooksignaleringen':
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
-            data = data[data['CODE'] == 'KP']
+            is_kp = self.data[name]['CODE'] == 'KP'
+            self.data[name] = self.data[name][is_kp]
+
+        # These general columns are not further necessary.
+        # self.data[df_name].drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
+
+        # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
+        if 'stroken' in name:
+            self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
 
     @staticmethod
     def __load_extent_from_csv(location: str) -> dict:
@@ -174,6 +173,7 @@ class RoadModel:
     def __init__(self):
         self.sections = {}
         self.section_index = 0
+        self.has_layer = False
 
     def import_dataframes(self, dfl: DataFrameLoader):
         """
@@ -181,64 +181,110 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.__import_first_dataframe(dfl, 'Rijstroken', ['nLanes'])
-        self.__import_dataframe(dfl, 'Kantstroken', ['Vluchtstrook', 'Spitsstrook', 'Puntstuk'])
-        # self.__import_dataframe(dfl, 'Maximum snelheid', ['OMSCHR'])
+        self.__import_dataframe(dfl, 'Rijstroken')
+        self.__import_dataframe(dfl, 'Kantstroken')
+        self.__import_dataframe(dfl, 'Maximum snelheid')
 
-    def __import_first_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
-        """
-        Load road sections and attributes from the first DataFrame, without checking for overlap.
-        Args:
-            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
-            df_name (str): Name of dataframe to be imported.
-            columns_of_interest (list): Names of dataframe columns to be imported.
-        Note:
-            There is no overlap check! Ensure that there is no overlap within the layer itself.
-        """
-        print('[STATUS:] Importing', df_name, '...')
-        dataframe = dfl.data[df_name]
-        for index, row in dataframe.iterrows():
-            section_info = self.__extract_row_properties(row, columns_of_interest)
-            self.__add_section(section_info)
-
-        # self.print_section_info()
-        print('[STATUS:] Added', self.section_index, 'sections. '
-              'The model has', self.section_index, 'sections in total.')
-        print("")
-
-    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str, columns_of_interest: list[str]):
+    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
         Load road sections and attributes from a DataFrame.
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
             df_name (str): Name of dataframe to be imported.
-            columns_of_interest (list): Names of dataframe columns to be imported.
         """
         print('[STATUS:] Importing', df_name, '...')
         current_sections = self.section_index
 
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            section_info = self.__extract_row_properties(row, columns_of_interest)
-            self.__determine_sectioning(section_info)
+            section_info = self.__extract_row_properties(row, df_name)
+            if self.has_layer:
+                self.__determine_sectioning(section_info)
+            else:
+                self.__add_section(section_info)
+        self.has_layer = True
 
         # self.print_section_info()
         print('[STATUS:] Added', self.section_index-current_sections, 'sections. '
               'The model has', self.section_index, 'sections in total.')
         print("")
 
-    @staticmethod
-    def __extract_row_properties(row: pd.Series, columns_of_interest: list[str]):
+    def __extract_row_properties(self, row: pd.Series, name: str):
         """
         Turns the contents of a road data Dataframe row into a dictionary with the relevant entries.
         Args:
             row (pd.Series): Row containing information about the road section
-            columns_of_interest (list[str]): List of column names from Dataframe to be extracted.
+            name (str): Name of dataframe.
         """
-        return {'side': row['IZI_SIDE'],
-                'km_range': [row['BEGINKM'], row['EINDKM']],
-                'properties': row[columns_of_interest].to_dict(),
+        if isinstance(row['geometry'], (Point, MultiPoint)):
+            return self.__extract_point_properties(row, name)
+        else:
+            return self.__extract_line_properties(row, name)
+
+    @staticmethod
+    def __extract_point_properties(row: pd.Series, name: str):
+        properties = {}
+
+        if name == 'Convergenties':
+            properties['Type convergentie'] = row['TYPE_CONV']
+
+        if name == 'Divergenties':
+            properties['Type divergentie'] = row['TYPE_DIV']
+
+        if name == 'Rijstrooksignaleringen':
+            properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
+
+        return {'km': row['KMTR'],
+                'properties': properties,
                 'geometry': row['geometry']}
+
+    @staticmethod
+    def __extract_line_properties(row: pd.Series, name: str):
+        properties = {}
+
+        if name == 'Rijstroken':
+            # Extract some base properties of the road.
+            properties = {
+                'Baanpositie': row['IZI_SIDE'],
+                'Wegnummer': row['WEGNUMMER'],
+            }
+
+            first_lane_number = row['VNRWOL']
+            n_rijstroken = int(row['nRijstroken'])  # Always rounds down
+
+            # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
+            for lane_number in range(first_lane_number, n_rijstroken+1):
+                properties[lane_number] = 'Rijstrook'
+
+        elif name == 'Kantstroken':
+            # Indicate lane number and type of kantstrook. Example: {3: 'Spitsstrook'}
+            lane_number = row['VNRWOL']
+            properties[lane_number] = row['OMSCHR']
+
+        elif name == 'Mengstroken':
+            first_lane_number = row['VNRWOL']
+            n_mengstroken = int(row['nMengstroken'])  # Always rounds down
+
+            # Indicate lane number and type of mengstrook. Example: {4: 'Weefstrook'}
+            for lane_number in range(first_lane_number, n_mengstroken + 1):
+                properties[lane_number] = row['OMSCHR']
+
+        elif name == 'Maximum snelheid':
+            properties['Maximumsnelheid'] = row['OMSCHR']
+
+        # Flip geometry so the direction is always in the increasing kilometer direction.
+        if row['KANTCODE'] == 'T':
+            print(f"Reversing {row['geometry']} to {reverse(row['geometry'])}")
+            geom = reverse(row['geometry'])
+        elif row['KANTCODE'] == 'H':
+            geom = row['geometry']
+            print("Just adding regularly:", geom)
+        else:
+            raise Exception(f"The kantcode '{row['KANTCODE']}' is not recognized.")
+
+        return {'km_range': [row['BEGINKM'], row['EINDKM']],
+                'properties': properties,
+                'geometry': geom}
 
     def __determine_sectioning(self, new_section: dict):
         """
@@ -249,159 +295,166 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            # print("This is a new section without overlap.")
             self.__add_section(new_section)
             return
 
-        # Loop over all overlapping sections.
-        # print("Number of overlapping sections to handle:", len(overlap_sections))
-        for overlap_section in overlap_sections:
-            # Extract relevant overlap properties
-            other_section_index = overlap_section['index']
-            other_section = deepcopy(overlap_section['section_info'])  # Deepcopy prevents aliasing
-            overlap_geometry = deepcopy(overlap_section['geom'])
+        new_section_range = new_section['km_range']
+        new_section_props = new_section['properties']
+        new_section_geom = new_section['geometry']
 
-            assert new_section['side'] == other_section['side'], "The overlap is not on the same side of the road."
+        num_overlap_sections = len(overlap_sections)
+        sections_to_remove = set()
+        i_overlap = 0
+        overlap_section = overlap_sections[i_overlap]
 
-            # Determine all km registration points
-            registration_points = set(new_section['km_range']) | set(other_section['km_range'])
-            # print('Registration points:', registration_points)
-            # print('This could generate', len(registration_points) - 1, 'section(s).')
+        other_section_index = overlap_section['index']
+        overlap_section_info = deepcopy(overlap_section['section_info'])
 
-            # Fully equal case, with 1 resulting section. 1 possible combination.
-            # Desired behaviour:
-            # - Add new_section's property to original entry.
-            # - Change nothing else.
-            if len(registration_points) == 2:
-                # print(new_section['km_range'], other_section['km_range'])
-                # print('check:', new_section['geometry'], other_section['geometry'])
-                assert new_section['geometry'].equals(other_section['geometry']), 'Inconsistent geometries.'
-                # print('Found equal geometries with equal start and end. Combining the properties...')
-                self.__update_section(other_section_index, props=new_section['properties'])
+        other_section_range = overlap_section_info['km_range']
+        other_section_props = overlap_section_info['properties']
+        other_section_geom = overlap_section_info['geometry']
 
-            # 1/2 equal case, with 2 resulting sections. 4 possible combinations.
-            # Desired behaviour:
-            # - Determine start and end of sections.
-            # - Add new section (by deriving the remainder)
-            #   - Select property of remainder section
-            #   - Add section, increase index
-            # - Update overlapping section (by adjusting the original other_section)
-            #   - Update with new_section properties
-            #   - Update geometry to overlapping part
-            elif len(registration_points) == 3:
-                remaining_geometry = self.__get_remainder(new_section['geometry'], other_section['geometry'])
+        while True:  # get_num_coordinates(new_section_geom) != 0:
 
-                # Check that there is a non-empty valid remaining geometry.
-                assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
-                assert isinstance(remaining_geometry, LineString), 'Remaining part is not a LineString.'
+            if not self.__get_overlap(new_section_geom, other_section_geom):
+                print("Moving on to next overlap section.")
 
-                # print('Found equal geometries with equal start OR end. Determining sections...')
+                i_overlap += 1
 
-                # Determine new section registration points
-                midpoint, overlapping_point, unique_points, extreme_point = (
-                    process_registration_points(new_section['km_range'], other_section['km_range']))
+                if i_overlap > num_overlap_sections:
+                    print('End reached. [Unexpected]')
+                    break
 
-                # Determine new section properties
-                if extreme_point in new_section['km_range']:
-                    remainder_properties = new_section['properties']
-                elif extreme_point in other_section['km_range']:
-                    remainder_properties = other_section['properties']
-                else:
-                    raise Exception("No match found for extreme registration point.")
+                overlap_section = overlap_sections[i_overlap]
 
-                # Add new section
+                other_section_index = overlap_section['index']
+                overlap_section_info = deepcopy(overlap_section['section_info'])
+
+                other_section_range = overlap_section_info['km_range']
+                other_section_props = overlap_section_info['properties']
+                other_section_geom = overlap_section_info['geometry']
+
+            print('New section range:', new_section_range)
+            print('New section props:', new_section_props)
+            print('New section geom:', new_section_geom)
+
+            print('Other section range:', other_section_range)
+            print('Other section props:', other_section_props)
+            print('Other section geom:', other_section_geom)
+
+            assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
+            assert same_direction(new_section_geom, other_section_geom), f"Geometries not in the same direction: {new_section_geom}, {other_section_geom}"
+
+            # Case A: new_section starts earlier.
+            # Add section between new_section_start and other_section_start
+            # with new_section properties and geometry
+            if min(new_section_range) < min(other_section_range):
+                # Add section...
+                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
                 self.__add_section({
-                    'side': new_section['side'],
-                    'km_range': sorted(unique_points),
-                    'properties': remainder_properties,
-                    'geometry': remaining_geometry
+                    'km_range': [min(new_section_range), min(other_section_range)],
+                    'properties': new_section_props,
+                    'geometry': added_geom
                 })
+                # Trim the new_section range and geometry for next iteration.
+                new_section_range = [min(other_section_range), max(new_section_range)]
+                new_section_geom = self.__get_remainder(added_geom, new_section_geom)[0]
+                continue
 
-                # Update other_section
-                self.__update_section(index=other_section_index,
-                                      km_range=[midpoint, overlapping_point],
-                                      props=new_section['properties'],
-                                      geom=overlap_geometry)
+            # Case B: start is equal.
+            elif min(new_section_range) == min(other_section_range):
 
-            # 0/2 equal case, with 3 resulting sections. 4 possible combinations
-            # Desired behaviour:
-            # - Determine registration points
-            # - Determine geometries
-            # - Add 2 new sections with the appropriate properties
-            # - Update overlapping section (by adjusting the original other_section)
-            #   - Update with new_section properties
-            #   - Update geometry to overlapping part
-            elif len(registration_points) == 4:
-                # print(new_section['km_range'], other_section['km_range'])
+                # Update the overlapping section properties
+                if max(new_section_range) == max(other_section_range):
+                    assert new_section_geom.equals(other_section_geom), (
+                        f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
+                    self.__update_section(other_section_index,
+                                          props=new_section_props)
+                    # This is the final iteration.
+                    break
 
-                remaining_geometry = symmetric_difference(new_section['geometry'],
-                                                          other_section['geometry'],
-                                                          grid_size=1)
+                # Add section between new_section_min and new_section_max
+                # with both properties and overlapping geometry.
+                # Update other_section range between new_section_max and other_section_max
+                # with and remaining geometry.
+                # Remove old other_section.
+                elif max(new_section_range) < max(other_section_range):
+                    added_geom = self.__get_overlap(new_section_geom, other_section_geom)
+                    assert added_geom, "No overlap found"
+                    both_props = {**other_section_props, **new_section_props}
+                    self.__add_section({
+                        'km_range': [min(new_section_range), max(new_section_range)],
+                        'properties': both_props,
+                        'geometry': added_geom
+                    })
+                    other_geom = self.__get_remainder(added_geom, other_section_geom)[0]
+                    self.__update_section(other_section_index,
+                                          km_range=[max(new_section_range), max(other_section_range)],
+                                          geom=other_geom)
+                    # This is the final iteration.
+                    break
 
-                # Check that there is a non-empty remaining geometry.
-                assert isinstance(remaining_geometry, MultiLineString), 'Incorrect remaining geometry'
-                assert get_num_coordinates(remaining_geometry) != 0, 'Empty remaining geometry.'
+                # Add section between new_section_min and other_section_max
+                # with both properties and overlapping geometry.
+                # Remove old other_section, since it has now been completely used.
+                elif max(new_section_range) > max(other_section_range):
+                    added_geom = self.__get_overlap(new_section_geom, other_section_geom)
+                    both_props = {**other_section_props, **new_section_props}
+                    self.__add_section({
+                        'km_range': [min(new_section_range), max(other_section_range)],
+                        'properties': both_props,
+                        'geometry': added_geom
+                    })
+                    # Trim the new_section range and geometry for another go.
+                    new_section_range = [max(other_section_range), max(new_section_range)]
+                    new_section_geom = self.__get_remainder(new_section_geom, added_geom)[0]
+                    # Store old overlap section index to later remove from road model.
+                    sections_to_remove.add(other_section_index)
 
-                # print('Found partly overlapping geometries. Determining sections...')
+                else:
+                    raise Exception("Something has gone wrong with the ranges.")
 
-                # Determine relevant remainder geometries
-                remainder_geometries = [geom for geom in remaining_geometry.geoms]
-                if get_num_geometries(remaining_geometry) > 2:
-                    sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
-                    # Keep only the largest two geometries
-                    remainder_geometries = sorted_geometries[:2]
-                    # print('Warning: More than 2 remaining geometries. Removed', sorted_geometries[2:])
+            # Case C: new_section starts later.
+            # Add section between other_section_start and new_section_start
+            # with other_section properties and geometry.
+            elif min(new_section_range) > min(other_section_range):
+                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
+                self.__add_section({
+                    'km_range': [min(other_section_range), min(new_section_range)],
+                    'properties': other_section_props,
+                    'geometry': added_geom
+                })
+                # Trim the other_section range and geometry for next iteration.
+                other_section_range = [min(new_section_range), max(other_section_range)]
+                other_section_geom = self.__get_remainder(added_geom, other_section_geom)[0]
 
-                # Create new section(s)
-                taken_points = []
-                for i in [0, 1]:
-                    # Check if remainder overlaps another overlap section. If so, then we will NOT add a new section.
-                    any_other_overlap = False
-                    for other_overlap in overlap_sections:
-                        if other_overlap['geom'] != overlap_geometry:
-                            o = self.__get_overlap(remainder_geometries[i], other_overlap['geom'])
-                            if not o.is_empty:
-                                any_other_overlap = True
-                                break
+            else:
+                raise Exception("Something has gone wrong with the ranges.")
 
-                    if not any_other_overlap:
-                        # Determine registration points
-                        if taken_points:
-                            remainder_points = sorted(set(registration_points).symmetric_difference(set(taken_points)))
-                        else:
-                            # Determine which geometry this remainder is part of
-                            new_overlap = self.__get_overlap(remainder_geometries[i], new_section['geometry'])
-                            other_overlap = self.__get_overlap(remainder_geometries[i], other_section['geometry'])
-                            assert sum(
-                                [new_overlap.is_empty, other_overlap.is_empty]) == 1, "Overlap situation unclear."
+        self.__remove_sections(sections_to_remove)
 
-                            # Determine properties of the geometry
-                            if other_overlap.is_empty and not new_overlap.is_empty:
-                                remainder_properties = new_section['properties']
-                                section_points = new_section['km_range']
-                                other_points = other_section['km_range']
-                            elif new_overlap.is_empty and not other_overlap.is_empty:
-                                remainder_properties = other_section['properties']
-                                section_points = other_section['km_range']
-                                other_points = new_section['km_range']
-                            else:
-                                raise Exception('Something went wrong.')
+    def __remove_sections(self, sections_to_remove: set[int]):
+        for section_index in sections_to_remove:
+            print("Removing section", section_index)
+            self.sections.pop(section_index)
 
-                            remainder_length = remainder_geometries[i].length
-                            remainder_points = get_range_diff(section_points, other_points, remainder_length)
-                            # Log for later use
-                            taken_points = remainder_points
-
-                        self.__add_section({
-                            'side': new_section['side'],
-                            'km_range': remainder_points,
-                            'properties': remainder_properties,
-                            'geometry': remainder_geometries[i]
-                        })
-
-                # Update overlapping section
-                self.__update_section(other_section_index, sorted(registration_points)[1:3],
-                                      new_section['properties'], overlap_geometry)
+    def __check_overlap(self, geom: LineString, exception_geom: LineString, overlap_sections: list[dict]) -> bool:
+        """
+        Checks whether the geometry provided overlaps with any
+        of the sections in overlap_sections, except for one geometry.
+        Args:
+            geom (LineString):
+            exception_geom (LineString):
+            overlap_sections (dict):
+        Returns:
+            Boolean that indicates whether the geometry overlaps with another section.
+        """
+        for other_overlap in overlap_sections:
+            if other_overlap['geom'] != exception_geom:
+                o = self.__get_overlap(geom, other_overlap['geom'])
+                if o:
+                    return True
+        return False
 
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
@@ -412,10 +465,11 @@ class RoadModel:
             range2 (list): Second range with float values.
         Returns:
             Boolean value indicating whether the sections overlap or not.
+            Touching sections such as [4, 7] and [7, 8] return False.
         """
         min1, max1 = min(range1), max(range1)
         min2, max2 = min(range2), max(range2)
-        overlap = max(min1, min2) <= min(max1, max2)
+        overlap = max(min1, min2) < min(max1, max2)
         return overlap
 
     def __update_section(self, index: int, km_range: list = None, props: dict = None, geom: LineString = None):
@@ -429,72 +483,94 @@ class RoadModel:
             geom (LineString): The geometry of the section.
         """
         assert any([km_range, props, geom]), 'No update required.'
+        assert km_range and geom or not (km_range or geom), ("Warning: please provide both km_range and geometry "
+                                                             "if either must be changed.")
         if km_range:
             self.sections[index]['km_range'] = sorted(km_range)
         if props:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
-        # self.__log_section_change(index)
+        self.__log_section_change(index)
 
     def __add_section(self, new_section: dict):
         """
         Adds a section to the sections variable and increases the index.
         Args:
             new_section (dict): Containing:
-                - side (str): Side of the road ('L' or 'R').
                 - km_range (list[float]): Start and end registration kilometre. Sort by convention before function.
                 - properties (dict): All properties that belong to the section.
                 - geometry (LineString): The geometry of the section.
         Prints:
             Newly added section properties to log window.
         """
+        print("[LOG:] Trying to add section", self.section_index, ":",
+              new_section['km_range'],
+              new_section['properties'],
+              new_section['geometry'])
+        assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
+
+        print(f"Lengths: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+        assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
+            f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+
         self.sections[self.section_index] = new_section
-        # self.__log_section(self.section_index)
+        self.__log_section(self.section_index)
         self.section_index += 1
 
     def __log_section(self, index: int):
         print("[LOG:] Section", index, "added:",
-              self.sections[index]['side'],
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
+        print("")
 
     def __log_section_change(self, index: int):
         print("[LOG:] Section", index, "changed:",
-              self.sections[index]['side'],
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
+        print("")
 
     @staticmethod
-    def __get_remainder(section1, section2) -> LineString:
+    def __get_remainder(geom1: LineString, geom2: LineString) -> list[LineString]:
         """
-        Finds the geometry that two Shapely LineStrings do NOT have in common.
+        Finds the two geometries that two Shapely LineStrings do NOT have in common.
         Args:
-            section1 (LineString): The first Shapely LineString.
-            section2 (LineString): The second Shapely LineString.
+            geom1 (LineString): The first Shapely LineString.
+            geom2 (LineString): The second Shapely LineString.
         Returns:
-            LineString describing the geometry that is the difference between the two provided sections.
+            List of two LineStrings describing the geometry that
+            is the difference between the two provided sections.
+            The order is maintained, so the first item in the list
+            contains the first overlap that is encountered.
         """
-        remaining_geometry = difference(section1, section2, grid_size=1)
+        remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
 
-        # If empty, try the other way around.
         if is_empty(remaining_geometry):
-            remaining_geometry = difference(section2, section1, grid_size=1)
+            raise Exception(f"Can not continue. Empty remaining geometry: {remaining_geometry}")
 
-        # Determine relevant remainder geometries
+        if isinstance(remaining_geometry, LineString):
+            return [remaining_geometry]
+
         if isinstance(remaining_geometry, MultiLineString):
-            # Keep only the largest geometry. Other geometries are tiny remainder lines
-            # caused by rounding errors elsewhere. These are hereby ignored.
-            remainder_geometries = [geom for geom in remaining_geometry.geoms]
-            sorted_geometries = sorted(remainder_geometries, key=lambda geom: geom.length, reverse=True)
-            remaining_geometry = sorted_geometries[0]
-            # print('Warning: More than 1 remaining geometry. Removed', sorted_geometries[1:])
-
-        return remaining_geometry
+            remaining_geometries = [geom for geom in remaining_geometry.geoms]
+            if get_num_geometries(remaining_geometry) > 2:
+                sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
+                print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[2:])
+                # Keep only the largest two geometries
+                # remaining_geometries = sorted_geoms[:2]
+            return remaining_geometries
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
+        """
+        Finds all sections within self which overlap with the provided section
+        and returns them in a list.
+        Args:
+            section_a (dict): All data pertaining to a section.
+        Returns:
+            A list of overlap section data, sorted by start_km
+        """
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
             # First, dismiss all sections which have a non-overlapping range,
@@ -503,21 +579,26 @@ class RoadModel:
 
                 overlap_geometry = self.__get_overlap(section_a['geometry'], section_b['geometry'])
 
-                if not overlap_geometry.is_empty:
+                if overlap_geometry:
                     overlapping_sections.append({'index': section_b_index,
                                                  'section_info': section_b,
                                                  'geom': overlap_geometry})
+
+        # For the rest of the implementation, this sorting is assumed.
+        overlapping_sections = sorted(overlapping_sections, key=lambda x: min(x['section_info']['km_range']))
+
         return overlapping_sections
 
     @staticmethod
-    def __get_overlap(geometry1: LineString, geometry2: LineString) -> LineString:
+    def __get_overlap(geometry1: LineString, geometry2: LineString) -> LineString | None:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
             geometry1 (LineString): The first Shapely LineString.
             geometry2 (LineString): The second Shapely LineString.
         Returns:
-            LineString: The overlap geometry (or an empty LineString).
+            LineString: The overlap geometry.
+            None: If there is no overlap geometry.
         Note:
             The function uses the `intersection` method from Shapely to compute the overlap
             between the two LineString geometries.
@@ -531,7 +612,7 @@ class RoadModel:
         elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return overlap_geometry
         else:
-            return LineString([])
+            return None
 
     def get_sections(self) -> list:
         return [section for section in self.sections.values()]
@@ -547,7 +628,7 @@ class RoadModel:
         """
         sections = []
         for section_index, section_info in self.sections.items():
-            if section_info['side'] == side:
+            if section_info['properties']['Baanpositie'] == side:
                 if min(section_info['km_range']) <= km <= max(section_info['km_range']):
                     sections.append(section_info['properties'])
         if len(sections) > 1:
@@ -568,109 +649,38 @@ class RoadModel:
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         section_info = []
         for section_index, section in self.sections.items():
-            if section['side'] == side:
+            if section['properties']['Baanpositie'] == side:
                 if min(section['km_range']) <= km <= max(section['km_range']):
                     section_info.append(section)
         return section_info
-
-
-def get_middle_value(input_set: set) -> any:
-    """
-    Find the middle value of a set of three number values.
-    Args:
-        input_set (set): Set with three number values.
-    Returns:
-        Middle value of set.
-    """
-    assert len(input_set) == 3, 'Incorrect set length.'
-    sorted_set = sorted(input_set)
-    return sorted_set[1]
-
-
-def process_registration_points(rp1: list, rp2: list) -> (int, int, list[int], int):
-    """
-    Determines point properties based on the two given lists of registration points.
-    The assumption is made that two of the four points overlap.
-    Args:
-        rp1 (list): First list of registration points.
-        rp2 (list): Second list of registration points.
-    Returns:
-        The value of the midpoint of the three remaining registration points.
-        The value of the overlapping point between the two lists.
-        The unique points of the two lists, sorted.
-        The extreme point: the unique point which is not the midpoint.
-    """
-    s1 = set(rp1)
-    s2 = set(rp2)
-    all_points = s1 | s2
-    assert len(all_points) == 3, "Assumption violated."
-
-    midpoint = get_middle_value(all_points)
-    overlapping_point = s1.intersection(s2)
-    unique_points = s1.symmetric_difference(s2)
-    extreme_point = unique_points.symmetric_difference({midpoint})
-    return midpoint, overlapping_point.pop(), sorted(unique_points), extreme_point.pop()
-
-
-def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
-    """
-    Determines the difference between two range elements.
-    Args:
-        range1 (list): First list indicating a range.
-        range2 (list): Second list indicating a range.
-        length_estimate (float): Length (estimate) of the object.
-    Returns:
-        The range that constitutes the difference between the input ranges.
-    Example:
-        The difference between the range [1, 8] and [5, 8] can be found as [1, 5].
-    Note:
-        In case there is a symmetric difference, this function will pick the
-        range difference with a length closest to the object length provided.
-        The assumption is made that the remaining lengths differ. For the
-        WEGGEG data, the assumption is likely to hold. An exception will be
-        raised if this assumption is broken.
-    """
-    assert range1 != range2, "Input ranges invalid."
-
-    start1, end1 = sorted(range1)
-    start2, end2 = sorted(range2)
-
-    # Find the common part
-    common_start = max(start1, start2)
-    common_end = min(end1, end2)
-    start = min(start1, start2, end1, end2)
-    end = max(start1, start2, end1, end2)
-
-    # Find the unique parts
-    unique_part_low = [start, common_start]
-    unique_part_high = [common_end, end]
-
-    # Find which part's length is closest to the length estimate
-    diff1 = abs(length_estimate - get_km_length(unique_part_low))
-    diff2 = abs(length_estimate - get_km_length(unique_part_high))
-
-    if diff1 < diff2:
-        return unique_part_low
-    elif diff2 < diff1:
-        return unique_part_high
-    else:
-        raise Exception("Assumption violated: Remaining lengths are equal and therefore cannot be discerned.")
 
 
 def get_km_length(km: list) -> int:
     return round(1000*abs(km[1] - km[0]))
 
 
+def same_direction(geom1: LineString, geom2: LineString) -> bool:
+    overlap = shared_paths(geom1, geom2)
+    same_direction_overlap = overlap.geoms[0]
+    opposite_direction_overlap = overlap.geoms[1]
+
+    print(same_direction_overlap, opposite_direction_overlap)
+    assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
+
+    return is_empty(opposite_direction_overlap)
+
+
 class MSIRow:
-    def __init__(self, props, name):
+    def __init__(self, name: str, props: dict):
         self.MSIs = []
         self.road_properties = props
         self.name = name
+        self.define_MSIs()
 
     def define_MSIs(self):
         i_msi = 0
         for msi_numbering in self.road_properties['Rijstrooksignaleringen']:
-            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), self.road_properties)
+            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), msi_numbering, self.road_properties)
             i_msi += 1
 
 
@@ -713,13 +723,16 @@ class MSI:
     displayset_leftmost = displayset_all - {LEFT_ARROW}
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
-    def __init__(self, name, props: dict):
+    def __init__(self, name: str, lane_number: int, props: dict):
         self.displayoptions = self.displayset_all
-        self.road_properties = props
         self.name = name
+        self.lane_number = lane_number
+        self.road_properties = props
+        self.nLanes = max([lane_number for lane_number in props.keys()])
+
         self.properties = {
-            'RSU': None,  # RSU name
-            'c': self.name,  # Current MSI
+            # 'RSU': None,  # RSU name [Not available]
+            'c': None,  # Current MSI
             'd': None,  # MSI downstream
             'ds': None,  # MSI downstream secondary
             'dt': None,  # MSI downstream taper
@@ -732,34 +745,61 @@ class MSI:
             'un': None,  # MSI upstream narrowing
             'r': None,  # MSI left
             'l': None,  # MSI left
+
             'STAT_V': None,  # Static maximum speed
             'DYN_V': None,  # Dynamic maximum speed [?]
             'C_X': None,  # True if continue-X relation [?]
             'C_V': None,  # True if continue-V relation [?]
+
             'TS': None,  # All MSIs in CW.
             'TS_num': None,  # CW numbering.
             'TS_right': None,  # All MSIs in CW to the right.
             'TS_left': None,  # All MSIs in CW to the left.
+
             'DIF_V_right': None,  # DIF-V influence from the right [?]
             'DIF_V_left': None,  # DIF-V influence from the left [?]
+
             'CW': None,  # All MSIs in CW.
             'CW_num': None,  # CW numbering.
             'CW_right': None,  # All MSIs in CW to the right.
             'CW_left': None,  # All MSIs in CW to the left.
+
             'row': None,  # All MSIs in row.
-            'RHL': None,  # True if MSI in RHL.
+
+            'RHL': None,  # [V] True if MSI in RHL.
             'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
-            'RHL_neighbor': None,  # True if RHL in row.
-            'Hard_shoulder_right': None,  # True if hard shoulder directly to the right.
-            'Hard_shoulder_left': None,  # True if hard shoulder directly to the left.
-            'N_row': None,  # Number of MSIs in row.
+            'RHL_neighbor': None,  # [V] True if RHL in row.
+            'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
+            'Hard_shoulder_left': None,  # [V] True if hard shoulder directly to the left.
+
+            'N_row': None,  # [~] Number of MSIs in row.
             'N_TS': None,  # Number of MSIs in traffic stream.
             'N_CW': None,  # Number of MSIs in carriageway.
-            'State': None,  # Active legend. [Not applicable]
+            # 'State': None,  # Active legend. [Not applicable]
         }
 
-    def determine_MSI_properties(self):
-        self.properties['STAT_V'] = self.road_properties['Snelheid']  # Adjust to updated phrasing
+        self.determine_MSI_properties()
+        self.determine_MSI_relations()
 
-        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties
-        # self.properties['RHL'] = 'Spitsstrook' in self.road_properties  # and numbers_equal (Pseudo)
+    def determine_MSI_relations(self):
+        self.properties['c'] = self.name
+
+    def determine_MSI_properties(self):
+        self.properties['STAT_V'] = self.road_properties['Maximumsnelheid']
+
+        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties.items()
+        self.properties['RHL'] = self.road_properties[self.lane_number] = 'Spitsstrook'
+
+        if self.lane_number < self.nLanes:
+            self.properties['Hard_shoulder_right'] = self.road_properties[self.lane_number + 1] = 'Vluchtstrook'
+        else:
+            self.properties['Hard_shoulder_right'] = False
+
+        if self.lane_number > 1:
+            self.properties['Hard_shoulder_left'] = self.road_properties[self.lane_number - 1] = 'Vluchtstrook'
+        else:
+            self.properties['Hard_shoulder_left'] = False
+
+        self.properties['N_row'] = len(self.road_properties['Rijstrooksignaleringen'])
+
+
