@@ -2,24 +2,6 @@ import unittest
 from functions import *
 
 
-class TestGeneral(unittest.TestCase):
-
-    def test_range_diff(self):
-        print('Test range function')
-        diff = get_range_diff([1, 8], [2, 5], 2500)
-        self.assertEqual(diff, [5, 8])
-
-        diff = get_range_diff([9, 1], [2, 12], 4000)
-        self.assertEqual(diff, [9, 12])
-
-        diff = get_range_diff([20, 25], [2, 22], 2000)
-        self.assertEqual(diff, [22, 25])
-
-        diff = get_range_diff([4, 6], [1, 10], 3200)
-        print(diff)
-        self.assertEqual(diff, [1, 4])
-
-
 class TestRoadModel(unittest.TestCase):
 
     def test_equal_sections(self):

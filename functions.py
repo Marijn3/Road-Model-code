@@ -655,51 +655,6 @@ class RoadModel:
         return section_info
 
 
-def get_range_diff(range1: list, range2: list, length_estimate: float) -> list:
-    """
-    Determines the difference between two range elements.
-    Args:
-        range1 (list): First list indicating a range.
-        range2 (list): Second list indicating a range.
-        length_estimate (float): Length (estimate) of the object.
-    Returns:
-        The range that constitutes the difference between the input ranges.
-    Example:
-        The difference between the range [1, 8] and [5, 8] can be found as [1, 5].
-    Note:
-        In case there is a symmetric difference, this function will pick the
-        range difference with a length closest to the object length provided.
-        The assumption is made that the remaining lengths differ. For the
-        WEGGEG data, the assumption is likely to hold. An exception will be
-        raised if this assumption is broken.
-    """
-    assert range1 != range2, "Input ranges invalid."
-
-    start1, end1 = sorted(range1)
-    start2, end2 = sorted(range2)
-
-    # Find the common part
-    common_start = max(start1, start2)
-    common_end = min(end1, end2)
-    start = min(start1, start2, end1, end2)
-    end = max(start1, start2, end1, end2)
-
-    # Find the unique parts
-    unique_part_low = [start, common_start]
-    unique_part_high = [common_end, end]
-
-    # Find which part's length is closest to the length estimate
-    diff1 = abs(length_estimate - get_km_length(unique_part_low))
-    diff2 = abs(length_estimate - get_km_length(unique_part_high))
-
-    if diff1 < diff2:
-        return unique_part_low
-    elif diff2 < diff1:
-        return unique_part_high
-    else:
-        raise Exception("Assumption violated: Remaining lengths are equal and therefore cannot be discerned.")
-
-
 def get_km_length(km: list) -> int:
     return round(1000*abs(km[1] - km[0]))
 
