@@ -9,33 +9,30 @@ dfl.load_dataframes("Vught")
 road = RoadModel()
 road.import_dataframes(dfl)
 
-top_left_x, top_left_y = get_coordinates(dfl.extent)[2]
-bottom_right_x, bottom_right_y = get_coordinates(dfl.extent)[4]
-viewbox_width = abs(top_left_x - bottom_right_x)
-viewbox_height = abs(top_left_y - bottom_right_y)
-ratio = viewbox_height/viewbox_width
+TOP_LEFT_X, TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
+BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]
+VIEWBOX_WIDTH = abs(TOP_LEFT_X - BOTTOM_RIGHT_X)
+VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
+RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
 
 def get_road_color(prop: dict) -> str:
     # if 'nRijstroken' not in prop.keys():
     #     return 'orange'
-    if 'nRijstroken' in prop.keys():
-        if not isinstance(prop['nRijstroken'], int):
-            return 'red'
+
+    # if not isinstance(prop['nRijstroken'], int):
+    #     return 'red'
 
     return 'grey'
 
 
 def get_road_width(prop: dict) -> int:
-    if 'nRijstroken' in prop.keys():
-        if isinstance(prop['nRijstroken'], int):
-            return LANE_WIDTH*prop['nRijstroken']
-
-    return LANE_WIDTH
+    n_lanes = max([lane_number for lane_number in prop.keys() if isinstance(lane_number, int)])
+    return LANE_WIDTH*n_lanes
 
 
 def get_transformed_coords(coords: list[tuple]) -> list[tuple]:
-    return [(point[0], top_left_y - (point[1] - top_left_y)) for point in coords]
+    return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in coords]
 
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
@@ -47,10 +44,10 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000*ratio))
+dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
 
 # Background
-dwg.add(svgwrite.shapes.Rect(insert=(top_left_x, top_left_y), size=(viewbox_width, viewbox_height), fill="green"))
+dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
 
 # Roads
 sections = road.get_sections()
@@ -58,7 +55,7 @@ for section in sections:
     svg_add_section(section['geometry'], section['properties'], dwg)
 
 # viewBox
-dwg.viewbox(minx=top_left_x, miny=top_left_y, width=viewbox_width, height=viewbox_height)
+dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
 
 # Save SVG file
 dwg.save(pretty=True, indent=2)
