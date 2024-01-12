@@ -350,7 +350,7 @@ class RoadModel:
             # with new_section properties and geometry
             if min(new_section_range) < min(other_section_range):
                 # Add section...
-                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
+                added_geom = self.__get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
                     'km_range': [min(new_section_range), min(other_section_range)],
                     'properties': new_section_props,
@@ -358,8 +358,7 @@ class RoadModel:
                 })
                 # Trim the new_section range and geometry for next iteration.
                 new_section_range = [min(other_section_range), max(new_section_range)]
-                new_section_geom = self.__get_remainder(added_geom, new_section_geom)[0]
-                continue
+                new_section_geom = self.__get_first_remainder(added_geom, new_section_geom)
 
             # Case B: start is equal.
             elif min(new_section_range) == min(other_section_range):
@@ -387,7 +386,7 @@ class RoadModel:
                         'properties': both_props,
                         'geometry': added_geom
                     })
-                    other_geom = self.__get_remainder(added_geom, other_section_geom)[0]
+                    other_geom = self.__get_first_remainder(added_geom, other_section_geom)
                     self.__update_section(other_section_index,
                                           km_range=[max(new_section_range), max(other_section_range)],
                                           geom=other_geom)
@@ -407,7 +406,7 @@ class RoadModel:
                     })
                     # Trim the new_section range and geometry for another go.
                     new_section_range = [max(other_section_range), max(new_section_range)]
-                    new_section_geom = self.__get_remainder(new_section_geom, added_geom)[0]
+                    new_section_geom = self.__get_first_remainder(new_section_geom, added_geom)
                     # Store old overlap section index to later remove from road model.
                     sections_to_remove.add(other_section_index)
 
@@ -418,7 +417,8 @@ class RoadModel:
             # Add section between other_section_start and new_section_start
             # with other_section properties and geometry.
             elif min(new_section_range) > min(other_section_range):
-                added_geom = self.__get_remainder(new_section_geom, other_section_geom)[0]
+                # Add section...
+                added_geom = self.__get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
                     'km_range': [min(other_section_range), min(new_section_range)],
                     'properties': other_section_props,
@@ -426,7 +426,7 @@ class RoadModel:
                 })
                 # Trim the other_section range and geometry for next iteration.
                 other_section_range = [min(new_section_range), max(other_section_range)]
-                other_section_geom = self.__get_remainder(added_geom, other_section_geom)[0]
+                other_section_geom = self.__get_first_remainder(added_geom, other_section_geom)
 
             else:
                 raise Exception("Something has gone wrong with the ranges.")
@@ -435,7 +435,7 @@ class RoadModel:
 
     def __remove_sections(self, sections_to_remove: set[int]):
         for section_index in sections_to_remove:
-            print("Removing section", section_index)
+            print("[LOG:] Removing section", section_index)
             self.sections.pop(section_index)
 
     def __check_overlap(self, geom: LineString, exception_geom: LineString, overlap_sections: list[dict]) -> bool:
@@ -451,8 +451,8 @@ class RoadModel:
         """
         for other_overlap in overlap_sections:
             if other_overlap['geom'] != exception_geom:
-                o = self.__get_overlap(geom, other_overlap['geom'])
-                if o:
+                overlap = self.__get_overlap(geom, other_overlap['geom'])
+                if overlap:
                     return True
         return False
 
@@ -483,8 +483,11 @@ class RoadModel:
             geom (LineString): The geometry of the section.
         """
         assert any([km_range, props, geom]), 'No update required.'
-        assert km_range and geom or not (km_range or geom), ("Warning: please provide both km_range and geometry "
-                                                             "if either must be changed.")
+        assert km_range and geom or not (km_range or geom), (
+            "Warning: please provide both km_range and geometry if either must be changed.")
+        assert abs(get_km_length(km_range) - geom.length) < 100, (
+            f"Big length difference: {get_km_length(km_range)} and {geom.length}")
+
         if km_range:
             self.sections[index]['km_range'] = sorted(km_range)
         if props:
@@ -504,13 +507,7 @@ class RoadModel:
         Prints:
             Newly added section properties to log window.
         """
-        print("[LOG:] Trying to add section", self.section_index, ":",
-              new_section['km_range'],
-              new_section['properties'],
-              new_section['geometry'])
         assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
-
-        print(f"Lengths: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
         assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
             f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
@@ -523,27 +520,24 @@ class RoadModel:
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
-        print("")
 
     def __log_section_change(self, index: int):
         print("[LOG:] Section", index, "changed:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
-        print("")
 
     @staticmethod
-    def __get_remainder(geom1: LineString, geom2: LineString) -> list[LineString]:
+    def __get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         """
         Finds the two geometries that two Shapely LineStrings do NOT have in common.
         Args:
             geom1 (LineString): The first Shapely LineString.
             geom2 (LineString): The second Shapely LineString.
         Returns:
-            List of two LineStrings describing the geometry that
+            A LineString describing the geometry that
             is the difference between the two provided sections.
-            The order is maintained, so the first item in the list
-            contains the first overlap that is encountered.
+            If there are two options, the first overlap is returned.
         """
         remaining_geometry = symmetric_difference(geom1, geom2, grid_size=1)
 
@@ -558,9 +552,8 @@ class RoadModel:
             if get_num_geometries(remaining_geometry) > 2:
                 sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
                 print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[2:])
-                # Keep only the largest two geometries
-                # remaining_geometries = sorted_geoms[:2]
-            return remaining_geometries
+            # Return the first geometry (order is maintained)
+            return remaining_geometries[0]
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
@@ -728,7 +721,7 @@ class MSI:
         self.name = name
         self.lane_number = lane_number
         self.road_properties = props
-        self.nLanes = max([lane_number for lane_number in props.keys()])
+        self.nLanes = max([lane_number for lane_number in props.keys() if isinstance(lane_number, int)])
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
