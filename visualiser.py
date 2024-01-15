@@ -47,46 +47,43 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
     color = get_road_color(prop)
     width = get_road_width(prop)
     coords = get_transformed_coords(geom)
-    roadline = svgwrite.shapes.Polyline(points=coords,
-                                        stroke=color,
-                                        fill="none",
-                                        stroke_width=width)
-    svg_dwg.add(roadline)
+
+    asphalt = svgwrite.shapes.Polyline(points=coords, stroke=color, fill="none", stroke_width=width)
+    svg_dwg.add(asphalt)
 
     add_separator_lines(geom, prop, svg_dwg)
 
 
 def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
     n_lanes = max([lane_number for lane_number in prop.keys() if isinstance(lane_number, int)])
-    n_dashes = n_lanes + 1
 
-    # Centered around 0
-    offsets = [LANE_WIDTH*i - (LANE_WIDTH*n_lanes)/2 for i in range(0, n_dashes)]
+    # Offset centered around 0
+    offsets = [LANE_WIDTH*i - (LANE_WIDTH*n_lanes)/2 for i in range(0, n_lanes+1)]
 
     # Add 'left' solid line
     line_coords = get_offset_coords(geom, offsets.pop(0))
-    dash_line = svgwrite.shapes.Polyline(points=line_coords,
-                                         stroke="white",
-                                         fill="none",
-                                         stroke_width=0.4)
-    svg_dwg.add(dash_line)
+    add_markerline(line_coords, svg_dwg)
 
     # Add 'right' solid line
     line_coords = get_offset_coords(geom, offsets.pop(-1))
-    dash_line = svgwrite.shapes.Polyline(points=line_coords,
-                                         stroke="white",
-                                         fill="none",
-                                         stroke_width=0.4)
-    svg_dwg.add(dash_line)
+    add_markerline(line_coords, svg_dwg)
 
+    # Add remaining dashed lines
     for offset in offsets:
         line_coords = get_offset_coords(geom, offset)
-        dash_line = svgwrite.shapes.Polyline(points=line_coords,
-                                             stroke="white",
-                                             fill="none",
-                                             stroke_width=0.4,
-                                             stroke_dasharray="8")
-        svg_dwg.add(dash_line)
+        add_markerline(line_coords, svg_dwg, "dashed")
+
+
+def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str = "full"):
+    if linetype == "dashed":
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4,
+                                        stroke_dasharray="8")
+    elif linetype == "block":
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4,
+                                        stroke_dasharray="0.8 2")
+    else:
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4)
+    svg_dwg.add(line)
 
 
 # Create SVG drawing
