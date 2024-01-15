@@ -182,7 +182,7 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_dataframe(dfl, 'Rijstroken')
-        #self.__import_dataframe(dfl, 'Kantstroken')
+        self.__import_dataframe(dfl, 'Kantstroken')
         #self.__import_dataframe(dfl, 'Maximum snelheid')
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
@@ -256,6 +256,15 @@ class RoadModel:
             for lane_number in range(first_lane_number, first_lane_number+n_rijstroken):
                 properties[lane_number] = 'Rijstrook'
 
+            if row['IZI_SIDE'] == 'R':
+                km_range = [row['BEGINKM'], row['EINDKM']]
+            else:
+                km_range = [row['EINDKM'], row['BEGINKM']]
+
+            return {'km_range': km_range,
+                    'properties': properties,
+                    'geometry': row['geometry']}
+
         elif name == 'Kantstroken':
             # Indicate lane number and type of kantstrook. Example: {3: 'Spitsstrook'}
             lane_number = row['VNRWOL']
@@ -299,15 +308,25 @@ class RoadModel:
         other_section_geom = overlap_section_info['geometry']
 
         new_section_range = new_section['km_range']
+
+        # Align new section range according to existing sections
+        if other_section_props['Baanpositie'] == 'L':
+            new_section_range.reverse()
+
         new_section_props = new_section['properties']
+
+        print('New section range:', new_section_range)
+        print('New section props:', new_section_props)
+
+        print('Other section range:', other_section_range)
+        print('Other section props:', other_section_props)
+        print('Other section geom:', other_section_geom)
 
         # Ensure all new geometries are also oriented in driving direction
         if same_direction(new_section['geometry'], other_section_geom):
             new_section_geom = new_section['geometry']
         else:
             new_section_geom = reverse(new_section['geometry'])
-
-        # if other_section_props['Baanpositie'] == 'L':
 
         num_overlap_sections = len(overlap_sections)
         sections_to_remove = set()
@@ -344,26 +363,66 @@ class RoadModel:
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
                 f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
+            right_side = other_section_props['Baanpositie'] == 'R'
+            left_side = other_section_props['Baanpositie'] == 'L'
+
+            new_section_first = (
+                (min(new_section_range) < min(other_section_range) and right_side)
+                                ) or (
+                (max(new_section_range) > max(other_section_range) and left_side))
+
+            both_sections_first = (
+                (min(new_section_range) == min(other_section_range) and right_side)
+                         ) or (
+                (max(new_section_range) == max(other_section_range) and left_side))
+
+            other_section_first = (
+                (min(new_section_range) > min(other_section_range) and right_side)
+                                ) or (
+                (max(new_section_range) < max(other_section_range) and left_side))
+
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
             # with new_section properties and geometry
-            if min(new_section_range) < min(other_section_range):
+            if new_section_first:
                 # Add section...
+                if right_side:
+                    km_range = [min(new_section_range), min(other_section_range)]
+                else:
+                    km_range = [max(new_section_range), max(other_section_range)]
                 added_geom = self.__get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
-                    'km_range': [min(new_section_range), min(other_section_range)],
+                    'km_range': km_range,
                     'properties': new_section_props,
                     'geometry': added_geom
                 })
                 # Trim the new_section range and geometry for next iteration.
-                new_section_range = [min(other_section_range), max(new_section_range)]
+                if right_side:
+                    new_section_range = [min(other_section_range), max(new_section_range)]
+                else:
+                    new_section_range = [max(other_section_range), min(new_section_range)]
                 new_section_geom = self.__get_first_remainder(new_section_geom, added_geom)
 
             # Case B: start is equal.
-            elif min(new_section_range) == min(other_section_range):
+            elif both_sections_first:
+
+                other_ends_equal = (
+                    (max(new_section_range) == max(other_section_range) and right_side)
+                                   ) or (
+                    (min(new_section_range) == min(other_section_range) and left_side))
+
+                other_section_larger = (
+                    (max(new_section_range) < max(other_section_range) and right_side)
+                                    ) or (
+                    (min(new_section_range) > min(other_section_range) and left_side))
+
+                new_section_larger = (
+                    (max(new_section_range) > max(other_section_range) and right_side)
+                            ) or (
+                    (min(new_section_range) < min(other_section_range) and left_side))
 
                 # Update the overlapping section properties
-                if max(new_section_range) == max(other_section_range):
+                if other_ends_equal:
                     assert new_section_geom.equals(other_section_geom), (
                         f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
@@ -376,18 +435,27 @@ class RoadModel:
                 # Update other_section range between new_section_max and other_section_max
                 # with and remaining geometry.
                 # Remove old other_section.
-                elif max(new_section_range) < max(other_section_range):
+                elif other_section_larger:
+                    if right_side:
+                        km_range = [min(new_section_range), max(new_section_range)]
+                    else:
+                        km_range = [max(new_section_range), min(new_section_range)]
+
                     added_geom = self.__get_overlap(new_section_geom, other_section_geom)
                     assert added_geom, "No overlap found"
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
-                        'km_range': [min(new_section_range), max(new_section_range)],
+                        'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
                     })
+                    if right_side:
+                        km_remaining = [max(new_section_range), max(other_section_range)]
+                    else:
+                        km_remaining = [min(new_section_range), min(other_section_range)]
                     other_geom = self.__get_first_remainder(other_section_geom, added_geom)
                     self.__update_section(other_section_index,
-                                          km_range=[max(new_section_range), max(other_section_range)],
+                                          km_range=km_remaining,
                                           geom=other_geom)
                     # This is the final iteration.
                     break
@@ -395,16 +463,23 @@ class RoadModel:
                 # Add section between new_section_min and other_section_max
                 # with both properties and overlapping geometry.
                 # Remove old other_section, since it has now been completely used.
-                elif max(new_section_range) > max(other_section_range):
+                elif new_section_larger:
+                    if right_side:
+                        km_range = [min(new_section_range), max(other_section_range)]
+                    else:
+                        km_range = [max(new_section_range), min(other_section_range)]
                     added_geom = self.__get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
-                        'km_range': [min(new_section_range), max(other_section_range)],
+                        'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
                     })
                     # Trim the new_section range and geometry for another go.
-                    new_section_range = [max(other_section_range), max(new_section_range)]
+                    if right_side:
+                        new_section_range = [max(other_section_range), max(new_section_range)]
+                    else:
+                        new_section_range = [min(other_section_range), min(new_section_range)]
                     new_section_geom = self.__get_first_remainder(new_section_geom, added_geom)
                     # Store old overlap section index to later remove from road model.
                     sections_to_remove.add(other_section_index)
@@ -415,16 +490,23 @@ class RoadModel:
             # Case C: new_section starts later.
             # Add section between other_section_start and new_section_start
             # with other_section properties and geometry.
-            elif min(new_section_range) > min(other_section_range):
+            elif other_section_first:
                 # Add section...
+                if right_side:
+                    km_range = [min(other_section_range), min(new_section_range)]
+                else:
+                    km_range = [max(other_section_range), max(new_section_range)]
                 added_geom = self.__get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
-                    'km_range': [min(other_section_range), min(new_section_range)],
+                    'km_range': km_range,
                     'properties': other_section_props,
                     'geometry': added_geom
                 })
                 # Trim the other_section range and geometry for next iteration.
-                other_section_range = [min(new_section_range), max(other_section_range)]
+                if right_side:
+                    other_section_range = [min(new_section_range), max(other_section_range)]
+                else:
+                    other_section_range = [max(new_section_range), min(other_section_range)]
                 other_section_geom = self.__get_first_remainder(other_section_geom, added_geom)
 
             else:
@@ -488,7 +570,7 @@ class RoadModel:
             f"Big length difference: {get_km_length(km_range)} and {geom.length}")
 
         if km_range:
-            self.sections[index]['km_range'] = sorted(km_range)
+            self.sections[index]['km_range'] = km_range
         if props:
             self.sections[index]['properties'].update(props)
         if geom:
@@ -500,16 +582,13 @@ class RoadModel:
         Adds a section to the sections variable and increases the index.
         Args:
             new_section (dict): Containing:
-                - km_range (list[float]): Start and end registration kilometre. Sort by convention before function.
+                - km_range (list[float]): Start and end registration kilometre.
                 - properties (dict): All properties that belong to the section.
                 - geometry (LineString): The geometry of the section.
         Prints:
             Newly added section properties to log window.
         """
         assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
-        # assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
-        #     f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
-
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
         self.section_index += 1
@@ -656,7 +735,8 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     same_direction_overlap = overlap.geoms[0]
     opposite_direction_overlap = overlap.geoms[1]
 
-    print(same_direction_overlap, opposite_direction_overlap)
+    print(overlap)
+
     assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
 
     return is_empty(opposite_direction_overlap)
