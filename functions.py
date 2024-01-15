@@ -182,8 +182,8 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_dataframe(dfl, 'Rijstroken')
-        self.__import_dataframe(dfl, 'Kantstroken')
-        self.__import_dataframe(dfl, 'Maximum snelheid')
+        #self.__import_dataframe(dfl, 'Kantstroken')
+        #self.__import_dataframe(dfl, 'Maximum snelheid')
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
@@ -253,7 +253,7 @@ class RoadModel:
             n_rijstroken = int(row['nRijstroken'])  # Always rounds down
 
             # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
-            for lane_number in range(first_lane_number, n_rijstroken+1):
+            for lane_number in range(first_lane_number, first_lane_number+n_rijstroken):
                 properties[lane_number] = 'Rijstrook'
 
         elif name == 'Kantstroken':
