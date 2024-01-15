@@ -106,7 +106,7 @@ class DataFrameLoader:
         Args:
             name (str): The name of the GeoDataFrame.
         """
-        # Use 0.01 rounding for cm precision, or 1 for meter precision
+        # Use 0.01 rounding for cm precision, or 1 for meter precision. 1 meter is too crude for visualisation purposes.
         self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, 1))
 
         # These column variable types should be changed.

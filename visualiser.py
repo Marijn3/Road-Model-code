@@ -35,11 +35,11 @@ def get_transformed_coords(geom: LineString) -> list[tuple]:
     return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom.coords]
 
 
-def get_offset_coords(geom: LineString, offset: int) -> list[tuple]:
+def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
     if offset == 0:
         return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom.coords]
     else:
-        geom2 = offset_curve(geom, offset) #, join_style="mitre")
+        geom2 = offset_curve(geom, offset, join_style="mitre", mitre_limit=5)
         return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom2.coords]
 
 
@@ -63,6 +63,7 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
     # Centered around 0
     offsets = [LANE_WIDTH*i - (LANE_WIDTH*n_lanes)/2 for i in range(0, n_dashes)]
 
+    # Add 'left' solid line
     line_coords = get_offset_coords(geom, offsets.pop(0))
     dash_line = svgwrite.shapes.Polyline(points=line_coords,
                                          stroke="white",
@@ -70,6 +71,7 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
                                          stroke_width=0.4)
     svg_dwg.add(dash_line)
 
+    # Add 'right' solid line
     line_coords = get_offset_coords(geom, offsets.pop(-1))
     dash_line = svgwrite.shapes.Polyline(points=line_coords,
                                          stroke="white",
