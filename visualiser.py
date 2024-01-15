@@ -31,16 +31,27 @@ def get_road_width(prop: dict) -> int:
     return LANE_WIDTH*n_lanes
 
 
-def get_transformed_coords(coords: list[tuple]) -> list[tuple]:
-    return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in coords]
+def get_transformed_coords(geom: LineString) -> list[tuple]:
+    return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom.coords]
+
+
+def get_offset_coords(geom: LineString, offset: int) -> list[tuple]:
+    geom2 = offset_curve(geom, offset)
+    return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom2.coords]
 
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
     color = get_road_color(prop)
     width = get_road_width(prop)
-    coords = get_transformed_coords(geom.coords)
-    roadline = svgwrite.shapes.Polyline(points=coords, stroke=color, fill="none", stroke_width=width)
+    coords = get_transformed_coords(geom)
+    roadline = svgwrite.shapes.Polyline(points=coords,
+                                        stroke=color,
+                                        fill="none",
+                                        stroke_width=width)
     svg_dwg.add(roadline)
+    dash_coords = get_offset_coords(geom, 10)
+    dash_line = svgwrite.shapes.Polyline(points=dash_coords, stroke="blue", stroke_width=width, stroke_dasharray="4")
+    svg_dwg.add(dash_line)
 
 
 # Create SVG drawing
