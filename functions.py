@@ -22,7 +22,7 @@ class DataFrameLoader:
 
     # List all data layer files to be loaded.
     __FILE_PATHS = [
-        "data/Rijstroken/rijstroken.dbf",
+        "data/Rijstroken/rijstroken-edit.dbf",
         "data/Kantstroken/kantstroken.dbf",
         # "data/Mengstroken/mengstroken.dbf",
         "data/Maximum snelheid/max_snelheden.dbf",
@@ -288,12 +288,6 @@ class RoadModel:
             self.__add_section(new_section)
             return
 
-        new_section_range = new_section['km_range']
-        new_section_props = new_section['properties']
-        new_section_geom = new_section['geometry']
-
-        num_overlap_sections = len(overlap_sections)
-        sections_to_remove = set()
         i_overlap = 0
         overlap_section = overlap_sections[i_overlap]
 
@@ -303,6 +297,20 @@ class RoadModel:
         other_section_range = overlap_section_info['km_range']
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
+
+        new_section_range = new_section['km_range']
+        new_section_props = new_section['properties']
+
+        # Ensure all new geometries are also oriented in driving direction
+        if same_direction(new_section['geometry'], other_section_geom):
+            new_section_geom = new_section['geometry']
+        else:
+            new_section_geom = reverse(new_section['geometry'])
+
+        # if other_section_props['Baanpositie'] == 'L':
+
+        num_overlap_sections = len(overlap_sections)
+        sections_to_remove = set()
 
         while True:  # get_num_coordinates(new_section_geom) != 0:
 
@@ -333,6 +341,8 @@ class RoadModel:
             print('Other section geom:', other_section_geom)
 
             assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
+            assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
+                f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -474,8 +484,8 @@ class RoadModel:
         assert any([km_range, props, geom]), 'No update required.'
         assert km_range and geom or not (km_range or geom), (
             "Warning: please provide both km_range and geometry if either must be changed.")
-        # assert abs(get_km_length(km_range) - geom.length) < 100, (
-        #     f"Big length difference: {get_km_length(km_range)} and {geom.length}")
+        assert abs(get_km_length(km_range) - geom.length) < 100, (
+            f"Big length difference: {get_km_length(km_range)} and {geom.length}")
 
         if km_range:
             self.sections[index]['km_range'] = sorted(km_range)
@@ -639,6 +649,17 @@ class RoadModel:
 
 def get_km_length(km: list) -> int:
     return round(1000*abs(km[1] - km[0]))
+
+
+def same_direction(geom1: LineString, geom2: LineString) -> bool:
+    overlap = shared_paths(geom1, geom2)
+    same_direction_overlap = overlap.geoms[0]
+    opposite_direction_overlap = overlap.geoms[1]
+
+    print(same_direction_overlap, opposite_direction_overlap)
+    assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
+
+    return is_empty(opposite_direction_overlap)
 
 
 class MSIRow:
