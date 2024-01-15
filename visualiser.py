@@ -36,8 +36,11 @@ def get_transformed_coords(geom: LineString) -> list[tuple]:
 
 
 def get_offset_coords(geom: LineString, offset: int) -> list[tuple]:
-    geom2 = offset_curve(geom, offset)
-    return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom2.coords]
+    if offset == 0:
+        return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom.coords]
+    else:
+        geom2 = offset_curve(geom, offset) #, join_style="mitre")
+        return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom2.coords]
 
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
@@ -49,9 +52,39 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
                                         fill="none",
                                         stroke_width=width)
     svg_dwg.add(roadline)
-    dash_coords = get_offset_coords(geom, 10)
-    dash_line = svgwrite.shapes.Polyline(points=dash_coords, stroke="blue", stroke_width=width, stroke_dasharray="4")
+
+    add_separator_lines(geom, prop, svg_dwg)
+
+
+def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
+    n_lanes = max([lane_number for lane_number in prop.keys() if isinstance(lane_number, int)])
+    n_dashes = n_lanes + 1
+
+    # Centered around 0
+    offsets = [LANE_WIDTH*i - (LANE_WIDTH*n_lanes)/2 for i in range(0, n_dashes)]
+
+    line_coords = get_offset_coords(geom, offsets.pop(0))
+    dash_line = svgwrite.shapes.Polyline(points=line_coords,
+                                         stroke="white",
+                                         fill="none",
+                                         stroke_width=0.4)
     svg_dwg.add(dash_line)
+
+    line_coords = get_offset_coords(geom, offsets.pop(-1))
+    dash_line = svgwrite.shapes.Polyline(points=line_coords,
+                                         stroke="white",
+                                         fill="none",
+                                         stroke_width=0.4)
+    svg_dwg.add(dash_line)
+
+    for offset in offsets:
+        line_coords = get_offset_coords(geom, offset)
+        dash_line = svgwrite.shapes.Polyline(points=line_coords,
+                                             stroke="white",
+                                             fill="none",
+                                             stroke_width=0.4,
+                                             stroke_dasharray="8")
+        svg_dwg.add(dash_line)
 
 
 # Create SVG drawing
