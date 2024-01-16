@@ -17,8 +17,8 @@ RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
 
 def get_road_color(prop: dict) -> str:
-    # if 'nRijstroken' not in prop.keys():
-    #     return 'orange'
+    if 'Vluchtstrook' in prop.values():
+        return 'orange'
 
     # if not isinstance(prop['nRijstroken'], int):
     #     return 'red'
@@ -31,7 +31,7 @@ def get_road_width(prop: dict) -> int:
     return LANE_WIDTH*n_lanes
 
 
-def get_transformed_coords(geom: LineString) -> list[tuple]:
+def get_transformed_coords(geom: LineString | Point) -> list[tuple]:
     return [(point[0], TOP_LEFT_Y - (point[1] - TOP_LEFT_Y)) for point in geom.coords]
 
 
@@ -86,6 +86,14 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     svg_dwg.add(line)
 
 
+def svg_add_point(geom: Point, prop: dict, svg_dwg: svgwrite.Drawing):
+    coords = get_transformed_coords(geom)[0]
+    for nr in prop['Rijstroken']:
+        disp = (nr-1)*12
+        square = svgwrite.shapes.Rect(insert=(coords[0]+disp, coords[1]), size=(10, 10), fill="black", stroke="red")
+        svg_dwg.add(square)
+
+
 # Create SVG drawing
 dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
 
@@ -96,6 +104,11 @@ dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDT
 sections = road.get_sections()
 for section in sections:
     svg_add_section(section['geometry'], section['properties'], dwg)
+
+# MSIs
+points = road.get_points()
+for point in points:
+    svg_add_point(point['geometry'], point['properties'], dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)

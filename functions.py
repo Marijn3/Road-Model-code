@@ -26,7 +26,7 @@ class DataFrameLoader:
         "data/Rijstroken/rijstroken-edit.dbf",
         "data/Kantstroken/kantstroken.dbf",
         # "data/Mengstroken/mengstroken.dbf",
-        "data/Maximum snelheid/max_snelheden.dbf",
+        # "data/Maximum snelheid/max_snelheden.dbf",
         # "data/Convergenties/convergenties.dbf",
         # "data/Divergenties/divergenties.dbf",
         # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
@@ -174,6 +174,8 @@ class RoadModel:
     def __init__(self):
         self.sections = {}
         self.section_index = 0
+        self.points = {}
+        self.point_index = 0
         self.has_layer = False
 
     def import_dataframes(self, dfl: DataFrameLoader):
@@ -184,7 +186,8 @@ class RoadModel:
         """
         self.__import_dataframe(dfl, 'Rijstroken')
         self.__import_dataframe(dfl, 'Kantstroken')
-        #self.__import_dataframe(dfl, 'Maximum snelheid')
+        # self.__import_dataframe(dfl, 'Maximum snelheid')
+        # self.__import_dataframe(dfl, 'Rijstrooksignaleringen')
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
@@ -199,10 +202,13 @@ class RoadModel:
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
             section_info = self.__extract_row_properties(row, df_name)
-            if self.has_layer:
-                self.__determine_sectioning(section_info)
+            if isinstance(row['geometry'], (Point, MultiPoint)):
+                self.__add_point(section_info)
             else:
-                self.__add_section(section_info)
+                if self.has_layer:
+                    self.__determine_sectioning(section_info)
+                else:
+                    self.__add_section(section_info)
         self.has_layer = True
 
         # self.print_section_info()
@@ -586,6 +592,30 @@ class RoadModel:
         self.__log_section(self.section_index)
         self.section_index += 1
 
+    def __add_point(self, point: dict):
+        """
+        Adds a point to the points variable and increases the index.
+        Args:
+            point (dict): Containing:
+                - km (float): Registration kilometre.
+                - properties (dict): All properties that belong to the section.
+                - geometry (Point): The geometry of the point.
+        Prints:
+            Newly added point properties to log window.
+        """
+        assert not is_empty(point['geometry']), "Trying to add an empty geometry."
+
+        self.points[self.point_index] = point
+        self.__log_point(self.point_index)
+        self.point_index += 1
+
+    def __log_point(self, index: int):
+        print("[LOG:] Point", index, "added:",
+              self.points[index]['km'],
+              self.points[index]['properties'],
+              self.points[index]['geometry'])
+        print("")
+
     def __log_section(self, index: int):
         print("[LOG:] Section", index, "added:",
               self.sections[index]['km_range'],
@@ -692,6 +722,9 @@ class RoadModel:
 
     def get_sections(self) -> list:
         return [section for section in self.sections.values()]
+
+    def get_points(self) -> list:
+        return [msi for msi in self.points.values()]
 
     def get_properties_at(self, km: float, side: str) -> list[dict]:
         """
