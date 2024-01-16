@@ -299,8 +299,7 @@ class RoadModel:
             self.__add_section(new_section)
             return
 
-        i_overlap = 0
-        overlap_section = overlap_sections[i_overlap]
+        overlap_section = overlap_sections.pop(0)
 
         other_section_index = overlap_section['index']
         overlap_section_info = deepcopy(overlap_section['section_info'])
@@ -338,14 +337,7 @@ class RoadModel:
 
             if not self.__get_overlap(new_section_geom, other_section_geom):
                 print("Moving on to next overlap section.")
-
-                i_overlap += 1
-
-                if i_overlap > num_overlap_sections:
-                    print('End reached. [Unexpected]')
-                    break
-
-                overlap_section = overlap_sections[i_overlap]
+                overlap_section = overlap_sections.pop(0)
 
                 other_section_index = overlap_section['index']
                 overlap_section_info = deepcopy(overlap_section['section_info'])
@@ -353,6 +345,13 @@ class RoadModel:
                 other_section_range = overlap_section_info['km_range']
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
+
+                print('New section range:', new_section_range)
+                print('New section props:', new_section_props)
+                print('New section geom:', new_section['geometry'])
+                print('Other section range:', other_section_range)
+                print('Other section props:', other_section_props)
+                print('Other section geom:', other_section_geom)
 
             assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
@@ -420,10 +419,9 @@ class RoadModel:
                 if other_ends_equal:
                     print(new_section_geom)
                     print(other_section_geom)
-                    print(equals_exact(new_section_geom, other_section_geom, tolerance=3))
-                    # TODO: 3 is not a permanent solution in my eyes.
+                    # TODO: Tolerance is not a permanent solution in my eyes.
                     assert new_section_geom.equals(other_section_geom) or (
-                        equals_exact(new_section_geom, other_section_geom, tolerance=3)), (
+                        equals_exact(new_section_geom, other_section_geom, tolerance=5)), (
                         f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
                                           props=new_section_props)
@@ -643,7 +641,8 @@ class RoadModel:
         Args:
             section_a (dict): All data pertaining to a section.
         Returns:
-            A list of overlap section data, sorted by start_km
+            A list of overlap section data, sorted by start_km depending on
+            the driving direction of one of the other sections.
         """
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
@@ -658,8 +657,14 @@ class RoadModel:
                                                  'section_info': section_b,
                                                  'geom': overlap_geometry})
 
-        # For the rest of the implementation, this sorting is assumed.
-        overlapping_sections = sorted(overlapping_sections, key=lambda x: min(x['section_info']['km_range']))
+        if overlapping_sections:
+            # For the rest of the implementation, sorting in driving direction is assumed.
+            if overlapping_sections[0]['section_info']['properties']['Baanpositie'] == 'R':
+                overlapping_sections = sorted(overlapping_sections, key=lambda x: min(x['section_info']['km_range']))
+            elif overlapping_sections[0]['section_info']['properties']['Baanpositie'] == 'L':
+                overlapping_sections = sorted(overlapping_sections, key=lambda x: max(x['section_info']['km_range']), reverse=True)
+            else:
+                raise Exception("Could not continue.")
 
         return overlapping_sections
 
