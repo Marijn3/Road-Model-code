@@ -325,10 +325,11 @@ class RoadModel:
         print('Other section geom:', other_section_geom)
 
         # Ensure all new geometries are also oriented in driving direction
-        # if same_direction(new_section['geometry'], other_section_geom):
-        new_section_geom = new_section['geometry']
-        # else:
-        #     new_section_geom = reverse(new_section['geometry'])
+        if same_direction(new_section['geometry'], other_section_geom):
+            new_section_geom = new_section['geometry']
+        else:
+            print('reversing the geometry printed above')
+            new_section_geom = reverse(new_section['geometry'])
 
         num_overlap_sections = len(overlap_sections)
         sections_to_remove = set()
@@ -420,6 +421,7 @@ class RoadModel:
                     print(new_section_geom)
                     print(other_section_geom)
                     print(equals_exact(new_section_geom, other_section_geom, tolerance=3))
+                    # TODO: 3 is not a permanent solution in my eyes.
                     assert new_section_geom.equals(other_section_geom) or (
                         equals_exact(new_section_geom, other_section_geom, tolerance=3)), (
                         f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
@@ -732,13 +734,20 @@ def get_km_length(km: list) -> int:
 
 
 def same_direction(geom1: LineString, geom2: LineString) -> bool:
-    overlap = shared_paths(geom1, geom2)
-    same_direction_overlap = overlap.geoms[0]
-    opposite_direction_overlap = overlap.geoms[1]
+    geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
+    geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
 
-    assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
+    print('Linedist:', geom2_linedist_a, geom2_linedist_b)
 
-    return is_empty(opposite_direction_overlap)
+    return geom2_linedist_a < geom2_linedist_b
+
+    # overlap = shared_paths(geom1, geom2)
+    # same_direction_overlap = overlap.geoms[0]
+    # opposite_direction_overlap = overlap.geoms[1]
+    #
+    # assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), (
+    #     f"Unable to determine directional similarity between {geom1} and {geom2}")
+    # return is_empty(opposite_direction_overlap)
 
 
 class MSIRow:
