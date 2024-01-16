@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 0.001
+GRID_SIZE = 0.0000001
 
 
 class DataFrameLoader:
@@ -614,14 +614,14 @@ class RoadModel:
         print("[LOG:] Point", index, "added:",
               self.points[index]['km'],
               self.points[index]['properties'],
-              self.points[index]['geometry'])
+              set_precision(self.points[index]['geometry'], 1))
         print("")
 
     def __log_section(self, index: int):
         print("[LOG:] Section", index, "added:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
-              self.sections[index]['geometry'])
+              set_precision(self.sections[index]['geometry'], 1))
         print("")
 
     def __log_section_change(self, index: int):
@@ -774,18 +774,6 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
     geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
     return geom2_linedist_a < geom2_linedist_b
-
-
-def get_first_remainder(geom_first: LineString, geom_secnd: LineString) -> LineString:
-    # Assumptions: Given geoms are in same direction!
-    # First geometry has points that are NOT in second geometry at start of LineString.
-    # Otherwise, the desired points are the remaining part at the other end.
-
-    geom_linedist = line_locate_point(geom_first, Point(geom_secnd.coords[0]))
-    diff = difference(geom_first, geom_secnd, grid_size=GRID_SIZE)
-    endpoint = line_interpolate_point(geom_first, geom_linedist)
-
-    return diff # + endpoint ?
 
 
 class MSIRow:
