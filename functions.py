@@ -5,6 +5,7 @@ import csv
 from copy import deepcopy
 
 pd.set_option('display.max_columns', None)
+GRID_SIZE = 0.001
 
 
 class DataFrameLoader:
@@ -107,7 +108,7 @@ class DataFrameLoader:
             name (str): The name of the GeoDataFrame.
         """
         # Use 0.01 rounding for cm precision, or 1 for meter precision. 1 meter is too crude for visualisation purposes.
-        self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, 1))
+        self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, GRID_SIZE))
 
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
@@ -294,6 +295,7 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
+            print('No overlap detected.')
             self.__add_section(new_section)
             return
 
@@ -317,16 +319,16 @@ class RoadModel:
 
         print('New section range:', new_section_range)
         print('New section props:', new_section_props)
-
+        print('New section geom:', new_section['geometry'])
         print('Other section range:', other_section_range)
         print('Other section props:', other_section_props)
         print('Other section geom:', other_section_geom)
 
         # Ensure all new geometries are also oriented in driving direction
-        if same_direction(new_section['geometry'], other_section_geom):
-            new_section_geom = new_section['geometry']
-        else:
-            new_section_geom = reverse(new_section['geometry'])
+        # if same_direction(new_section['geometry'], other_section_geom):
+        new_section_geom = new_section['geometry']
+        # else:
+        #     new_section_geom = reverse(new_section['geometry'])
 
         num_overlap_sections = len(overlap_sections)
         sections_to_remove = set()
@@ -350,14 +352,6 @@ class RoadModel:
                 other_section_range = overlap_section_info['km_range']
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
-
-            print('New section range:', new_section_range)
-            print('New section props:', new_section_props)
-            print('New section geom:', new_section_geom)
-
-            print('Other section range:', other_section_range)
-            print('Other section props:', other_section_props)
-            print('Other section geom:', other_section_geom)
 
             assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
@@ -423,7 +417,11 @@ class RoadModel:
 
                 # Update the overlapping section properties
                 if other_ends_equal:
-                    assert new_section_geom.equals(other_section_geom), (
+                    print(new_section_geom)
+                    print(other_section_geom)
+                    print(equals_exact(new_section_geom, other_section_geom, tolerance=3))
+                    assert new_section_geom.equals(other_section_geom) or (
+                        equals_exact(new_section_geom, other_section_geom, tolerance=3)), (
                         f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
                                           props=new_section_props)
@@ -566,8 +564,9 @@ class RoadModel:
         assert any([km_range, props, geom]), 'No update required.'
         assert km_range and geom or not (km_range or geom), (
             "Warning: please provide both km_range and geometry if either must be changed.")
-        assert abs(get_km_length(km_range) - geom.length) < 100, (
-            f"Big length difference: {get_km_length(km_range)} and {geom.length}")
+        if km_range:
+            assert abs(get_km_length(km_range) - geom.length) < 100, (
+                f"Big length difference: {get_km_length(km_range)} and {geom.length}")
 
         if km_range:
             self.sections[index]['km_range'] = km_range
@@ -589,6 +588,8 @@ class RoadModel:
             Newly added section properties to log window.
         """
         assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
+        print(get_km_length(new_section['km_range']), new_section['geometry'].length)
+
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
         self.section_index += 1
@@ -617,7 +618,7 @@ class RoadModel:
             is the difference between the two provided sections.
             If there are two options, the first overlap is returned.
         """
-        diff = difference(geom1, geom2, grid_size=1)
+        diff = difference(geom1, geom2, grid_size=GRID_SIZE)
 
         if is_empty(diff):
             raise Exception(f"Can not continue. Empty remaining geometry: {diff}")
@@ -676,7 +677,7 @@ class RoadModel:
             If the geometries do not overlap or have only a point of intersection, the function
             returns an empty LineString.
         """
-        overlap_geometry = intersection(geometry1, geometry2, grid_size=1)
+        overlap_geometry = intersection(geometry1, geometry2, grid_size=GRID_SIZE)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             return line_merge(overlap_geometry)
@@ -734,8 +735,6 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     overlap = shared_paths(geom1, geom2)
     same_direction_overlap = overlap.geoms[0]
     opposite_direction_overlap = overlap.geoms[1]
-
-    print(overlap)
 
     assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), "No overlap at all"
 
