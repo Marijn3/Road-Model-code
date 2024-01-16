@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 1 # 0.001
+GRID_SIZE = 0.001
 
 
 class DataFrameLoader:
@@ -655,9 +655,9 @@ class RoadModel:
 
         if isinstance(diff, MultiLineString):
             remaining_geometries = [geom for geom in diff.geoms]
-            if get_num_geometries(diff) > 2:
+            if get_num_geometries(diff) > 1:
                 sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
-                print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[2:])
+                print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[1:])
             # Return the first geometry (directional order of geom1 is maintained)
             return remaining_geometries[0]
 
@@ -780,17 +780,12 @@ def get_first_remainder(geom_first: LineString, geom_secnd: LineString) -> LineS
     # Assumptions: Given geoms are in same direction!
     # First geometry has points that are NOT in second geometry at start of LineString.
     # Otherwise, the desired points are the remaining part at the other end.
-    coords_first = [c for c in geom_first.coords]
-    coords_secnd = [c for c in geom_secnd.coords]
 
-    remainder = []
-    for c in coords_first:
-        if c not in coords_secnd:
-            remainder.append(c)
-        else:
-            remainder.append(coords_secnd[0])
-            break
-    return remainder
+    geom_linedist = line_locate_point(geom_first, Point(geom_secnd.coords[0]))
+    diff = difference(geom_first, geom_secnd, grid_size=GRID_SIZE)
+    endpoint = line_interpolate_point(geom_first, geom_linedist)
+
+    return diff # + endpoint ?
 
 
 class MSIRow:
