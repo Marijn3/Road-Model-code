@@ -416,6 +416,7 @@ class RoadModel:
 
                 # Update the overlapping section properties
                 if other_ends_equal:
+                    print('Expecting equal geometries:')
                     print(new_section_geom)
                     print(other_section_geom)
                     # TODO: Tolerance is not a permanent solution in my eyes.
@@ -774,13 +775,22 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
     return geom2_linedist_a < geom2_linedist_b
 
-    # overlap = shared_paths(geom1, geom2)
-    # same_direction_overlap = overlap.geoms[0]
-    # opposite_direction_overlap = overlap.geoms[1]
-    #
-    # assert not all([is_empty(same_direction_overlap), is_empty(opposite_direction_overlap)]), (
-    #     f"Unable to determine directional similarity between {geom1} and {geom2}")
-    # return is_empty(opposite_direction_overlap)
+
+def get_first_remainder(geom_first: LineString, geom_secnd: LineString) -> LineString:
+    # Assumptions: Given geoms are in same direction!
+    # First geometry has points that are NOT in second geometry at start of LineString.
+    # Otherwise, the desired points are the remaining part at the other end.
+    coords_first = [c for c in geom_first.coords]
+    coords_secnd = [c for c in geom_secnd.coords]
+
+    remainder = []
+    for c in coords_first:
+        if c not in coords_secnd:
+            remainder.append(c)
+        else:
+            remainder.append(coords_secnd[0])
+            break
+    return remainder
 
 
 class MSIRow:
