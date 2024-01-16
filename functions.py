@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 0.001
+GRID_SIZE = 1 # 0.001
 
 
 class DataFrameLoader:
@@ -264,7 +264,7 @@ class RoadModel:
 
             return {'km_range': km_range,
                     'properties': properties,
-                    'geometry': row['geometry']}
+                    'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
         elif name == 'Kantstroken':
             # Indicate lane number and type of kantstrook. Example: {3: 'Spitsstrook'}
@@ -284,7 +284,7 @@ class RoadModel:
 
         return {'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
-                'geometry': row['geometry']}
+                'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
     def __determine_sectioning(self, new_section: dict):
         """
@@ -316,13 +316,6 @@ class RoadModel:
 
         new_section_props = new_section['properties']
 
-        print('New section range:', new_section_range)
-        print('New section props:', new_section_props)
-        print('New section geom:', new_section['geometry'])
-        print('Other section range:', other_section_range)
-        print('Other section props:', other_section_props)
-        print('Other section geom:', other_section_geom)
-
         # Ensure all new geometries are also oriented in driving direction
         if same_direction(new_section['geometry'], other_section_geom):
             new_section_geom = new_section['geometry']
@@ -346,12 +339,12 @@ class RoadModel:
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
 
-                print('New section range:', new_section_range)
-                print('New section props:', new_section_props)
-                print('New section geom:', new_section['geometry'])
-                print('Other section range:', other_section_range)
-                print('Other section props:', other_section_props)
-                print('Other section geom:', other_section_geom)
+            print('New section range:', new_section_range)
+            print('New section props:', new_section_props)
+            print('New section geom:', new_section['geometry'])
+            print('Other section range:', other_section_range)
+            print('Other section props:', other_section_props)
+            print('Other section geom:', other_section_geom)
 
             assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
@@ -588,7 +581,6 @@ class RoadModel:
             Newly added section properties to log window.
         """
         assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
-        print(get_km_length(new_section['km_range']), new_section['geometry'].length)
 
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
@@ -599,12 +591,14 @@ class RoadModel:
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
+        print("")
 
     def __log_section_change(self, index: int):
         print("[LOG:] Section", index, "changed:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               self.sections[index]['geometry'])
+        print("")
 
     @staticmethod
     def __get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
@@ -618,7 +612,9 @@ class RoadModel:
             is the difference between the two provided sections.
             If there are two options, the first overlap is returned.
         """
+        # Has a bug where the geometry is not always cut off correctly.
         diff = difference(geom1, geom2, grid_size=GRID_SIZE)
+        # diff2 = symmetric_difference(geom1, geom2, grid_size=GRID_SIZE)
 
         if is_empty(diff):
             raise Exception(f"Can not continue. Empty remaining geometry: {diff}")
@@ -653,6 +649,7 @@ class RoadModel:
                 overlap_geometry = self.__get_overlap(section_a['geometry'], section_b['geometry'])
 
                 if overlap_geometry:
+                    print(overlap_geometry)
                     overlapping_sections.append({'index': section_b_index,
                                                  'section_info': section_b,
                                                  'geom': overlap_geometry})
@@ -739,11 +736,9 @@ def get_km_length(km: list) -> int:
 
 
 def same_direction(geom1: LineString, geom2: LineString) -> bool:
+    # Geom2 is in the 'correct' orientation
     geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
     geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
-
-    print('Linedist:', geom2_linedist_a, geom2_linedist_b)
-
     return geom2_linedist_a < geom2_linedist_b
 
     # overlap = shared_paths(geom1, geom2)
