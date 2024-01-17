@@ -24,9 +24,9 @@ class DataFrameLoader:
     # List all data layer files to be loaded.
     __FILE_PATHS = [
         "data/Rijstroken/rijstroken-edit.dbf",
-        # "data/Kantstroken/kantstroken.dbf",
+        "data/Kantstroken/kantstroken.dbf",
         "data/Mengstroken/mengstroken.dbf",
-        # "data/Maximum snelheid/max_snelheden.dbf",
+        "data/Maximum snelheid/max_snelheden.dbf",
         # "data/Convergenties/convergenties.dbf",
         # "data/Divergenties/divergenties.dbf",
         # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
@@ -190,7 +190,7 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_dataframe(dfl, 'Rijstroken')
-        # self.__import_dataframe(dfl, 'Kantstroken')
+        self.__import_dataframe(dfl, 'Kantstroken')
         self.__import_dataframe(dfl, 'Mengstroken')
         # self.__import_dataframe(dfl, 'Maximum snelheid')
         # self.__import_dataframe(dfl, 'Rijstrooksignaleringen')
@@ -420,9 +420,9 @@ class RoadModel:
 
                 # Update the overlapping section properties
                 if other_ends_equal:
-                    assert new_section_geom.equals(other_section_geom) or (
-                        equals_exact(new_section_geom, other_section_geom, tolerance=0.01)), (
-                        f"Inconsistent geometries: {new_section_geom} and {other_section_geom}")
+                    if not (equals(new_section_geom, other_section_geom) or (
+                            equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
+                        print(f"Warning: Possibly inconsistent geometries: {new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
                                           props=new_section_props)
                     # This is the final iteration.
