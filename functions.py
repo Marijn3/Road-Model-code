@@ -24,8 +24,8 @@ class DataFrameLoader:
     # List all data layer files to be loaded.
     __FILE_PATHS = [
         "data/Rijstroken/rijstroken-edit.dbf",
-        "data/Kantstroken/kantstroken.dbf",
-        # "data/Mengstroken/mengstroken.dbf",
+        # "data/Kantstroken/kantstroken.dbf",
+        "data/Mengstroken/mengstroken.dbf",
         # "data/Maximum snelheid/max_snelheden.dbf",
         # "data/Convergenties/convergenties.dbf",
         # "data/Divergenties/divergenties.dbf",
@@ -126,7 +126,12 @@ class DataFrameLoader:
             #     pd.to_numeric(self.data[df_name]['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
         if name == 'Mengstroken':
-            self.data[name]['nMengstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
+            lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
+                            '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
+                            '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
+                            '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
+                            '5 -> 5': 5}
+            self.data[name]['nMengstroken'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
 
         if name == 'Rijstrooksignaleringen':
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
@@ -185,7 +190,8 @@ class RoadModel:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
         self.__import_dataframe(dfl, 'Rijstroken')
-        self.__import_dataframe(dfl, 'Kantstroken')
+        # self.__import_dataframe(dfl, 'Kantstroken')
+        self.__import_dataframe(dfl, 'Mengstroken')
         # self.__import_dataframe(dfl, 'Maximum snelheid')
         # self.__import_dataframe(dfl, 'Rijstrooksignaleringen')
 
@@ -253,7 +259,7 @@ class RoadModel:
             # Extract some base properties of the road.
             properties = {
                 'Baanpositie': row['IZI_SIDE'],
-                'Wegnummer': row['WEGNUMMER'],
+                # 'Wegnummer': row['WEGNUMMER'],
             }
 
             first_lane_number = row['VNRWOL']
@@ -282,7 +288,7 @@ class RoadModel:
             n_mengstroken = int(row['nMengstroken'])  # Always rounds down
 
             # Indicate lane number and type of mengstrook. Example: {4: 'Weefstrook'}
-            for lane_number in range(first_lane_number, n_mengstroken + 1):
+            for lane_number in range(first_lane_number, first_lane_number+n_mengstroken):
                 properties[lane_number] = row['OMSCHR']
 
         elif name == 'Maximum snelheid':
@@ -326,7 +332,6 @@ class RoadModel:
         if same_direction(new_section['geometry'], other_section_geom):
             new_section_geom = new_section['geometry']
         else:
-            print('reversing the geometry printed above')
             new_section_geom = reverse(new_section['geometry'])
 
         num_overlap_sections = len(overlap_sections)
@@ -335,9 +340,6 @@ class RoadModel:
         while True:  # get_num_coordinates(new_section_geom) != 0:
 
             if not self.__get_overlap(new_section_geom, other_section_geom):
-                print("Moving on to next overlap section.")
-                print(overlap_sections)
-                print(new_section_geom)
                 overlap_section = overlap_sections.pop(0)
 
                 other_section_index = overlap_section['index']
@@ -622,14 +624,12 @@ class RoadModel:
               self.points[index]['km'],
               self.points[index]['properties'],
               set_precision(self.points[index]['geometry'], 1))
-        print("")
 
     def __log_section(self, index: int):
         print("[LOG:] Section", index, "added:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               set_precision(self.sections[index]['geometry'], 1))
-        print("")
 
     def __log_section_change(self, index: int):
         print("[LOG:] Section", index, "changed:",
