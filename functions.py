@@ -526,24 +526,6 @@ class RoadModel:
             print("[LOG:] Removing section", section_index)
             self.sections.pop(section_index)
 
-    def __check_overlap(self, geom: LineString, exception_geom: LineString, overlap_sections: list[dict]) -> bool:
-        """
-        Checks whether the geometry provided overlaps with any
-        of the sections in overlap_sections, except for one geometry.
-        Args:
-            geom (LineString):
-            exception_geom (LineString):
-            overlap_sections (dict):
-        Returns:
-            Boolean that indicates whether the geometry overlaps with another section.
-        """
-        for other_overlap in overlap_sections:
-            if other_overlap['geom'] != exception_geom:
-                overlap = self.__get_overlap(geom, other_overlap['geom'])
-                if overlap:
-                    return True
-        return False
-
     @staticmethod
     def __determine_range_overlap(range1: list, range2: list) -> bool:
         """
@@ -697,11 +679,9 @@ class RoadModel:
             # First, dismiss all sections which have a non-overlapping range,
             # which prevents the more complex self.__get_overlap() function from being called.
             if self.__determine_range_overlap(section_a['km_range'], section_b['km_range']):
-                overlap_geometry = self.__get_overlap(section_a['geometry'], section_b['geometry'])
-                if overlap_geometry:
+                if self.__get_overlap(section_a['geometry'], section_b['geometry']):
                     overlapping_sections.append({'index': section_b_index,
-                                                 'section_info': section_b,
-                                                 'geom': overlap_geometry})
+                                                 'section_info': section_b})
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
