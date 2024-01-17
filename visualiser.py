@@ -1,7 +1,7 @@
 from functions import *
 import svgwrite
 
-LANE_WIDTH = 5
+LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader()
 dfl.load_dataframes("Vught")
@@ -18,7 +18,7 @@ RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
 def get_road_color(prop: dict) -> str:
     if 'Vluchtstrook' in prop.values():
-        return 'orange'
+        return 'dimgrey'
 
     # if not isinstance(prop['nRijstroken'], int):
     #     return 'red'
@@ -26,9 +26,14 @@ def get_road_color(prop: dict) -> str:
     return 'grey'
 
 
-def get_road_width(prop: dict) -> int:
-    n_lanes = max([lane_number for lane_number in prop.keys() if isinstance(lane_number, int)])
-    return LANE_WIDTH*n_lanes
+def get_n_lanes(prop: dict) -> int:
+    n_lanes = max([lane_number for (lane_number, lane_type) in prop.items()
+                   if isinstance(lane_number, int) and lane_type != 'Puntstuk'])
+    return n_lanes
+
+
+def get_road_width(prop: dict) -> float:
+    return LANE_WIDTH*get_n_lanes(prop)
 
 
 def get_transformed_coords(geom: LineString | Point) -> list[tuple]:
@@ -55,7 +60,7 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
 
 
 def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
-    n_lanes = max([lane_number for lane_number in prop.keys() if isinstance(lane_number, int)])
+    n_lanes = get_n_lanes(prop)
 
     # Offset centered around 0
     offsets = [LANE_WIDTH*i - (LANE_WIDTH*n_lanes)/2 for i in range(0, n_lanes+1)]
@@ -75,14 +80,15 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
 
 
 def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str = "full"):
+    stroke = 0.3
     if linetype == "dashed":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4,
-                                        stroke_dasharray="8")
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=stroke,
+                                        stroke_dasharray="6")
     elif linetype == "block":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4,
-                                        stroke_dasharray="0.8 2")
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=stroke,
+                                        stroke_dasharray="0.5 2")
     else:
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4)
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=stroke)
     svg_dwg.add(line)
 
 
