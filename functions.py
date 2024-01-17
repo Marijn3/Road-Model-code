@@ -754,8 +754,10 @@ class RoadModel:
             for section in sections:
                 i += 1
                 print(f"Properties on side {side}, at {km} km ({i}):, {section}")
+        elif len(sections) == 1:
+            print(f"Properties on side {side}, at {km} km:, {sections[0]}")
         else:
-            print(f"Properties on side {side}, at {km} km ({i}):, {sections[0]}")
+            print(f"No sections found on side {side} at {km} km.")
         return sections
 
     def print_section_info(self):

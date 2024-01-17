@@ -9,3 +9,6 @@ road.import_dataframes(dfl)
 
 # Inspect...
 road.get_properties_at(121.6, 'L')
+road.get_properties_at(121.8, 'L')
+road.get_properties_at(110.9, 'R')
+road.get_properties_at(121.6, 'R')
