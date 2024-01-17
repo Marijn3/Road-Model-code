@@ -685,9 +685,10 @@ class RoadModel:
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
-            if overlapping_sections[0]['section_info']['properties']['Baanpositie'] == 'R':
+            road_side = overlapping_sections[0]['section_info']['properties']['Baanpositie']
+            if road_side == 'R':
                 overlapping_sections = sorted(overlapping_sections, key=lambda x: min(x['section_info']['km_range']))
-            elif overlapping_sections[0]['section_info']['properties']['Baanpositie'] == 'L':
+            elif road_side == 'L':
                 overlapping_sections = sorted(overlapping_sections, key=lambda x: max(x['section_info']['km_range']),
                                               reverse=True)
             else:
@@ -765,17 +766,17 @@ class RoadModel:
         Returns:
             list[dict]: Attributes of the road section(s) at the specified kilometer point.
         """
-        section_properties = self.get_section_info_at(km, side)
-        if len(section_properties) > 1:
+        section_info = self.get_section_info_at(km, side)
+        if len(section_info) > 1:
             print(f"Properties on side {side}, at {km} km:")
-            for index, section in enumerate(section_properties):
-                print(f"    {index}) {section}")
-        elif len(section_properties) == 1:
-            print(f"Properties on side {side}, at {km} km: {section_properties[0]}")
+            for index, section in enumerate(section_info):
+                print(f"    {index}) {section['properties']}")
+        elif len(section_info) == 1:
+            print(f"Properties on side {side}, at {km} km: {section_info[0]['properties']}")
         else:
             print(f"No sections found on side {side} at {km} km.")
         print("")
-        return section_properties
+        return section_info
 
     def print_all_section_info(self):
         """
