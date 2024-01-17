@@ -298,11 +298,11 @@ class RoadModel:
                 'properties': properties,
                 'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
-    def __determine_sectioning(self, new_section: dict):
+    def __determine_sectioning(self, new_section: dict) -> None:
         """
-        Determine how to merge provided section with existing sections.
+        Merges the given section with existing sections in self.sections.
         Args:
-            new_section (dict): All relevant information related to the new section.
+            new_section (dict): Information related to the new section.
         """
         overlap_sections = self.__get_overlapping_sections(new_section)
 
@@ -356,9 +356,11 @@ class RoadModel:
             # print('Other section props:', other_section_props)
             # print('Other section geom:', other_section_geom)
 
-            assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
+            assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
                 f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+
+            # TODO: Fancier implementation making use of the symmetry of the code below. Possibly using recursion?
 
             right_side = other_section_props['Baanpositie'] == 'R'
             left_side = other_section_props['Baanpositie'] == 'L'
@@ -521,28 +523,17 @@ class RoadModel:
 
         self.__remove_sections(sections_to_remove)
 
-    def __remove_sections(self, sections_to_remove: set[int]):
-        for section_index in sections_to_remove:
-            print("[LOG:] Removing section", section_index)
-            self.sections.pop(section_index)
-
-    @staticmethod
-    def __determine_range_overlap(range1: list, range2: list) -> bool:
+    def __remove_sections(self, indices: set[int]) -> None:
         """
-        Determines whether there is overlap between two ranges.
+        Removes sections at the given indices.
         Args:
-            range1 (list): First range with two float values.
-            range2 (list): Second range with float values.
-        Returns:
-            Boolean value indicating whether the sections overlap or not.
-            Touching sections such as [4, 7] and [7, 8] return False.
+            indices (set): Set of indices at which to remove sections.
         """
-        min1, max1 = min(range1), max(range1)
-        min2, max2 = min(range2), max(range2)
-        overlap = max(min1, min2) < min(max1, max2)
-        return overlap
+        for index in indices:
+            self.sections.pop(index)
+            print(f"[LOG:] Section {index} removed.")
 
-    def __update_section(self, index: int, km_range: list = None, props: dict = None, geom: LineString = None):
+    def __update_section(self, index: int, km_range: list = None, props: dict = None, geom: LineString = None) -> None:
         """
         Updates one or more properties of a section at a given index.
         Prints log of section update.
@@ -551,23 +542,24 @@ class RoadModel:
             km_range (list[float]): Start and end registration kilometer. No sorting needed.
             props (dict): All properties that belong to the section.
             geom (LineString): The geometry of the section.
+        Prints:
+            Changed section properties.
         """
-        assert any([km_range, props, geom]), 'No update required.'
-        assert km_range and geom or not (km_range or geom), (
-            "Warning: please provide both km_range and geometry if either must be changed.")
-        if km_range:
-            assert abs(get_km_length(km_range) - geom.length) < 100, (
-                f"Big length difference: {get_km_length(km_range)} and {geom.length}")
+        assert any([km_range, props, geom]), "Update section called, but no update is required."
+        assert km_range and geom or not (km_range or geom), "Please provide both km_range and geometry."
 
         if km_range:
+            if abs(get_km_length(km_range) - geom.length) > 100:
+                print(f"Warning: Big length difference: {get_km_length(km_range)} and {geom.length}")
             self.sections[index]['km_range'] = km_range
         if props:
             self.sections[index]['properties'].update(props)
         if geom:
             self.sections[index]['geometry'] = geom
+
         self.__log_section_change(index)
 
-    def __add_section(self, new_section: dict):
+    def __add_section(self, new_section: dict) -> None:
         """
         Adds a section to the sections variable and increases the index.
         Args:
@@ -576,15 +568,18 @@ class RoadModel:
                 - properties (dict): All properties that belong to the section.
                 - geometry (LineString): The geometry of the section.
         Prints:
-            Newly added section properties to log window.
+            Newly added section properties.
         """
-        assert not is_empty(new_section['geometry']), "Trying to add an empty geometry."
+        assert not is_empty(new_section['geometry']), f"Request to add an empty geometry: {new_section['geometry']}"
+        if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
+            print(f"Warning: Big length difference: "
+                  f"{get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
         self.section_index += 1
 
-    def __add_point(self, point: dict):
+    def __add_point(self, point: dict) -> None:
         """
         Adds a point to the points variable and increases the index.
         Args:
@@ -593,7 +588,7 @@ class RoadModel:
                 - properties (dict): All properties that belong to the section.
                 - geometry (Point): The geometry of the point.
         Prints:
-            Newly added point properties to log window.
+            Newly added point properties.
         """
         assert not is_empty(point['geometry']), "Trying to add an empty geometry."
 
@@ -649,7 +644,7 @@ class RoadModel:
         for section_b_index, section_b in self.sections.items():
             # First, dismiss all sections which have a non-overlapping range,
             # which prevents the more complex get_overlap() function from being called.
-            if self.__determine_range_overlap(section_a['km_range'], section_b['km_range']):
+            if determine_range_overlap(section_a['km_range'], section_b['km_range']):
                 if get_overlap(section_a['geometry'], section_b['geometry']):
                     overlapping_sections.append({'index': section_b_index,
                                                  'section_info': section_b})
@@ -722,7 +717,7 @@ class RoadModel:
         print("")
         return section_info
 
-    def print_all_section_info(self):
+    def print_all_section_info(self) -> None:
         """
         Prints section information for all sections in self.sections.
         """
@@ -742,6 +737,22 @@ def get_km_length(km: list[float]) -> int:
         Distance in meters between km1 and km2.
     """
     return round(1000*abs(km[1] - km[0]))
+
+
+def determine_range_overlap(range1: list, range2: list) -> bool:
+    """
+    Determines whether there is overlap between two ranges.
+    Args:
+        range1 (list): First range with two float values.
+        range2 (list): Second range with float values.
+    Returns:
+        Boolean value indicating whether the sections overlap or not.
+        Touching ranges such as [4, 7] and [7, 8] return False.
+    """
+    min1, max1 = min(range1), max(range1)
+    min2, max2 = min(range2), max(range2)
+    overlap = max(min1, min2) < min(max1, max2)
+    return overlap
 
 
 def same_direction(geom1: LineString, geom2: LineString) -> bool:
