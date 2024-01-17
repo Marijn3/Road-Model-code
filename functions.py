@@ -217,7 +217,7 @@ class RoadModel:
                     self.__add_section(section_info)
         self.has_layer = True
 
-        # self.print_section_info()
+        # self.print_all_section_info()
         print('[STATUS:] Added', self.section_index-current_sections, 'sections. '
               'The model has', self.section_index, 'sections in total.')
         print("")
@@ -329,7 +329,7 @@ class RoadModel:
         new_section_props = new_section['properties']
 
         # Ensure all new geometries are also oriented in driving direction
-        if same_direction(new_section['geometry'], other_section_geom):
+        if same_direction(other_section_geom, new_section['geometry']):
             new_section_geom = new_section['geometry']
         else:
             new_section_geom = reverse(new_section['geometry'])
@@ -349,12 +349,12 @@ class RoadModel:
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
 
-            print('New section range:', new_section_range)
-            print('New section props:', new_section_props)
-            print('New section geom:', new_section['geometry'])
-            print('Other section range:', other_section_range)
-            print('Other section props:', other_section_props)
-            print('Other section geom:', other_section_geom)
+            # print('New section range:', new_section_range)
+            # print('New section props:', new_section_props)
+            # print('New section geom:', new_section['geometry'])
+            # print('Other section range:', other_section_range)
+            # print('Other section props:', other_section_props)
+            # print('Other section geom:', other_section_geom)
 
             assert self.__determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
@@ -619,24 +619,38 @@ class RoadModel:
         self.__log_point(self.point_index)
         self.point_index += 1
 
-    def __log_point(self, index: int):
+    def __log_point(self, index: int) -> None:
+        """
+        Prints addition LOG for point in self.points at given index.
+        Args:
+            index (int): Index of point to print info for.
+        """
         print("[LOG:] Point", index, "added:",
               self.points[index]['km'],
               self.points[index]['properties'],
               set_precision(self.points[index]['geometry'], 1))
 
-    def __log_section(self, index: int):
+    def __log_section(self, index: int) -> None:
+        """
+        Prints addition LOG for section in self.sections at given index.
+        Args:
+            index (int): Index of section to print info for.
+        """
         print("[LOG:] Section", index, "added:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
               set_precision(self.sections[index]['geometry'], 1))
 
-    def __log_section_change(self, index: int):
+    def __log_section_change(self, index: int) -> None:
+        """
+        Prints change LOG for section in self.sections at given index.
+        Args:
+            index (int): Index of section to print info for.
+        """
         print("[LOG:] Section", index, "changed:",
               self.sections[index]['km_range'],
               self.sections[index]['properties'],
-              self.sections[index]['geometry'])
-        print("")
+              set_precision(self.sections[index]['geometry'], 1))
 
     @staticmethod
     def __get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
@@ -646,9 +660,9 @@ class RoadModel:
             geom1 (LineString): The first Shapely LineString.
             geom2 (LineString): The second Shapely LineString.
         Returns:
-            A LineString describing the geometry that
-            is the difference between the two provided sections.
-            If there are two options, the first overlap is returned.
+            A LineString describing the difference geometry between the two
+            provided sections. If there are two options, the first remainder
+            option is returned, based on the directional order of geom1.
         """
         # Has a bug where the geometry is not always cut off correctly.
         diff = difference(geom1, geom2, grid_size=GRID_SIZE)
@@ -662,9 +676,8 @@ class RoadModel:
 
         if isinstance(diff, MultiLineString):
             remaining_geometries = [geom for geom in diff.geoms]
-            if get_num_geometries(diff) > 1:
-                sorted_geoms = sorted(remaining_geometries, key=lambda geom: geom.length, reverse=True)
-                print('Warning: More than 2 remaining geometries. Extra geometries:', sorted_geoms[1:])
+            if get_num_geometries(diff) > 2:
+                print('Warning: More than 2 remaining geometries. Extra geometries:', remaining_geometries[2:])
             # Return the first geometry (directional order of geom1 is maintained)
             return remaining_geometries[0]
 
@@ -676,16 +689,15 @@ class RoadModel:
             section_a (dict): All data pertaining to a section.
         Returns:
             A list of overlap section data, sorted by start_km depending on
-            the driving direction of one of the other sections.
+            the driving direction of one of the other sections, which is assumed
+            to be representative for all other sections.
         """
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
             # First, dismiss all sections which have a non-overlapping range,
             # which prevents the more complex self.__get_overlap() function from being called.
             if self.__determine_range_overlap(section_a['km_range'], section_b['km_range']):
-
                 overlap_geometry = self.__get_overlap(section_a['geometry'], section_b['geometry'])
-
                 if overlap_geometry:
                     overlapping_sections.append({'index': section_b_index,
                                                  'section_info': section_b,
@@ -696,7 +708,8 @@ class RoadModel:
             if overlapping_sections[0]['section_info']['properties']['Baanpositie'] == 'R':
                 overlapping_sections = sorted(overlapping_sections, key=lambda x: min(x['section_info']['km_range']))
             elif overlapping_sections[0]['section_info']['properties']['Baanpositie'] == 'L':
-                overlapping_sections = sorted(overlapping_sections, key=lambda x: max(x['section_info']['km_range']), reverse=True)
+                overlapping_sections = sorted(overlapping_sections, key=lambda x: max(x['section_info']['km_range']),
+                                              reverse=True)
             else:
                 raise Exception("Could not continue.")
 
@@ -713,10 +726,10 @@ class RoadModel:
             LineString: The overlap geometry.
             None: If there is no overlap geometry.
         Note:
-            The function uses the `intersection` method from Shapely to compute the overlap
-            between the two LineString geometries.
-            If the geometries do not overlap or have only a point of intersection, the function
-            returns an empty LineString.
+            The function uses the `intersection` method from Shapely to
+            compute the overlap between the two LineString geometries.
+            If the geometries do not overlap or have only a Point of
+            intersection, the function returns None.
         """
         overlap_geometry = intersection(geometry1, geometry2, grid_size=GRID_SIZE)
 
@@ -727,62 +740,101 @@ class RoadModel:
         else:
             return None
 
-    def get_sections(self) -> list:
+    def get_sections(self) -> list[dict]:
+        """
+        Obtain a list of all sections in the road model.
+        Returns:
+            List of section information.
+        """
         return [section for section in self.sections.values()]
 
-    def get_points(self) -> list:
-        return [msi for msi in self.points.values()]
-
-    def get_properties_at(self, km: float, side: str) -> list[dict]:
+    def get_points(self) -> list[dict]:
         """
-        Find the properties of a road section at a specific km.
+        Obtain a list of all point registrations in the road model.
+        Returns:
+            List of all point information.
+        """
+        return [point for point in self.points.values()]
+
+    def get_section_info_at(self, km: float, side: str) -> list[dict]:
+        """
+        Finds the full properties of a road section at a specific km and roadside.
         Args:
-            km (float): Kilometer point to retrieve the road section for.
-            side (str): Side of the road to retrieve the road section for.
+            km (float): Kilometer point to retrieve the road section properties for.
+            side (str): Side of the road to retrieve the road section properties for.
         Returns:
             list[dict]: Attributes of the road section(s) at the specified kilometer point.
         """
-        sections = []
-        for section_index, section_info in self.sections.items():
-            if 'Baanpositie' in section_info['properties'].keys():
-                if section_info['properties']['Baanpositie'] == side:
-                    if min(section_info['km_range']) <= km <= max(section_info['km_range']):
-                        sections.append(section_info['properties'])
-        if len(sections) > 1:
-            print("Warning: This slice has two roadlines.")
-            i = 0
-            for section in sections:
-                i += 1
-                print(f"Properties on side {side}, at {km} km ({i}):, {section}")
-        elif len(sections) == 1:
-            print(f"Properties on side {side}, at {km} km:, {sections[0]}")
-        else:
-            print(f"No sections found on side {side} at {km} km.")
-        return sections
-
-    def print_section_info(self):
-        for section_index, section_info in self.sections.items():
-            print("Section", section_index, 'has km-range', section_info['km_range'],
-                  'and properties:', section_info['properties'])
-
-    def get_section_info_at(self, km: float, side: str) -> list[dict]:
         section_info = []
-        for section_index, section in self.sections.items():
-            if section['properties']['Baanpositie'] == side:
-                if min(section['km_range']) <= km <= max(section['km_range']):
+        for section in self.sections.values():
+            if 'Baanpositie' in section['properties'].keys():
+                in_selection = (section['properties']['Baanpositie'] == side and
+                                min(section['km_range']) <= km <= max(section['km_range']))
+                if in_selection:
                     section_info.append(section)
         return section_info
 
+    def get_properties_at(self, km: float, side: str) -> list[dict]:
+        """
+        Prints the properties of a road section at a specific km and roadside.
+        Args:
+            km (float): Kilometer point to retrieve the road section properties for.
+            side (str): Side of the road to retrieve the road section properties for.
+        Prints:
+            Road section(s) properties.
+        Returns:
+            list[dict]: Attributes of the road section(s) at the specified kilometer point.
+        """
+        section_properties = self.get_section_info_at(km, side)
+        if len(section_properties) > 1:
+            print(f"Properties on side {side}, at {km} km:")
+            for index, section in enumerate(section_properties):
+                print(f"    {index}) {section}")
+        elif len(section_properties) == 1:
+            print(f"Properties on side {side}, at {km} km: {section_properties[0]}")
+        else:
+            print(f"No sections found on side {side} at {km} km.")
+        print("")
+        return section_properties
 
-def get_km_length(km: list) -> int:
+    def print_all_section_info(self):
+        """
+        Prints section information for all sections in self.sections.
+        """
+        for section_index, section_info in self.sections.items():
+            print(f"Section {section_index} "
+                  f"has km-range {section_info['km_range']} and "
+                  f"properties: {section_info['properties']}.")
+
+
+def get_km_length(km: list[float]) -> int:
+    """
+    Determines the distance (in meters) covered by a range given in km.
+    The order of km1 and km2 does not matter.
+    Args:
+        km (list): Range list of format [km1, km2]
+    Returns:
+        Distance in meters between km1 and km2.
+    """
     return round(1000*abs(km[1] - km[0]))
 
 
 def same_direction(geom1: LineString, geom2: LineString) -> bool:
-    # Geom2 is in the 'correct' orientation
-    geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
-    geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
-    return geom2_linedist_a < geom2_linedist_b
+    """
+    Determines whether two LineString geometries are in the same direction.
+    The assumption is made that the lines are close enough together that a
+    projection of one point on another line is accurate.
+    Geom1 is taken as the 'correct' orientation.
+    Args:
+        geom1: The first shapely LineString geometry.
+        geom2: The first shapely LineString geometry.
+    Returns:
+        Boolean value that is True when the geometries are in the same directions.
+    """
+
+    geom1_linedist_a = line_locate_point(geom1, Point(geom2.coords[0]))
+    geom1_linedist_b = line_locate_point(geom1, Point(geom2.coords[-1]))
+    return geom1_linedist_a < geom1_linedist_b
 
 
 class MSIRow:
@@ -916,5 +968,3 @@ class MSI:
             self.properties['Hard_shoulder_left'] = False
 
         self.properties['N_row'] = len(self.road_properties['Rijstrooksignaleringen'])
-
-
