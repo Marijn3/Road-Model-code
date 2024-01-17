@@ -181,50 +181,49 @@ class RoadModel:
         self.section_index = 0
         self.points = {}
         self.point_index = 0
-        self.has_layer = False
+        self.has_initial_layer = False
 
-    def import_dataframes(self, dfl: DataFrameLoader):
+    def import_dataframes(self, dfl: DataFrameLoader) -> None:
         """
         Load road attributes from all DataFrames.
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        self.__import_dataframe(dfl, 'Rijstroken')
-        self.__import_dataframe(dfl, 'Kantstroken')
-        self.__import_dataframe(dfl, 'Mengstroken')
-        # self.__import_dataframe(dfl, 'Maximum snelheid')
-        # self.__import_dataframe(dfl, 'Rijstrooksignaleringen')
+        # for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid', 'Rijstrooksignaleringen']:
+        for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken']:
+            print(f"[STATUS:] Importing {df_name}...")
+
+            current_sections = self.section_index
+            self.__import_dataframe(dfl, df_name)
+
+            print(f"[STATUS:] Added {self.section_index - current_sections} sections. "
+                  f"The model has {self.section_index} sections in total.\n")
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
-        Load road sections and attributes from a DataFrame.
+        Load line and point features and their attributes from a GeoDataFrame.
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
-            df_name (str): Name of dataframe to be imported.
+            df_name (str): Name of DataFrame to be imported.
         """
-        print('[STATUS:] Importing', df_name, '...')
-        current_sections = self.section_index
-
         dataframe = dfl.data[df_name]
         for index, row in dataframe.iterrows():
-            section_info = self.__extract_row_properties(row, df_name)
-            if isinstance(row['geometry'], (Point, MultiPoint)):
-                self.__add_point(section_info)
-            else:
-                if self.has_layer:
-                    self.__determine_sectioning(section_info)
-                else:
-                    self.__add_section(section_info)
-        self.has_layer = True
+            feature_info = self.__extract_row_properties(row, df_name)
 
-        # self.print_all_section_info()
-        print('[STATUS:] Added', self.section_index-current_sections, 'sections. '
-              'The model has', self.section_index, 'sections in total.')
-        print("")
+            if not self.has_initial_layer:
+                self.__add_section(feature_info)
+                continue
+
+            if isinstance(row['geometry'], (Point, MultiPoint)):
+                self.__add_point(feature_info)
+            else:
+                self.__determine_sectioning(feature_info)
+
+        self.has_initial_layer = True
 
     def __extract_row_properties(self, row: pd.Series, name: str):
         """
-        Turns the contents of a road data Dataframe row into a dictionary with the relevant entries.
+        Turns the contents of a GeoDataframe row into a dictionary with the relevant entries.
         Args:
             row (pd.Series): Row containing information about the road section
             name (str): Name of dataframe.
@@ -307,7 +306,7 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            print('No overlap detected.')
+            print("No overlap detected.")
             self.__add_section(new_section)
             return
 
@@ -349,12 +348,12 @@ class RoadModel:
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
 
-            # print('New section range:', new_section_range)
-            # print('New section props:', new_section_props)
-            # print('New section geom:', new_section['geometry'])
-            # print('Other section range:', other_section_range)
-            # print('Other section props:', other_section_props)
-            # print('Other section geom:', other_section_geom)
+            # print("New section range:", new_section_range)
+            # print("New section props:", new_section_props)
+            # print("New section geom:", new_section['geometry'])
+            # print("Other section range:", other_section_range)
+            # print("Other section props:", other_section_props)
+            # print("Other section geom:", other_section_geom)
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
@@ -716,15 +715,6 @@ class RoadModel:
             print(f"No sections found on side {side} at {km} km.")
         print("")
         return section_info
-
-    def print_all_section_info(self) -> None:
-        """
-        Prints section information for all sections in self.sections.
-        """
-        for section_index, section_info in self.sections.items():
-            print(f"Section {section_index} "
-                  f"has km-range {section_info['km_range']} and "
-                  f"properties: {section_info['properties']}.")
 
 
 def get_km_length(km: list[float]) -> int:
