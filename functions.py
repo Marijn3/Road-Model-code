@@ -744,17 +744,18 @@ class RoadModel:
         """
         sections = []
         for section_index, section_info in self.sections.items():
-            if section_info['properties']['Baanpositie'] == side:
-                if min(section_info['km_range']) <= km <= max(section_info['km_range']):
-                    sections.append(section_info['properties'])
+            if 'Baanpositie' in section_info['properties'].keys():
+                if section_info['properties']['Baanpositie'] == side:
+                    if min(section_info['km_range']) <= km <= max(section_info['km_range']):
+                        sections.append(section_info['properties'])
         if len(sections) > 1:
             print("Warning: This slice has two roadlines.")
             i = 0
             for section in sections:
                 i += 1
-                print('Properties at', side, ', side', km, 'km (', i, '):', section)
+                print(f"Properties on side {side}, at {km} km ({i}):, {section}")
         else:
-            print('Properties at', side, ', side', km, 'km:', sections[0])
+            print(f"Properties on side {side}, at {km} km ({i}):, {sections[0]}")
         return sections
 
     def print_section_info(self):
