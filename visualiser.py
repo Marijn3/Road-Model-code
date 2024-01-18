@@ -17,8 +17,8 @@ RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
 
 def get_road_color(prop: dict) -> str:
-    if 'Puntstuk' in prop.values():
-        return 'dimgrey'
+    # if 'Puntstuk' in prop.values():
+    #     return 'dimgrey'
 
     # if not isinstance(prop['nRijstroken'], int):
     #     return 'red'
@@ -64,7 +64,7 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
     print(prop)
 
     # Offset centered around 0. Positive offset distance is on the left side of the line.
-    offsets = [(LANE_WIDTH*n_lanes)/2 - LANE_WIDTH*i for i in range(0, n_lanes+1)]
+    offsets = [(LANE_WIDTH*n_lanes)/2 - LANE_WIDTH*i for i in range(n_lanes+1)]
 
     # Add first line (left).
     line_coords = get_offset_coords(geom, offsets.pop(0))
@@ -103,14 +103,16 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
 def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str = "full"):
     if linetype == "dashed":
         line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4,
-                                        stroke_dasharray="2.5 6")
+                                        stroke_dasharray="3 5")
     elif linetype == "block":
         line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.6,
                                         stroke_dasharray="0.8 2.5")
     elif linetype == "point":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=2)
+        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=1.5)
+
     else:
         line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4)
+
     svg_dwg.add(line)
 
 
