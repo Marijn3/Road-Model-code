@@ -27,8 +27,7 @@ def get_road_color(prop: dict) -> str:
 
 
 def get_n_lanes(prop: dict) -> int:
-    n_lanes = max([lane_number for (lane_number, lane_type) in prop.items()
-                   if isinstance(lane_number, int) and lane_type != 'Puntstuk'])
+    n_lanes = max([lane_number for (lane_number, lane_type) in prop.items() if (isinstance(lane_number, int) and lane_type not in ['Puntstuk'])])
     return n_lanes
 
 
