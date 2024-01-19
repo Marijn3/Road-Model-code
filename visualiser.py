@@ -53,7 +53,10 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
     width = get_road_width(prop)
     coords = get_transformed_coords(geom)
 
-    asphalt = svgwrite.shapes.Polyline(points=coords, stroke=color, fill="none", stroke_width=width)
+    # Offset centered around first lane. Positive offset distance is on the left side of the line.
+    offset = LANE_WIDTH / 2 - LANE_WIDTH * get_n_lanes(prop) / 2
+    asphalt_coords = get_offset_coords(geom, offset)
+    asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
     add_separator_lines(geom, prop, svg_dwg)
@@ -64,7 +67,10 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
     print(prop)
 
     # Offset centered around 0. Positive offset distance is on the left side of the line.
-    offsets = [(LANE_WIDTH*n_lanes)/2 - LANE_WIDTH*i for i in range(n_lanes+1)]
+    # offsets = [(LANE_WIDTH * n_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
+
+    # Offset centered around first lane. Positive offset distance is on the left side of the line.
+    offsets = [LANE_WIDTH / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
 
     # Add first line (left).
     line_coords = get_offset_coords(geom, offsets.pop(0))
