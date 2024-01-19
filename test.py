@@ -4,300 +4,166 @@ from functions import *
 
 class TestRoadModel(unittest.TestCase):
 
-    def test_equal_sections(self):
-        print('Test equal sections')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+    def setUp(self):
+        self.road_model = RoadModel()
+        self.dfl = DataFrameLoader()
 
         # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
-                                        'BEGINKM': [0, 1],
-                                        'EINDKM': [1, 2],
-                                        'nRijstroken': [2, 2],
-                                        'geometry': [LineString([[0, 0], [1000, 0]]),
-                                                     LineString([[1000, 0], [1000, 1000]]) ]})
+        self.rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
+                                             'BEGINKM': [0, 2],
+                                             'EINDKM': [2, 4],
+                                             'nRijstroken': [2, 2],
+                                             'VNRWOL': [1, 1],
+                                             'geometry': [LineString([[0, 0], [2000, 0]]),
+                                                          LineString([[2000, 0], [4000, 0]])]})
 
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
-                                         'BEGINKM': [0, 1],
-                                         'EINDKM': [1, 2],
-                                         'Vluchtstrook': [True, False],
-                                         'Spitsstrook': [False, False],
-                                         'Puntstuk': [False, True],
-                                         'geometry': [LineString([[0, 0], [1000, 0]]),
-                                                      LineString([[1000, 0], [1000, 1000]]) ]})
+    def test_equal_sections(self):
+        print('Test equal sections:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [0, 2],
+                                         'EINDKM': [2, 4],
+                                         'OMSCHR': ['Vluchtstrook', 'Puntstuk'],
+                                         'VNRWOL': [3, 3],
+                                         'geometry': [LineString([[0, 0], [2000, 0]]),
+                                                      LineString([[2000, 0], [4000, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 2)
+        self.assertEqual(len(self.road_model.sections), 2)
+        self.assertEqual(len(self.road_model.sections[0]['properties']), 4)
 
     def test_half_equal_sections(self):
-        print('Test half equal sections')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+        print('Test half equal sections:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [-1, 3],
+                                         'EINDKM': [1, 5],
+                                         'OMSCHR': ['Vluchtstrook', 'Puntstuk'],
+                                         'VNRWOL': [3, 3],
+                                         'geometry': [LineString([[-1000, 0], [1000, 0]]),
+                                                      LineString([[3000, 0], [5000, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
-                                        'BEGINKM': [0, 1, 1],
-                                        'EINDKM': [1, 3, 2],
-                                        'nRijstroken': [2, 2, 1],
-                                        'geometry': [LineString([[0, 0], [1000, 0]]),
-                                                     LineString([[1000, 0], [1000, 2000]]),
-                                                     LineString([[1000, 0], [2000, 0]]) ]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
-                                         'BEGINKM': [0, 1, 1],
-                                         'EINDKM': [1, 2, 2],
-                                         'Vluchtstrook': [True, False, True],
-                                         'Spitsstrook': [False, False, False],
-                                         'Puntstuk': [False, True, False],
-                                         'geometry': [LineString([[0, 0], [1000, 0]]),
-                                                      LineString([[1000, 0], [1000, 1]]),
-                                                      LineString([[1000, 0], [2000, 0]]) ]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 4)
-        self.assertDictEqual(road_model.get_properties_at(2.5, 'L')[0],
-                             {'nRijstroken': 2},
-                             "Incorrect lane properties.")
-
-    def test_half_equal_sections_reverse(self):
-        print('Test half equal sections reversed')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
-
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
-                                        'BEGINKM': [0, 1, 1],
-                                        'EINDKM': [1, 2, 2],
-                                        'nRijstroken': [2, 2, 1],
-                                        'geometry': [LineString([[0, 0], [1000, 0]]),
-                                                     LineString([[1000, 0], [1000, 1]]),
-                                                     LineString([[1000, 0], [2000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L', 'L'],
-                                         'BEGINKM': [0, 1, 1],
-                                         'EINDKM': [1, 2, 3],
-                                         'Vluchtstrook': [True, False, True],
-                                         'Spitsstrook': [False, False, False],
-                                         'Puntstuk': [False, True, False],
-                                         'geometry': [LineString([[0, 0], [1000, 0]]),
-                                                      LineString([[1000, 0], [1000, 1]]),
-                                                      LineString([[1000, 0], [3000, 0]])]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 4, "Unexpected amount of sections.")
-        self.assertDictEqual(road_model.get_properties_at(0.5, 'L')[0],
-                             {'nRijstroken': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             "Incorrect lane properties.")
-        self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
-                             {'nRijstroken': 2, 'Vluchtstrook': False, 'Spitsstrook': False, 'Puntstuk': True},
-                             "Incorrect lane properties.")
-        self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[1],
-                             {'nRijstroken': 1, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             "Incorrect lane properties.")
-        self.assertDictEqual(road_model.get_properties_at(2.5, 'L')[0],
-                             {'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             "Incorrect lane properties.")
+        self.assertEqual(len(self.road_model.sections), 6)
+        self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_neither_equal_sections(self):
-        print('Test neither equal sections')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+        print('Test neither equal sections:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [5],
+                                         'EINDKM': [7],
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [2],
+                                         'geometry': [LineString([[5000, 0], [7000, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                        'BEGINKM': [0],
-                                        'EINDKM': [2],
-                                        'nRijstroken': [2],
-                                        'geometry': [LineString([[0, 0], [2000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                         'BEGINKM': [1],
-                                         'EINDKM': [4],
-                                         'Vluchtstrook': [True],
-                                         'Spitsstrook': [False],
-                                         'Puntstuk': [False],
-                                         'geometry': [LineString([[1000, 0], [4000, 0]])]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 3)
-        self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
-                             {'nRijstroken': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
+        self.assertEqual(len(self.road_model.sections), 3)
+        self.assertDictEqual(self.road_model.get_properties_at(3, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_double_overlap_sections(self):
-        print('Test double overlap sections')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+        print('Test double overlap sections:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [1.6],
+                                         'EINDKM': [3.4],
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [3],
+                                         'geometry': [LineString([[1600, 0], [3400, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
-                                        'BEGINKM': [0, 2],
-                                        'EINDKM': [2, 5],
-                                        'nRijstroken': [1, 2],
-                                        'geometry': [LineString([[0, 0], [2000, 0]]),
-                                                     LineString([[2000, 0], [5000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                         'BEGINKM': [1],
-                                         'EINDKM': [3.2],
-                                         'Vluchtstrook': [True],
-                                         'Spitsstrook': [False],
-                                         'Puntstuk': [False],
-                                         'geometry': [LineString([[1000, 0], [3200, 0]])]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 4)
-        self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
-                             {'nRijstroken': 1, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
-        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
-                             {'nRijstroken': 2},
-                             'Incorrect lane properties')
+        self.assertEqual(len(self.road_model.sections), 4)
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(1.7, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(3.3, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_reversed_sections(self):
-        print('Test reversed sections')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+        print('Test reversed sections:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [1],
+                                         'EINDKM': [4],
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [3],
+                                         'geometry': [LineString([[4000, 0], [1000, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
-                                        'BEGINKM': [2, 5],
-                                        'EINDKM': [0, 2],
-                                        'nRijstroken': [2, 1],
-                                        'geometry': [LineString([[2000, 0], [0, 0]]),
-                                                     LineString([[5000, 0], [2000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['R'],
-                                         'BEGINKM': [3.2],
-                                         'EINDKM': [1],
-                                         'Vluchtstrook': [True],
-                                         'Spitsstrook': [False],
-                                         'Puntstuk': [False],
-                                         'geometry': [LineString([[3200, 0], [1000, 0]])]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 4)
-        self.assertDictEqual(road_model.get_properties_at(1.5, 'R')[0],
-                             {'nRijstroken': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
-        self.assertDictEqual(road_model.get_properties_at(3.5, 'R')[0],
-                             {'nRijstroken': 1},
-                             'Incorrect lane properties')
+        self.assertEqual(len(self.road_model.sections), 3)
+        self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
 
     def test_segmented_sections(self):
-        print('Test segmented sections')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
-
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L', 'L'],
-                                        'BEGINKM': [0, 2],
-                                        'EINDKM': [2, 5],
-                                        'nRijstroken': [2, 1],
-                                        'geometry': [LineString([[0, 0], [500, 0], [1000, 0], [1500, 0], [2000, 0]]),
-                                                     LineString([[2000, 0], [2500, 0], [3500, 0], [4000, 0], [5000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                         'BEGINKM': [1],
+        print('Test segmented sections:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [1],
                                          'EINDKM': [3.2],
-                                         'Vluchtstrook': [True],
-                                         'Spitsstrook': [False],
-                                         'Puntstuk': [False],
-                                         'geometry': [LineString([[1000, 0], [1500, 0], [2000, 0], [2500, 0], [3200, 0]])]})
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [3],
+                                         'geometry': [LineString([[1000, 0], [1500, 0], [2500, 0], [3200, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 4)
-        self.assertDictEqual(road_model.get_properties_at(1.5, 'L')[0],
-                             {'nRijstroken': 2, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
-        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
-                             {'nRijstroken': 1},
-                             'Incorrect lane properties')
+        self.assertEqual(len(self.road_model.sections), 4)
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_two_remainders(self):
-        print('Test two remainders')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+        print('Test two remainders:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [0.7],
+                                         'EINDKM': [1.2],
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [3],
+                                         'geometry': [LineString([[700, 0], [1200, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                        'BEGINKM': [0],
-                                        'EINDKM': [6],
-                                        'nRijstroken': [5],
-                                        'geometry': [LineString([[0, 0], [6000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                         'BEGINKM': [1],
-                                         'EINDKM': [3],
-                                         'Vluchtstrook': [True],
-                                         'Spitsstrook': [False],
-                                         'Puntstuk': [False],
-                                         'geometry': [LineString([[1000, 0], [1500, 0], [2000, 0], [2500, 0], [3000, 0]])]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 3)
-        self.assertDictEqual(road_model.get_properties_at(2, 'L')[0],
-                             {'nRijstroken': 5, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
-        self.assertDictEqual(road_model.get_properties_at(3.5, 'L')[0],
-                             {'nRijstroken': 5},
-                             'Incorrect lane properties')
+        self.assertEqual(len(self.road_model.sections), 4)
+        self.assertDictEqual(self.road_model.get_properties_at(1, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_two_remainders_reverse(self):
-        print('Test two remainders reverse')
-        road_model = RoadModel()
-        dfl = DataFrameLoader()
+        print('Test two remainders reverse:')
+        kantstroken_data = pd.DataFrame({'BEGINKM': [-2],
+                                         'EINDKM': [8],
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [3],
+                                         'geometry': [LineString([[-2000, 0], [8000, 0]])]})
+        self.dfl.data = {'Rijstroken': self.rijstroken_data,
+                         'Kantstroken': kantstroken_data,
+                         'Mengstroken': pd.DataFrame()}
+        self.road_model.import_dataframes(self.dfl)
 
-        # Add test data
-        rijstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                        'BEGINKM': [1],
-                                        'EINDKM': [3],
-                                        'nRijstroken': [5],
-                                        'geometry': [LineString([[1000, 0], [3000, 0]])]})
-
-        kantstroken_data = pd.DataFrame({'IZI_SIDE': ['L'],
-                                         'BEGINKM': [0],
-                                         'EINDKM': [5],
-                                         'Vluchtstrook': [True],
-                                         'Spitsstrook': [False],
-                                         'Puntstuk': [False],
-                                         'geometry': [LineString([[0, 0], [2000, 0], [5000, 0]])]})
-
-        dfl.data = {'Rijstroken': rijstroken_data, 'Kantstroken': kantstroken_data}
-
-        road_model.import_dataframes(dfl)
-
-        self.assertEqual(len(road_model.sections), 3)
-        self.assertDictEqual(road_model.get_properties_at(2, 'L')[0],
-                             {'nRijstroken': 5, 'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
-        self.assertDictEqual(road_model.get_properties_at(4, 'L')[0],
-                             {'Vluchtstrook': True, 'Spitsstrook': False, 'Puntstuk': False},
-                             'Incorrect lane properties')
+        self.assertEqual(len(self.road_model.sections), 4)
+        self.assertDictEqual(self.road_model.get_properties_at(1, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+        # self.assertRaises(IndexError, self.road_model.get_properties_at(6, 'R'))
 
 
 if __name__ == '__main__':
