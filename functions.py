@@ -188,8 +188,8 @@ class RoadModel:
         # for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid', 'Rijstrooksignaleringen']:
         for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken']:
             print(f"[STATUS:] Importing {df_name}...")
-
             current_sections = self.section_index
+
             self.__import_dataframe(dfl, df_name)
 
             print(f"[STATUS:] Added {self.section_index - current_sections} sections. "
@@ -419,7 +419,7 @@ class RoadModel:
                 if other_ends_equal:
                     if not (equals(new_section_geom, other_section_geom) or (
                             equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
-                        print(f"Warning: Possibly inconsistent geometries: {new_section_geom} and {other_section_geom}")
+                        print(f"[WARNING:] Possibly inconsistent geometries: {new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
                                           props=new_section_props)
                     # This is the final iteration.
@@ -545,7 +545,7 @@ class RoadModel:
 
         if km_range:
             if abs(get_km_length(km_range) - geom.length) > 100:
-                print(f"Warning: Big length difference: {get_km_length(km_range)} and {geom.length}")
+                print(f"[WARNING:] Big length difference: {get_km_length(km_range)} and {geom.length}")
             self.sections[index]['km_range'] = km_range
         if props:
             self.sections[index]['properties'].update(props)
@@ -567,7 +567,7 @@ class RoadModel:
         """
         assert not is_empty(new_section['geometry']), f"Request to add an empty geometry: {new_section['geometry']}"
         if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
-            print(f"Warning: Big length difference: "
+            print(f"[WARNING:] Big length difference: "
                   f"{get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
         self.sections[self.section_index] = new_section
@@ -802,7 +802,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
     elif isinstance(diff, MultiLineString) and not diff.is_empty:
         diffs = [geom for geom in diff.geoms]
         if get_num_geometries(diff) > 2:
-            print('Warning: More than 2 remaining geometries. Extra geometries:', diffs[2:])
+            print(f"[WARNING:] More than 2 remaining geometries. Extra geometries: {diffs[2:]}")
         # Return the first geometry (directional order of geom1 is maintained)
         return diffs[0]
     else:
