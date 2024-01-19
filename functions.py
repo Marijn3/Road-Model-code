@@ -113,12 +113,13 @@ class DataFrameLoader:
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
+        lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
+                        '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
+                        '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
+                        '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
+                        '5 -> 5': 5}
+
         if name == 'Rijstroken':
-            lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
-                            '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
-                            '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
-                            '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
-                            '5 -> 5': 5}
             self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
 
             # Convert VOLGNRSTRK to integer, supporting NaN values
@@ -126,11 +127,6 @@ class DataFrameLoader:
             #     pd.to_numeric(self.data[df_name]['VOLGNRSTRK'], errors='coerce').astype('Int64'))
 
         if name == 'Mengstroken':
-            lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
-                            '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
-                            '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
-                            '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
-                            '5 -> 5': 5}
             self.data[name]['nMengstroken'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
 
         if name == 'Rijstrooksignaleringen':
