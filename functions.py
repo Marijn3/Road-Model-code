@@ -420,7 +420,8 @@ class RoadModel:
                 if other_ends_equal:
                     if not (equals(new_section_geom, other_section_geom) or (
                             equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
-                        print(f"[WARNING:] Possibly inconsistent geometries: {new_section_geom} and {other_section_geom}")
+                        print(f"[WARNING:] Possibly inconsistent geometries: "
+                              f"{new_section_geom} and {other_section_geom}\n")
                     self.__update_section(other_section_index,
                                           props=new_section_props)
                     # This is the final iteration.
@@ -527,7 +528,7 @@ class RoadModel:
         """
         for index in indices:
             self.sections.pop(index)
-            print(f"[LOG:] Section {index} removed.")
+            print(f"[LOG:] Section {index} removed.\n")
 
     def __update_section(self, index: int, km_range: list = None, props: dict = None, geom: LineString = None) -> None:
         """
@@ -546,7 +547,7 @@ class RoadModel:
 
         if km_range:
             if abs(get_km_length(km_range) - geom.length) > 100:
-                print(f"[WARNING:] Big length difference: {get_km_length(km_range)} and {geom.length}")
+                print(f"[WARNING:] Big length difference: {get_km_length(km_range)} and {geom.length}\n")
             self.sections[index]['km_range'] = km_range
         if props:
             self.sections[index]['properties'].update(props)
@@ -569,7 +570,7 @@ class RoadModel:
         assert not is_empty(new_section['geometry']), f"Request to add an empty geometry: {new_section['geometry']}"
         if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
             print(f"[WARNING:] Big length difference: "
-                  f"{get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+                  f"{get_km_length(new_section['km_range'])} and {new_section['geometry'].length}\n")
 
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index)
@@ -598,10 +599,10 @@ class RoadModel:
         Args:
             index (int): Index of point to print info for.
         """
-        print("[LOG:] Point", index, "added:",
-              self.points[index]['km'],
-              self.points[index]['properties'],
-              set_precision(self.points[index]['geometry'], 1))
+        print(f"[LOG:] Point {index} added: \t"
+              f"{self.points[index]['km']:>7.3f} km \t"
+              f"{self.points[index]['properties']} \n"
+              f"\t\t\t\t\t\t{set_precision(self.points[index]['geometry'], 1)}")
 
     def __log_section(self, index: int) -> None:
         """
@@ -609,10 +610,10 @@ class RoadModel:
         Args:
             index (int): Index of section to print info for.
         """
-        print("[LOG:] Section", index, "added:",
-              self.sections[index]['km_range'],
-              self.sections[index]['properties'],
-              set_precision(self.sections[index]['geometry'], 1))
+        print(f"[LOG:] Section {index} added: \t"
+              f"[{self.sections[index]['km_range'][0]:>7.3f}, {self.sections[index]['km_range'][1]:>7.3f}] km \t"
+              f"{self.sections[index]['properties']} \n"
+              f"\t\t\t\t\t\t\t{set_precision(self.sections[index]['geometry'], 1)}")
 
     def __log_section_change(self, index: int) -> None:
         """
@@ -620,10 +621,10 @@ class RoadModel:
         Args:
             index (int): Index of section to print info for.
         """
-        print("[LOG:] Section", index, "changed:",
-              self.sections[index]['km_range'],
-              self.sections[index]['properties'],
-              set_precision(self.sections[index]['geometry'], 1))
+        print(f"[LOG:] Section {index} changed: \t"
+              f"[{self.sections[index]['km_range'][0]:>7.3f}, {self.sections[index]['km_range'][1]:>7.3f}] km \t"
+              f"{self.sections[index]['properties']} \n"
+              f"\t\t\t\t\t\t\t{set_precision(self.sections[index]['geometry'], 1)}")
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
@@ -709,12 +710,10 @@ class RoadModel:
             print("")
             return section_info
         elif len(section_info) == 1:
-            print(f"Properties on side {side}, at {km} km: {section_info[0]['properties']}")
-            print("")
+            print(f"Properties on side {side}, at {km} km: {section_info[0]['properties']}\n")
             return section_info[0]['properties']
         else:
-            print(f"No sections found on side {side} at {km} km.")
-            print("")
+            print(f"No sections found on side {side} at {km} km.\n")
             return section_info
 
 
@@ -807,7 +806,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
     elif isinstance(diff, MultiLineString) and not diff.is_empty:
         diffs = [geom for geom in diff.geoms]
         if get_num_geometries(diff) > 2:
-            print(f"[WARNING:] More than 2 remaining geometries. Extra geometries: {diffs[2:]}")
+            print(f"[WARNING:] More than 2 remaining geometries. Extra geometries: {diffs[2:]}\n")
         # Return the first geometry (directional order of geom1 is maintained)
         return diffs[0]
     else:
