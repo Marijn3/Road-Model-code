@@ -303,7 +303,8 @@ class RoadModel:
 
         if not overlap_sections:
             print("No overlap detected.")
-            self.__add_section(new_section)
+            # Do NOT add the section, as there is no guarantee the geometry direction is correct.
+            # self.__add_section(new_section)
             return
 
         overlap_section = overlap_sections.pop(0)
@@ -689,7 +690,7 @@ class RoadModel:
                     section_info.append(section)
         return section_info
 
-    def get_properties_at(self, km: float, side: str) -> list[dict]:
+    def get_properties_at(self, km: float, side: str) -> dict | list[dict]:
         """
         Prints the properties of a road section at a specific km and roadside.
         Args:
@@ -698,19 +699,23 @@ class RoadModel:
         Prints:
             Road section(s) properties.
         Returns:
-            list[dict]: Attributes of the road section(s) at the specified kilometer point.
+            list[dict]: Attributes of the (first) road section at the specified kilometer point.
         """
         section_info = self.get_section_info_at(km, side)
         if len(section_info) > 1:
             print(f"Properties on side {side}, at {km} km:")
             for index, section in enumerate(section_info):
                 print(f"    {index}) {section['properties']}")
+            print("")
+            return section_info
         elif len(section_info) == 1:
             print(f"Properties on side {side}, at {km} km: {section_info[0]['properties']}")
+            print("")
+            return section_info[0]['properties']
         else:
             print(f"No sections found on side {side} at {km} km.")
-        print("")
-        return section_info
+            print("")
+            return section_info
 
 
 def get_km_length(km: list[float]) -> int:
