@@ -26,12 +26,16 @@ def get_road_color(prop: dict) -> str:
     return 'grey'
 
 
-def get_n_lanes(prop: dict) -> int:
+def get_n_lanes(prop: dict, only_rijstroken: bool = False) -> int:
     n_lanes = 0
     for lane_nr, lane_type in prop.items():
         if isinstance(lane_nr, int):
-            if lane_nr > n_lanes and lane_type not in ['Puntstuk']:
-                n_lanes = lane_nr
+            if only_rijstroken:
+                if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing']:
+                    n_lanes = lane_nr
+            else:
+                if lane_nr > n_lanes and lane_type not in ['Puntstuk']:
+                    n_lanes = lane_nr
     return n_lanes
 
 
@@ -53,26 +57,30 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
     n_lanes = get_n_lanes(prop)
+    n_normal_lanes = get_n_lanes(prop, True)
 
     color = get_road_color(prop)
     width = get_road_width(prop)
     coords = get_transformed_coords(geom)
 
-    # Offset centered around first lane. Positive offset distance is on the left side of the line.
-    offset = LANE_WIDTH / 2 - LANE_WIDTH * n_lanes / 2
+    # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
+    offset = (LANE_WIDTH * n_normal_lanes) / 2 - LANE_WIDTH * n_lanes / 2
     asphalt_coords = get_offset_coords(geom, offset)
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
-    add_separator_lines(geom, prop, n_lanes, svg_dwg)
+    add_separator_lines(geom, prop, svg_dwg)
 
 
-def add_separator_lines(geom: LineString, prop: dict, n_lanes, svg_dwg: svgwrite.Drawing):
+def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
+    n_lanes = get_n_lanes(prop)
+    n_normal_lanes = get_n_lanes(prop, True)
+
     # Offset centered around 0. Positive offset distance is on the left side of the line.
     # offsets = [(LANE_WIDTH * n_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
 
-    # Offset centered around first lane. Positive offset distance is on the left side of the line.
-    offsets = [LANE_WIDTH / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
+    # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
+    offsets = [(LANE_WIDTH * n_normal_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
 
     # Add first line (left).
     line_coords = get_offset_coords(geom, offsets.pop(0))
@@ -132,10 +140,12 @@ def svg_add_point(geom: Point, prop: dict, km: float, svg_dwg: svgwrite.Drawing)
             square = svgwrite.shapes.Rect(insert=(coords[0]+disp, coords[1]), size=(10, 10), fill="black", stroke="red")
             svg_dwg.add(square)
     else:
-        circle = svgwrite.shapes.Circle(center=coords, r=5, fill="purple", stroke="pink")
+        circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         svg_dwg.add(circle)
-        # point_type = prop.values()  # Extract the actual value there
-        text = svgwrite.text.Text(km, insert=(coords[0] - 4, coords[1] + 1), fill="white",
+        # point_type = "H"  # prop.values()  # Extract the actual value there
+        # text = svgwrite.text.Text(point_type, insert=(coords[0] + 3, coords[1] + 1), fill="white",
+        #                           font_family="Arial", font_size=8)
+        text = svgwrite.text.Text(km, insert=(coords[0] + 3, coords[1] + 1), fill="white",
                                   font_family="Arial", font_size=3)
         svg_dwg.add(text)
 
