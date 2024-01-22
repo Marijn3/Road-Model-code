@@ -124,12 +124,20 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     svg_dwg.add(line)
 
 
-def svg_add_point(geom: Point, prop: dict, svg_dwg: svgwrite.Drawing):
+def svg_add_point(geom: Point, prop: dict, km: float, svg_dwg: svgwrite.Drawing):
     coords = get_transformed_coords(geom)[0]
-    for nr in prop['Rijstroken']:
-        disp = (nr-1)*12
-        square = svgwrite.shapes.Rect(insert=(coords[0]+disp, coords[1]), size=(10, 10), fill="black", stroke="red")
-        svg_dwg.add(square)
+    if 'Rijstroken' in prop.keys():
+        for nr in prop['Rijstroken']:
+            disp = (nr-1)*12
+            square = svgwrite.shapes.Rect(insert=(coords[0]+disp, coords[1]), size=(10, 10), fill="black", stroke="red")
+            svg_dwg.add(square)
+    else:
+        circle = svgwrite.shapes.Circle(center=coords, r=5, fill="purple", stroke="pink")
+        svg_dwg.add(circle)
+        # point_type = prop.values()  # Extract the actual value there
+        text = svgwrite.text.Text(km, insert=(coords[0] - 4, coords[1] + 1), fill="white",
+                                  font_family="Arial", font_size=3)
+        svg_dwg.add(text)
 
 
 # Create SVG drawing
@@ -146,7 +154,7 @@ for section in sections:
 # MSIs
 points = road.get_points()
 for point in points:
-    svg_add_point(point['geometry'], point['properties'], dwg)
+    svg_add_point(point['geometry'], point['properties'], point['km'], dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
