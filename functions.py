@@ -307,7 +307,6 @@ class RoadModel:
         if not overlap_sections:
             print("No overlap detected.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            # self.__add_section(new_section)
             return
 
         overlap_section = overlap_sections.pop(0)
@@ -334,10 +333,9 @@ class RoadModel:
         else:
             new_section_geom = reverse(new_section['geometry'])
 
-        num_overlap_sections = len(overlap_sections)
         sections_to_remove = set()
 
-        while True:  # get_num_coordinates(new_section_geom) != 0:
+        while True:
 
             if not get_overlap(new_section_geom, other_section_geom):
                 overlap_section = overlap_sections.pop(0)
@@ -349,12 +347,12 @@ class RoadModel:
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
 
-            print("New section range:", new_section_range)
-            print("New section props:", new_section_props)
-            print("New section geom:", new_section['geometry'])
-            print("Other section range:", other_section_range)
-            print("Other section props:", other_section_props)
-            print("Other section geom:", other_section_geom)
+            # print("New section range:", new_section_range)
+            # print("New section props:", new_section_props)
+            # print("New section geom:", new_section['geometry'])
+            # print("Other section range:", other_section_range)
+            # print("Other section props:", other_section_props)
+            # print("Other section geom:", other_section_geom)
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
