@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 0.0000001
+GRID_SIZE = 0.000001
 
 
 class DataFrameLoader:
@@ -249,13 +249,12 @@ class RoadModel:
     @staticmethod
     def __extract_line_properties(row: pd.Series, name: str):
         properties = {}
+        roadside = None
+        # wegnummer = None
 
         if name == 'Rijstroken':
-            # Extract some base properties of the road.
-            properties = {
-                'Baanpositie': row['IZI_SIDE'],
-                # 'Wegnummer': row['WEGNUMMER'],
-            }
+            roadside = row['IZI_SIDE']
+            # roadnumber = row['WEGNUMMER']
 
             first_lane_number = row['VNRWOL']
             n_rijstroken = int(row['nRijstroken'])  # Always rounds down
@@ -269,7 +268,8 @@ class RoadModel:
             else:
                 km_range = [row['EINDKM'], row['BEGINKM']]
 
-            return {'km_range': km_range,
+            return {'roadside': roadside,
+                    'km_range': km_range,
                     'properties': properties,
                     'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
@@ -289,7 +289,8 @@ class RoadModel:
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
 
-        return {'km_range': [row['BEGINKM'], row['EINDKM']],
+        return {'roadside': roadside,
+                'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
                 'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
@@ -312,6 +313,7 @@ class RoadModel:
         other_section_index = overlap_section['index']
         overlap_section_info = deepcopy(overlap_section['section_info'])
 
+        other_section_side = overlap_section_info['roadside']
         other_section_range = overlap_section_info['km_range']
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
@@ -319,7 +321,7 @@ class RoadModel:
         new_section_range = new_section['km_range']
 
         # Align new section range according to existing sections
-        if other_section_props['Baanpositie'] == 'L':
+        if other_section_side == 'L':
             new_section_range.reverse()
 
         new_section_props = new_section['properties']
@@ -358,8 +360,8 @@ class RoadModel:
 
             # TODO: Fancier implementation making use of the symmetry of the code below. Possibly using recursion?
 
-            right_side = other_section_props['Baanpositie'] == 'R'
-            left_side = other_section_props['Baanpositie'] == 'L'
+            right_side = other_section_side == 'R'
+            left_side = other_section_side == 'L'
 
             new_section_first = (
                 (min(new_section_range) < min(other_section_range) and right_side)
@@ -387,6 +389,7 @@ class RoadModel:
                     km_range = [max(new_section_range), max(other_section_range)]
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
+                    'roadside': other_section_side,
                     'km_range': km_range,
                     'properties': new_section_props,
                     'geometry': added_geom
@@ -442,6 +445,7 @@ class RoadModel:
                     assert added_geom, "No overlap found"
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
+                        'roadside': other_section_side,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -466,6 +470,7 @@ class RoadModel:
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
+                        'roadside': other_section_side,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -484,6 +489,7 @@ class RoadModel:
                     else:
                         # This is the final iteration
                         self.__add_section({
+                            'roadside': other_section_side,
                             'km_range': new_section_range,
                             'properties': new_section_props,
                             'geometry': new_section_geom
@@ -504,6 +510,7 @@ class RoadModel:
                     km_range = [max(other_section_range), max(new_section_range)]
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
+                    'roadside': other_section_side,
                     'km_range': km_range,
                     'properties': other_section_props,
                     'geometry': added_geom
@@ -561,6 +568,7 @@ class RoadModel:
         Adds a section to the sections variable and increases the index.
         Args:
             new_section (dict): Containing:
+                - roadside (str): Side of the road. Either 'R' or 'L'.
                 - km_range (list[float]): Start and end registration kilometre.
                 - properties (dict): All properties that belong to the section.
                 - geometry (LineString): The geometry of the section.
@@ -612,6 +620,7 @@ class RoadModel:
         """
         print(f"[LOG:] Section {index} added: \t"
               f"[{self.sections[index]['km_range'][0]:>7.3f}, {self.sections[index]['km_range'][1]:>7.3f}] km \t"
+              f"{self.sections[index]['roadside']}\t"
               f"{self.sections[index]['properties']} \n"
               f"\t\t\t\t\t\t\t{set_precision(self.sections[index]['geometry'], 1)}")
 
@@ -623,6 +632,7 @@ class RoadModel:
         """
         print(f"[LOG:] Section {index} changed: \t"
               f"[{self.sections[index]['km_range'][0]:>7.3f}, {self.sections[index]['km_range'][1]:>7.3f}] km \t"
+              f"{self.sections[index]['roadside']}\t"
               f"{self.sections[index]['properties']} \n"
               f"\t\t\t\t\t\t\t{set_precision(self.sections[index]['geometry'], 1)}")
 
@@ -649,8 +659,8 @@ class RoadModel:
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
             # Thus, sections on the left side should be ordered from high to low ranges.
-            road_side = overlapping_sections[0]['section_info']['properties']['Baanpositie']
-            should_reverse = road_side == 'L'
+            roadside = overlapping_sections[0]['section_info']['roadside']
+            should_reverse = roadside == 'L'
             overlapping_sections = sorted(overlapping_sections,
                                           key=lambda x: max(x['section_info']['km_range']),
                                           reverse=should_reverse)
@@ -684,11 +694,10 @@ class RoadModel:
         """
         section_info = []
         for section in self.sections.values():
-            if 'Baanpositie' in section['properties'].keys():
-                in_selection = (section['properties']['Baanpositie'] == side and
-                                min(section['km_range']) <= km <= max(section['km_range']))
-                if in_selection:
-                    section_info.append(section)
+            in_selection = (section['roadside'] == side and
+                            min(section['km_range']) <= km <= max(section['km_range']))
+            if in_selection:
+                section_info.append(section)
         return section_info
 
     def get_properties_at(self, km: float, side: str) -> dict | list[dict]:
