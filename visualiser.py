@@ -59,26 +59,20 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
     n_lanes = get_n_lanes(prop)
     n_normal_lanes = get_n_lanes(prop, True)
 
-    color = get_road_color(prop)
-    width = get_road_width(prop)
-    coords = get_transformed_coords(geom)
-
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
     offset = (LANE_WIDTH * n_normal_lanes) / 2 - LANE_WIDTH * n_lanes / 2
+
+    color = get_road_color(prop)
+    width = get_road_width(prop)
     asphalt_coords = get_offset_coords(geom, offset)
+
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
-    add_separator_lines(geom, prop, svg_dwg)
+    add_separator_lines(geom, prop, n_lanes, n_normal_lanes, svg_dwg)
 
 
-def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
-    n_lanes = get_n_lanes(prop)
-    n_normal_lanes = get_n_lanes(prop, True)
-
-    # Offset centered around 0. Positive offset distance is on the left side of the line.
-    # offsets = [(LANE_WIDTH * n_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
-
+def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lanes: int, svg_dwg: svgwrite.Drawing):
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
     offsets = [(LANE_WIDTH * n_normal_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
 
@@ -99,7 +93,7 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
             break
 
         # An emergency lane is always the final, rightmost lane.
-        if prop[lane_nr+1] == 'Vluchtstrook':
+        if prop[lane_nr + 1] == 'Vluchtstrook':
             add_markerline(line_coords, svg_dwg)
             break
 
@@ -109,7 +103,7 @@ def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing)
             break
 
         # All other lanes are separated by dashed lines.
-        if prop[lane_nr] == prop[lane_nr+1]:
+        if prop[lane_nr] == prop[lane_nr + 1]:
             add_markerline(line_coords, svg_dwg, "dashed")
         # If the lane types are not the same, block markings are used.
         else:
@@ -136,17 +130,18 @@ def svg_add_point(geom: Point, prop: dict, km: float, svg_dwg: svgwrite.Drawing)
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
         for nr in prop['Rijstroken']:
-            disp = (nr-1)*12
-            square = svgwrite.shapes.Rect(insert=(coords[0]+disp, coords[1]), size=(10, 10), fill="black", stroke="red")
+            disp = (nr - 1) * 12
+            square = svgwrite.shapes.Rect(insert=(coords[0] + disp, coords[1]), size=(10, 10),
+                                          fill="black", stroke="red")
             svg_dwg.add(square)
     else:
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         svg_dwg.add(circle)
         # point_type = "H"  # prop.values()  # Extract the actual value there
-        # text = svgwrite.text.Text(point_type, insert=(coords[0] + 3, coords[1] + 1), fill="white",
-        #                           font_family="Arial", font_size=8)
-        text = svgwrite.text.Text(km, insert=(coords[0] + 3, coords[1] + 1), fill="white",
-                                  font_family="Arial", font_size=3)
+        # text = svgwrite.text.Text(point_type, insert=(coords[0] + 2, coords[1] + 1),
+        #                           fill="white", font_family="Arial", font_size=8)
+        text = svgwrite.text.Text(km, insert=(coords[0] + 2, coords[1] + 1),
+                                  fill="white", font_family="Arial", font_size=3)
         svg_dwg.add(text)
 
 
