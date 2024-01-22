@@ -29,7 +29,7 @@ class DataFrameLoader:
         "data/Maximum snelheid/max_snelheden.dbf",
         # "data/Convergenties/convergenties.dbf",
         # "data/Divergenties/divergenties.dbf",
-        # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
     def __init__(self):
@@ -185,8 +185,7 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        # for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid', 'Rijstrooksignaleringen']:
-        for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken']:
+        for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid', 'Rijstrooksignaleringen']:
             print(f"[STATUS:] Importing {df_name}...")
             current_sections = self.section_index
 
@@ -347,18 +346,18 @@ class RoadModel:
                 other_section_props = overlap_section_info['properties']
                 other_section_geom = overlap_section_info['geometry']
 
-            # print("New section range:", new_section_range)
-            # print("New section props:", new_section_props)
-            # print("New section geom:", new_section['geometry'])
-            # print("Other section range:", other_section_range)
-            # print("Other section props:", other_section_props)
-            # print("Other section geom:", other_section_geom)
+            print("New section range:", new_section_range)
+            print("New section props:", new_section_props)
+            print("New section geom:", new_section['geometry'])
+            print("Other section range:", other_section_range)
+            print("Other section props:", other_section_props)
+            print("Other section geom:", other_section_geom)
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
                 f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
 
-            # TODO: Fancier implementation making use of the symmetry of the code below. Possibly using recursion?
+            # TODO: Fancier implementation making use of the symmetry of the code below.
 
             right_side = other_section_side == 'R'
             left_side = other_section_side == 'L'
@@ -426,7 +425,9 @@ class RoadModel:
                         print(f"[WARNING:] Possibly inconsistent geometries: "
                               f"{new_section_geom} and {other_section_geom}\n")
                     self.__update_section(other_section_index,
-                                          props=new_section_props)
+                                          km_range=new_section_range,
+                                          props=new_section_props,
+                                          geom=new_section_geom)
                     # This is the final iteration.
                     break
 
