@@ -27,8 +27,8 @@ class DataFrameLoader:
         "data/Kantstroken/kantstroken.dbf",
         "data/Mengstroken/mengstroken.dbf",
         "data/Maximum snelheid/max_snelheden.dbf",
-        # "data/Convergenties/convergenties.dbf",
-        # "data/Divergenties/divergenties.dbf",
+        "data/Convergenties/convergenties.dbf",
+        "data/Divergenties/divergenties.dbf",
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
@@ -185,14 +185,17 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid', 'Rijstrooksignaleringen']:
+        for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
+                        'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']:
             print(f"[STATUS:] Importing {df_name}...")
             current_sections = self.section_index
+            current_points = self.point_index
 
             self.__import_dataframe(dfl, df_name)
 
-            print(f"[STATUS:] Added {self.section_index - current_sections} sections. "
-                  f"The model has {self.section_index} sections in total.\n")
+            print(f"[STATUS:] {df_name} added {self.section_index - current_sections} sections "
+                  f"and {self.point_index - current_points} points to the road model.\n"
+                  f"The model has {self.section_index} sections and {self.point_index} points in total.\n")
 
     def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
         """
