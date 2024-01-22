@@ -26,10 +26,10 @@ class DataFrameLoader:
         "data/Rijstroken/rijstroken-edit.dbf",
         "data/Kantstroken/kantstroken.dbf",
         "data/Mengstroken/mengstroken.dbf",
-        "data/Maximum snelheid/max_snelheden-edit.dbf",
+        "data/Maximum snelheid/max_snelheden.dbf",
         # "data/Convergenties/convergenties.dbf",
         # "data/Divergenties/divergenties.dbf",
-        # "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
     def __init__(self):
@@ -185,7 +185,6 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         """
-        # for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken']:
         for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid', 'Rijstrooksignaleringen']:
             print(f"[STATUS:] Importing {df_name}...")
             current_sections = self.section_index
@@ -426,7 +425,9 @@ class RoadModel:
                         print(f"[WARNING:] Possibly inconsistent geometries: "
                               f"{new_section_geom} and {other_section_geom}\n")
                     self.__update_section(other_section_index,
-                                          props=new_section_props)
+                                          km_range=new_section_range,
+                                          props=new_section_props,
+                                          geom=new_section_geom)
                     # This is the final iteration.
                     break
 
