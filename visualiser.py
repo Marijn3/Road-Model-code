@@ -131,6 +131,7 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     svg_dwg.add(line)
 
 
+def svg_add_point(geom: Point, prop: dict, km: float, orientation: float, svg_dwg: svgwrite.Drawing):
 def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     geom = point_data['geometry']
     prop = point_data['properties']
@@ -175,6 +176,8 @@ for section in sections:
 # MSIs
 points = road.get_points()  # 'MSI'
 for point in points:
+    orientation = road.get_local_orientation(point['geometry'])
+    svg_add_point(point['geometry'], point['properties'], point['km'], orientation, dwg)
     svg_add_point(point, dwg)
 
 # viewBox
