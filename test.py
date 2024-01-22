@@ -31,7 +31,7 @@ class TestRoadModel(unittest.TestCase):
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
-        self.assertEqual(len(self.road_model.sections[0]['properties']), 4)
+        self.assertEqual(len(self.road_model.sections[0]['properties']), 3)
 
     def test_half_equal_sections(self):
         print('Test half equal sections:')
@@ -48,11 +48,11 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(self.road_model.sections), 6)
         self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
 
-    def test_neither_equal_sections(self):
+    def test_neither_equal_sections(self):  # Should not be added
         print('Test neither equal sections:')
         kantstroken_data = pd.DataFrame({'BEGINKM': [5],
                                          'EINDKM': [7],
@@ -64,9 +64,9 @@ class TestRoadModel(unittest.TestCase):
                          'Mengstroken': pd.DataFrame()}
         self.road_model.import_dataframes(self.dfl)
 
-        self.assertEqual(len(self.road_model.sections), 3)
+        self.assertEqual(len(self.road_model.sections), 2)
         self.assertDictEqual(self.road_model.get_properties_at(3, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_double_overlap_sections(self):
         print('Test double overlap sections:')
@@ -82,13 +82,13 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(self.road_model.sections), 4)
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(1.7, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(3.3, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_reversed_sections(self):
         print('Test reversed sections:')
@@ -104,9 +104,9 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(self.road_model.sections), 3)
         self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
 
     def test_segmented_sections(self):
         print('Test segmented sections:')
@@ -122,9 +122,9 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(self.road_model.sections), 4)
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_two_remainders(self):
         print('Test two remainders:')
@@ -140,11 +140,11 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(self.road_model.sections), 4)
         self.assertDictEqual(self.road_model.get_properties_at(1, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_two_remainders_reverse(self):
         print('Test two remainders reverse:')
@@ -160,9 +160,9 @@ class TestRoadModel(unittest.TestCase):
 
         self.assertEqual(len(self.road_model.sections), 4)
         self.assertDictEqual(self.road_model.get_properties_at(1, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
-                             {'Baanpositie': 'R', 1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         # self.assertRaises(IndexError, self.road_model.get_properties_at(6, 'R'))
 
 
