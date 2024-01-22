@@ -27,8 +27,11 @@ def get_road_color(prop: dict) -> str:
 
 
 def get_n_lanes(prop: dict) -> int:
-    n_lanes = max([lane_number for (lane_number, lane_type) in prop.items() if (isinstance(lane_number, int) and lane_type not in ['Puntstuk'])])
-    print(n_lanes)
+    n_lanes = 0
+    for lane_nr, lane_type in prop.items():
+        if isinstance(lane_nr, int):
+            if lane_nr > n_lanes and lane_type not in ['Puntstuk']:
+                n_lanes = lane_nr
     return n_lanes
 
 
@@ -49,23 +52,22 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
 
 
 def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
+    n_lanes = get_n_lanes(prop)
+
     color = get_road_color(prop)
     width = get_road_width(prop)
     coords = get_transformed_coords(geom)
 
     # Offset centered around first lane. Positive offset distance is on the left side of the line.
-    offset = LANE_WIDTH / 2 - LANE_WIDTH * get_n_lanes(prop) / 2
+    offset = LANE_WIDTH / 2 - LANE_WIDTH * n_lanes / 2
     asphalt_coords = get_offset_coords(geom, offset)
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
-    add_separator_lines(geom, prop, svg_dwg)
+    add_separator_lines(geom, prop, n_lanes, svg_dwg)
 
 
-def add_separator_lines(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
-    n_lanes = get_n_lanes(prop)
-    print(prop)
-
+def add_separator_lines(geom: LineString, prop: dict, n_lanes, svg_dwg: svgwrite.Drawing):
     # Offset centered around 0. Positive offset distance is on the left side of the line.
     # offsets = [(LANE_WIDTH * n_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
 
