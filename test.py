@@ -2,6 +2,14 @@ import unittest
 from functions import *
 
 
+def makeData(rijstroken_data, kantstroken_data) -> dict:
+    return {'Rijstroken': rijstroken_data,
+            'Kantstroken': kantstroken_data,
+            'Mengstroken': pd.DataFrame(),
+            'Maximum snelheid': pd.DataFrame(),
+            'Rijstrooksignaleringen': pd.DataFrame()}
+
+
 class TestRoadModel(unittest.TestCase):
 
     def setUp(self):
@@ -25,9 +33,7 @@ class TestRoadModel(unittest.TestCase):
                                          'VNRWOL': [3, 3],
                                          'geometry': [LineString([[0, 0], [2000, 0]]),
                                                       LineString([[2000, 0], [4000, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
@@ -41,9 +47,7 @@ class TestRoadModel(unittest.TestCase):
                                          'VNRWOL': [3, 3],
                                          'geometry': [LineString([[-1000, 0], [1000, 0]]),
                                                       LineString([[3000, 0], [5000, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 6)
@@ -59,9 +63,7 @@ class TestRoadModel(unittest.TestCase):
                                          'OMSCHR': ['Vluchtstrook'],
                                          'VNRWOL': [2],
                                          'geometry': [LineString([[5000, 0], [7000, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
@@ -75,9 +77,7 @@ class TestRoadModel(unittest.TestCase):
                                          'OMSCHR': ['Vluchtstrook'],
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[1600, 0], [3400, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
@@ -97,9 +97,7 @@ class TestRoadModel(unittest.TestCase):
                                          'OMSCHR': ['Vluchtstrook'],
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[4000, 0], [1000, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 3)
@@ -115,9 +113,7 @@ class TestRoadModel(unittest.TestCase):
                                          'OMSCHR': ['Vluchtstrook'],
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[1000, 0], [1500, 0], [2500, 0], [3200, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
@@ -133,9 +129,7 @@ class TestRoadModel(unittest.TestCase):
                                          'OMSCHR': ['Vluchtstrook'],
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[700, 0], [1200, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
@@ -153,9 +147,7 @@ class TestRoadModel(unittest.TestCase):
                                          'OMSCHR': ['Vluchtstrook'],
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[-2000, 0], [8000, 0]])]})
-        self.dfl.data = {'Rijstroken': self.rijstroken_data,
-                         'Kantstroken': kantstroken_data,
-                         'Mengstroken': pd.DataFrame()}
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
