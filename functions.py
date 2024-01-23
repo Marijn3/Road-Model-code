@@ -3,7 +3,6 @@ import pandas as pd
 from shapely import *
 import csv
 from copy import deepcopy
-import math
 
 pd.set_option('display.max_columns', None)
 GRID_SIZE = 0.000001
