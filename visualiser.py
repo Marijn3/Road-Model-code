@@ -5,7 +5,7 @@ import math
 LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader()
-dfl.load_dataframes("Vught")
+dfl.load_dataframes("A27")
 
 road = RoadModel()
 road.import_dataframes(dfl)
@@ -139,9 +139,11 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
         for nr in prop['Rijstroken']:
-            disp = (nr - 1) * 12
-            square = svgwrite.shapes.Rect(insert=(coords[0] + disp, coords[1]), size=(10, 10),
-                                          fill="black", stroke="red")
+            local_road_width = 7  # Replace with actual value
+            size = 6
+            displacement = (nr - 1) * (size*1.2) + local_road_width
+            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1]), size=(size, size),
+                                          fill="black", stroke="dimgrey", stroke_width=0.2)
             svg_dwg.add(square)
     else:
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
