@@ -1,5 +1,6 @@
 from functions import *
 import svgwrite
+import math
 
 LANE_WIDTH = 3.5
 
@@ -16,20 +17,20 @@ VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
 RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
 
-def get_road_color(prop: dict) -> str:
+def get_road_color(n_lanes: int | float) -> str:
     # if 'Puntstuk' in prop.values():
     #     return 'dimgrey'
 
-    # if not isinstance(prop['nRijstroken'], int):
-    #     return 'red'
+    if isinstance(n_lanes, float):
+        return 'brown'
 
     return 'grey'
 
 
-def get_n_lanes(prop: dict, only_rijstroken: bool = False) -> int:
+def get_n_lanes(prop: dict, only_rijstroken: bool = False) -> int | float:
     n_lanes = 0
     for lane_nr, lane_type in prop.items():
-        if isinstance(lane_nr, int):
+        if isinstance(lane_nr, int | float):
             if only_rijstroken:
                 if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing']:
                     n_lanes = lane_nr
@@ -37,10 +38,6 @@ def get_n_lanes(prop: dict, only_rijstroken: bool = False) -> int:
                 if lane_nr > n_lanes and lane_type not in ['Puntstuk']:
                     n_lanes = lane_nr
     return n_lanes
-
-
-def get_road_width(prop: dict) -> float:
-    return LANE_WIDTH*get_n_lanes(prop)
 
 
 def get_transformed_coords(geom: LineString | Point) -> list[tuple]:
@@ -55,16 +52,21 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
         return get_transformed_coords(offset_geom)
 
 
-def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
+def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
+    geom = section_data['geometry']
+    prop = section_data['properties']
+
     n_lanes = get_n_lanes(prop)
     n_normal_lanes = get_n_lanes(prop, True)
+    n_lanes_round = math.ceil(n_lanes)
+    n_normal_lanes_round = math.ceil(n_normal_lanes)
 
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
-    offset = (LANE_WIDTH * n_normal_lanes) / 2 - LANE_WIDTH * n_lanes / 2
-
-    color = get_road_color(prop)
-    width = get_road_width(prop)
+    offset = (LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * n_lanes_round / 2
     asphalt_coords = get_offset_coords(geom, offset)
+
+    width = LANE_WIDTH*n_lanes_round
+    color = get_road_color(n_normal_lanes)
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
@@ -73,14 +75,17 @@ def svg_add_section(geom: LineString, prop: dict, svg_dwg: svgwrite.Drawing):
 
 
 def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lanes: int, svg_dwg: svgwrite.Drawing):
+    n_lanes_round = math.ceil(n_lanes)
+    n_normal_lanes_round = math.ceil(n_normal_lanes)
+
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
-    offsets = [(LANE_WIDTH * n_normal_lanes) / 2 - LANE_WIDTH * i for i in range(n_lanes + 1)]
+    offsets = [(LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * i for i in range(n_lanes_round + 1)]
 
     # Add first line (left).
     line_coords = get_offset_coords(geom, offsets.pop(0))
     add_markerline(line_coords, svg_dwg)
 
-    for lane_nr in range(1, n_lanes+1):
+    for lane_nr in range(1, n_lanes_round+1):
         line_coords = get_offset_coords(geom, offsets.pop(0))
 
         # To handle missing road numbers (due to taper) temporarily.
@@ -126,7 +131,11 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     svg_dwg.add(line)
 
 
-def svg_add_point(geom: Point, prop: dict, km: float, svg_dwg: svgwrite.Drawing):
+def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
+    geom = point_data['geometry']
+    prop = point_data['properties']
+    km = point_data['km']
+
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
         for nr in prop['Rijstroken']:
@@ -154,12 +163,12 @@ dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDT
 # Roads
 sections = road.get_sections()
 for section in sections:
-    svg_add_section(section['geometry'], section['properties'], dwg)
+    svg_add_section(section, dwg)
 
 # MSIs
 points = road.get_points()  # 'MSI'
 for point in points:
-    svg_add_point(point['geometry'], point['properties'], point['km'], dwg)
+    svg_add_point(point, dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
