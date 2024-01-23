@@ -7,6 +7,8 @@ def makeData(rijstroken_data, kantstroken_data) -> dict:
             'Kantstroken': kantstroken_data,
             'Mengstroken': pd.DataFrame(),
             'Maximum snelheid': pd.DataFrame(),
+            'Convergenties': pd.DataFrame(),
+            'Divergenties': pd.DataFrame(),
             'Rijstrooksignaleringen': pd.DataFrame()}
 
 
@@ -15,8 +17,6 @@ class TestRoadModel(unittest.TestCase):
     def setUp(self):
         self.road_model = RoadModel()
         self.dfl = DataFrameLoader()
-
-        # Add test data
         self.rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
                                              'BEGINKM': [0, 2],
                                              'EINDKM': [2, 4],
@@ -24,6 +24,53 @@ class TestRoadModel(unittest.TestCase):
                                              'VNRWOL': [1, 1],
                                              'geometry': [LineString([[0, 0], [2000, 0]]),
                                                           LineString([[2000, 0], [4000, 0]])]})
+
+    def test_narrowing(self):
+        print('Test narrowing:')
+        self.rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
+                                             'BEGINKM': [0, 2],
+                                             'EINDKM': [2, 4],
+                                             'nRijstroken': [1.9, 1],
+                                             'VNRWOL': [1, 1],
+                                             'geometry': [LineString([[0, 0], [2000, 0]]),
+                                                          LineString([[2000, 0], [4000, 0]])]})
+        kantstroken_data = pd.DataFrame({'BEGINKM': [0, 2],
+                                         'EINDKM': [2, 4],
+                                         'OMSCHR': ['Vluchtstrook', 'Vluchtstrook'],
+                                         'VNRWOL': [3, 2],
+                                         'geometry': [LineString([[0, 0], [2000, 0]]),
+                                                      LineString([[2000, 0], [4000, 0]])]})
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
+        self.road_model.import_dataframes(self.dfl)
+
+        self.assertEqual(len(self.road_model.sections), 2)
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {1: 'Rijstrook', 1.9: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(2.5, 'R'),
+                             {1: 'Rijstrook', 2: 'Vluchtstrook'})
+
+    def test_broadening(self):
+        print('Test broadening:')
+        self.rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
+                                             'BEGINKM': [0, 2],
+                                             'EINDKM': [2, 4],
+                                             'nRijstroken': [1.1, 2],
+                                             'VNRWOL': [1, 1],
+                                             'geometry': [LineString([[0, 0], [2000, 0]]),
+                                                          LineString([[2000, 0], [4000, 0]])]})
+        kantstroken_data = pd.DataFrame({'BEGINKM': [0],
+                                         'EINDKM': [4],
+                                         'OMSCHR': ['Vluchtstrook'],
+                                         'VNRWOL': [3],
+                                         'geometry': [LineString([[0, 0], [4000, 0]])]})
+        self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
+        self.road_model.import_dataframes(self.dfl)
+
+        self.assertEqual(len(self.road_model.sections), 2)
+        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+                             {1: 'Rijstrook', 1.1: 'Rijstrook', 3: 'Vluchtstrook'})
+        self.assertDictEqual(self.road_model.get_properties_at(2.5, 'R'),
+                             {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
 
     def test_equal_sections(self):
         print('Test equal sections:')
