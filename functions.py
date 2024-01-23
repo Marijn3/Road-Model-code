@@ -703,6 +703,9 @@ class RoadModel:
         return [point for point in self.points.values()]
 
     def get_local_orientation(self, point: Point) -> float:
+
+        print(point)
+
         lines = []
         for section in self.sections.values():
             if dwithin(point, section['geometry'], 0.1):
@@ -710,20 +713,18 @@ class RoadModel:
 
         assert lines, "Point is not contained in any lines."
 
-        # Find the closest point on each LineString to the given point
-        closest_points = [line.interpolate(line.project(point)) for line in lines]
+        for line in lines:
+            max_points = get_num_points(line)
+            segmented = LineString([get_point(line, 1), get_point(line, 2)])
+            intersecting_segments = [segment for segment in segmented if point.intersects(segment)]
 
-        # Calculate the tangent vector for each LineString at its closest point
-        tangent_vectors = [line.parallel_offset(1, side='right').difference(line).boundary for line in lines]
+        angles = []
+        for line in intersecting_segments:
+            angle = math.atan2(line.coords[1][1] - line.coords[0][1], line.coords[1][0] - line.coords[0][0])
+            angles.append(angle)
 
-        # Calculate the angles between the tangent vectors and the x-axis for each LineString
-        angles_rad = [math.atan2(end.y - start.y, end.x - start.x) for line, start, end in
-                      zip(lines, closest_points, tangent_vectors)]
-
-        # Calculate the average angle
-        average_angle_rad = sum(angles_rad) / len(angles_rad)
-
-        return average_angle_rad
+        average_angle = sum(angles) / len(angles)
+        return average_angle
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         """

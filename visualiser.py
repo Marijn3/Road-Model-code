@@ -157,7 +157,7 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
         # point_type = "H"  # prop.values()  # Extract the actual value there
         # text = svgwrite.text.Text(point_type, insert=(coords[0] + 2, coords[1] + 1),
         #                           fill="white", font_family="Arial", font_size=8)
-        text = svgwrite.text.Text(km, insert=(coords[0] + 2, coords[1] + 1),
+        text = svgwrite.text.Text(km, insert=(coords[0] + 2, coords[1] + 1),  # transform="rotate(45)",
                                   fill="white", font_family="Arial", font_size=3)
         svg_dwg.add(text)
 
