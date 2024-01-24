@@ -855,11 +855,29 @@ class MSIRow:
         self.n_msis = len(self.msi_properties['Rijstroken'])
 
         # Create all MSIs in row, passing the parent row class as argument
-        self.MSIs = [MSI(self, msi_numbering) for msi_numbering in self.msi_properties['Rijstroken']]
+        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.msi_properties['Rijstroken']}
 
         # Add: Determine carriageways based on road properties
+        self.cw = {}
+        cw_index = 1
+        lanes_in_current_cw = [1]
 
-        for msi in self.MSIs:
+        # TODO: Does NOT work for taper or broadening/narrowing. Assumes whole numbers
+        for lane_number in range(1, self.n_lanes):
+            current_lane = self.road_properties[lane_number]
+            next_lane = self.road_properties[lane_number + 1]
+            if current_lane == next_lane:
+                lanes_in_current_cw.append(lane_number + 1)
+            else:
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                lanes_in_current_cw = [lane_number + 1]
+                cw_index += 1
+
+            # Add final lane
+            if lane_number + 1 == self.n_lanes:
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+
+        for msi in self.MSIs.values():
             msi.fill_properties()
 
 
@@ -992,21 +1010,28 @@ class MSI(MSILegends):
         # self.properties['N_CW'] = len(self.row.cw[cw_number])
         # self.properties['N_TS'] = self.properties['N_CW']
 
-        # self.properties['CW'] = self.row.cw
-        # self.properties['CW_num'] = self.row.cw[number]
-        # self.properties['CW_right'] = self.row.cw[number + 1]
-        # self.properties['CW_left'] = self.row.cw[number - 1]
+        cw_number = None
+        for index, names in self.row.cw.items():
+            if self.name in names:
+                cw_number = index
+                break
 
-        # Assumption: traffic stream == carriageway
-        self.properties['TS'] = self.properties['CW']
-        self.properties['TS_num'] = self.properties['CW_num']
-        self.properties['TS_right'] = self.properties['CW_right']
-        self.properties['TS_left'] = self.properties['CW_left']
+        if cw_number:
+            self.properties['CW'] = self.row.cw[cw_number]
+            self.properties['CW_num'] = cw_number
+            self.properties['CW_right'] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
+            self.properties['CW_left'] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
+
+            # Assumption: traffic stream == carriageway
+            self.properties['TS'] = self.properties['CW']
+            self.properties['TS_num'] = self.properties['CW_num']
+            self.properties['TS_right'] = self.properties['CW_right']
+            self.properties['TS_left'] = self.properties['CW_left']
 
         # self.properties['DIF_V_right'] =
         # self.properties['DIF_V_left'] =
 
-        self.properties['row'] = [msi.name for msi in self.row.MSIs]
+        self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
         self.properties['RHL'] = self.row.road_properties[self.lane_number] == 'Spitsstrook'
         # self.properties['Exit-entry'] =
