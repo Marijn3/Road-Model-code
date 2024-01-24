@@ -844,7 +844,8 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
 
 
 class MSIRow:
-    def __init__(self, name: str, msi: dict, road_properties: dict):
+    def __init__(self, msi_network, name: str, msi: dict, road_properties: dict):
+        self.msi_network = msi_network
         self.name = name
         self.msi_properties = msi['properties']
         self.road_properties = road_properties
@@ -886,7 +887,7 @@ class MSINetwork:
         self.roadmodel = roadmodel
         msi_data = self.roadmodel.get_points('MSI')
 
-        self.MSIrows = [MSIRow(f"MSI-{str(row_numbering)}-{msi['km']}",
+        self.MSIrows = [MSIRow(self, f"MSI-{str(row_numbering)}-{msi['km']}",
                         msi, self.roadmodel.get_properties_at_point(msi['geometry']))
                         for row_numbering, msi in enumerate(msi_data)]
 
@@ -947,6 +948,8 @@ class MSI(MSILegends):
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
             'c': None,  # Current MSI
+            'r': None,  # MSI right
+            'l': None,  # MSI left
             'd': None,  # MSI downstream
             'ds': None,  # MSI downstream secondary
             'dt': None,  # MSI downstream taper
@@ -957,8 +960,6 @@ class MSI(MSILegends):
             'ut': None,  # MSI upstream taper
             'ub': None,  # MSI upstream broadening
             'un': None,  # MSI upstream narrowing
-            'r': None,  # MSI left
-            'l': None,  # MSI left
 
             'STAT_V': None,  # Static maximum speed
             'DYN_V': None,  # Dynamic maximum speed [?]
@@ -1043,3 +1044,11 @@ class MSI(MSILegends):
 
     def determine_MSI_relations(self):
         self.properties['c'] = self.name
+        if self.lane_number + 1 in self.row.MSIs.keys():
+            self.properties['r'] = self.row.MSIs[self.lane_number + 1].name
+        if self.lane_number - 1 in self.row.MSIs.keys():
+            self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
+
+        # self.properties['d'] = self.row.travelupstream(self.name)
+        # self.properties['u'] = self.name
+
