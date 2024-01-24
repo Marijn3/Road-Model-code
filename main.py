@@ -12,6 +12,6 @@ roadmodel.import_dataframes(dfl)
 roadmodel.get_properties_at(121.6, 'L')  # Two sections
 roadmodel.get_properties_at(121.8, 'L')  # One section
 roadmodel.get_properties_at(110.9, 'L')  # No sections
-roadmodel.get_properties_at(121.6, 'R')  # Other side of road
+roadmodel.get_properties_at(121.4, 'R')  # Other side of road, narrowing lanes.
 
 MSIs = MSINetwork(roadmodel)
