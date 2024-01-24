@@ -677,12 +677,16 @@ class RoadModel:
         """
         return [section for section in self.sections.values()]
 
-    def get_points(self) -> list[dict]:
+    def get_points(self, specifier: str = None) -> list[dict]:
         """
         Obtain a list of all point registrations in the road model.
+        The type can be specified as 'MSI', to return only MSI data.
         Returns:
             List of all point information.
         """
+        if specifier == 'MSI':
+            return [point for point in self.points.values() if 'Rijstroken' in point['properties'].keys()]
+
         return [point for point in self.points.values()]
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
@@ -726,6 +730,13 @@ class RoadModel:
         else:
             print(f"No sections found on side {side} at {km} km.\n")
             return section_info
+
+    def get_local_properties_at(self, point: Point) -> dict:
+        """
+        ...
+        """
+
+        return section_info
 
 
 def get_km_length(km: list[float]) -> int:
@@ -823,22 +834,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
     else:
         raise Exception(f"Cannot continue. Empty or wrong remaining geometry: {diff}")
 
-
-class MSIRow:
-    def __init__(self, name: str, props: dict):
-        self.MSIs = []
-        self.road_properties = props
-        self.name = name
-        self.define_MSIs()
-
-    def define_MSIs(self):
-        i_msi = 0
-        for msi_numbering in self.road_properties['Rijstrooksignaleringen']:
-            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), msi_numbering, self.road_properties)
-            i_msi += 1
-
-
-class MSI:
+class MSILegends:
     # All possible legends.
     CROSS = 210
     RIGHT_ARROW = 209
@@ -877,12 +873,39 @@ class MSI:
     displayset_leftmost = displayset_all - {LEFT_ARROW}
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
-    def __init__(self, name: str, lane_number: int, props: dict):
-        self.displayoptions = self.displayset_all
+
+class MSINetwork:
+    def __init__(self, roadmodel: RoadModel):
+        msidata = roadmodel.get_points('MSI')
+        self.MSIrows = [MSIRow(f"Poekie {str(row_numbering)}.{msi['km']}",
+                               msi, roadmodel.get_local_properties_at(msi['geometry']))
+                        for row_numbering, msi in enumerate(msidata)]
+
+
+class MSIRow:
+    def __init__(self, name: str, msi_props: dict, road_properties: dict):
         self.name = name
+        self.msi_properties = msi_props
+        self.road_properties = road_properties
+
+        # Determine everything there is to know about the road in general
+        self.n_lanes = 0
+        for lane_nr, lane_type in self.road_properties.items():
+            if isinstance(lane_nr, int):
+                if lane_nr > self.n_lanes and lane_type not in ['Puntstuk']:
+                    self.n_lanes = lane_nr
+
+        # Create all MSIs in row, passing the parent row class as argument
+        self.MSIs = [MSI(self, msi_numbering) for msi_numbering in self.msi_properties['Rijstroken']]
+
+
+class MSI(MSILegends):
+    def __init__(self, parent_msi_row: MSIRow, lane_number: int):
+        self.parent = parent_msi_row
         self.lane_number = lane_number
-        self.road_properties = props
-        self.nLanes = max([lane_number for lane_number in props.keys() if isinstance(lane_number, int)])
+
+        self.displayoptions = self.displayset_all
+        self.name = f"{self.parent.name}.{str(lane_number)}"
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
