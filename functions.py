@@ -920,7 +920,7 @@ class MSINetwork:
             eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km]
 
         if eligible_points:
-            closest_point = min(eligible_points, key=lambda point: current_km - point['km'])
+            closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
 
             # Return the MSI row with the same kilometre registration
             for msi_row in self.MSIrows:
@@ -1072,9 +1072,11 @@ class MSI(MSILegends):
 
         self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
-        self.properties['RHL'] = self.row.local_road_properties[self.lane_number] == 'Spitsstrook'
+        if self.row.local_road_properties[self.lane_number] == 'Spitsstrook':
+            self.properties['RHL'] = True
         # self.properties['Exit-entry'] =
-        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.row.local_road_properties.items()
+        if 'Spitsstrook' in self.row.local_road_properties.values():
+            self.properties['RHL_neighbor'] = True
 
         if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_right'] = True
