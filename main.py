@@ -8,7 +8,7 @@ dfl.load_dataframes("A27")
 roadmodel = RoadModel()
 roadmodel.import_dataframes(dfl)
 
-# Inspect...
+# Inspect for DEMO (Vught)
 roadmodel.get_properties_at(121.6, 'L')  # Two sections
 roadmodel.get_properties_at(121.8, 'L')  # One section
 roadmodel.get_properties_at(110.9, 'L')  # No sections

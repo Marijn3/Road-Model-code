@@ -231,8 +231,7 @@ class RoadModel:
         else:
             return self.__extract_line_properties(row, name)
 
-    @staticmethod
-    def __extract_point_properties(row: pd.Series, name: str):
+    def __extract_point_properties(self, row: pd.Series, name: str):
         properties = {}
 
         if name == 'Convergenties':
@@ -244,7 +243,10 @@ class RoadModel:
         if name == 'Rijstrooksignaleringen':
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        return {'km': row['KMTR'],
+        roadside = self.get_section_info_at_point(row['geometry'])['roadside']
+
+        return {'roadside': roadside,
+                'km': row['KMTR'],
                 'properties': properties,
                 'geometry': row['geometry']}
 
@@ -611,6 +613,7 @@ class RoadModel:
         """
         print(f"[LOG:] Point {index} added: \t"
               f"{self.points[index]['km']:>7.3f} km \t"
+              f"{self.points[index]['roadside']}\t"
               f"{self.points[index]['properties']} \n"
               f"\t\t\t\t\t\t{set_precision(self.points[index]['geometry'], 1)}")
 
@@ -915,9 +918,11 @@ class MSINetwork:
 
         # Filter points based on roadside and travel direction.
         if roadside == 'L' and downstream or roadside == 'R' and not downstream:
-            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km]
+            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km
+                               and point['roadside'] == roadside]
         else:
-            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km]
+            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km
+                               and point['roadside'] == roadside]
 
         if eligible_points:
             closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
