@@ -3,6 +3,7 @@ import pandas as pd
 from shapely import *
 import csv
 from copy import deepcopy
+import math
 
 pd.set_option('display.max_columns', None)
 GRID_SIZE = 0.000001
@@ -706,6 +707,30 @@ class RoadModel:
             return [point for point in self.points.values() if 'Rijstroken' in point['properties'].keys()]
 
         return [point for point in self.points.values()]
+
+    def get_local_orientation(self, point: Point) -> float:
+
+        print(point)
+
+        lines = []
+        for section in self.sections.values():
+            if dwithin(point, section['geometry'], 0.1):
+                lines.append(section['geometry'])
+
+        assert lines, "Point is not contained in any lines."
+
+        for line in lines:
+            max_points = get_num_points(line)
+            segmented = LineString([get_point(line, 1), get_point(line, 2)])
+            intersecting_segments = [segment for segment in segmented if point.intersects(segment)]
+
+        angles = []
+        for line in intersecting_segments:
+            angle = math.atan2(line.coords[1][1] - line.coords[0][1], line.coords[1][0] - line.coords[0][0])
+            angles.append(angle)
+
+        average_angle = sum(angles) / len(angles)
+        return average_angle
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         """
