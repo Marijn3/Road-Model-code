@@ -988,6 +988,7 @@ class MSI(MSILegends):
             'RHL': None,  # [V] True if MSI in RHL.
             'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
             'RHL_neighbor': None,  # [V] True if RHL in row.
+
             'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
             'Hard_shoulder_left': None,  # [V] True if hard shoulder directly to the left.
 
@@ -1008,8 +1009,6 @@ class MSI(MSILegends):
         # self.properties['C_V'] =
 
         self.properties['N_row'] = self.row.n_msis
-        # self.properties['N_CW'] = len(self.row.cw[cw_number])
-        # self.properties['N_TS'] = self.properties['N_CW']
 
         cw_number = None
         for index, names in self.row.cw.items():
@@ -1018,6 +1017,9 @@ class MSI(MSILegends):
                 break
 
         if cw_number:
+            self.properties['N_CW'] = len(self.row.cw[cw_number])
+            self.properties['N_TS'] = self.properties['N_CW']
+
             self.properties['CW'] = self.row.cw[cw_number]
             self.properties['CW_num'] = cw_number
             self.properties['CW_right'] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
@@ -1029,6 +1031,7 @@ class MSI(MSILegends):
             self.properties['TS_right'] = self.properties['CW_right']
             self.properties['TS_left'] = self.properties['CW_left']
 
+        # DIF - V heeft richtlijnen (bv 20 naar links, 0 naar rechts)
         # self.properties['DIF_V_right'] =
         # self.properties['DIF_V_left'] =
 
@@ -1037,10 +1040,11 @@ class MSI(MSILegends):
         self.properties['RHL'] = self.row.road_properties[self.lane_number] == 'Spitsstrook'
         # self.properties['Exit-entry'] =
         self.properties['RHL_neighbor'] = 'Spitsstrook' in self.row.road_properties.items()
-        if self.lane_number < self.row.n_lanes:
-            self.properties['Hard_shoulder_right'] = self.row.road_properties[self.lane_number + 1] == 'Vluchtstrook'
-        if self.lane_number > 1:
-            self.properties['Hard_shoulder_left'] = self.row.road_properties[self.lane_number - 1] == 'Vluchtstrook'
+
+        if self.lane_number < self.row.n_lanes and self.row.road_properties[self.lane_number + 1] == 'Vluchtstrook':
+            self.properties['Hard_shoulder_right'] = True
+        if self.lane_number > 1 and self.row.road_properties[self.lane_number - 1] == 'Vluchtstrook':
+            self.properties['Hard_shoulder_left'] = True
 
     def determine_MSI_relations(self):
         self.properties['c'] = self.name
