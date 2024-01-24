@@ -731,11 +731,19 @@ class RoadModel:
             print(f"No sections found on side {side} at {km} km.\n")
             return section_info
 
-    def get_local_properties_at(self, point: Point) -> dict:
+    def get_properties_at_point(self, point: Point) -> dict:
         """
-        ...
+        Prints the properties of a road section at a specific point
+        Args:
+            point (Point): Geometric position of point.
+        Returns:
+            list[dict]: Attributes of the (first) road section at the specified kilometer point.
         """
-
+        section_info = {}
+        for section in self.sections.values():
+            if dwithin(point, section, 0.1):
+                section_info = section['properties']
+                break  # Assumption: the point is on exactly ONE road model section.
         return section_info
 
 
@@ -833,6 +841,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         return diffs[0]
     else:
         raise Exception(f"Cannot continue. Empty or wrong remaining geometry: {diff}")
+
 
 class MSILegends:
     # All possible legends.
