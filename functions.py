@@ -737,14 +737,25 @@ class RoadModel:
             print(f"No sections found on side {side} at {km} km.\n")
             return section_info
 
-    def get_section_info_at_point(self, point: Point) -> dict:
+    def get_sections_at_point(self, point: Point) -> dict[int: dict]:
         """
         Prints the properties of a road section at a specific point.
         Assumes that only one section is close to the point.
         Args:
             point (Point): Geometric position of the point.
         Returns:
-            list[dict]: Attributes of the (first) road section at the specified kilometer point.
+            tuple[int, dict]: Attributes of the (first) road section at the specified kilometer point.
+        """
+        return {index: section for index, section in self.sections.items() if dwithin(point, section['geometry'], 0.1)}
+
+    def get_one_section_info_at_point(self, point: Point) -> dict:
+        """
+        Prints the properties of a road section at a specific point.
+        Assumes that only one section is close to the point.
+        Args:
+            point (Point): Geometric position of the point.
+        Returns:
+            dict: Attributes of the (first) road section at the specified kilometer point.
         """
         for section in self.sections.values():
             if dwithin(point, section['geometry'], 0.1):
@@ -896,7 +907,7 @@ class MSINetwork:
         msi_data = self.roadmodel.get_points('MSI')
 
         self.MSIrows = [MSIRow(self, f"MSI-{str(row_numbering)}-{msi_row['km']}",
-                               msi_row, self.roadmodel.get_section_info_at_point(msi_row['geometry']))
+                               msi_row, self.roadmodel.get_one_section_info_at_point(msi_row['geometry']))
                         for row_numbering, msi_row in enumerate(msi_data)]
 
         for msi_row in self.MSIrows:
@@ -904,7 +915,7 @@ class MSINetwork:
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool = True) -> MSIRow | None:
         # current_location = msi_row.info['geometry']
-        # roadmodel_section = self.roadmodel.get_section_info_at_point(current_location)
+        # roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
         #
         # # TODO: Ensure that the geometry does not directly intersect another registered point!
         #
