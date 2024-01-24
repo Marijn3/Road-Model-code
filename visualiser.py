@@ -138,13 +138,18 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
 
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
+        circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
+        svg_dwg.add(circle)
         for nr in prop['Rijstroken']:
-            local_road_width = 7  # Replace with actual value
+            local_road_width = 3  # Replace with actual value
             size = 6
             displacement = (nr - 1) * (size*1.2) + local_road_width
-            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1]), size=(size, size),
-                                          fill="black", stroke="dimgrey", stroke_width=0.2)
+            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - size/2), size=(size, size),
+                                          fill="black", stroke="dimgrey", stroke_width=0.3)
             svg_dwg.add(square)
+        text = svgwrite.text.Text(km, insert=(coords[0] + displacement + size*1.2, coords[1] + 1.5),
+                                  fill="white", font_family="Arial", font_size=4)
+        svg_dwg.add(text)
     else:
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         svg_dwg.add(circle)
