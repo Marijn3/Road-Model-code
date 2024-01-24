@@ -157,7 +157,7 @@ for section in sections:
     svg_add_section(section['geometry'], section['properties'], dwg)
 
 # MSIs
-points = road.get_points()
+points = road.get_points()  # 'MSI'
 for point in points:
     svg_add_point(point['geometry'], point['properties'], point['km'], dwg)
 

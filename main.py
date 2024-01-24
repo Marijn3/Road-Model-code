@@ -2,14 +2,16 @@ from functions import *
 
 # Load all files and store the GeoDataFrames in the class
 dfl = DataFrameLoader()
-dfl.load_dataframes("Vught")
+dfl.load_dataframes("A27")
 
 # Construct a road model using the GeoDataFrames
-road = RoadModel()
-road.import_dataframes(dfl)
+roadmodel = RoadModel()
+roadmodel.import_dataframes(dfl)
 
-# Inspect...
-road.get_properties_at(121.6, 'L')  # Two sections
-road.get_properties_at(121.8, 'L')  # One section
-road.get_properties_at(110.9, 'L')  # No sections
-road.get_properties_at(121.6, 'R')  # Other side of road
+# Inspect for DEMO (Vught)
+roadmodel.get_properties_at(121.6, 'L')  # Two sections
+roadmodel.get_properties_at(121.8, 'L')  # One section
+roadmodel.get_properties_at(110.9, 'L')  # No sections
+roadmodel.get_properties_at(121.4, 'R')  # Other side of road, narrowing lanes.
+
+MSIs = MSINetwork(roadmodel)

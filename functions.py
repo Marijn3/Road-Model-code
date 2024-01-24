@@ -142,7 +142,7 @@ class DataFrameLoader:
             self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
 
     @staticmethod
-    def __load_extent_from_csv(location: str) -> dict:
+    def __load_extent_from_csv(location: str) -> dict[str, float]:
         """
         Load the extent coordinates of the specified location from the csv file.
         Args:
@@ -231,8 +231,7 @@ class RoadModel:
         else:
             return self.__extract_line_properties(row, name)
 
-    @staticmethod
-    def __extract_point_properties(row: pd.Series, name: str):
+    def __extract_point_properties(self, row: pd.Series, name: str):
         properties = {}
 
         if name == 'Convergenties':
@@ -244,7 +243,13 @@ class RoadModel:
         if name == 'Rijstrooksignaleringen':
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        return {'km': row['KMTR'],
+        # Get the IDs of the sections it overlaps, as well as the roadside letter
+        overlapping_sections = self.get_sections_at_point(row['geometry'])
+        properties['Section IDs'] = [section_id for section_id in overlapping_sections.keys()]
+        roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
+
+        return {'roadside': roadside,
+                'km': row['KMTR'],
                 'properties': properties,
                 'geometry': row['geometry']}
 
@@ -611,6 +616,7 @@ class RoadModel:
         """
         print(f"[LOG:] Point {index} added: \t"
               f"{self.points[index]['km']:>7.3f} km \t"
+              f"{self.points[index]['roadside']}\t"
               f"{self.points[index]['properties']} \n"
               f"\t\t\t\t\t\t{set_precision(self.points[index]['geometry'], 1)}")
 
@@ -677,12 +683,16 @@ class RoadModel:
         """
         return [section for section in self.sections.values()]
 
-    def get_points(self) -> list[dict]:
+    def get_points(self, specifier: str = None) -> list[dict]:
         """
         Obtain a list of all point registrations in the road model.
+        The type can be specified as 'MSI', to return only MSI data.
         Returns:
             List of all point information.
         """
+        if specifier == 'MSI':
+            return [point for point in self.points.values() if 'Rijstroken' in point['properties'].keys()]
+
         return [point for point in self.points.values()]
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
@@ -726,6 +736,31 @@ class RoadModel:
         else:
             print(f"No sections found on side {side} at {km} km.\n")
             return section_info
+
+    def get_sections_at_point(self, point: Point) -> dict[int: dict]:
+        """
+        Prints the properties of a road section at a specific point.
+        Assumes that only one section is close to the point.
+        Args:
+            point (Point): Geometric position of the point.
+        Returns:
+            tuple[int, dict]: Attributes of the (first) road section at the specified kilometer point.
+        """
+        return {index: section for index, section in self.sections.items() if dwithin(point, section['geometry'], 0.1)}
+
+    def get_one_section_info_at_point(self, point: Point) -> dict:
+        """
+        Prints the properties of a road section at a specific point.
+        Assumes that only one section is close to the point.
+        Args:
+            point (Point): Geometric position of the point.
+        Returns:
+            dict: Attributes of the (first) road section at the specified kilometer point.
+        """
+        for section in self.sections.values():
+            if dwithin(point, section['geometry'], 0.1):
+                return section
+        return {}
 
 
 def get_km_length(km: list[float]) -> int:
@@ -825,20 +860,97 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
 
 
 class MSIRow:
-    def __init__(self, name: str, props: dict):
-        self.MSIs = []
-        self.road_properties = props
+    def __init__(self, msi_network, name: str, msi_row_info: dict, local_road_info: dict):
+        self.msi_network = msi_network
         self.name = name
-        self.define_MSIs()
+        self.info = msi_row_info
+        self.properties = self.info['properties']
+        self.local_road_info = local_road_info
+        self.local_road_properties = self.local_road_info['properties']
 
-    def define_MSIs(self):
-        i_msi = 0
-        for msi_numbering in self.road_properties['Rijstrooksignaleringen']:
-            self.MSIs[i_msi] = MSI(self.name + str(msi_numbering), msi_numbering, self.road_properties)
-            i_msi += 1
+        # Determine everything there is to know about the road in general
+        self.n_lanes = max((lane_nr for lane_nr, lane_type in self.local_road_properties.items()
+                            if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']), default=0)
+        self.n_msis = len(self.properties['Rijstroken'])
+
+        # Create all MSIs in row, passing the parent row class as argument
+        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.properties['Rijstroken']}
+
+        # Determine carriageways based on road properties
+        self.cw = {}
+        cw_index = 1
+        lanes_in_current_cw = [1]
+
+        # TODO: Does NOT work for taper or broadening/narrowing. Assumes whole numbers
+        for lane_number in range(1, self.n_lanes):
+            current_lane = self.local_road_properties[lane_number]
+            next_lane = self.local_road_properties[lane_number + 1]
+            if current_lane == next_lane:
+                lanes_in_current_cw.append(lane_number + 1)
+            else:
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                lanes_in_current_cw = [lane_number + 1]
+                cw_index += 1
+
+            # Add final lane
+            if lane_number + 1 == self.n_lanes:
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+
+    def fill_row_properties(self):
+        for msi in self.MSIs.values():
+            msi.fill_msi_properties()
 
 
-class MSI:
+class MSINetwork:
+    def __init__(self, roadmodel: RoadModel):
+        self.roadmodel = roadmodel
+        msi_data = self.roadmodel.get_points('MSI')
+
+        self.MSIrows = [MSIRow(self, f"MSI-{str(row_numbering)}-{msi_row['km']}",
+                               msi_row, self.roadmodel.get_one_section_info_at_point(msi_row['geometry']))
+                        for row_numbering, msi_row in enumerate(msi_data)]
+
+        for msi_row in self.MSIrows:
+            msi_row.fill_row_properties()
+
+    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool = True) -> MSIRow | None:
+        # current_location = msi_row.info['geometry']
+        # roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
+        #
+        # # TODO: Ensure that the geometry does not directly intersect another registered point!
+        #
+        # # Extract the first and last points of the geometry
+        # if downstream:
+        #     connection_point = roadmodel_section.coords[-1]
+        # else:
+        #     connection_point = roadmodel_section.coords[0]
+        #
+        # next_section = ...
+
+        current_km = msi_row.info['km']
+        roadside = msi_row.local_road_info['roadside']
+
+        # Filter points based on roadside and travel direction.
+        if roadside == 'L' and downstream or roadside == 'R' and not downstream:
+            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km
+                               and point['roadside'] == roadside]
+        else:
+            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km
+                               and point['roadside'] == roadside]
+
+        if eligible_points:
+            closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
+
+            # Return the MSI row with the same kilometre registration
+            for msi_row in self.MSIrows:
+                if msi_row.info['km'] == closest_point['km']:
+                    return msi_row
+
+        else:
+            return None
+
+
+class MSILegends:
     # All possible legends.
     CROSS = 210
     RIGHT_ARROW = 209
@@ -877,16 +989,21 @@ class MSI:
     displayset_leftmost = displayset_all - {LEFT_ARROW}
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
-    def __init__(self, name: str, lane_number: int, props: dict):
-        self.displayoptions = self.displayset_all
-        self.name = name
+
+class MSI(MSILegends):
+    def __init__(self, parent_msi_row: MSIRow, lane_number: int):
+        self.row = parent_msi_row
+
+        # Store all that is unique to the MSI
         self.lane_number = lane_number
-        self.road_properties = props
-        self.nLanes = max([lane_number for lane_number in props.keys() if isinstance(lane_number, int)])
+        self.displayoptions = self.displayset_all
+        self.name = f"{self.row.name}-{str(lane_number)}"
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
             'c': None,  # Current MSI
+            'r': None,  # MSI right
+            'l': None,  # MSI left
             'd': None,  # MSI downstream
             'ds': None,  # MSI downstream secondary
             'dt': None,  # MSI downstream taper
@@ -897,61 +1014,105 @@ class MSI:
             'ut': None,  # MSI upstream taper
             'ub': None,  # MSI upstream broadening
             'un': None,  # MSI upstream narrowing
-            'r': None,  # MSI left
-            'l': None,  # MSI left
 
             'STAT_V': None,  # Static maximum speed
             'DYN_V': None,  # Dynamic maximum speed [?]
             'C_X': None,  # True if continue-X relation [?]
             'C_V': None,  # True if continue-V relation [?]
 
-            'TS': None,  # All MSIs in CW.
-            'TS_num': None,  # CW numbering.
-            'TS_right': None,  # All MSIs in CW to the right.
-            'TS_left': None,  # All MSIs in CW to the left.
-
-            'DIF_V_right': None,  # DIF-V influence from the right [?]
-            'DIF_V_left': None,  # DIF-V influence from the left [?]
+            'N_row': None,  # [~] Number of MSIs in row.
+            'N_TS': None,  # Number of MSIs in traffic stream.
+            'N_CW': None,  # Number of MSIs in carriageway.
 
             'CW': None,  # All MSIs in CW.
             'CW_num': None,  # CW numbering.
             'CW_right': None,  # All MSIs in CW to the right.
             'CW_left': None,  # All MSIs in CW to the left.
 
+            'TS': None,  # All MSIs in TS.
+            'TS_num': None,  # TS numbering.
+            'TS_right': None,  # All MSIs in TS to the right.
+            'TS_left': None,  # All MSIs in TS to the left.
+
+            'DIF_V_right': None,  # DIF-V influence from the right [?]
+            'DIF_V_left': None,  # DIF-V influence from the left [?]
+
             'row': None,  # All MSIs in row.
 
             'RHL': None,  # [V] True if MSI in RHL.
             'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
             'RHL_neighbor': None,  # [V] True if RHL in row.
+
             'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
             'Hard_shoulder_left': None,  # [V] True if hard shoulder directly to the left.
 
-            'N_row': None,  # [~] Number of MSIs in row.
-            'N_TS': None,  # Number of MSIs in traffic stream.
-            'N_CW': None,  # Number of MSIs in carriageway.
             # 'State': None,  # Active legend. [Not applicable]
         }
 
+    def fill_msi_properties(self):
         self.determine_MSI_properties()
         self.determine_MSI_relations()
 
-    def determine_MSI_relations(self):
-        self.properties['c'] = self.name
+        filtered_properties = {key: value for key, value in self.properties.items() if value is not None}
+        print(f"{self.name} has the following properties:\n{filtered_properties}")
 
     def determine_MSI_properties(self):
-        self.properties['STAT_V'] = self.road_properties['Maximumsnelheid']
+        self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
+        # self.properties['DYN_V'] =
+        # self.properties['C_X'] =
+        # self.properties['C_V'] =
 
-        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties.items()
-        self.properties['RHL'] = self.road_properties[self.lane_number] = 'Spitsstrook'
+        self.properties['N_row'] = self.row.n_msis
 
-        if self.lane_number < self.nLanes:
-            self.properties['Hard_shoulder_right'] = self.road_properties[self.lane_number + 1] = 'Vluchtstrook'
-        else:
-            self.properties['Hard_shoulder_right'] = False
+        cw_number = None
+        for index, names in self.row.cw.items():
+            if self.name in names:
+                cw_number = index
+                break
 
-        if self.lane_number > 1:
-            self.properties['Hard_shoulder_left'] = self.road_properties[self.lane_number - 1] = 'Vluchtstrook'
-        else:
-            self.properties['Hard_shoulder_left'] = False
+        if cw_number:
+            self.properties['N_CW'] = len(self.row.cw[cw_number])
+            self.properties['N_TS'] = self.properties['N_CW']
 
-        self.properties['N_row'] = len(self.road_properties['Rijstrooksignaleringen'])
+            self.properties['CW'] = self.row.cw[cw_number]
+            self.properties['CW_num'] = cw_number
+            self.properties['CW_right'] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
+            self.properties['CW_left'] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
+
+            # Assumption: traffic stream == carriageway
+            self.properties['TS'] = self.properties['CW']
+            self.properties['TS_num'] = self.properties['CW_num']
+            self.properties['TS_right'] = self.properties['CW_right']
+            self.properties['TS_left'] = self.properties['CW_left']
+
+        # DIF - V heeft richtlijnen (bv 20 naar links, 0 naar rechts)
+        # self.properties['DIF_V_right'] =
+        # self.properties['DIF_V_left'] =
+
+        self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
+
+        if self.row.local_road_properties[self.lane_number] == 'Spitsstrook':
+            self.properties['RHL'] = True
+        # self.properties['Exit-entry'] =
+        if 'Spitsstrook' in self.row.local_road_properties.values():
+            self.properties['RHL_neighbor'] = True
+
+        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
+            self.properties['Hard_shoulder_right'] = True
+        if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == 'Vluchtstrook':
+            self.properties['Hard_shoulder_left'] = True
+
+    def determine_MSI_relations(self):
+        self.properties['c'] = self.name
+        if self.lane_number + 1 in self.row.MSIs.keys():
+            self.properties['r'] = self.row.MSIs[self.lane_number + 1].name
+        if self.lane_number - 1 in self.row.MSIs.keys():
+            self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
+
+        downstream_row = self.row.msi_network.travel_roadmodel(self.row, True)
+        if downstream_row:
+            self.properties['d'] = downstream_row.MSIs[self.lane_number].name
+
+        upstream_row = self.row.msi_network.travel_roadmodel(self.row, False)
+        if upstream_row:
+            self.properties['u'] = upstream_row.MSIs[self.lane_number].name
