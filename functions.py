@@ -874,14 +874,6 @@ class MSILegends:
     displayset_rightmost = displayset_all - {RIGHT_ARROW}
 
 
-class MSINetwork:
-    def __init__(self, roadmodel: RoadModel):
-        msidata = roadmodel.get_points('MSI')
-        self.MSIrows = [MSIRow(f"Poekie {str(row_numbering)}.{msi['km']}",
-                               msi, roadmodel.get_local_properties_at(msi['geometry']))
-                        for row_numbering, msi in enumerate(msidata)]
-
-
 class MSIRow:
     def __init__(self, name: str, msi_props: dict, road_properties: dict):
         self.name = name
@@ -889,23 +881,36 @@ class MSIRow:
         self.road_properties = road_properties
 
         # Determine everything there is to know about the road in general
-        self.n_lanes = 0
-        for lane_nr, lane_type in self.road_properties.items():
-            if isinstance(lane_nr, int):
-                if lane_nr > self.n_lanes and lane_type not in ['Puntstuk']:
-                    self.n_lanes = lane_nr
+        self.n_lanes = max((lane_nr for lane_nr, lane_type in self.road_properties.items()
+                            if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']), default=0)
+
+        # Add: Determine carriageways based on road properties
 
         # Create all MSIs in row, passing the parent row class as argument
         self.MSIs = [MSI(self, msi_numbering) for msi_numbering in self.msi_properties['Rijstroken']]
 
 
+class MSINetwork:
+    def __init__(self, roadmodel: RoadModel):
+        self.roadmodel = roadmodel
+        msidata = self.roadmodel.get_points('MSI')
+        self.MSIrows = [MSIRow(f"MSI{str(row_numbering)}.{msi['km']}",
+                               msi, self.roadmodel.get_properties_at_point(msi['geometry']))
+                        for row_numbering, msi in enumerate(msidata)]
+
+    def travel_downstream(self, msi_row: MSIRow) -> MSIRow:
+        return msi_row  # Add code to travel downstream through the road model.
+
+    def travel_upstream(self, msi_row: MSIRow) -> MSIRow:
+        return msi_row  # Add code to travel upstream through the road model.
+
+
 class MSI(MSILegends):
     def __init__(self, parent_msi_row: MSIRow, lane_number: int):
-        self.parent = parent_msi_row
+        self.row = parent_msi_row
         self.lane_number = lane_number
-
         self.displayoptions = self.displayset_all
-        self.name = f"{self.parent.name}.{str(lane_number)}"
+        self.name = f"{self.row.name}.{str(lane_number)}"
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
@@ -958,23 +963,23 @@ class MSI(MSILegends):
         self.determine_MSI_properties()
         self.determine_MSI_relations()
 
-    def determine_MSI_relations(self):
-        self.properties['c'] = self.name
-
     def determine_MSI_properties(self):
-        self.properties['STAT_V'] = self.road_properties['Maximumsnelheid']
+        self.properties['STAT_V'] = self.row.road_properties['Maximumsnelheid']
 
-        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.road_properties.items()
-        self.properties['RHL'] = self.road_properties[self.lane_number] = 'Spitsstrook'
+        self.properties['RHL_neighbor'] = 'Spitsstrook' in self.row.road_properties.items()
+        self.properties['RHL'] = self.row.road_properties[self.lane_number] = 'Spitsstrook'
 
-        if self.lane_number < self.nLanes:
-            self.properties['Hard_shoulder_right'] = self.road_properties[self.lane_number + 1] = 'Vluchtstrook'
+        if self.lane_number < self.row.nLanes:
+            self.properties['Hard_shoulder_right'] = self.row.road_properties[self.lane_number + 1] = 'Vluchtstrook'
         else:
             self.properties['Hard_shoulder_right'] = False
 
         if self.lane_number > 1:
-            self.properties['Hard_shoulder_left'] = self.road_properties[self.lane_number - 1] = 'Vluchtstrook'
+            self.properties['Hard_shoulder_left'] = self.row.road_properties[self.lane_number - 1] = 'Vluchtstrook'
         else:
             self.properties['Hard_shoulder_left'] = False
 
-        self.properties['N_row'] = len(self.road_properties['Rijstrooksignaleringen'])
+        self.properties['N_row'] = len(self.row.road_properties['Rijstrooksignaleringen'])
+
+    def determine_MSI_relations(self):
+        self.properties['c'] = self.name
