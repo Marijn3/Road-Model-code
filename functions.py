@@ -243,7 +243,10 @@ class RoadModel:
         if name == 'Rijstrooksignaleringen':
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        roadside = self.get_section_info_at_point(row['geometry'])['roadside']
+        # Get the IDs of the sections it overlaps, as well as the roadside letter
+        overlapping_sections = self.get_sections_at_point(row['geometry'])
+        properties['Section IDs'] = [section_id for section_id in overlapping_sections.keys()]
+        roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
 
         return {'roadside': roadside,
                 'km': row['KMTR'],
