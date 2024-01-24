@@ -3,6 +3,7 @@ import pandas as pd
 from shapely import *
 import csv
 from copy import deepcopy
+import math
 
 pd.set_option('display.max_columns', None)
 GRID_SIZE = 0.000001
@@ -264,11 +265,17 @@ class RoadModel:
             # roadnumber = row['WEGNUMMER']
 
             first_lane_number = row['VNRWOL']
-            n_rijstroken = int(row['nRijstroken'])  # Always rounds down
+            n_lanes = row['nRijstroken']
+            whole_lanes = int(n_lanes)
+            fraction = n_lanes - whole_lanes
 
             # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
-            for lane_number in range(first_lane_number, first_lane_number+n_rijstroken):
-                properties[lane_number] = 'Rijstrook'
+            for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
+                properties[lane_nr] = 'Rijstrook'
+
+            # Handle broadening or narrowing road
+            if fraction != 0:
+                properties[n_lanes] = 'Rijstrook'
 
             if row['IZI_SIDE'] == 'R':
                 km_range = [row['BEGINKM'], row['EINDKM']]
@@ -287,11 +294,17 @@ class RoadModel:
 
         elif name == 'Mengstroken':
             first_lane_number = row['VNRWOL']
-            n_mengstroken = int(row['nMengstroken'])  # Always rounds down
+            n_lanes = row['nMengstroken']
+            whole_lanes = int(n_lanes)
+            fraction = n_lanes - whole_lanes
 
             # Indicate lane number and type of mengstrook. Example: {4: 'Weefstrook'}
-            for lane_number in range(first_lane_number, first_lane_number+n_mengstroken):
-                properties[lane_number] = row['OMSCHR']
+            for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
+                properties[lane_nr] = row['OMSCHR']
+
+            # Handle broadening or narrowing road
+            if fraction != 0:
+                properties[n_lanes] = row['OMSCHR']
 
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
@@ -694,6 +707,31 @@ class RoadModel:
             return [point for point in self.points.values() if 'Rijstroken' in point['properties'].keys()]
 
         return [point for point in self.points.values()]
+
+    def get_local_orientation(self, point: Point) -> float:
+        # TODO: Do correct implementation
+
+        print(point)
+
+        lines = []
+        for section in self.sections.values():
+            if dwithin(point, section['geometry'], 0.1):
+                lines.append(section['geometry'])
+
+        assert lines, "Point is not contained in any lines."
+
+        for line in lines:
+            max_points = get_num_points(line)
+            segmented = LineString([get_point(line, 1), get_point(line, 2)])
+            intersecting_segments = [segment for segment in segmented if point.intersects(segment)]
+
+        angles = []
+        for line in intersecting_segments:
+            angle = math.atan2(line.coords[1][1] - line.coords[0][1], line.coords[1][0] - line.coords[0][0])
+            angles.append(angle)
+
+        average_angle = sum(angles) / len(angles)
+        return average_angle
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         """
