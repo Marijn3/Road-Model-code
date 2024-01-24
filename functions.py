@@ -709,6 +709,7 @@ class RoadModel:
         return [point for point in self.points.values()]
 
     def get_local_orientation(self, point: Point) -> float:
+        # TODO: Do correct implementation
 
         print(point)
 

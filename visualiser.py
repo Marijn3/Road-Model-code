@@ -176,7 +176,7 @@ for section in sections:
 # MSIs
 points = road.get_points()  # 'MSI'
 for point in points:
-    orientation = road.get_local_orientation(point['geometry'])
+    # orientation = road.get_local_orientation(point['geometry'])
     # svg_add_point(point['geometry'], point['properties'], point['km'], orientation, dwg)
     svg_add_point(point, dwg)
 
