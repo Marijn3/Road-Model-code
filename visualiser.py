@@ -183,14 +183,16 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
         group_msi_row = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_msi_row.add(circle)
+        msibox_size = 6
+        local_road_width = 4 * len(prop['Rijstroken'])
         for nr in prop['Rijstroken']:
-            local_road_width = 3  # Replace with actual value
-            size = 6
-            displacement = (nr - 1) * (size*1.2) + local_road_width
-            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - size/2), size=(size, size),
+            displacement = (nr - 1) * (msibox_size*1.2) + local_road_width
+            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - msibox_size/2),
+                                          size=(msibox_size, msibox_size),
                                           fill="#1e1b17", stroke="black", stroke_width=0.3)
             group_msi_row.add(square)
-        text = svgwrite.text.Text(km, insert=(coords[0] + displacement + size*1.2, coords[1] + 1.5),
+        text = svgwrite.text.Text(km,
+                                  insert=(coords[0] + displacement + msibox_size*1.2, coords[1] + 1.5),
                                   fill="white", font_family="Arial", font_size=4)
         group_msi_row.add(text)
         group_msi_row.rotate(angle, center=coords)
@@ -200,7 +202,8 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_vergence.add(circle)
         point_type = [type_letter for type_letter in prop.values()][0]
-        text = svgwrite.text.Text(point_type + " " + str(km), insert=(coords[0] + 2, coords[1] + 1),
+        text = svgwrite.text.Text(point_type + " " + str(km),
+                                  insert=(coords[0] + 2, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
         group_vergence.add(text)
         group_vergence.rotate(angle, center=coords)
@@ -221,8 +224,8 @@ for section in sections:
 # MSIs
 points = road.get_points()  # 'MSI'
 for point in points:
-    angle = road.get_local_angle(point)
-    svg_add_point(point, angle, dwg)
+    angle_deg = road.get_local_angle(point)
+    svg_add_point(point, angle_deg, dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
