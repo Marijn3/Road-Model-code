@@ -27,11 +27,22 @@ def get_road_color(n_lanes: int | float) -> str:
     return 'grey'
 
 
-def get_n_lanes(prop: dict, only_rijstroken: bool = False) -> int | float:
+def get_n_lanes(prop: dict, only_main_lanes: bool = False) -> int | float:
+    """
+    Determines the number of lanes given road properties. It can be speficied
+    whether only main lanes must be counted. The highest lane numbering will
+    be returned.
+    Args:
+        prop (dict): Road properties to be evaluated.
+        only_main_lanes: Boolean indicating whether only the main lanes should
+            be considered. This includes 'rijstrook' and 'splitsing'.
+    Returns:
+        The number of (main) lanes, exluding 'puntstuk' registrations.
+    """
     n_lanes = 0
     for lane_nr, lane_type in prop.items():
         if isinstance(lane_nr, int | float):
-            if only_rijstroken:
+            if only_main_lanes:
                 if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing']:
                     n_lanes = lane_nr
             else:
@@ -41,10 +52,29 @@ def get_n_lanes(prop: dict, only_rijstroken: bool = False) -> int | float:
 
 
 def get_transformed_coords(geom: LineString | Point) -> list[tuple]:
+    """
+    Flips geometries around the top border of the frame and returns the coordinates.
+    This is necessary for visualisation, as the RD-coordinate system and the SVG
+    coordinate system have a different definition of their y-axis.
+    Args:
+        geom (LineString or Point): Geometry to be flipped.
+    Returns:
+        List of coordinates making up the flipped geometry.
+    """
     return [(coord[0], TOP_LEFT_Y - (coord[1] - TOP_LEFT_Y)) for coord in geom.coords]
 
 
 def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
+    """
+    Offsets geometries by a given value and returns the coordinates.
+    Also flips the geometries for visualisation.
+    Args:
+        geom (LineString or Point): Geometry to be flipped.
+        offset (float): Amount of offset in meters. Positive offset
+            is on the left side, seen in line direction.
+    Returns:
+        List of coordinates making up the offset geometry.
+    """
     if offset == 0:
         return get_transformed_coords(geom)
     else:

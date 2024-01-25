@@ -185,6 +185,13 @@ class RoadModel:
         Load road attributes from all DataFrames.
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
+        Note:
+            The 'Rijstroken' layer is the first layer to be imported because two assumptions hold for it:
+                1) it is defined everywhere where it would be necessary.
+                2) it does not have internal overlap.
+            Additionally, it is the most reliable source for roadside. The only other candidate
+            is maximumsnelheden, but this unfortunately sometimes has places where it is
+            undefined, therefore the first assumption doesn't hold.
         """
         for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                         'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']:
