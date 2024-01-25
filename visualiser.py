@@ -124,12 +124,12 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
     for lane_nr in range(1, n_lanes_round+1):
         line_coords = get_offset_coords(geom, offsets.pop(0))
 
-        # To handle missing road numbers (due to taper) temporarily. TODO: Remove this.
+        # To handle missing road numbers (due to taper/broadening/narrowing) temporarily. TODO: Remove this.
         if lane_nr not in prop.keys():
             continue
 
-        # An emergency lane (on the first lane) has a solid line.
-        if prop[lane_nr] == 'Vluchtstrook':
+        # An emergency lane or rush hour lane (on the first lane) has a solid line.
+        if prop[lane_nr] in ['Vluchtstrook', 'Spitsstrook']:
             add_markerline(line_coords, svg_dwg)
             continue
 
