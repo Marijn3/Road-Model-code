@@ -2,7 +2,7 @@ from functions import *
 
 # Load all files and store the GeoDataFrames in the class
 dfl = DataFrameLoader()
-dfl.load_dataframes("A2Vink")
+dfl.load_dataframes("A27")
 
 # Construct a road model using the GeoDataFrames
 roadmodel = RoadModel()

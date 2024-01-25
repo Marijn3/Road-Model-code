@@ -5,7 +5,7 @@ import math
 LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader()
-dfl.load_dataframes("A2VK")
+dfl.load_dataframes("A27")
 
 road = RoadModel()
 road.import_dataframes(dfl)
@@ -157,7 +157,7 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
             size = 6
             displacement = (nr - 1) * (size*1.2) + local_road_width
             square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - size/2), size=(size, size),
-                                          fill="black", stroke="dimgrey", stroke_width=0.3)
+                                          fill="#1e1b17", stroke="black", stroke_width=0.3)
             svg_dwg.add(square)
         text = svgwrite.text.Text(km, insert=(coords[0] + displacement + size*1.2, coords[1] + 1.5),
                                   fill="white", font_family="Arial", font_size=4)
