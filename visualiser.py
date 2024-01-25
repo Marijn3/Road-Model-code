@@ -158,16 +158,16 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
 
 def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str = "full"):
     if linetype == "dashed":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4,
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4,
                                         stroke_dasharray="3 5")
     elif linetype == "block":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.6,
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.6,
                                         stroke_dasharray="0.8 2.5")
     elif linetype == "point":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=1.5)
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=1.5)
 
     else:
-        line = svgwrite.shapes.Polyline(points=coords, stroke="white", fill="none", stroke_width=0.4)
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
 
     svg_dwg.add(line)
 
