@@ -199,7 +199,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
         group_vergence = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_vergence.add(circle)
-        point_type = "H"  # prop.values()
+        point_type = [type_letter for type_letter in prop.values()][0]
         text = svgwrite.text.Text(point_type + " " + str(km), insert=(coords[0] + 2, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
         group_vergence.add(text)
