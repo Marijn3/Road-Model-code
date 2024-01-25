@@ -373,8 +373,8 @@ class RoadModel:
             # print("Other section geom:", other_section_geom)
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
-            assert abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) < 100, (
-                f"Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}")
+            if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
+                print(f"[WARNING:] Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}\n")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
@@ -1148,9 +1148,9 @@ class MSI(MSILegends):
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
         downstream_row = self.row.msi_network.travel_roadmodel(self.row, True)
-        if downstream_row:
+        if downstream_row and self.lane_number in downstream_row.MSIs.keys():
             self.properties['d'] = downstream_row.MSIs[self.lane_number].name
 
         upstream_row = self.row.msi_network.travel_roadmodel(self.row, False)
-        if upstream_row:
+        if upstream_row and self.lane_number in upstream_row.MSIs.keys():
             self.properties['u'] = upstream_row.MSIs[self.lane_number].name

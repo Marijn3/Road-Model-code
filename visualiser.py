@@ -5,7 +5,7 @@ import math
 LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader()
-dfl.load_dataframes("A27")
+dfl.load_dataframes("A2VK")
 
 road = RoadModel()
 road.import_dataframes(dfl)
@@ -61,6 +61,10 @@ def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
     n_lanes_round = math.ceil(n_lanes)
     n_normal_lanes_round = math.ceil(n_normal_lanes)
 
+    if n_lanes < 1:
+        print(f"[WARNING:] Skipping visualisation of section without lanes: {section_data}")
+        return
+
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
     offset = (LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * n_lanes_round / 2
     asphalt_coords = get_offset_coords(geom, offset)
@@ -81,23 +85,30 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
     offsets = [(LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * i for i in range(n_lanes_round + 1)]
 
-    # Add first line (left).
+    # Add first line (left), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, offsets.pop(0))
-    add_markerline(line_coords, svg_dwg)
+
+    if prop[1] != 'Vluchtstrook':
+        add_markerline(line_coords, svg_dwg)
 
     for lane_nr in range(1, n_lanes_round+1):
         line_coords = get_offset_coords(geom, offsets.pop(0))
 
-        # To handle missing road numbers (due to taper) temporarily.
+        # To handle missing road numbers (due to taper) temporarily. TODO: Remove this.
         if lane_nr not in prop.keys():
             continue
 
+        # An emergency lane (on the first lane) has a solid line.
+        if prop[lane_nr] == 'Vluchtstrook':
+            add_markerline(line_coords, svg_dwg)
+            continue
+
         # Stop when this is the final roadline (right).
-        if lane_nr+1 not in prop.keys():
+        if lane_nr + 1 not in prop.keys():
             add_markerline(line_coords, svg_dwg)
             break
 
-        # An emergency lane is always the final, rightmost lane.
+        # An emergency lane (not on the first lane) is always the final, rightmost lane.
         if prop[lane_nr + 1] == 'Vluchtstrook':
             add_markerline(line_coords, svg_dwg)
             break
