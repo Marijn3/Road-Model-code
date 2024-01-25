@@ -173,34 +173,38 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
 
 
 # def svg_add_point(geom: Point, prop: dict, km: float, orientation: float, svg_dwg: svgwrite.Drawing):
-def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
+def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
     geom = point_data['geometry']
     prop = point_data['properties']
     km = point_data['km']
 
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
+        group_msi_row = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        svg_dwg.add(circle)
+        group_msi_row.add(circle)
         for nr in prop['Rijstroken']:
             local_road_width = 3  # Replace with actual value
             size = 6
             displacement = (nr - 1) * (size*1.2) + local_road_width
             square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - size/2), size=(size, size),
                                           fill="#1e1b17", stroke="black", stroke_width=0.3)
-            svg_dwg.add(square)
+            group_msi_row.add(square)
         text = svgwrite.text.Text(km, insert=(coords[0] + displacement + size*1.2, coords[1] + 1.5),
                                   fill="white", font_family="Arial", font_size=4)
-        svg_dwg.add(text)
+        group_msi_row.add(text)
+        group_msi_row.rotate(angle, center=coords)
+        svg_dwg.add(group_msi_row)
     else:
+        group_vergence = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        svg_dwg.add(circle)
-        # point_type = "H"  # prop.values()  # Extract the actual value there
-        # text = svgwrite.text.Text(point_type, insert=(coords[0] + 2, coords[1] + 1),
-        #                           fill="white", font_family="Arial", font_size=8)
-        text = svgwrite.text.Text(km, insert=(coords[0] + 2, coords[1] + 1),  # transform="rotate(45)",
+        group_vergence.add(circle)
+        point_type = "H"  # prop.values()
+        text = svgwrite.text.Text(point_type + " " + str(km), insert=(coords[0] + 2, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
-        svg_dwg.add(text)
+        group_vergence.add(text)
+        group_vergence.rotate(angle, center=coords)
+        svg_dwg.add(group_vergence)
 
 
 # Create SVG drawing
@@ -217,9 +221,8 @@ for section in sections:
 # MSIs
 points = road.get_points()  # 'MSI'
 for point in points:
-    # orientation = road.get_local_orientation(point['geometry'])
-    # svg_add_point(point['geometry'], point['properties'], point['km'], orientation, dwg)
-    svg_add_point(point, dwg)
+    angle = road.get_local_angle(point)
+    svg_add_point(point, angle, dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
