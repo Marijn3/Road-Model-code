@@ -129,14 +129,25 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
         if lane_nr not in prop.keys():
             continue
 
-        # An emergency lane or rush hour lane (on the first lane) has a solid line.
-        if prop[lane_nr] in ['Vluchtstrook', 'Spitsstrook']:
+        # An emergency lane (on the first lane) has a solid line.
+        if prop[lane_nr] in ['Vluchtstrook']:
             add_markerline(line_coords, svg_dwg)
             continue
+
+        # A pluslane (on the first lane) has a solid line.
+        if prop[lane_nr] in ['Plusstrook']:
+            add_markerline(line_coords, svg_dwg, "dashed-9-3")
 
         # Stop when this is the final roadline (right).
         if lane_nr + 1 not in prop.keys():
             add_markerline(line_coords, svg_dwg)
+            break
+
+        # A rush hour lane (on the final lane) has special lines.
+        if prop[lane_nr + 1] == 'Spitsstrook' and lane_nr + 1 == n_lanes_round:
+            add_markerline(line_coords, svg_dwg)
+            line_coords = get_offset_coords(geom, offsets.pop(0))
+            add_markerline(line_coords, svg_dwg, "thin")
             break
 
         # An emergency lane (not on the first lane) is always the final, rightmost lane.
@@ -151,21 +162,27 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
 
         # All other lanes are separated by dashed lines.
         if prop[lane_nr] == prop[lane_nr + 1]:
-            add_markerline(line_coords, svg_dwg, "dashed")
+            add_markerline(line_coords, svg_dwg, "dashed-3-9")
         # If the lane types are not the same, block markings are used.
         else:
             add_markerline(line_coords, svg_dwg, "block")
 
 
 def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str = "full"):
-    if linetype == "dashed":
+    if linetype == "dashed-3-9":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4,
-                                        stroke_dasharray="3 5")
+                                        stroke_dasharray="3 9")
+    elif linetype == "dashed-9-3":
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4,
+                                        stroke_dasharray="9 3")
     elif linetype == "block":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.6,
-                                        stroke_dasharray="0.8 2.5")
+                                        stroke_dasharray="0.8 4")
     elif linetype == "point":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=1.5)
+
+    elif linetype == "thin":
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.2)
 
     else:
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
@@ -186,7 +203,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_msi_row.add(circle)
         msibox_size = 6
-        local_road_width = 4 * len(prop['Rijstroken'])
+        local_road_width = 3 * len(prop['Rijstroken'])
         for nr in prop['Rijstroken']:
             displacement = (nr - 1) * (msibox_size*1.2) + local_road_width
             square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - msibox_size/2),
