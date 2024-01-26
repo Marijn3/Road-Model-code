@@ -5,7 +5,7 @@ import math
 LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader()
-dfl.load_dataframes("A27")
+dfl.load_dataframes("Vught")
 
 road = RoadModel()
 road.import_dataframes(dfl)
@@ -118,7 +118,8 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
     # Add first line (left), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, offsets.pop(0))
 
-    if prop[1] != 'Vluchtstrook':
+    first_lane_nr = min([key for key in prop.keys() if isinstance(key, int | float)])
+    if prop[first_lane_nr] != 'Vluchtstrook':
         add_markerline(line_coords, svg_dwg)
 
     for lane_nr in range(1, n_lanes_round+1):
