@@ -117,10 +117,15 @@ class DataFrameLoader:
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
         lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
+                        '1.6 -> 1': 1.7, '1 -> 1.6': 1.8,
+                        '1.6 -> 2': 1.7, '2 -> 1.6': 1.8,  # TODO: Taper numbers not final
+                        '1.6 -> 3': 2.7, '3 -> 1.6': 2.8,  # These two only occur ONCE in NL.
                         '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
                         '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
                         '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
-                        '5 -> 5': 5}
+                        '5 -> 5': 5, '5 -> 6': 5.1, '6 -> 5': 5.9,
+                        '6 -> 6': 6,
+                        '7 -> 7': 7}
 
         if name == 'Rijstroken':
             self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
