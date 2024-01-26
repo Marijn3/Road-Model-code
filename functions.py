@@ -22,7 +22,7 @@ class DataFrameLoader:
 
     __LOCATIONS_CSV_PATH = 'data/locations.csv'
 
-    # List all data layer files to be loaded.
+    # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
         "data/Rijstroken/rijstroken-edit.dbf",
         "data/Kantstroken/kantstroken.dbf",
@@ -33,17 +33,18 @@ class DataFrameLoader:
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
-    def __init__(self):
+    def __init__(self, location: str) -> None:
         self.data = {}
         self.extent = None
+        self.__load_dataframes(location)
 
-    def load_dataframes(self, location: str):
+    def __load_dataframes(self, location: str) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
             location (str): The name of the location.
         """
-        self.__get_extent(location)
+        self.__define_extent(location)
         for file_path in DataFrameLoader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_dataframe(file_path)
@@ -60,9 +61,10 @@ class DataFrameLoader:
         data = gpd.read_file(file_path)
         return self.__select_data_in_extent(data)
 
-    def __get_extent(self, location: str) -> box:
+    def __define_extent(self, location: str) -> None:
         """
         Determine the extent box of the specified location from coordinates.
+        Stores it in self.extent.
         Args:
             location (str): The name of the location.
         Raises:
@@ -78,12 +80,12 @@ class DataFrameLoader:
     def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Select data that intersects the specified extent from the GeoDataFrame.
+        All data that intersects the extent is considered 'in the extent'.
         Args:
             data (gpd.GeoDataFrame): The GeoDataFrame.
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with only data that intersects the extent.
         """
-        # All data that intersects extent is considered 'in the extent'.
         data['inextent'] = data['geometry'].apply(lambda geom: geom.intersects(self.extent))
         return data[data['inextent']]
 
@@ -102,14 +104,14 @@ class DataFrameLoader:
         folder_name = parts[-2]
         return folder_name
 
-    def __edit_columns(self, name: str):
+    def __edit_columns(self, name: str) -> None:
         """
-        Edit columns from the GeoDataFrame.
+        Edits columns of GeoDataFrames in self.data in place.
         Args:
             name (str): The name of the GeoDataFrame.
         """
-        # Use 0.01 rounding for cm precision, or 1 for meter precision. 1 meter is too crude for visualisation purposes.
-        self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, GRID_SIZE))
+        # Applies some rounding to geometry
+        # self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, GRID_SIZE))
 
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
@@ -123,10 +125,6 @@ class DataFrameLoader:
         if name == 'Rijstroken':
             self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
 
-            # Convert VOLGNRSTRK to integer, supporting NaN values
-            # self.data[df_name]['VOLGNRWOL'] = (
-            #     pd.to_numeric(self.data[df_name]['VOLGNRSTRK'], errors='coerce').astype('Int64'))
-
         if name == 'Mengstroken':
             self.data[name]['nMengstroken'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
 
@@ -135,11 +133,8 @@ class DataFrameLoader:
             is_kp = self.data[name]['CODE'] == 'KP'
             self.data[name] = self.data[name][is_kp]
 
-        # These general columns are not further necessary.
-        # self.data[df_name].drop(columns=['FK_VELD4', 'IBN', 'inextent'], inplace=True)
-
-        # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
         if 'stroken' in name:
+            # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
             self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
 
     @staticmethod
@@ -173,14 +168,20 @@ class DataFrameLoader:
 
 
 class RoadModel:
-    def __init__(self):
+
+    __LAYER_NAMES = ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
+                     'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
+
+    def __init__(self, dfl: DataFrameLoader):
         self.sections = {}
         self.section_index = 0
         self.points = {}
         self.point_index = 0
         self.has_initial_layer = False
 
-    def import_dataframes(self, dfl: DataFrameLoader) -> None:
+        self.__import_dataframes(dfl)
+
+    def __import_dataframes(self, dfl: DataFrameLoader) -> None:
         """
         Load road attributes from all DataFrames.
         Args:
@@ -193,8 +194,7 @@ class RoadModel:
             is maximumsnelheden, but this unfortunately sometimes has places where it is
             undefined, therefore the first assumption doesn't hold.
         """
-        for df_name in ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
-                        'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']:
+        for df_name in self.__LAYER_NAMES:
             print(f"[STATUS:] Importing {df_name}...")
             current_sections = self.section_index
             current_points = self.point_index

@@ -4,11 +4,8 @@ import math
 
 LANE_WIDTH = 3.5
 
-dfl = DataFrameLoader()
-dfl.load_dataframes("Vught")
-
-road = RoadModel()
-road.import_dataframes(dfl)
+dfl = DataFrameLoader("Vught")
+road = RoadModel(dfl)
 
 TOP_LEFT_X, TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
 BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]

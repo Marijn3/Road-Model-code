@@ -1,12 +1,10 @@
 from functions import *
 
 # Load all files and store the GeoDataFrames in the class
-dfl = DataFrameLoader()
-dfl.load_dataframes("Vught")
+dfl = DataFrameLoader("Vught")
 
 # Construct a road model using the GeoDataFrames
-roadmodel = RoadModel()
-roadmodel.import_dataframes(dfl)
+roadmodel = RoadModel(dfl)
 
 # Inspect for DEMO (Vught)
 roadmodel.get_properties_at(121.6, 'L')  # Two sections
