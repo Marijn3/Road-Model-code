@@ -32,7 +32,7 @@ def get_n_lanes(prop: dict, only_main_lanes: bool = False) -> int | float:
     Args:
         prop (dict): Road properties to be evaluated.
         only_main_lanes: Boolean indicating whether only the main lanes should
-            be considered. This includes 'rijstrook' and 'splitsing'.
+            be considered. This includes 'rijstrook', 'splitsing' and 'samenvoeging'.
     Returns:
         The number of (main) lanes, exluding 'puntstuk' registrations.
     """
@@ -40,7 +40,7 @@ def get_n_lanes(prop: dict, only_main_lanes: bool = False) -> int | float:
     for lane_nr, lane_type in prop.items():
         if isinstance(lane_nr, int | float):
             if only_main_lanes:
-                if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing']:
+                if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']:
                     n_lanes = lane_nr
             else:
                 if lane_nr > n_lanes and lane_type not in ['Puntstuk']:
@@ -131,7 +131,7 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
             add_markerline(line_coords, svg_dwg)
             continue
 
-        # A pluslane (on the first lane) has a solid line.
+        # A pluslane (on the first lane) has a 9-3 dashed line.
         if prop[lane_nr] in ['Plusstrook']:
             add_markerline(line_coords, svg_dwg, "dashed-9-3")
 
@@ -139,6 +139,10 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
         if lane_nr + 1 not in prop.keys():
             add_markerline(line_coords, svg_dwg)
             break
+
+        # If the next lane is a samenvoeging, use normal dashed lane marking.
+        if prop[lane_nr + 1] == 'Samenvoeging':
+            add_markerline(line_coords, svg_dwg, "dashed-3-9")
 
         # A rush hour lane (on the final lane) has special lines.
         if prop[lane_nr + 1] == 'Spitsstrook' and lane_nr + 1 == n_lanes_round:
