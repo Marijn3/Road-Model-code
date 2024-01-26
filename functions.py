@@ -128,6 +128,11 @@ class DataFrameLoader:
         if name == 'Mengstroken':
             self.data[name]['nMengstroken'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
 
+        if name == 'Kantstroken':
+            # 'Redresseerstrook', 'Bufferstrook', 'Pechhaven' and such are not considered
+            is_considered = self.data[name]['OMSCHR'].isin(['Vluchtstrook', 'Puntstuk', 'Spitsstrook', 'Plusstrook'])
+            self.data[name] = self.data[name][is_considered]
+
         if name == 'Rijstrooksignaleringen':
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
             is_kp = self.data[name]['CODE'] == 'KP'
