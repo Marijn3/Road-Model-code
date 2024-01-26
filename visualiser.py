@@ -177,6 +177,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
     geom = point_data['geometry']
     prop = point_data['properties']
     km = point_data['km']
+    rotate_angle = 90 - angle
 
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
@@ -195,7 +196,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
                                   insert=(coords[0] + displacement + msibox_size*1.2, coords[1] + 1.5),
                                   fill="white", font_family="Arial", font_size=4)
         group_msi_row.add(text)
-        group_msi_row.rotate(angle, center=coords)
+        group_msi_row.rotate(rotate_angle, center=coords)
         svg_dwg.add(group_msi_row)
     else:
         group_vergence = svgwrite.container.Group()
@@ -206,7 +207,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
                                   insert=(coords[0] + 2, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
         group_vergence.add(text)
-        group_vergence.rotate(angle, center=coords)
+        group_vergence.rotate(rotate_angle, center=coords)
         svg_dwg.add(group_vergence)
 
 

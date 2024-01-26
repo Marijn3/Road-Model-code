@@ -724,20 +724,42 @@ class RoadModel:
         """
         overlapping_lines = [line for index, line in self.sections.items() if index in point_info['section_ids']]
 
-        assert overlapping_lines, "Point is not contained in any lines."
-
-        point1 = [coord for coord in point_info['geometry'].coords][0]
+        assert overlapping_lines, "Point is not overlapping any lines."
 
         angles = []
         for line in overlapping_lines:
-            coords = [coord for coord in line['geometry'].coords]
-            point2 = coords.pop(0)
-            angle_rad = math.atan2(point2[1] - point1[1], point2[0] - point1[0])
-            angle_deg = angle_rad/(2*3.1415)*360 + 90
-            print(f"Angle between {point1} and {point2}: {angle_deg}")
+            line_points = [point for point in line['geometry'].coords]
+            closest_point = min(line_points, key=lambda coord: distance(point_info['geometry'], Point(coord)))
+            closest_index = line_points.index(closest_point)
+
+            if closest_index + 1 < len(line_points):
+                next_point = line_points[closest_index + 1]
+            else:
+                next_point = line_points[closest_index]  # Middle point
+
+            if closest_index - 1 >= 0:
+                previous_point = line_points[closest_index - 1]
+            else:
+                previous_point = line_points[closest_index]  # Middle point
+
+            if next_point == previous_point:
+                print(f"[WARNING:] Could not find local angle for {line}")
+                continue
+
+            delta_x = next_point[0] - previous_point[0]
+            delta_y = next_point[1] - previous_point[1]
+
+            angle_rad = math.atan2(delta_y, delta_x)
+            angle_deg = math.degrees(angle_rad)
             angles.append(angle_deg)
 
-        print(angles)
+        # Drop the outlier angle from the list in case there are three (or more?)
+        if len(angles) > 2:
+            median_angle = sorted(angles)[1]
+            differences = [abs(angle - median_angle) for angle in angles]
+            outlier_index = differences.index(max(differences))
+            if max(differences) > 10:
+                angles.pop(outlier_index)
 
         average_angle = sum(angles) / len(angles)
         return average_angle
