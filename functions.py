@@ -253,11 +253,12 @@ class RoadModel:
 
         # Get the IDs of the sections it overlaps, as well as the roadside letter
         overlapping_sections = self.get_sections_at_point(row['geometry'])
-        properties['Section IDs'] = [section_id for section_id in overlapping_sections.keys()]
+        section_ids = [section_id for section_id in overlapping_sections.keys()]
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
 
         return {'roadside': roadside,
                 'km': row['KMTR'],
+                'section_ids': section_ids,
                 'properties': properties,
                 'geometry': row['geometry']}
 
@@ -715,27 +716,50 @@ class RoadModel:
 
         return [point for point in self.points.values()]
 
-    def get_local_orientation(self, point: Point) -> float:
-        # TODO: Do correct implementation
+    def get_local_angle(self, point_info: dict) -> float:
+        """
+        Find the approximate local angle of sections in the road model at a given point.
+        Returns:
+            Local angle in degrees.
+        """
+        overlapping_lines = [line for index, line in self.sections.items() if index in point_info['section_ids']]
 
-        print(point)
-
-        lines = []
-        for section in self.sections.values():
-            if dwithin(point, section['geometry'], 0.1):
-                lines.append(section['geometry'])
-
-        assert lines, "Point is not contained in any lines."
-
-        for line in lines:
-            max_points = get_num_points(line)
-            segmented = LineString([get_point(line, 1), get_point(line, 2)])
-            intersecting_segments = [segment for segment in segmented if point.intersects(segment)]
+        assert overlapping_lines, "Point is not overlapping any lines."
 
         angles = []
-        for line in intersecting_segments:
-            angle = math.atan2(line.coords[1][1] - line.coords[0][1], line.coords[1][0] - line.coords[0][0])
-            angles.append(angle)
+        for line in overlapping_lines:
+            line_points = [point for point in line['geometry'].coords]
+            closest_point = min(line_points, key=lambda coord: distance(point_info['geometry'], Point(coord)))
+            closest_index = line_points.index(closest_point)
+
+            if closest_index + 1 < len(line_points):
+                next_point = line_points[closest_index + 1]
+            else:
+                next_point = line_points[closest_index]  # Middle point
+
+            if closest_index - 1 >= 0:
+                previous_point = line_points[closest_index - 1]
+            else:
+                previous_point = line_points[closest_index]  # Middle point
+
+            if next_point == previous_point:
+                print(f"[WARNING:] Could not find local angle for {line}")
+                continue
+
+            delta_x = next_point[0] - previous_point[0]
+            delta_y = next_point[1] - previous_point[1]
+
+            angle_rad = math.atan2(delta_y, delta_x)
+            angle_deg = math.degrees(angle_rad)
+            angles.append(angle_deg)
+
+        # Drop the outlier angle from the list in case there are three (or more?)
+        if len(angles) > 2:
+            median_angle = sorted(angles)[1]
+            differences = [abs(angle - median_angle) for angle in angles]
+            outlier_index = differences.index(max(differences))
+            if max(differences) > 10:
+                angles.pop(outlier_index)
 
         average_angle = sum(angles) / len(angles)
         return average_angle
