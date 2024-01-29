@@ -24,28 +24,20 @@ def get_road_color(prop: dict) -> str:
     return 'grey'
 
 
-def get_n_lanes(prop: dict, only_main_lanes: bool = False) -> int | float:
+def get_n_lanes(prop: dict) -> tuple[int, int]:
     """
-    Determines the number of lanes given road properties. It can be speficied
-    whether only main lanes must be counted. The highest lane numbering will
-    be returned.
+    Determines the number of lanes given road properties.
     Args:
         prop (dict): Road properties to be evaluated.
-        only_main_lanes: Boolean indicating whether only the main lanes should
-            be considered. This includes 'rijstrook', 'splitsing' and 'samenvoeging'.
     Returns:
-        The number of (main) lanes, exluding 'puntstuk' registrations.
+        1) The number of main lanes - only 'Rijstrook', 'Splitsing' and 'Samenvoeging' registrations.
+        2) The number of lanes, exluding 'puntstuk' registrations.
     """
-    n_lanes = 0
-    for lane_nr, lane_type in prop.items():
-        if isinstance(lane_nr, int | float):
-            if only_main_lanes:
-                if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']:
-                    n_lanes = lane_nr
-            else:
-                if lane_nr > n_lanes and lane_type not in ['Puntstuk']:
-                    n_lanes = lane_nr
-    return n_lanes
+    main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
+                  and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']]
+    any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
+                 and lane_type not in ['Puntstuk']]
+    return len(main_lanes), len(any_lanes)
 
 
 def get_transformed_coords(geom: LineString | Point) -> list[tuple]:
@@ -83,47 +75,44 @@ def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
     geom = section_data['geometry']
     prop = section_data['properties']
 
-    n_lanes = get_n_lanes(prop)
-    n_normal_lanes = get_n_lanes(prop, True)
-    n_lanes_round = math.ceil(n_lanes)
-    n_normal_lanes_round = math.ceil(n_normal_lanes)
+    n_main_lanes, n_total_lanes = get_n_lanes(prop)
 
-    if n_lanes < 1:
-        print(f"[WARNING:] Skipping visualisation of section without lanes: {section_data}")
+    if n_total_lanes < 1:
+        print(f"[WARNING:] Skipping visualisation of section without any lanes: {section_data}")
+        return
+    if n_main_lanes < 1:
+        print(f"[WARNING:] Skipping visualisation of section without main lanes: {section_data}")
         return
 
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
-    offset = (LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * n_lanes_round / 2
+    offset = (LANE_WIDTH * n_main_lanes) / 2 - LANE_WIDTH * n_total_lanes / 2
 
     asphalt_coords = get_offset_coords(geom, offset)
     color = get_road_color(prop)
-    width = LANE_WIDTH * n_lanes_round
+    width = LANE_WIDTH * n_total_lanes
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
-    add_separator_lines(geom, prop, n_lanes, n_normal_lanes, svg_dwg)
+    add_separator_lines(geom, prop, n_total_lanes, n_main_lanes, svg_dwg)
 
 
-def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lanes: int, svg_dwg: svgwrite.Drawing):
-    n_lanes_round = math.ceil(n_lanes)
-    n_normal_lanes_round = math.ceil(n_normal_lanes)
+def add_separator_lines(geom: LineString, prop: dict, n_total_lanes: int, n_main_lanes: int, svg_dwg: svgwrite.Drawing):
+    # Offset centered around main lanes. Positive offset distance is on the left side of the line.
+    offsets = [(LANE_WIDTH * n_main_lanes) / 2 - LANE_WIDTH * i for i in range(n_total_lanes + 1)]
 
-    # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
-    offsets = [(LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * i for i in range(n_lanes_round + 1)]
-
-    # Add first line (left), except when the first lane is a vluchtstrook.
+    # Add first solid line (leftmost), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, offsets.pop(0))
-
-    first_lane_nr = min([key for key in prop.keys() if isinstance(key, int | float)])
+    first_lane_nr = min([key for key in prop.keys() if isinstance(key, int)])
     if prop[first_lane_nr] != 'Vluchtstrook':
         add_markerline(line_coords, svg_dwg)
 
-    for lane_nr in range(1, n_lanes_round+1):
+    for lane_nr in range(1, n_total_lanes):
         line_coords = get_offset_coords(geom, offsets.pop(0))
 
-        # To handle missing road numbers (due to taper/broadening/narrowing) temporarily. TODO: Remove this.
+        # To handle missing road numbers. TODO: Check if still necessary.
         if lane_nr not in prop.keys():
+            print(f"[WARNING:] Could not print lane number {lane_nr} in {prop}.")
             continue
 
         # An emergency lane (on the first lane) has a solid line.
@@ -135,17 +124,12 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
         if prop[lane_nr] in ['Plusstrook']:
             add_markerline(line_coords, svg_dwg, "dashed-9-3")
 
-        # Stop when this is the final roadline (right).
-        if lane_nr + 1 not in prop.keys():
-            add_markerline(line_coords, svg_dwg)
-            break
-
         # If the next lane is a samenvoeging, use normal dashed lane marking.
         if prop[lane_nr + 1] == 'Samenvoeging':
             add_markerline(line_coords, svg_dwg, "dashed-3-9")
 
         # A rush hour lane (on the final lane) has special lines.
-        if prop[lane_nr + 1] == 'Spitsstrook' and lane_nr + 1 == n_lanes_round:
+        if prop[lane_nr + 1] == 'Spitsstrook' and lane_nr + 1 == n_total_lanes:
             add_markerline(line_coords, svg_dwg)
             line_coords = get_offset_coords(geom, offsets.pop(0))
             add_markerline(line_coords, svg_dwg, "thin")
@@ -156,17 +140,22 @@ def add_separator_lines(geom: LineString, prop: dict, n_lanes: int, n_normal_lan
             add_markerline(line_coords, svg_dwg)
             break
 
-        # A puntstuk is always the final, rightmost lane.
-        if prop[lane_nr + 1] == 'Puntstuk':
-            add_markerline(line_coords, svg_dwg, "point")
-            break
-
         # All other lanes are separated by dashed lines.
         if prop[lane_nr] == prop[lane_nr + 1]:
             add_markerline(line_coords, svg_dwg, "dashed-3-9")
         # If the lane types are not the same, block markings are used.
         else:
             add_markerline(line_coords, svg_dwg, "block")
+
+    # Add last solid line (leftmost), except when the last lane is a vluchtstrook, spitsstrook, puntstuk.
+    last_lane_nr = min([key for key in prop.keys() if isinstance(key, int)])
+    line_coords = get_offset_coords(geom, offsets.pop(0))
+    if prop[last_lane_nr] == 'Puntstuk':
+        add_markerline(line_coords, svg_dwg, "point")
+    elif prop[last_lane_nr] == 'Spitsstrook':
+        add_markerline(line_coords, svg_dwg, "thin")
+    elif prop[last_lane_nr] != 'Vluchtstrook':
+        add_markerline(line_coords, svg_dwg)
 
 
 def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str = "full"):
