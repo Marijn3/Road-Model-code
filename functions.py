@@ -116,21 +116,22 @@ class DataFrameLoader:
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
-        lane_mapping = {'1 -> 1': (1, None), '1 -> 2': (1.4, 'Broadening'), '2 -> 1': (1.6, 'Narrowing'),  # TODO: Apply special everywhere?
-                        '1.6 -> 1': 1.7, '1 -> 1.6': 1.9,
-                        '1.6 -> 2': 1.7, '2 -> 1.6': 1.9,  # TODO: Taper numbers not final
-                        '2 -> 2': 2, '2 -> 3': 2.4, '3 -> 2': 2.6,
-                        '3 -> 3': 3, '3 -> 4': 3.4, '4 -> 3': 3.6,
-                        '4 -> 4': 4, '4 -> 5': 4.4, '5 -> 4': 4.6,
-                        '5 -> 5': 5, '5 -> 6': 5.4, '6 -> 5': 5.6,
-                        '6 -> 6': 6,
-                        '7 -> 7': 7}
+        # Mapping from lane registration to (nLanes, Special feature)
+        lane_mapping = {'1 -> 1': (1, None), '1 -> 2': (2, 'Broadening'), '2 -> 1': (2, 'Narrowing'),
+                        '1 -> 1.6': (1, 'TaperStart'), '1.6 -> 1': (1, 'TaperEnd'),
+                        '2 -> 1.6': (2, 'TaperStart'), '1.6 -> 2': (2, 'TaperEnd'),
+                        '2 -> 2': (2, None), '2 -> 3': (3, 'Broadening'), '3 -> 2': (3, 'Narrowing'),
+                        '3 -> 3': (3, None), '3 -> 4': (4, 'Broadening'), '4 -> 3': (4, 'Narrowing'),
+                        '4 -> 4': (4, None), '4 -> 5': (5, 'Broadening'), '5 -> 4': (5, 'Narrowing'),
+                        '5 -> 5': (5, None), '5 -> 6': (6, 'Broadening'), '6 -> 5': (6, 'Narrowing'),
+                        '6 -> 6': (6, None),
+                        '7 -> 7': (7, None)}
 
         if name == 'Rijstroken':
-            self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
+            self.data[name]['laneInfo'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
 
         if name == 'Mengstroken':
-            self.data[name]['nMengstroken'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
+            self.data[name]['laneInfo'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
 
         if name == 'Kantstroken':
             # 'Redresseerstrook', 'Bufferstrook', 'Pechhaven' and such are not considered
@@ -278,25 +279,19 @@ class RoadModel:
         # wegnummer = None
 
         if name == 'Rijstroken':
-            roadside = row['IZI_SIDE']
-            # roadnumber = row['WEGNUMMER']
-
             first_lane_number = row['VNRWOL']
-            n_lanes = row['nRijstroken']
-            whole_lanes = int(n_lanes)
-            fraction = n_lanes - whole_lanes
+            n_lanes, special = row['laneInfo']
 
             # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
-
-            for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
+            for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
                 properties[lane_nr] = 'Rijstrook'
 
-            # Handle broadening or narrowing road
-            if fraction != 0:
-                if fraction > 0.5:
-                    properties['Special'] = 'Narrowing'
-                if fraction < 0.5:
-                    properties['Special'] = 'Broadening'
+            # Take note of special circumstances on this feature.
+            if special:
+                properties['Special'] = special
+
+            roadside = row['IZI_SIDE']
+            # roadnumber = row['WEGNUMMER']
 
             if roadside == 'R':
                 km_range = [row['BEGINKM'], row['EINDKM']]
@@ -315,17 +310,15 @@ class RoadModel:
 
         elif name == 'Mengstroken':
             first_lane_number = row['VNRWOL']
-            n_lanes = row['nMengstroken']
-            whole_lanes = int(n_lanes)
-            fraction = n_lanes - whole_lanes
+            n_lanes, special = row['laneInfo']
 
-            # Indicate lane number and type of mengstrook. Example: {4: 'Weefstrook'}
-            for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
-                properties[lane_nr] = row['OMSCHR']
+            # Indicate lane number and type of lane. Example: {4: 'Weefstrook'}
+            for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
+                properties[lane_nr] = 'Rijstrook'
 
-            # Handle broadening or narrowing road
-            if fraction != 0:
-                properties[n_lanes] = row['OMSCHR']
+            # Take note of special circumstances on this feature.
+            if special:
+                properties['Special'] = special
 
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
