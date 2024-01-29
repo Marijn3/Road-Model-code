@@ -319,7 +319,7 @@ class RoadModel:
 
             # Indicate lane number and type of lane. Example: {4: 'Weefstrook'}
             for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
-                properties[lane_nr] = 'Rijstrook'
+                properties[lane_nr] = row['OMSCHR']
 
             # Take note of special circumstances on this feature.
             if special:
