@@ -197,16 +197,18 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
     prop = point_data['properties']
     km = point_data['km']
     rotate_angle = 90 - angle
+    msibox_size = 6
+    play = 1.2
+    info_offset = LANE_WIDTH * (prop['nTotalLanes'] + (prop['nTotalLanes'] - prop['nMainLanes'])) / 2
 
     coords = get_transformed_coords(geom)[0]
     if 'Rijstroken' in prop.keys():
         group_msi_row = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_msi_row.add(circle)
-        msibox_size = 6
-        local_road_width = 3 * len(prop['Rijstroken'])
+
         for nr in prop['Rijstroken']:
-            displacement = (nr - 1) * (msibox_size*1.2) + local_road_width
+            displacement = info_offset + play + (nr - 1) * (play + msibox_size)
             square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - msibox_size/2),
                                           size=(msibox_size, msibox_size),
                                           fill="#1e1b17", stroke="black", stroke_width=0.3)
@@ -223,7 +225,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
         group_vergence.add(circle)
         point_type = [type_letter for type_letter in prop.values()][0]
         text = svgwrite.text.Text(point_type + " " + str(km),
-                                  insert=(coords[0] + 2, coords[1] + 1),
+                                  insert=(coords[0] + play + info_offset, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
         group_vergence.add(text)
         group_vergence.rotate(rotate_angle, center=coords)
