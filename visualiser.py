@@ -14,11 +14,11 @@ VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
 RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
 
-def get_road_color(n_lanes: int | float) -> str:
+def get_road_color(prop: dict) -> str:
     # if 'Puntstuk' in prop.values():
     #     return 'dimgrey'
 
-    if isinstance(n_lanes, float):
+    if 'Special' in prop.keys():
         return 'brown'
 
     return 'grey'
@@ -94,10 +94,10 @@ def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
 
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
     offset = (LANE_WIDTH * n_normal_lanes_round) / 2 - LANE_WIDTH * n_lanes_round / 2
-    asphalt_coords = get_offset_coords(geom, offset)
 
-    width = LANE_WIDTH*n_lanes_round
-    color = get_road_color(n_normal_lanes)
+    asphalt_coords = get_offset_coords(geom, offset)
+    color = get_road_color(prop)
+    width = LANE_WIDTH * n_lanes_round
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)

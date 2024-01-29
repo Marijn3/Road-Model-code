@@ -266,6 +266,11 @@ class RoadModel:
         section_ids = [section_id for section_id in overlapping_sections.keys()]
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
 
+        # Get the local number of (main) lanes. Take the highest value if there are multiple.
+        lane_info = [self.get_n_lanes(section_info['properties']) for section_info in overlapping_sections.values()]
+        properties['nMainLanes'] = max(lane_info, key=lambda x: x[0])[0]
+        properties['nTotalLanes'] = max(lane_info, key=lambda x: x[1])[1]
+
         return {'roadside': roadside,
                 'km': row['KMTR'],
                 'section_ids': section_ids,
@@ -703,34 +708,20 @@ class RoadModel:
         return overlapping_sections
 
     @staticmethod
-    def get_n_lanes(prop: dict) -> tuple(int | float, int | float):
+    def get_n_lanes(prop: dict) -> tuple[int, int]:
         """
-        Determines the number of lanes given road properties. It can be speficied
-        whether only main lanes must be counted. The highest lane numbering will
-        be returned.
+        Determines the number of lanes given road properties.
         Args:
             prop (dict): Road properties to be evaluated.
-            only_main_lanes: Boolean indicating whether only the main lanes should
-                be considered. This includes 'rijstrook', 'splitsing' and 'samenvoeging'.
         Returns:
-            The number of (main) lanes, exluding 'puntstuk' registrations.
+            1) The number of main lanes - only 'Rijstrook', 'Splitsing' and 'Samenvoeging' registrations.
+            2) The number of lanes, exluding 'puntstuk' registrations.
         """
-        main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int | float)
+        main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
                       and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']]
-        any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int | float)
+        any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
                      and lane_type not in ['Puntstuk']]
-
-        if len(main_lanes) ==
-        n_lanes = 0
-        n_main_lanes = 0
-
-        for lane_nr, lane_type in prop.items():
-            if isinstance(lane_nr, int | float):
-                if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']:
-                    n_main_lanes = lane_nr
-                if lane_nr > n_main_lanes and lane_type not in ['Puntstuk']:
-                    n_lanes = lane_nr
-        return n_lanes, n_main_lanes
+        return len(main_lanes), len(any_lanes)
 
     def get_sections(self) -> list[dict]:
         """
