@@ -116,14 +116,13 @@ class DataFrameLoader:
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
-        lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
-                        '1.6 -> 1': 1.7, '1 -> 1.6': 1.8,
-                        '1.6 -> 2': 1.7, '2 -> 1.6': 1.8,  # TODO: Taper numbers not final
-                        '1.6 -> 3': 2.7, '3 -> 1.6': 2.8,  # These two only occur ONCE in NL.
-                        '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
-                        '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
-                        '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
-                        '5 -> 5': 5, '5 -> 6': 5.1, '6 -> 5': 5.9,
+        lane_mapping = {'1 -> 1': (1, None), '1 -> 2': (1.4, 'Broadening'), '2 -> 1': (1.6, 'Narrowing'),  # TODO: Apply special everywhere?
+                        '1.6 -> 1': 1.7, '1 -> 1.6': 1.9,
+                        '1.6 -> 2': 1.7, '2 -> 1.6': 1.9,  # TODO: Taper numbers not final
+                        '2 -> 2': 2, '2 -> 3': 2.4, '3 -> 2': 2.6,
+                        '3 -> 3': 3, '3 -> 4': 3.4, '4 -> 3': 3.6,
+                        '4 -> 4': 4, '4 -> 5': 4.4, '5 -> 4': 4.6,
+                        '5 -> 5': 5, '5 -> 6': 5.4, '6 -> 5': 5.6,
                         '6 -> 6': 6,
                         '7 -> 7': 7}
 
@@ -288,14 +287,18 @@ class RoadModel:
             fraction = n_lanes - whole_lanes
 
             # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
+
             for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
                 properties[lane_nr] = 'Rijstrook'
 
             # Handle broadening or narrowing road
             if fraction != 0:
-                properties[n_lanes] = 'Rijstrook'
+                if fraction > 0.5:
+                    properties['Special'] = 'Narrowing'
+                if fraction < 0.5:
+                    properties['Special'] = 'Broadening'
 
-            if row['IZI_SIDE'] == 'R':
+            if roadside == 'R':
                 km_range = [row['BEGINKM'], row['EINDKM']]
             else:
                 km_range = [row['EINDKM'], row['BEGINKM']]
@@ -705,6 +708,36 @@ class RoadModel:
                                           reverse=should_reverse)
 
         return overlapping_sections
+
+    @staticmethod
+    def get_n_lanes(prop: dict) -> tuple(int | float, int | float):
+        """
+        Determines the number of lanes given road properties. It can be speficied
+        whether only main lanes must be counted. The highest lane numbering will
+        be returned.
+        Args:
+            prop (dict): Road properties to be evaluated.
+            only_main_lanes: Boolean indicating whether only the main lanes should
+                be considered. This includes 'rijstrook', 'splitsing' and 'samenvoeging'.
+        Returns:
+            The number of (main) lanes, exluding 'puntstuk' registrations.
+        """
+        main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int | float)
+                      and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']]
+        any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int | float)
+                     and lane_type not in ['Puntstuk']]
+
+        if len(main_lanes) ==
+        n_lanes = 0
+        n_main_lanes = 0
+
+        for lane_nr, lane_type in prop.items():
+            if isinstance(lane_nr, int | float):
+                if lane_nr > n_lanes and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']:
+                    n_main_lanes = lane_nr
+                if lane_nr > n_main_lanes and lane_type not in ['Puntstuk']:
+                    n_lanes = lane_nr
+        return n_lanes, n_main_lanes
 
     def get_sections(self) -> list[dict]:
         """
