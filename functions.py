@@ -117,21 +117,37 @@ class DataFrameLoader:
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
         # Mapping from lane registration to (nLanes, Special feature)
-        lane_mapping = {'1 -> 1': (1, None), '1 -> 2': (2, 'Broadening'), '2 -> 1': (2, 'Narrowing'),
-                        '1 -> 1.6': (1, 'TaperStart'), '1.6 -> 1': (1, 'TaperEnd'),
-                        '2 -> 1.6': (2, 'TaperStart'), '1.6 -> 2': (2, 'TaperEnd'),
-                        '2 -> 2': (2, None), '2 -> 3': (3, 'Broadening'), '3 -> 2': (3, 'Narrowing'),
-                        '3 -> 3': (3, None), '3 -> 4': (4, 'Broadening'), '4 -> 3': (4, 'Narrowing'),
-                        '4 -> 4': (4, None), '4 -> 5': (5, 'Broadening'), '5 -> 4': (5, 'Narrowing'),
-                        '5 -> 5': (5, None), '5 -> 6': (6, 'Broadening'), '6 -> 5': (6, 'Narrowing'),
-                        '6 -> 6': (6, None),
-                        '7 -> 7': (7, None)}
+        lane_mapping_h = {'1 -> 1': (1, None), '1 -> 2': (2, 'Broadening'), '2 -> 1': (2, 'Narrowing'),
+                          '1 -> 1.6': (1, 'TaperStart'), '1.6 -> 1': (1, 'TaperEnd'),
+                          '2 -> 1.6': (2, 'TaperStart'), '1.6 -> 2': (2, 'TaperEnd'),
+                          '2 -> 2': (2, None), '2 -> 3': (3, 'Broadening'), '3 -> 2': (3, 'Narrowing'),
+                          '3 -> 3': (3, None), '3 -> 4': (4, 'Broadening'), '4 -> 3': (4, 'Narrowing'),
+                          '4 -> 4': (4, None), '4 -> 5': (5, 'Broadening'), '5 -> 4': (5, 'Narrowing'),
+                          '5 -> 5': (5, None), '5 -> 6': (6, 'Broadening'), '6 -> 5': (6, 'Narrowing'),
+                          '6 -> 6': (6, None),
+                          '7 -> 7': (7, None)}
+        # All registrations with T as kantcode as marked in the opposite direction.
+        lane_mapping_t = {'1 -> 1': (1, None), '1 -> 2': (2, 'Narrowing'), '2 -> 1': (2, 'Broadening'),
+                          '1 -> 1.6': (1, 'TaperEnd'), '1.6 -> 1': (1, 'TaperStart'),
+                          '2 -> 1.6': (2, 'TaperEnd'), '1.6 -> 2': (2, 'TaperStart'),
+                          '2 -> 2': (2, None), '2 -> 3': (3, 'Narrowing'), '3 -> 2': (3, 'Broadening'),
+                          '3 -> 3': (3, None), '3 -> 4': (4, 'Narrowing'), '4 -> 3': (4, 'Broadening'),
+                          '4 -> 4': (4, None), '4 -> 5': (5, 'Narrowing'), '5 -> 4': (5, 'Broadening'),
+                          '5 -> 5': (5, None), '5 -> 6': (6, 'Narrowing'), '6 -> 5': (6, 'Broadening'),
+                          '6 -> 6': (6, None),
+                          '7 -> 7': (7, None)}
 
         if name == 'Rijstroken':
-            self.data[name]['laneInfo'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
+            mapping_function = lambda row: lane_mapping_h.get(row['OMSCHR'], row['OMSCHR']) \
+                if row['KANTCODE'] == "H" \
+                else lane_mapping_t.get(row['OMSCHR'], row['OMSCHR'])
+            self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Mengstroken':
-            self.data[name]['laneInfo'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
+            mapping_function = lambda row: lane_mapping_h.get(row['AANT_MSK'], row['AANT_MSK']) \
+                if row['KANTCODE'] == "H" \
+                else lane_mapping_t.get(row['AANT_MSK'], row['AANT_MSK'])
+            self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Kantstroken':
             # 'Redresseerstrook', 'Bufferstrook', 'Pechhaven' and such are not considered
@@ -178,7 +194,6 @@ class DataFrameLoader:
 
 
 class RoadModel:
-
     __LAYER_NAMES = ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                      'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
 
@@ -293,7 +308,8 @@ class RoadModel:
 
             # Take note of special circumstances on this feature.
             if special:
-                properties['Special'] = special
+                changing_lane = row['VOLGNRSTRK']
+                properties['Special'] = (special, changing_lane)
 
             roadside = row['IZI_SIDE']
             # roadnumber = row['WEGNUMMER']
@@ -393,7 +409,8 @@ class RoadModel:
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
-                print(f"[WARNING:] Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}\n")
+                print(
+                    f"[WARNING:] Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}\n")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
@@ -401,19 +418,19 @@ class RoadModel:
             left_side = other_section_side == 'L'
 
             new_section_first = (
-                (min(new_section_range) < min(other_section_range) and right_side)
+                                    (min(new_section_range) < min(other_section_range) and right_side)
                                 ) or (
-                (max(new_section_range) > max(other_section_range) and left_side))
+                                    (max(new_section_range) > max(other_section_range) and left_side))
 
             both_sections_first = (
-                (min(new_section_range) == min(other_section_range) and right_side)
-                         ) or (
-                (max(new_section_range) == max(other_section_range) and left_side))
+                                      (min(new_section_range) == min(other_section_range) and right_side)
+                                  ) or (
+                                      (max(new_section_range) == max(other_section_range) and left_side))
 
             other_section_first = (
-                (min(new_section_range) > min(other_section_range) and right_side)
-                                ) or (
-                (max(new_section_range) < max(other_section_range) and left_side))
+                                      (min(new_section_range) > min(other_section_range) and right_side)
+                                  ) or (
+                                      (max(new_section_range) < max(other_section_range) and left_side))
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -442,19 +459,19 @@ class RoadModel:
             elif both_sections_first:
 
                 other_ends_equal = (
-                    (max(new_section_range) == max(other_section_range) and right_side)
+                                       (max(new_section_range) == max(other_section_range) and right_side)
                                    ) or (
-                    (min(new_section_range) == min(other_section_range) and left_side))
+                                       (min(new_section_range) == min(other_section_range) and left_side))
 
                 other_section_larger = (
-                    (max(new_section_range) < max(other_section_range) and right_side)
-                                    ) or (
-                    (min(new_section_range) > min(other_section_range) and left_side))
+                                           (max(new_section_range) < max(other_section_range) and right_side)
+                                       ) or (
+                                           (min(new_section_range) > min(other_section_range) and left_side))
 
                 new_section_larger = (
-                    (max(new_section_range) > max(other_section_range) and right_side)
-                            ) or (
-                    (min(new_section_range) < min(other_section_range) and left_side))
+                                         (max(new_section_range) > max(other_section_range) and right_side)
+                                     ) or (
+                                         (min(new_section_range) < min(other_section_range) and left_side))
 
                 # Update the overlapping section properties
                 if other_ends_equal:
@@ -868,7 +885,7 @@ def get_km_length(km: list[float]) -> int:
     Returns:
         Distance in meters between km1 and km2.
     """
-    return round(1000*abs(km[1] - km[0]))
+    return round(1000 * abs(km[1] - km[0]))
 
 
 def determine_range_overlap(range1: list, range2: list) -> bool:
@@ -1112,9 +1129,8 @@ class MSI(MSILegends):
             'un': None,  # MSI upstream narrowing
 
             'STAT_V': None,  # Static maximum speed
-            'DYN_V': None,  # Dynamic maximum speed [?]
-            'C_X': None,  # True if continue-X relation [?]
-            'C_V': None,  # True if continue-V relation [?]
+            'C_X': None,  # True if continue-X relation
+            'C_V': None,  # True if continue-V relation
 
             'N_row': None,  # [~] Number of MSIs in row.
             'N_TS': None,  # Number of MSIs in traffic stream.
@@ -1130,13 +1146,13 @@ class MSI(MSILegends):
             'TS_right': None,  # All MSIs in TS to the right.
             'TS_left': None,  # All MSIs in TS to the left.
 
-            'DIF_V_right': None,  # DIF-V influence from the right [?]
-            'DIF_V_left': None,  # DIF-V influence from the left [?]
+            'DIF_V_right': None,  # DIF-V influence from the right
+            'DIF_V_left': None,  # DIF-V influence from the left
 
             'row': None,  # All MSIs in row.
 
             'RHL': None,  # [V] True if MSI in RHL.
-            'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
+            'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right.
             'RHL_neighbor': None,  # [V] True if RHL in row.
 
             'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
@@ -1154,7 +1170,6 @@ class MSI(MSILegends):
 
     def determine_MSI_properties(self):
         self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
-        # self.properties['DYN_V'] =
         # self.properties['C_X'] =
         # self.properties['C_V'] =
 
@@ -1187,13 +1202,14 @@ class MSI(MSILegends):
 
         self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
-        if self.row.local_road_properties[self.lane_number] == 'Spitsstrook':
+        if self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook']:
             self.properties['RHL'] = True
         # self.properties['Exit-entry'] =
         if 'Spitsstrook' in self.row.local_road_properties.values():
             self.properties['RHL_neighbor'] = True
 
-        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
+        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[
+            self.lane_number + 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_right'] = True
         if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_left'] = True
