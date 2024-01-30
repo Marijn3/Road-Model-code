@@ -5,7 +5,7 @@ import math
 LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader("Vught")
-road = RoadModel(dfl)
+roadmodel = RoadModel(dfl)
 
 TOP_LEFT_X, TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
 BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]
@@ -76,7 +76,18 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
         return get_transformed_coords(offset_geom)
 
 
-def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
+def check_point_on_line(section_id: int):
+    for point_data in roadmodel.get_points():
+        if section_id in point_data['section_ids'] and point_data['properties']['Type'] not in ['Signalering']:
+            print(f"There is a *vergence point ({point_data['km']}, "
+                  f"{point_data['properties']['Type']}) on section {section_id}")
+            return True
+    return False
+
+
+def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawing):
+    check_point_on_line(section_id)
+
     geom = section_data['geometry']
     prop = section_data['properties']
 
@@ -193,7 +204,7 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
     info_offset = LANE_WIDTH * (prop['nTotalLanes'] + (prop['nTotalLanes'] - prop['nMainLanes'])) / 2
 
     coords = get_transformed_coords(geom)[0]
-    if 'Rijstroken' in prop.keys():
+    if prop['Type'] == 'Signalering':
         group_msi_row = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_msi_row.add(circle)
@@ -229,15 +240,14 @@ dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
 # Background
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
 
-# Roads
-sections = road.get_sections()
-for section in sections:
-    svg_add_section(section, dwg)
+# Section data (roads)
+for section_id, section in roadmodel.sections.items():
+    svg_add_section(section_id, section, dwg)
 
-# MSIs
-points = road.get_points()  # 'MSI'
+# Point data (MSIs, convergence, divergence)
+points = roadmodel.get_points()  # 'MSI'
 for point in points:
-    angle_deg = road.get_local_angle(point)
+    angle_deg = roadmodel.get_local_angle(point)
     svg_add_point(point, angle_deg, dwg)
 
 # viewBox
