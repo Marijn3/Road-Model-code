@@ -379,7 +379,7 @@ class RoadModel:
 
         # Align new section range according to existing sections
         if other_section_side == 'L':
-            new_section_range.reverse()
+            new_section_range.reverse()  # TODO: Fix this
 
         new_section_props = new_section['properties']
 

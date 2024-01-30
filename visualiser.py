@@ -76,19 +76,54 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
         return get_transformed_coords(offset_geom)
 
 
-def check_point_on_line(section_id: int):
+def check_point_on_line(section_id: int) -> None | dict:
     for point_data in roadmodel.get_points():
         if section_id in point_data['section_ids'] and point_data['properties']['Type'] not in ['Signalering']:
-            print(f"There is a *vergence point ({point_data['km']}, "
+            print(f"There is a *vergence point ({point_data['km']}, {point_data['geometry']}, "
                   f"{point_data['properties']['Type']}) on section {section_id}")
-            return True
-    return False
+            return point_data
+    return None
+
+
+def change_geom(section_data: dict, point_data: dict):
+    line_geom = section_data['geometry']
+    point_type = point_data['properties']['Type']
+    point_geom = point_data['geometry']
+
+    first_point = Point(line_geom.coords[0])
+    last_point = Point(line_geom.coords[-1])
+
+    point_at_line_start = dwithin(first_point, point_geom, 0.5)
+    point_at_line_end = dwithin(last_point, point_geom, 0.5)
+    has_puntstuk = 'Puntstuk' in section_data['properties'].values()
+
+    if point_type == 'D' and point_at_line_start:
+        print(f"two geometries should be changed for {point_geom}: one of which is {section_data}")
+
+    elif point_type == 'C' and point_at_line_end:
+        print(f"two geometries should be changed for {point_geom}: one of which is {section_data}")
+
+    elif point_type == 'U' and point_at_line_start and not has_puntstuk:
+        print(f"one geometry should be changed: {section_data}")
+
+    elif point_type == 'I' and point_at_line_end and not has_puntstuk:
+        print(f"one geometry should be changed: {section_data}")
+
+    else:
+        print(f"It will be left alone, because {section_data}")
+
+    changed_geom = line_geom
+    return changed_geom
 
 
 def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawing):
-    check_point_on_line(section_id)
+    point_on_line = check_point_on_line(section_id)
 
-    geom = section_data['geometry']
+    if point_on_line:
+        geom = change_geom(section_data, point_on_line)
+    else:
+        geom = section_data['geometry']
+
     prop = section_data['properties']
 
     n_main_lanes, n_total_lanes = get_n_lanes(prop)
