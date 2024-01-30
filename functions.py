@@ -138,6 +138,8 @@ class DataFrameLoader:
                           '7 -> 7': (7, None)}
 
         if name == 'Rijstroken':
+            self.data[name]['VOLGNRSTRK'] = pd.to_numeric(self.data[name]['VOLGNRSTRK'], errors='coerce').astype('Int64')
+
             mapping_function = lambda row: lane_mapping_h.get(row['OMSCHR'], row['OMSCHR']) \
                 if row['KANTCODE'] == "H" \
                 else lane_mapping_t.get(row['OMSCHR'], row['OMSCHR'])
@@ -268,12 +270,13 @@ class RoadModel:
         properties = {}
 
         if name == 'Convergenties':
-            properties['Type convergentie'] = row['TYPE_CONV']
+            properties['Type'] = row['TYPE_CONV']
 
         if name == 'Divergenties':
-            properties['Type divergentie'] = row['TYPE_DIV']
+            properties['Type'] = row['TYPE_DIV']
 
         if name == 'Rijstrooksignaleringen':
+            properties['Type'] = 'Signalering'
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
         # Get the IDs of the sections it overlaps, as well as the roadside letter
