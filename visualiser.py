@@ -18,6 +18,11 @@ def get_road_color(prop: dict) -> str:
     # if 'Puntstuk' in prop.values():
     #     return 'dimgrey'
 
+    lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int) and lane not in ['Puntstuk']])
+    for lane_number in lane_numbers[:-1]:
+        if lane_number + 1 not in prop.keys():
+            return 'orange'
+
     if 'Special' in prop.keys():
         return 'brown'
 
@@ -94,67 +99,64 @@ def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
-    add_separator_lines(geom, prop, n_total_lanes, n_main_lanes, svg_dwg)
+    if color not in ['orange']:
+        add_separator_lines(geom, prop, n_total_lanes, n_main_lanes, svg_dwg)
 
 
 def add_separator_lines(geom: LineString, prop: dict, n_total_lanes: int, n_main_lanes: int, svg_dwg: svgwrite.Drawing):
+    lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
+
     # Offset centered around main lanes. Positive offset distance is on the left side of the line.
-    offsets = [(LANE_WIDTH * n_main_lanes) / 2 - LANE_WIDTH * i for i in range(n_total_lanes + 1)]
+    marking_offsets = [(LANE_WIDTH * n_main_lanes) / 2 - LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
+
+    first_lane_nr = lane_numbers[0]
+    last_lane_nr = lane_numbers[-1]
 
     # Add first solid line (leftmost), except when the first lane is a vluchtstrook.
-    line_coords = get_offset_coords(geom, offsets.pop(0))
-    first_lane_nr = min([key for key in prop.keys() if isinstance(key, int)])
+    line_coords = get_offset_coords(geom, marking_offsets.pop(0))
     if prop[first_lane_nr] != 'Vluchtstrook':
         add_markerline(line_coords, svg_dwg)
 
-    for lane_nr in range(1, n_total_lanes):
-        line_coords = get_offset_coords(geom, offsets.pop(0))
+    for lane_number in lane_numbers[:-1]:
+        this_lane = prop[lane_number]
+        next_lane = prop[lane_number + 1]
+        line_coords = get_offset_coords(geom, marking_offsets.pop(0))
 
-        # To handle missing road numbers. TODO: Check if still necessary.
-        if lane_nr not in prop.keys():
-            print(f"[WARNING:] Could not print lane number {lane_nr} in {prop}.")
-            continue
+        # A puntstuk is the final lane.
+        if next_lane == 'Puntstuk':
+            add_markerline(line_coords, svg_dwg, "point")
+            break
 
-        # An emergency lane (on the first lane) has a solid line.
-        if prop[lane_nr] in ['Vluchtstrook']:
+        # An emergency lane is demarcated with a solid line.
+        if this_lane == 'Vluchtstrook' or next_lane == 'Vluchtstrook':
             add_markerline(line_coords, svg_dwg)
-            continue
 
-        # A pluslane (on the first lane) has a 9-3 dashed line.
-        if prop[lane_nr] in ['Plusstrook']:
+        # A plus lane is demarcated with a 9-3 dashed line.
+        elif this_lane == 'Plusstrook':
             add_markerline(line_coords, svg_dwg, "dashed-9-3")
 
         # If the next lane is a samenvoeging, use normal dashed lane marking.
-        if prop[lane_nr + 1] == 'Samenvoeging':
+        elif next_lane == 'Samenvoeging':
             add_markerline(line_coords, svg_dwg, "dashed-3-9")
 
         # A rush hour lane (on the final lane) has special lines.
-        if prop[lane_nr + 1] == 'Spitsstrook' and lane_nr + 1 == n_total_lanes:
+        elif next_lane == 'Spitsstrook' and lane_number + 1 == last_lane_nr:
             add_markerline(line_coords, svg_dwg)
-            line_coords = get_offset_coords(geom, offsets.pop(0))
-            add_markerline(line_coords, svg_dwg, "thin")
-            break
-
-        # An emergency lane (not on the first lane) is always the final, rightmost lane.
-        if prop[lane_nr + 1] == 'Vluchtstrook':
-            add_markerline(line_coords, svg_dwg)
-            break
 
         # All other lanes are separated by dashed lines.
-        if prop[lane_nr] == prop[lane_nr + 1]:
+        elif this_lane == next_lane:
             add_markerline(line_coords, svg_dwg, "dashed-3-9")
+
         # If the lane types are not the same, block markings are used.
         else:
             add_markerline(line_coords, svg_dwg, "block")
 
-    # Add last solid line (leftmost), except when the last lane is a vluchtstrook, spitsstrook, puntstuk.
-    last_lane_nr = min([key for key in prop.keys() if isinstance(key, int)])
-    line_coords = get_offset_coords(geom, offsets.pop(0))
-    if prop[last_lane_nr] == 'Puntstuk':
-        add_markerline(line_coords, svg_dwg, "point")
-    elif prop[last_lane_nr] == 'Spitsstrook':
+    # Add last solid line (rightmost), except when the last lane is a vluchtstrook or puntstuk.
+    # Spitsstrook has special lining.
+    line_coords = get_offset_coords(geom, marking_offsets.pop(0))
+    if prop[last_lane_nr] == 'Spitsstrook':
         add_markerline(line_coords, svg_dwg, "thin")
-    elif prop[last_lane_nr] != 'Vluchtstrook':
+    elif prop[last_lane_nr] not in ['Vluchtstrook', 'Puntstuk']:
         add_markerline(line_coords, svg_dwg)
 
 
