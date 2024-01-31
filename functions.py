@@ -1015,8 +1015,9 @@ class MSIRow:
         self.name = f"A{self.info['roadnumber']}{self.info['roadside']}:{self.info['km']}"
 
         # Determine everything there is to know about the road in general
-        self.n_lanes = max((lane_nr for lane_nr, lane_type in self.local_road_properties.items()
-                            if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']), default=0)
+        self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
+                                    if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']])
+        self.n_lanes = len(self.lane_numbers)
         self.n_msis = len(self.properties['Rijstroken'])
 
         # Create all MSIs in row, passing the parent row class as argument
@@ -1027,8 +1028,14 @@ class MSIRow:
         cw_index = 1
         lanes_in_current_cw = [1]
 
-        # TODO: Does NOT work for taper or broadening/narrowing. Assumes whole numbers
-        for lane_number in range(1, self.n_lanes):
+        for lane_number in self.lane_numbers:
+            print(lane_number, self.local_road_properties)
+
+            # Add final lane and stop
+            if lane_number == self.n_lanes:
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                break
+
             current_lane = self.local_road_properties[lane_number]
             next_lane = self.local_road_properties[lane_number + 1]
             if current_lane == next_lane:
@@ -1037,10 +1044,6 @@ class MSIRow:
                 self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
                 lanes_in_current_cw = [lane_number + 1]
                 cw_index += 1
-
-            # Add final lane
-            if lane_number + 1 == self.n_lanes:
-                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
 
     def fill_row_properties(self):
         for msi in self.MSIs.values():
