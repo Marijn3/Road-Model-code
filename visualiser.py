@@ -113,11 +113,11 @@ def get_changed_geometry(section_data: dict, point_data: dict) -> LineString:
         section_data['*vergence'] = 'end'
 
     if point_type == 'Splitsing' and point_at_line_start:
-        print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
+        # print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
         return line_geom  # TODO: TEMP
 
     elif point_type == 'Samenvoeging' and point_at_line_end:
-        print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
+        # print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
         return line_geom  # TODO: TEMP
 
     elif point_type == 'Uitvoeging' and point_at_line_start and not has_puntstuk:
@@ -212,8 +212,8 @@ def add_separator_lines(geom: LineString, section_data: dict, n_main_lanes: int,
                     add_markerline(line_coords, svg_dwg, "point-start")
                 elif section_data['*vergence'] == 'end':
                     add_markerline(line_coords, svg_dwg, "point-end")
-            else:
-                print('not found in keys')
+            # else:
+                # print(f"not found in keys of {section_data}")
             break
 
         # An emergency lane is demarcated with a solid line.
@@ -259,30 +259,18 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     elif linetype == "block":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.6,
                                         stroke_dasharray="0.8 4")
-    elif linetype == "point-start":
-        triangle_start = coords[0]
-        triangle_end = coords[-1]
-        vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
-        perpendicular = [-vec[1], vec[0]]
-        magnitude = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
-        normalized = [perpendicular[0] / magnitude, perpendicular[1] / magnitude]
-        triangle_end_width = LANE_WIDTH
-        third_point = (triangle_end[0] + triangle_end_width * normalized[0], triangle_end[1] + triangle_end_width * normalized[1])
-        triangle = svgwrite.shapes.Polygon(points=[triangle_start, triangle_end, third_point], fill="#faf8f5")
-        svg_dwg.add(triangle)
+    elif linetype == "point-start" or linetype == "point-end":
+        if linetype == "point-start":
+            triangle_end = coords[-1]
+        else:
+            triangle_end = coords[0]
 
-        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
-
-    elif linetype == "point-end":
-        triangle_start = coords[-1]
-        triangle_end = coords[0]
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
-        perpendicular = [-vec[1], vec[0]]
-        magnitude = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
-        normalized = [perpendicular[0]/magnitude, perpendicular[1]/magnitude]
-        triangle_end_width = LANE_WIDTH
-        third_point = (triangle_end[0] + triangle_end_width * normalized[0], triangle_end[1] + triangle_end_width * normalized[1])
-        triangle = svgwrite.shapes.Polygon(points=[triangle_start, triangle_end, third_point], fill="#faf8f5")
+        mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
+        third_point = (triangle_end[0] + LANE_WIDTH * -vec[1] / mag, triangle_end[1] + LANE_WIDTH * vec[0] / mag)
+        all_points = coords + [third_point]
+
+        triangle = svgwrite.shapes.Polygon(points=all_points, fill="#faf8f5")
         svg_dwg.add(triangle)
 
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
