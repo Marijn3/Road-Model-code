@@ -6,7 +6,7 @@ from copy import deepcopy
 import math
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 0.000001
+GRID_SIZE = 0.00001
 
 
 class DataFrameLoader:
@@ -269,25 +269,38 @@ class RoadModel:
     def __extract_point_properties(self, row: pd.Series, name: str):
         properties = {}
 
+        # TODO: This part should be moved to DFL class.
+        VERGENCE_TYPE_MAPPING = {
+            'U': 'Uitvoeging',
+            'D': 'Splitsing',
+            'C': 'Samenvoeging',
+            'I': 'Invoeging'
+        }
+
         if name == 'Convergenties':
-            properties['Type'] = row['TYPE_CONV']
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
 
         if name == 'Divergenties':
-            properties['Type'] = row['TYPE_DIV']
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
 
         if name == 'Rijstrooksignaleringen':
             properties['Type'] = 'Signalering'
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        # Get the IDs of the sections it overlaps, as well as the roadside letter
+        # Get the roadside letter
         overlapping_sections = self.get_sections_at_point(row['geometry'])
-        section_ids = [section_id for section_id in overlapping_sections.keys()]
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
+
+        # Get the IDs of the sections it overlaps
+        section_ids = [section_id for section_id in overlapping_sections.keys()]
 
         # Get the local number of (main) lanes. Take the highest value if there are multiple.
         lane_info = [self.get_n_lanes(section_info['properties']) for section_info in overlapping_sections.values()]
         properties['nMainLanes'] = max(lane_info, key=lambda x: x[0])[0]
         properties['nTotalLanes'] = max(lane_info, key=lambda x: x[1])[1]
+
+        # Get the local orientation
+        properties['Local angle'] = self.get_local_angle(section_ids, row['geometry'])
 
         return {'roadside': roadside,
                 'km': row['KMTR'],
@@ -361,7 +374,7 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            print("No overlap detected.")
+            print(f"No overlap detected with {new_section}. It will not be added.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -387,6 +400,7 @@ class RoadModel:
         if same_direction(other_section_geom, new_section['geometry']):
             new_section_geom = new_section['geometry']
         else:
+            print("Attention: new geometry is reversed.")
             new_section_geom = reverse(new_section['geometry'])
 
         sections_to_remove = set()
@@ -405,10 +419,10 @@ class RoadModel:
 
             # print("New section range:", new_section_range)
             # print("New section props:", new_section_props)
-            # print("New section geom:", new_section['geometry'])
+            # print("New section geom:", set_precision(new_section['geometry'], 1))
             # print("Other section range:", other_section_range)
             # print("Other section props:", other_section_props)
-            # print("Other section geom:", other_section_geom)
+            # print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
@@ -485,7 +499,7 @@ class RoadModel:
                     self.__update_section(other_section_index,
                                           km_range=new_section_range,
                                           props=new_section_props,
-                                          geom=new_section_geom)
+                                          geom=other_section_geom)
                     # This is the final iteration.
                     break
 
@@ -763,20 +777,20 @@ class RoadModel:
 
         return [point for point in self.points.values()]
 
-    def get_local_angle(self, point_info: dict) -> float:
+    def get_local_angle(self, overlapping_ids, point_geom: Point) -> float:
         """
         Find the approximate local angle of sections in the road model at a given point.
         Returns:
             Local angle in degrees.
         """
-        overlapping_lines = [line for index, line in self.sections.items() if index in point_info['section_ids']]
+        overlapping_lines = [line for index, line in self.sections.items() if index in overlapping_ids]
 
         assert overlapping_lines, "Point is not overlapping any lines."
 
         angles = []
         for line in overlapping_lines:
             line_points = [point for point in line['geometry'].coords]
-            closest_point = min(line_points, key=lambda coord: distance(point_info['geometry'], Point(coord)))
+            closest_point = min(line_points, key=lambda coord: distance(point_geom, Point(coord)))
             closest_index = line_points.index(closest_point)
 
             if closest_index + 1 < len(line_points):
@@ -915,13 +929,19 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     Geom1 is taken as the 'correct' orientation.
     Args:
         geom1: The first shapely LineString geometry.
-        geom2: The first shapely LineString geometry.
+        geom2: The second shapely LineString geometry.
     Returns:
         Boolean value that is True when the geometries are in the same directions.
     """
-
     geom1_linedist_a = line_locate_point(geom1, Point(geom2.coords[0]))
     geom1_linedist_b = line_locate_point(geom1, Point(geom2.coords[-1]))
+
+    # Catch cases where both linedistances are equal (likely 0 or 1)
+    if geom1_linedist_a == geom1_linedist_b:
+        geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
+        geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
+        return geom2_linedist_a < geom2_linedist_b
+
     return geom1_linedist_a < geom1_linedist_b
 
 

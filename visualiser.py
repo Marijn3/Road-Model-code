@@ -5,7 +5,7 @@ import math
 LANE_WIDTH = 3.5
 
 dfl = DataFrameLoader("Vught")
-road = RoadModel(dfl)
+roadmodel = RoadModel(dfl)
 
 TOP_LEFT_X, TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
 BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]
@@ -76,11 +76,93 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
         return get_transformed_coords(offset_geom)
 
 
-def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
-    geom = section_data['geometry']
-    prop = section_data['properties']
+def check_point_on_line(section_id: int) -> None | dict:
+    for point_data in roadmodel.get_points():
+        if section_id in point_data['section_ids'] and point_data['properties']['Type'] not in ['Signalering']:
+            # print(f"There is a *vergence point ({point_data['km']}, {point_data['geometry']}, "
+            #       f"{point_data['properties']['Type']}) on section {section_id}")
+            return point_data
+    return None
 
-    n_main_lanes, n_total_lanes = get_n_lanes(prop)
+
+def get_changed_geometry(section_data: dict, point_data: dict) -> LineString:
+    """
+    Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
+    *vergence point and it is necessary to move the section. Also adds a general property to the section
+    that details whether there is a *vergence point at the start or end of it.
+    Args:
+        ...
+        ...
+    Returns:
+        The geometry of the section, where one of the endpoints is displaced if necessary.
+    """
+    line_geom = section_data['geometry']
+    point_type = point_data['properties']['Type']
+
+    if point_type == 'Signalering':
+        return line_geom
+
+    point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['geometry'], 0.5)
+    point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data['geometry'], 0.5)
+    has_puntstuk = 'Puntstuk' in section_data['properties'].values()
+
+    # Store where the point is (if applicable)
+    if point_at_line_start:
+        section_data['*vergence'] = 'start'
+    if point_at_line_end:
+        section_data['*vergence'] = 'end'
+
+    if point_type == 'Splitsing' and point_at_line_start:
+        # print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
+        return line_geom  # TODO: TEMP
+
+    elif point_type == 'Samenvoeging' and point_at_line_end:
+        # print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
+        return line_geom  # TODO: TEMP
+
+    elif point_type == 'Uitvoeging' and point_at_line_start and not has_puntstuk:
+        return move_endpoint(section_data, point_data, True)
+
+    elif point_type == 'Invoeging' and point_at_line_end and not has_puntstuk:
+        return move_endpoint(section_data, point_data, False)
+
+    else:
+        # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
+        return line_geom
+
+
+def move_endpoint(section_data: dict, point_data: dict, change_start: bool = True):
+    angle_radians = math.radians(point_data['properties']['Local angle'])
+    tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
+
+    main_lanes_on_large_road = point_data['properties']['nMainLanes']
+    main_lanes_on_this_road, _ = get_n_lanes(section_data['properties'])
+    displacement = LANE_WIDTH * (main_lanes_on_large_road + main_lanes_on_this_road) / 2
+
+    line_geom = section_data['geometry']
+    if change_start:
+        point_to_displace = line_geom.coords[0]
+    else:
+        point_to_displace = line_geom.coords[-1]
+
+    displaced_point = Point(point_to_displace[0] - tangent_vector[0] * displacement,
+                            point_to_displace[1] - tangent_vector[1] * displacement)
+
+    if change_start:
+        return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[2:]])
+    else:
+        return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
+
+
+def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawing):
+    point_on_line = check_point_on_line(section_id)
+
+    if point_on_line:
+        geom = get_changed_geometry(section_data, point_on_line)
+    else:
+        geom = section_data['geometry']
+
+    n_main_lanes, n_total_lanes = get_n_lanes(section_data['properties'])
 
     if n_total_lanes < 1:
         print(f"[WARNING:] Skipping visualisation of section without any lanes: {section_data}")
@@ -93,17 +175,18 @@ def svg_add_section(section_data: dict, svg_dwg: svgwrite.Drawing):
     offset = (LANE_WIDTH * n_main_lanes) / 2 - LANE_WIDTH * n_total_lanes / 2
 
     asphalt_coords = get_offset_coords(geom, offset)
-    color = get_road_color(prop)
+    color = get_road_color(section_data['properties'])
     width = LANE_WIDTH * n_total_lanes
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
     if color not in ['orange']:
-        add_separator_lines(geom, prop, n_total_lanes, n_main_lanes, svg_dwg)
+        add_separator_lines(geom, section_data, n_main_lanes, svg_dwg)
 
 
-def add_separator_lines(geom: LineString, prop: dict, n_total_lanes: int, n_main_lanes: int, svg_dwg: svgwrite.Drawing):
+def add_separator_lines(geom: LineString, section_data: dict, n_main_lanes: int, svg_dwg: svgwrite.Drawing):
+    prop = section_data['properties']
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
     # Offset centered around main lanes. Positive offset distance is on the left side of the line.
@@ -124,7 +207,13 @@ def add_separator_lines(geom: LineString, prop: dict, n_total_lanes: int, n_main
 
         # A puntstuk is the final lane.
         if next_lane == 'Puntstuk':
-            add_markerline(line_coords, svg_dwg, "point")
+            if '*vergence' in section_data.keys():
+                if section_data['*vergence'] == 'start':
+                    add_markerline(line_coords, svg_dwg, "point-start")
+                elif section_data['*vergence'] == 'end':
+                    add_markerline(line_coords, svg_dwg, "point-end")
+            # else:
+                # print(f"not found in keys of {section_data}")
             break
 
         # An emergency lane is demarcated with a solid line.
@@ -170,8 +259,21 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     elif linetype == "block":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.6,
                                         stroke_dasharray="0.8 4")
-    elif linetype == "point":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=1.5)
+    elif linetype == "point-start" or linetype == "point-end":
+        if linetype == "point-start":
+            triangle_end = coords[-1]
+        else:
+            triangle_end = coords[0]
+
+        vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
+        mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
+        third_point = (triangle_end[0] + LANE_WIDTH * -vec[1] / mag, triangle_end[1] + LANE_WIDTH * vec[0] / mag)
+        all_points = coords + [third_point]
+
+        triangle = svgwrite.shapes.Polygon(points=all_points, fill="#faf8f5")
+        svg_dwg.add(triangle)
+
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
 
     elif linetype == "thin":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.2)
@@ -182,21 +284,22 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     svg_dwg.add(line)
 
 
-# def svg_add_point(geom: Point, prop: dict, km: float, orientation: float, svg_dwg: svgwrite.Drawing):
-def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
+def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     geom = point_data['geometry']
     prop = point_data['properties']
     km = point_data['km']
+
+    angle = prop['Local angle']
     rotate_angle = 90 - angle
     msibox_size = 6
     play = 1.2
     info_offset = LANE_WIDTH * (prop['nTotalLanes'] + (prop['nTotalLanes'] - prop['nMainLanes'])) / 2
 
     coords = get_transformed_coords(geom)[0]
-    if 'Rijstroken' in prop.keys():
+    if prop['Type'] == 'Signalering':
         group_msi_row = svgwrite.container.Group()
-        circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        group_msi_row.add(circle)
+        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
+        # group_msi_row.add(circle)
 
         for nr in prop['Rijstroken']:
             displacement = info_offset + play + (nr - 1) * (play + msibox_size)
@@ -214,8 +317,8 @@ def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
         group_vergence = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_vergence.add(circle)
-        point_type = [type_letter for type_letter in prop.values()][0]
-        text = svgwrite.text.Text(point_type + " " + str(km),
+        point_type = prop['Type']
+        text = svgwrite.text.Text(f"{km} {point_type}",
                                   insert=(coords[0] + play + info_offset, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
         group_vergence.add(text)
@@ -229,16 +332,14 @@ dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
 # Background
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
 
-# Roads
-sections = road.get_sections()
-for section in sections:
-    svg_add_section(section, dwg)
+# Section data (roads)
+for section_id, section in roadmodel.sections.items():
+    svg_add_section(section_id, section, dwg)
 
-# MSIs
-points = road.get_points()  # 'MSI'
+# Point data (MSIs, convergence, divergence)
+points = roadmodel.get_points()  # 'MSI'
 for point in points:
-    angle_deg = road.get_local_angle(point)
-    svg_add_point(point, angle_deg, dwg)
+    svg_add_point(point, dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
