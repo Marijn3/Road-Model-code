@@ -99,21 +99,21 @@ def change_geom(section_data: dict, point_data: dict):
 
     if point_type == 'D' and point_at_line_start:
         print(f"two geometries should be changed for {point_geom}: one of which is {section_data}")
-        changed_geom = line_geom  # TOOD: TEMP
+        changed_geom = line_geom  # TODO: TEMP
 
     elif point_type == 'C' and point_at_line_end:
         print(f"two geometries should be changed for {point_geom}: one of which is {section_data}")
-        changed_geom = line_geom  # TOOD: TEMP
+        changed_geom = line_geom  # TODO: TEMP
 
     elif point_type == 'U' and point_at_line_start and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
-        line_geom
-        displaced_point = first_point.coords
-        changed_geom = set_coordinates(line_geom.copy(), displaced_point)
+        changed_geom = line_geom  # TODO: TEMP
+        # displaced_point = first_point.coords
+        # changed_geom = set_coordinates(line_geom.copy(), displaced_point)
 
     elif point_type == 'I' and point_at_line_end and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
-        changed_geom = line_geom  # TOOD: TEMP
+        changed_geom = line_geom  # TODO: TEMP
 
     else:
         print(f"It will be left alone, because {section_data}")
@@ -247,11 +247,12 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     svg_dwg.add(line)
 
 
-# def svg_add_point(geom: Point, prop: dict, km: float, orientation: float, svg_dwg: svgwrite.Drawing):
-def svg_add_point(point_data: dict, angle: float, svg_dwg: svgwrite.Drawing):
+def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     geom = point_data['geometry']
     prop = point_data['properties']
     km = point_data['km']
+
+    angle = prop['localAngle']
     rotate_angle = 90 - angle
     msibox_size = 6
     play = 1.2
@@ -301,8 +302,7 @@ for section_id, section in roadmodel.sections.items():
 # Point data (MSIs, convergence, divergence)
 points = roadmodel.get_points()  # 'MSI'
 for point in points:
-    angle_deg = roadmodel.get_local_angle(point)
-    svg_add_point(point, angle_deg, dwg)
+    svg_add_point(point, dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)

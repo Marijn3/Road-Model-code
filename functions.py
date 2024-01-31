@@ -289,6 +289,9 @@ class RoadModel:
         properties['nMainLanes'] = max(lane_info, key=lambda x: x[0])[0]
         properties['nTotalLanes'] = max(lane_info, key=lambda x: x[1])[1]
 
+        # Get the local orientation
+        properties['localAngle'] = self.get_local_angle(section_ids, row['geometry'])
+
         return {'roadside': roadside,
                 'km': row['KMTR'],
                 'section_ids': section_ids,
@@ -764,20 +767,20 @@ class RoadModel:
 
         return [point for point in self.points.values()]
 
-    def get_local_angle(self, point_info: dict) -> float:
+    def get_local_angle(self, overlapping_ids, point_geom: Point) -> float:
         """
         Find the approximate local angle of sections in the road model at a given point.
         Returns:
             Local angle in degrees.
         """
-        overlapping_lines = [line for index, line in self.sections.items() if index in point_info['section_ids']]
+        overlapping_lines = [line for index, line in self.sections.items() if index in overlapping_ids]
 
         assert overlapping_lines, "Point is not overlapping any lines."
 
         angles = []
         for line in overlapping_lines:
             line_points = [point for point in line['geometry'].coords]
-            closest_point = min(line_points, key=lambda coord: distance(point_info['geometry'], Point(coord)))
+            closest_point = min(line_points, key=lambda coord: distance(point_geom, Point(coord)))
             closest_index = line_points.index(closest_point)
 
             if closest_index + 1 < len(line_points):
