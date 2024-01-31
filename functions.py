@@ -269,11 +269,19 @@ class RoadModel:
     def __extract_point_properties(self, row: pd.Series, name: str):
         properties = {}
 
+        # TODO: This part should be moved to DFL class.
+        VERGENCE_TYPE_MAPPING = {
+            'U': 'Uitvoeging',
+            'D': 'Splitsing',
+            'C': 'Samenvoeging',
+            'I': 'Invoeging'
+        }
+
         if name == 'Convergenties':
-            properties['Type'] = row['TYPE_CONV']
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
 
         if name == 'Divergenties':
-            properties['Type'] = row['TYPE_DIV']
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
 
         if name == 'Rijstrooksignaleringen':
             properties['Type'] = 'Signalering'

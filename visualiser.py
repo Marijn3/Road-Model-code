@@ -4,7 +4,7 @@ import math
 
 LANE_WIDTH = 3.5
 
-dfl = DataFrameLoader("A27")
+dfl = DataFrameLoader("Vught")
 roadmodel = RoadModel(dfl)
 
 TOP_LEFT_X, TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
@@ -12,13 +12,6 @@ BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]
 VIEWBOX_WIDTH = abs(TOP_LEFT_X - BOTTOM_RIGHT_X)
 VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
 RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
-
-VERGENCE_TYPE_MAPPING = {
-            'U': 'Uitvoeging',
-            'D': 'Splitsing',
-            'C': 'Samenvoeging',
-            'I': 'Invoeging'
-}
 
 
 def get_road_color(prop: dict) -> str:
@@ -119,18 +112,18 @@ def get_changed_geometry(section_data: dict, point_data: dict) -> LineString:
     if point_at_line_end:
         section_data['*vergence'] = 'end'
 
-    if point_type == 'D' and point_at_line_start:
+    if point_type == 'Splitsing' and point_at_line_start:
         print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
         return line_geom  # TODO: TEMP
 
-    elif point_type == 'C' and point_at_line_end:
+    elif point_type == 'Samenvoeging' and point_at_line_end:
         print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
         return line_geom  # TODO: TEMP
 
-    elif point_type == 'U' and point_at_line_start and not has_puntstuk:
+    elif point_type == 'Uitvoeging' and point_at_line_start and not has_puntstuk:
         return move_endpoint(section_data, point_data, True)
 
-    elif point_type == 'I' and point_at_line_end and not has_puntstuk:
+    elif point_type == 'Invoeging' and point_at_line_end and not has_puntstuk:
         return move_endpoint(section_data, point_data, False)
 
     else:
@@ -336,7 +329,7 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
         group_vergence = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_vergence.add(circle)
-        point_type = VERGENCE_TYPE_MAPPING.get(prop['Type'], "Unknown")
+        point_type = prop['Type']
         text = svgwrite.text.Text(f"{km} {point_type}",
                                   insert=(coords[0] + play + info_offset, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
