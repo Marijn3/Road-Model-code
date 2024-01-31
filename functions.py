@@ -6,7 +6,7 @@ from copy import deepcopy
 import math
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 0.000001
+GRID_SIZE = 0.00001
 
 
 class DataFrameLoader:
@@ -25,9 +25,9 @@ class DataFrameLoader:
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
         "data/Rijstroken/rijstroken-edit.dbf",
-        "data/Kantstroken/kantstroken.dbf",
-        "data/Mengstroken/mengstroken.dbf",
-        "data/Maximum snelheid/max_snelheden.dbf",
+        "data/Kantstroken/kantstroken-edit.dbf",
+        "data/Mengstroken/mengstroken-edit.dbf",
+        "data/Maximum snelheid/max_snelheden-edit.dbf",
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
@@ -361,7 +361,7 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            print("No overlap detected.")
+            print(f"No overlap detected with {new_section}. It will not be added.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -379,7 +379,7 @@ class RoadModel:
 
         # Align new section range according to existing sections
         if other_section_side == 'L':
-            new_section_range.reverse()  # TODO: Fix this
+            new_section_range.reverse()
 
         new_section_props = new_section['properties']
 
@@ -387,6 +387,7 @@ class RoadModel:
         if same_direction(other_section_geom, new_section['geometry']):
             new_section_geom = new_section['geometry']
         else:
+            print("Attention: new geometry is reversed.")
             new_section_geom = reverse(new_section['geometry'])
 
         sections_to_remove = set()
@@ -405,10 +406,10 @@ class RoadModel:
 
             # print("New section range:", new_section_range)
             # print("New section props:", new_section_props)
-            # print("New section geom:", new_section['geometry'])
+            # print("New section geom:", set_precision(new_section['geometry'], 1))
             # print("Other section range:", other_section_range)
             # print("Other section props:", other_section_props)
-            # print("Other section geom:", other_section_geom)
+            # print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
@@ -485,7 +486,7 @@ class RoadModel:
                     self.__update_section(other_section_index,
                                           km_range=new_section_range,
                                           props=new_section_props,
-                                          geom=new_section_geom)
+                                          geom=other_section_geom)
                     # This is the final iteration.
                     break
 
@@ -915,13 +916,19 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     Geom1 is taken as the 'correct' orientation.
     Args:
         geom1: The first shapely LineString geometry.
-        geom2: The first shapely LineString geometry.
+        geom2: The second shapely LineString geometry.
     Returns:
         Boolean value that is True when the geometries are in the same directions.
     """
-
     geom1_linedist_a = line_locate_point(geom1, Point(geom2.coords[0]))
     geom1_linedist_b = line_locate_point(geom1, Point(geom2.coords[-1]))
+
+    # Catch cases where both linedistances are equal (likely 0 or 1)
+    if geom1_linedist_a == geom1_linedist_b:
+        geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
+        geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
+        return geom2_linedist_a < geom2_linedist_b
+
     return geom1_linedist_a < geom1_linedist_b
 
 

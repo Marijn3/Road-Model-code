@@ -99,20 +99,26 @@ def change_geom(section_data: dict, point_data: dict):
 
     if point_type == 'D' and point_at_line_start:
         print(f"two geometries should be changed for {point_geom}: one of which is {section_data}")
+        changed_geom = line_geom  # TOOD: TEMP
 
     elif point_type == 'C' and point_at_line_end:
         print(f"two geometries should be changed for {point_geom}: one of which is {section_data}")
+        changed_geom = line_geom  # TOOD: TEMP
 
     elif point_type == 'U' and point_at_line_start and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
+        line_geom
+        displaced_point = first_point.coords
+        changed_geom = set_coordinates(line_geom.copy(), displaced_point)
 
     elif point_type == 'I' and point_at_line_end and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
+        changed_geom = line_geom  # TOOD: TEMP
 
     else:
         print(f"It will be left alone, because {section_data}")
+        changed_geom = line_geom
 
-    changed_geom = line_geom
     return changed_geom
 
 
@@ -144,6 +150,19 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
+
+    # Add a circle at the first point (start) of the polyline
+    circle_radius = 5
+    first_point = asphalt_coords[0]
+    circle = svgwrite.shapes.Circle(center=first_point, r=circle_radius, fill="blue")
+    dwg.add(circle)
+
+    # Add a square at the last point (end) of the polyline
+    square_side = 9
+    last_point = asphalt_coords[-1]
+    square = svgwrite.shapes.Rect(insert=(last_point[0] - square_side / 2, last_point[1] - square_side / 2),
+                                  size=(square_side, square_side), fill="purple")
+    dwg.add(square)
 
     if color not in ['orange']:
         add_separator_lines(geom, prop, n_total_lanes, n_main_lanes, svg_dwg)
