@@ -25,9 +25,9 @@ class DataFrameLoader:
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
         "data/Rijstroken/rijstroken-edit.dbf",
-        "data/Kantstroken/kantstroken-edit.dbf",
-        "data/Mengstroken/mengstroken-edit.dbf",
-        "data/Maximum snelheid/max_snelheden-edit.dbf",
+        "data/Kantstroken/kantstroken.dbf",
+        "data/Mengstroken/mengstroken.dbf",
+        "data/Maximum snelheid/max_snelheden.dbf",
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",

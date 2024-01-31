@@ -112,17 +112,29 @@ def change_geom(section_data: dict, point_data: dict):
         x_component = math.cos(angle_radians)
         y_component = math.sin(angle_radians)
         tangent_vector = [-y_component, x_component]  # Rotated by 90 degrees
-        x = first_point.x
-        y = first_point.y
-        displacement = -8.75  # TODO: find actual displacement depending on the lane types
-        displaced_point = Point(x + tangent_vector[0]*displacement, y + tangent_vector[1]*displacement)
+        main_lanes_on_large_road = point_data['properties']['nMainLanes']
+        main_lanes_on_this_road, total_lanes_on_this_road = get_n_lanes(section_data['properties'])
+        displacement = LANE_WIDTH*(main_lanes_on_large_road+main_lanes_on_this_road)/2
+        displaced_point = Point(first_point.x - tangent_vector[0]*displacement,
+                                first_point.y - tangent_vector[1]*displacement)
         changed_geom = [coord for coord in line_geom.coords]
         changed_geom[0] = displaced_point.coords[0]
         changed_geom = LineString(changed_geom)
 
     elif point_type == 'I' and point_at_line_end and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
-        changed_geom = line_geom  # TODO: TEMP
+        angle_radians = math.radians(local_road_angle)
+        x_component = math.cos(angle_radians)
+        y_component = math.sin(angle_radians)
+        tangent_vector = [-y_component, x_component]  # Rotated by 90 degrees
+        main_lanes_on_large_road = point_data['properties']['nMainLanes']
+        main_lanes_on_this_road, total_lanes_on_this_road = get_n_lanes(section_data['properties'])
+        displacement = LANE_WIDTH * (main_lanes_on_large_road + main_lanes_on_this_road) / 2
+        displaced_point = Point(last_point.x - tangent_vector[0] * displacement,
+                                last_point.y - tangent_vector[1] * displacement)
+        changed_geom = [coord for coord in line_geom.coords]
+        changed_geom[-1] = displaced_point.coords[-1]
+        changed_geom = LineString(changed_geom)
 
     else:
         print(f"It will be left alone, because {section_data}")
