@@ -4,7 +4,7 @@ import math
 
 LANE_WIDTH = 3.5
 
-dfl = DataFrameLoader("Vught")
+dfl = DataFrameLoader("A27")
 roadmodel = RoadModel(dfl)
 
 TOP_LEFT_X, TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
@@ -86,8 +86,8 @@ def get_offset_coords(geom: LineString, offset: float) -> list[tuple]:
 def check_point_on_line(section_id: int) -> None | dict:
     for point_data in roadmodel.get_points():
         if section_id in point_data['section_ids'] and point_data['properties']['Type'] not in ['Signalering']:
-            print(f"There is a *vergence point ({point_data['km']}, {point_data['geometry']}, "
-                  f"{point_data['properties']['Type']}) on section {section_id}")
+            # print(f"There is a *vergence point ({point_data['km']}, {point_data['geometry']}, "
+            #       f"{point_data['properties']['Type']}) on section {section_id}")
             return point_data
     return None
 
@@ -95,7 +95,8 @@ def check_point_on_line(section_id: int) -> None | dict:
 def get_changed_geometry(section_data: dict, point_data: dict) -> LineString:
     """
     Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
-    *vergence point and it is necessary to move the section.
+    *vergence point and it is necessary to move the section. Also adds a general property to the section
+    that details whether there is a *vergence point at the start or end of it.
     Args:
         ...
         ...
@@ -111,6 +112,12 @@ def get_changed_geometry(section_data: dict, point_data: dict) -> LineString:
     point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['geometry'], 0.5)
     point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data['geometry'], 0.5)
     has_puntstuk = 'Puntstuk' in section_data['properties'].values()
+
+    # Store where the point is (if applicable)
+    if point_at_line_start:
+        section_data['*vergence'] = 'start'
+    if point_at_line_end:
+        section_data['*vergence'] = 'end'
 
     if point_type == 'D' and point_at_line_start:
         print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
@@ -162,9 +169,7 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
     else:
         geom = section_data['geometry']
 
-    prop = section_data['properties']
-
-    n_main_lanes, n_total_lanes = get_n_lanes(prop)
+    n_main_lanes, n_total_lanes = get_n_lanes(section_data['properties'])
 
     if n_total_lanes < 1:
         print(f"[WARNING:] Skipping visualisation of section without any lanes: {section_data}")
@@ -177,17 +182,18 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
     offset = (LANE_WIDTH * n_main_lanes) / 2 - LANE_WIDTH * n_total_lanes / 2
 
     asphalt_coords = get_offset_coords(geom, offset)
-    color = get_road_color(prop)
+    color = get_road_color(section_data['properties'])
     width = LANE_WIDTH * n_total_lanes
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
     if color not in ['orange']:
-        add_separator_lines(geom, prop, n_total_lanes, n_main_lanes, svg_dwg)
+        add_separator_lines(geom, section_data, n_main_lanes, svg_dwg)
 
 
-def add_separator_lines(geom: LineString, prop: dict, n_total_lanes: int, n_main_lanes: int, svg_dwg: svgwrite.Drawing):
+def add_separator_lines(geom: LineString, section_data: dict, n_main_lanes: int, svg_dwg: svgwrite.Drawing):
+    prop = section_data['properties']
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
     # Offset centered around main lanes. Positive offset distance is on the left side of the line.
@@ -208,7 +214,13 @@ def add_separator_lines(geom: LineString, prop: dict, n_total_lanes: int, n_main
 
         # A puntstuk is the final lane.
         if next_lane == 'Puntstuk':
-            add_markerline(line_coords, svg_dwg, "point")
+            if '*vergence' in section_data.keys():
+                if section_data['*vergence'] == 'start':
+                    add_markerline(line_coords, svg_dwg, "point-start")
+                elif section_data['*vergence'] == 'end':
+                    add_markerline(line_coords, svg_dwg, "point-end")
+            else:
+                print('not found in keys')
             break
 
         # An emergency lane is demarcated with a solid line.
@@ -254,8 +266,33 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     elif linetype == "block":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.6,
                                         stroke_dasharray="0.8 4")
-    elif linetype == "point":
-        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=1.5)
+    elif linetype == "point-start":
+        triangle_start = coords[0]
+        triangle_end = coords[-1]
+        vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
+        perpendicular = [-vec[1], vec[0]]
+        magnitude = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
+        normalized = [perpendicular[0] / magnitude, perpendicular[1] / magnitude]
+        triangle_end_width = LANE_WIDTH
+        third_point = (triangle_end[0] + triangle_end_width * normalized[0], triangle_end[1] + triangle_end_width * normalized[1])
+        triangle = svgwrite.shapes.Polygon(points=[triangle_start, triangle_end, third_point], fill="#faf8f5")
+        svg_dwg.add(triangle)
+
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
+
+    elif linetype == "point-end":
+        triangle_start = coords[-1]
+        triangle_end = coords[0]
+        vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
+        perpendicular = [-vec[1], vec[0]]
+        magnitude = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
+        normalized = [perpendicular[0]/magnitude, perpendicular[1]/magnitude]
+        triangle_end_width = LANE_WIDTH
+        third_point = (triangle_end[0] + triangle_end_width * normalized[0], triangle_end[1] + triangle_end_width * normalized[1])
+        triangle = svgwrite.shapes.Polygon(points=[triangle_start, triangle_end, third_point], fill="#faf8f5")
+        svg_dwg.add(triangle)
+
+        line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.4)
 
     elif linetype == "thin":
         line = svgwrite.shapes.Polyline(points=coords, stroke="#faf8f5", fill="none", stroke_width=0.2)
