@@ -290,7 +290,7 @@ class RoadModel:
         properties['nTotalLanes'] = max(lane_info, key=lambda x: x[1])[1]
 
         # Get the local orientation
-        properties['localAngle'] = self.get_local_angle(section_ids, row['geometry'])
+        properties['Local angle'] = self.get_local_angle(section_ids, row['geometry'])
 
         return {'roadside': roadside,
                 'km': row['KMTR'],
