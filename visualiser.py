@@ -13,6 +13,13 @@ VIEWBOX_WIDTH = abs(TOP_LEFT_X - BOTTOM_RIGHT_X)
 VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
 RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
+VERGENCE_TYPE_MAPPING = {
+            'U': 'Uitvoeging',
+            'D': 'Splitsing',
+            'C': 'Samenvoeging',
+            'I': 'Invoeging'
+}
+
 
 def get_road_color(prop: dict) -> str:
     # if 'Puntstuk' in prop.values():
@@ -269,8 +276,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     coords = get_transformed_coords(geom)[0]
     if prop['Type'] == 'Signalering':
         group_msi_row = svgwrite.container.Group()
-        circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        group_msi_row.add(circle)
+        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
+        # group_msi_row.add(circle)
 
         for nr in prop['Rijstroken']:
             displacement = info_offset + play + (nr - 1) * (play + msibox_size)
@@ -288,8 +295,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
         group_vergence = svgwrite.container.Group()
         circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
         group_vergence.add(circle)
-        point_type = [type_letter for type_letter in prop.values()][0]
-        text = svgwrite.text.Text(point_type + " " + str(km),
+        point_type = VERGENCE_TYPE_MAPPING.get(prop['Type'], "Unknown")
+        text = svgwrite.text.Text(f"{km} {point_type}",
                                   insert=(coords[0] + play + info_offset, coords[1] + 1),
                                   fill="white", font_family="Arial", font_size=3)
         group_vergence.add(text)
