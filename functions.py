@@ -290,6 +290,7 @@ class RoadModel:
         # Get the roadside letter
         overlapping_sections = self.get_sections_at_point(row['geometry'])
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
+        roadnumber = [section_info['roadnumber'] for section_info in overlapping_sections.values()][0]
 
         # Get the IDs of the sections it overlaps
         section_ids = [section_id for section_id in overlapping_sections.keys()]
@@ -303,6 +304,7 @@ class RoadModel:
         properties['Local angle'] = self.get_local_angle(section_ids, row['geometry'])
 
         return {'roadside': roadside,
+                'roadnumber': roadnumber,
                 'km': row['KMTR'],
                 'section_ids': section_ids,
                 'properties': properties,
@@ -312,7 +314,7 @@ class RoadModel:
     def __extract_line_properties(row: pd.Series, name: str):
         properties = {}
         roadside = None
-        # wegnummer = None
+        roadnumber = None
 
         if name == 'Rijstroken':
             first_lane_number = row['VNRWOL']
@@ -328,7 +330,7 @@ class RoadModel:
                 properties['Special'] = (special, changing_lane)
 
             roadside = row['IZI_SIDE']
-            # roadnumber = row['WEGNUMMER']
+            roadnumber = row['WEGNUMMER']
 
             if roadside == 'R':
                 km_range = [row['BEGINKM'], row['EINDKM']]
@@ -336,6 +338,7 @@ class RoadModel:
                 km_range = [row['EINDKM'], row['BEGINKM']]
 
             return {'roadside': roadside,
+                    'roadnumber': roadnumber,
                     'km_range': km_range,
                     'properties': properties,
                     'geometry': set_precision(row['geometry'], GRID_SIZE)}
@@ -361,6 +364,7 @@ class RoadModel:
             properties['Maximumsnelheid'] = row['OMSCHR']
 
         return {'roadside': roadside,
+                'roadnumber': roadnumber,
                 'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
                 'geometry': set_precision(row['geometry'], GRID_SIZE)}
@@ -384,6 +388,7 @@ class RoadModel:
         overlap_section_info = deepcopy(overlap_section['section_info'])
 
         other_section_side = overlap_section_info['roadside']
+        other_section_roadnumber = overlap_section_info['roadnumber']
         other_section_range = overlap_section_info['km_range']
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
@@ -461,6 +466,7 @@ class RoadModel:
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
                     'roadside': other_section_side,
+                    'roadnumber': other_section_roadnumber,
                     'km_range': km_range,
                     'properties': new_section_props,
                     'geometry': added_geom
@@ -519,6 +525,7 @@ class RoadModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'roadside': other_section_side,
+                        'roadnumber': other_section_roadnumber,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -544,6 +551,7 @@ class RoadModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'roadside': other_section_side,
+                        'roadnumber': other_section_roadnumber,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -563,6 +571,7 @@ class RoadModel:
                         # This is the final iteration
                         self.__add_section({
                             'roadside': other_section_side,
+                            'roadnumber': other_section_roadnumber,
                             'km_range': new_section_range,
                             'properties': new_section_props,
                             'geometry': new_section_geom
@@ -584,6 +593,7 @@ class RoadModel:
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
                     'roadside': other_section_side,
+                    'roadnumber': other_section_roadnumber,
                     'km_range': km_range,
                     'properties': other_section_props,
                     'geometry': added_geom
@@ -996,13 +1006,13 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
 
 
 class MSIRow:
-    def __init__(self, msi_network, name: str, msi_row_info: dict, local_road_info: dict):
+    def __init__(self, msi_network, msi_row_info: dict, local_road_info: dict):
         self.msi_network = msi_network
-        self.name = name
         self.info = msi_row_info
         self.properties = self.info['properties']
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['properties']
+        self.name = f"A{self.info['roadnumber']}{self.info['roadside']}:{self.info['km']}"
 
         # Determine everything there is to know about the road in general
         self.n_lanes = max((lane_nr for lane_nr, lane_type in self.local_road_properties.items()
@@ -1042,8 +1052,7 @@ class MSINetwork:
         self.roadmodel = roadmodel
         msi_data = self.roadmodel.get_points('MSI')
 
-        self.MSIrows = [MSIRow(self, f"MSI-{str(row_numbering)}-{msi_row['km']}",
-                               msi_row, self.roadmodel.get_one_section_info_at_point(msi_row['geometry']))
+        self.MSIrows = [MSIRow(self, msi_row, self.roadmodel.get_one_section_info_at_point(msi_row['geometry']))
                         for row_numbering, msi_row in enumerate(msi_data)]
 
         for msi_row in self.MSIrows:
@@ -1133,7 +1142,7 @@ class MSI(MSILegends):
         # Store all that is unique to the MSI
         self.lane_number = lane_number
         self.displayoptions = self.displayset_all
-        self.name = f"{self.row.name}-{str(lane_number)}"
+        self.name = f"{self.row.name}:{str(lane_number)}"
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
