@@ -149,7 +149,7 @@ def move_endpoint(section_data: dict, point_data: dict, change_start: bool = Tru
                             point_to_displace[1] - tangent_vector[1] * displacement)
 
     if change_start:
-        return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[1:]])
+        return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[2:]])
     else:
         return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
 
