@@ -279,10 +279,12 @@ class RoadModel:
             properties['Type'] = 'Signalering'
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        # Get the IDs of the sections it overlaps, as well as the roadside letter
+        # Get the roadside letter
         overlapping_sections = self.get_sections_at_point(row['geometry'])
-        section_ids = [section_id for section_id in overlapping_sections.keys()]
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
+
+        # Get the IDs of the sections it overlaps
+        section_ids = [section_id for section_id in overlapping_sections.keys()]
 
         # Get the local number of (main) lanes. Take the highest value if there are multiple.
         lane_info = [self.get_n_lanes(section_info['properties']) for section_info in overlapping_sections.values()]

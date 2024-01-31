@@ -89,7 +89,7 @@ def change_geom(section_data: dict, point_data: dict):
     line_geom = section_data['geometry']
     point_type = point_data['properties']['Type']
     point_geom = point_data['geometry']
-    point_angle = point_data['properties']['Local angle']
+    local_road_angle = point_data['properties']['Local angle']
 
     first_point = Point(line_geom.coords[0])
     last_point = Point(line_geom.coords[-1])
@@ -108,27 +108,17 @@ def change_geom(section_data: dict, point_data: dict):
 
     elif point_type == 'U' and point_at_line_start and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
-        print(line_geom)
-        angle = 90 - point_angle
-        print("1)", first_point)
-
-        angle_radians = math.radians(angle)
-
+        angle_radians = math.radians(local_road_angle)
         x_component = math.cos(angle_radians)
         y_component = math.sin(angle_radians)
-        vector = [x_component, y_component]
+        tangent_vector = [-y_component, x_component]  # Rotated by 90 degrees
         x = first_point.x
         y = first_point.y
-        if section_data['roadside'] == "L":
-            displacement = 7
-        else:
-            displacement = -8.75
-        displaced_point = Point(x + vector[0]*displacement, y + vector[1]*displacement)
-        print("2)", displaced_point)
+        displacement = -8.75  # TODO: find actual displacement depending on the lane types
+        displaced_point = Point(x + tangent_vector[0]*displacement, y + tangent_vector[1]*displacement)
         changed_geom = [coord for coord in line_geom.coords]
         changed_geom[0] = displaced_point.coords[0]
         changed_geom = LineString(changed_geom)
-        print(changed_geom)
 
     elif point_type == 'I' and point_at_line_end and not has_puntstuk:
         print(f"one geometry should be changed: {section_data}")
