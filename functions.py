@@ -1029,8 +1029,6 @@ class MSIRow:
         lanes_in_current_cw = [1]
 
         for lane_number in self.lane_numbers:
-            print(lane_number, self.local_road_properties)
-
             # Add final lane and stop
             if lane_number == self.n_lanes:
                 self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
@@ -1074,15 +1072,15 @@ class MSINetwork:
         starting_section_id = next(iter(roadmodel_section.keys()))  # Obtain first (and only) ID in dict.
         return self.find_msi_recursive(starting_section_id, current_km, downstream, roadside)
 
-    def find_msi_recursive(self, section_id: int, current_km: float, downstream: bool,
+    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
                            roadside: str, annotation: any = None) -> tuple | None:
         # Only takes points that are upstream/downstream of current point.
         if roadside == 'L' and downstream or roadside == 'R' and not downstream:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
-                                       section_id in point_data['section_ids'] and point_data['km'] < current_km]
+                                       current_section_id in point_data['section_ids'] and point_data['km'] < current_km]
         else:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
-                                       section_id in point_data['section_ids'] and point_data['km'] > current_km]
+                                       current_section_id in point_data['section_ids'] and point_data['km'] > current_km]
 
         msis_on_section = [point for point in other_points_on_section if
                            point['properties']['Type'] == 'Signalering']
@@ -1099,14 +1097,16 @@ class MSINetwork:
         # Recursive case 1: No other points on the section
         if not other_points_on_section:
             # Obtain connection point of section
-            this_section_geom = self.roadmodel.sections[section_id]['geometry']
+            this_section_geom = self.roadmodel.sections[current_section_id]['geometry']
             if downstream:
-                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.keys() if
-                                          dwithin(sinfo['geometry'].coords[0], this_section_geom.coords[-1], 0.1)]
+                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
+                                          dwithin(Point(sinfo['geometry'].coords[0]),
+                                                  Point(this_section_geom.coords[-1]), 0.1)]
 
             else:
-                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.keys() if
-                                          dwithin(sinfo['geometry'].coords[-1], this_section_geom.coords[0], 0.1)]
+                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
+                                          dwithin(Point(sinfo['geometry'].coords[-1]),
+                                                  Point(this_section_geom.coords[0]), 0.1)]
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
@@ -1122,14 +1122,19 @@ class MSINetwork:
 
         # Recursive case 2: *vergence point on the section
         for other_point in other_points_on_section:
-            if other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging']:
+            if other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging'] and downstream:
                 annotation = 'SPLITSING'
-                section_ids = [sid for sid in other_point['section_ids'] if sid != section_id]
-                # Make it do the recursive function twice. Then store the result.
-            if other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']:
+
+            if other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging'] and not downstream:
                 annotation = 'SAMENVOEGING'
-                section_ids = [sid for sid in other_point['section_ids'] if sid != section_id]
-                # Make it do the recursive function twice. Then store the result.
+
+            section_ids = [sid for sid in other_point['section_ids'] if sid != current_section_id]
+            assert len(section_ids) == 2, f"Unexpected amount of ids in {section_ids}"
+
+            # Make it do the recursive function twice. Then store the result.
+            option1 = self.find_msi_recursive(section_ids[0], other_point['km'], downstream, roadside, annotation)
+            option2 = self.find_msi_recursive(section_ids[1], other_point['km'], downstream, roadside, annotation)
+            return option1, option2
 
     def get_msi_row_at_point(self, point: dict) -> MSIRow:
         # Return the MSI row with the same kilometre registration
@@ -1283,8 +1288,7 @@ class MSI(MSILegends):
         if 'Spitsstrook' in self.row.local_road_properties.values():
             self.properties['RHL_neighbor'] = True
 
-        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[
-            self.lane_number + 1] == 'Vluchtstrook':
+        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_right'] = True
         if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_left'] = True
@@ -1297,11 +1301,14 @@ class MSI(MSILegends):
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
         downstream_rows = self.row.msi_network.travel_roadmodel(self.row, True)
-        for row, annotation in downstream_rows.values():
-            # if self.lane_number in downstream_row.MSIs.keys():
-            self.properties['d'] = row.MSIs[self.lane_number].name
-
-        upstream_rows = self.row.msi_network.travel_roadmodel(self.row, False)
-        if upstream_rows:
-            # and self.lane_number in upstream_row.MSIs.keys():
-            self.properties['u'] = upstream_rows.MSIs[self.lane_number].name
+        for pair in downstream_rows:
+            if pair:
+                for msi_row, desc in pair:
+                    print(msi_row.name, desc)
+        #     # if self.lane_number in downstream_row.MSIs.keys():
+        #     self.properties['d'] = row.MSIs[self.lane_number].name
+        #
+        # upstream_rows = self.row.msi_network.travel_roadmodel(self.row, False)
+        # if upstream_rows:
+        #     # and self.lane_number in upstream_row.MSIs.keys():
+        #     self.properties['u'] = upstream_rows.MSIs[self.lane_number].name
