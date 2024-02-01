@@ -300,16 +300,16 @@ class RoadModel:
             properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
             print(len(overlapping_sections), overlapping_sections)
             properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
+                                      if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
             properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                       if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
+                                       if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
 
         if name == 'Divergenties':
             properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
             properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
+                                      if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
             properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                       if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
+                                       if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
 
         if name == 'Rijstrooksignaleringen':
             properties['Type'] = 'Signalering'

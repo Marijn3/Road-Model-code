@@ -110,17 +110,17 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
     point_lanes_in = point_data['properties']['Lanes_in']
     point_lanes_out = point_data['properties']['Lanes_out']
 
-    if point_type == 'Splitsing':
-        other_lane_id = point_lanes_out - section_id
+    if point_type == 'Splitsing' and point_at_line_start:
+        other_lane_id = [sid for sid in point_lanes_out if sid != section_id][0]
         change_start = True
-    elif point_type == 'Samenvoeging':
-        other_lane_id = point_lanes_in - section_id
+    elif point_type == 'Samenvoeging' and point_at_line_end:
+        other_lane_id = [sid for sid in point_lanes_in if sid != section_id][0]
         change_start = False
-    elif point_type == 'Uitvoeging':
-        other_lane_id = point_lanes_in - section_id
+    elif point_type == 'Uitvoeging' and point_at_line_start:
+        other_lane_id = [sid for sid in point_lanes_out if sid != section_id][0]
         change_start = True
-    elif point_type == 'Invoeging':
-        other_lane_id = point_lanes_in - section_id
+    elif point_type == 'Invoeging' and point_at_line_end:
+        other_lane_id = [sid for sid in point_lanes_in if sid != section_id][0]
         change_start = False
     else:
         # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
@@ -135,22 +135,23 @@ def move_endpoints(section_data: dict, other_section_data: dict, point_data: dic
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
     this_has_puntstuk = 'Puntstuk' in section_data['properties'].values()
-    other_has_puntstuk = 'Puntstuk' in section_data['properties'].values()
+    other_has_puntstuk = 'Puntstuk' in other_section_data['properties'].values()
 
-    assert not (this_has_puntstuk and other_has_puntstuk), "Two sections have puntstuk."
-    assert (this_has_puntstuk or other_has_puntstuk), "Neither section has puntstuk."
+    assert not (this_has_puntstuk and other_has_puntstuk), f"Two sections have puntstuk: {section_data}{other_section_data}"
+    assert (this_has_puntstuk or other_has_puntstuk), f"Neither section has puntstuk: {section_data}{other_section_data}"
 
+    displacement = 0
     n_lanes_largest = point_data['properties']['nMainLanes']
 
     if this_has_puntstuk:
-        n_lanes_A, _ = get_n_lanes(section_data['properties'])
-        n_lanes_B, _ = get_n_lanes(other_section_data['properties'])
-        displacement = LANE_WIDTH / 2 * (n_lanes_largest + n_lanes_A)
+        n_lanes_a, _ = get_n_lanes(section_data['properties'])
+        n_lanes_b, _ = get_n_lanes(other_section_data['properties'])
+        displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
 
     if other_has_puntstuk:
-        n_lanes_A, _ = get_n_lanes(other_section_data['properties'])
-        n_lanes_B, _ = get_n_lanes(section_data['properties'])
-        displacement = LANE_WIDTH / 2 * (n_lanes_largest + n_lanes_A) - LANE_WIDTH / 2 * (n_lanes_A + n_lanes_B)
+        n_lanes_a, _ = get_n_lanes(other_section_data['properties'])
+        n_lanes_b, _ = get_n_lanes(section_data['properties'])
+        displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
     line_geom = section_data['geometry']
     if change_start:
@@ -158,11 +159,11 @@ def move_endpoints(section_data: dict, other_section_data: dict, point_data: dic
     else:
         point_to_displace = line_geom.coords[-1]
 
-    displaced_point = Point(point_to_displace[0] - tangent_vector[0] * displacement,
-                            point_to_displace[1] - tangent_vector[1] * displacement)
+    displaced_point = Point(point_to_displace[0] + tangent_vector[0] * displacement,
+                            point_to_displace[1] + tangent_vector[1] * displacement)
 
     if change_start:
-        return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[2:]])
+        return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[1:]])
     else:
         return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
 
@@ -328,8 +329,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
         svg_dwg.add(group_msi_row)
     else:
         group_vergence = svgwrite.container.Group()
-        circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        group_vergence.add(circle)
+        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
+        # group_vergence.add(circle)
         point_type = prop['Type']
         text = svgwrite.text.Text(f"{km} {point_type}",
                                   insert=(coords[0] + play + info_offset, coords[1] + 1),
