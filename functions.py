@@ -1061,82 +1061,64 @@ class MSINetwork:
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
 
-    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool = True) -> MSIRow | None:
+    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool = True) -> tuple | None:
         current_location = msi_row.info['geometry']
         current_km = msi_row.info['km']
         roadside = msi_row.local_road_info['roadside']
+        annotation = None
+
         roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
         assert len(roadmodel_section) == 1, "More than one section found at MSI location."
+        section_ids = [sid for sid in roadmodel_section.keys()][0]
 
-        section_id = [sid for sid in roadmodel_section.keys()][0]
-        section_info = [sinfo for sinfo in roadmodel_section.values()][0]
+        while True:
+            for section_id in section_ids:
+                # Only takes points that are upstream/downstream of current point.
+                if roadside == 'L' and downstream or roadside == 'R' and not downstream:
+                    other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                               section_id in point_data['section_ids'] and point_data['km'] < current_km]
+                else:
+                    other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                               section_id in point_data['section_ids'] and point_data['km'] > current_km]
 
-        # Only takes points that are upstream/downstream of current point.
-        if roadside == 'L' and downstream or roadside == 'R' and not downstream:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
-                                       section_id in point_data['section_ids'] and point_data['km'] < current_km]
-        else:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
-                                       section_id in point_data['section_ids'] and point_data['km'] > current_km]
+                if other_points_on_section:
+                    msis_on_section = [point for point in other_points_on_section if
+                                       point['properties']['Type'] == 'Signalering']
 
-        if other_points_on_section:
-            msis_on_section = [point for point in other_points_on_section if point['properties']['Type'] == 'Signalering']
+                    if len(msis_on_section) == 1:
+                        return self.get_msi_row_at_point(msis_on_section[0]), annotation
 
-            if len(msis_on_section) == 1:
-                return self.get_msi_row_at_point(msis_on_section[0])
+                    elif len(msis_on_section) > 1:
+                        nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['km']))
+                        return self.get_msi_row_at_point(nearest_msi), annotation
 
-            elif len(msis_on_section) > 1:
-                nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['km']))
-                return self.get_msi_row_at_point(nearest_msi)
+                    # If we arrive here, msis_on_section length is 0.
+                    for other_point in other_points_on_section:
+                        if other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging']:
+                            annotation = 'SPLITSING'
+                            section_ids = [sid for sid in other_point['section_ids'] if sid != section_id]
+                        if other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']:
+                            annotation = 'SAMENVOEGING'
+                            section_ids = [sid for sid in other_point['section_ids'] if sid != section_id]
 
-            # If we arrive here, msis_on_section is 0.
-            # for other_point in other_points_on_section:
-            #     if other_point['properties']['Type'] == 'Convergence':
-            #         return self.get_msi_row_at_point(other_point)
-
-            # 'U': 'Uitvoeging',
-            # 'D': 'Splitsing',
-            # 'C': 'Samenvoeging',
-            # 'I': 'Invoeging'
-
-            # Check if any of the points are *vergences
-            # Act accordingly, using downstream boolean.
-
-        else:
-            # Obtain connection point of section
-            if downstream:
-                connection_point = section_info['geometry'].coords[-1]
-            else:
-                connection_point = section_info['geometry'].coords[0]
-
-            # Find section that starts at this point
-            next_section = 1
-
-            # Find its ID
-
-            # Repeat the loop
-
-        return None
-
-
-        # Filter points based on roadside and travel direction.
-        # if roadside == 'L' and downstream or roadside == 'R' and not downstream:
-        #     eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km
-        #                        and point['roadside'] == roadside]
-        # else:
-        #     eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km
-        #                        and point['roadside'] == roadside]
-        #
-        # if eligible_points:
-        #     closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
-        #
-        #     # Return the MSI row with the same kilometre registration
-        #     for msi_row in self.MSIrows:
-        #         if msi_row.info['km'] == closest_point['km']:
-        #             return msi_row
-        #
-        # else:
-        #     return None
+                # If we arrive here, we have a 'simple' connection between sections.
+                else:
+                    # Obtain connection point of section
+                    this_section_info = self.roadmodel.sections[section_id]
+                    if downstream:
+                        # Find section that starts at this point
+                        for s_id, other_section_info in self.roadmodel.sections.values():
+                            if dwithin(other_section_info['geometry'].coords[0], this_section_info['geometry'].coords[-1], 0.1):
+                                section_ids = s_id
+                                break
+                            return None, None
+                    else:
+                        # Find section that starts at this point
+                        for s_id, other_section_info in self.roadmodel.sections.values():
+                            if dwithin(other_section_info['geometry'].coords[-1], this_section_info['geometry'].coords[0], 0.1):
+                                section_ids = s_id
+                                break
+                            return None, None
 
     def get_msi_row_at_point(self, point: dict) -> MSIRow:
         # Return the MSI row with the same kilometre registration
@@ -1303,10 +1285,12 @@ class MSI(MSILegends):
         if self.lane_number - 1 in self.row.MSIs.keys():
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
-        downstream_row = self.row.msi_network.travel_roadmodel(self.row, True)
-        if downstream_row and self.lane_number in downstream_row.MSIs.keys():
-            self.properties['d'] = downstream_row.MSIs[self.lane_number].name
+        downstream_rows = self.row.msi_network.travel_roadmodel(self.row, True)
+        for row, annotation in downstream_rows.values():
+            # if self.lane_number in downstream_row.MSIs.keys():
+            self.properties['d'] = row.MSIs[self.lane_number].name
 
-        upstream_row = self.row.msi_network.travel_roadmodel(self.row, False)
-        if upstream_row and self.lane_number in upstream_row.MSIs.keys():
-            self.properties['u'] = upstream_row.MSIs[self.lane_number].name
+        upstream_rows = self.row.msi_network.travel_roadmodel(self.row, False)
+        if upstream_rows:
+            # and self.lane_number in upstream_row.MSIs.keys():
+            self.properties['u'] = upstream_rows.MSIs[self.lane_number].name
