@@ -21,7 +21,7 @@ def get_road_color(prop: dict) -> str:
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int) and lane not in ['Puntstuk']])
     for lane_number in lane_numbers[:-1]:
         if lane_number + 1 not in prop.keys():
-            return 'orange'
+            return '#6D876D'
 
     if 'Special' in prop.keys():
         return 'brown'
@@ -114,11 +114,11 @@ def get_changed_geometry(section_data: dict, point_data: dict) -> LineString:
 
     if point_type == 'Splitsing' and point_at_line_start:
         # print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
-        return line_geom  # TODO: TEMP
+        return line_geom  # TODO: TEMP, decide direction based on presence of puntstuk!!
 
     elif point_type == 'Samenvoeging' and point_at_line_end:
         # print(f"two geometries should be changed for {point_data['geometry']}: one of which is {section_data}")
-        return line_geom  # TODO: TEMP
+        return line_geom  # TODO: TEMP, decide direction based on presence of puntstuk!!
 
     elif point_type == 'Uitvoeging' and point_at_line_start and not has_puntstuk:
         return move_endpoint(section_data, point_data, True)
@@ -181,7 +181,7 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
     svg_dwg.add(asphalt)
 
-    if color not in ['orange']:
+    if color in ['grey', 'brown']:
         add_separator_lines(geom, section_data, n_main_lanes, svg_dwg)
 
 
