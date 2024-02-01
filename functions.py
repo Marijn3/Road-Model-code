@@ -884,7 +884,7 @@ class RoadModel:
         Args:
             point (Point): Geometric position of the point.
         Returns:
-            tuple[int, dict]: Attributes of the (first) road section at the specified kilometer point.
+            dict[int, dict]: Attributes of the (first) road section at the specified kilometer point.
         """
         return {index: section for index, section in self.sections.items() if dwithin(point, section['geometry'], 0.1)}
 
@@ -1062,40 +1062,86 @@ class MSINetwork:
             msi_row.fill_row_properties()
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool = True) -> MSIRow | None:
-        # current_location = msi_row.info['geometry']
-        # roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
-        #
-        # # TODO: Ensure that the geometry does not directly intersect another registered point!
-        #
-        # # Extract the first and last points of the geometry
-        # if downstream:
-        #     connection_point = roadmodel_section.coords[-1]
-        # else:
-        #     connection_point = roadmodel_section.coords[0]
-        #
-        # next_section = ...
-
+        current_location = msi_row.info['geometry']
         current_km = msi_row.info['km']
         roadside = msi_row.local_road_info['roadside']
+        roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
+        assert len(roadmodel_section) == 1, "More than one section found at MSI location."
+
+        section_id = [sid for sid in roadmodel_section.keys()][0]
+        section_info = [sinfo for sinfo in roadmodel_section.values()][0]
+
+        # Only takes points that are upstream/downstream of current point.
+        if roadside == 'L' and downstream or roadside == 'R' and not downstream:
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                       section_id in point_data['section_ids'] and point_data['km'] < current_km]
+        else:
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                       section_id in point_data['section_ids'] and point_data['km'] > current_km]
+
+        print(other_points_on_section)
+
+        if other_points_on_section:
+            msis_on_section = len([point for point in other_points_on_section if point['properties']['Type'] == 'Signalering'])
+
+            if msis_on_section == 1:
+                for other_point in other_points_on_section:
+                    if other_point['properties']['Type'] == 'Signalering':
+                        return self.get_msi_row_at_point(other_point)
+
+            if msis_on_section > 1:
+                raise NotImplementedError("Multiple other MSIs on one section are not supported yet.")
+                # TODO: Implement: select the next DOWNSTREAM/UPSTREAM MSI.
+
+            # If we arrive here, msis_on_section is 0.
+            for other_point in other_points_on_section:
+                if other_point['properties']['Type'] == 'Signalering':
+                    return self.get_msi_row_at_point(other_point)
+
+            # Check if any of the points are *vergences
+            # Act accordingly, using downstream boolean.
+
+        else:
+            # Obtain connection point of section
+            if downstream:
+                connection_point = section_info['geometry'].coords[-1]
+            else:
+                connection_point = section_info['geometry'].coords[0]
+
+            # Find section that starts at this point
+            next_section = 1
+
+            # Find its ID
+
+            # Repeat the loop
+
+        return None
+
 
         # Filter points based on roadside and travel direction.
-        if roadside == 'L' and downstream or roadside == 'R' and not downstream:
-            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km
-                               and point['roadside'] == roadside]
-        else:
-            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km
-                               and point['roadside'] == roadside]
+        # if roadside == 'L' and downstream or roadside == 'R' and not downstream:
+        #     eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km
+        #                        and point['roadside'] == roadside]
+        # else:
+        #     eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km
+        #                        and point['roadside'] == roadside]
+        #
+        # if eligible_points:
+        #     closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
+        #
+        #     # Return the MSI row with the same kilometre registration
+        #     for msi_row in self.MSIrows:
+        #         if msi_row.info['km'] == closest_point['km']:
+        #             return msi_row
+        #
+        # else:
+        #     return None
 
-        if eligible_points:
-            closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
-
-            # Return the MSI row with the same kilometre registration
-            for msi_row in self.MSIrows:
-                if msi_row.info['km'] == closest_point['km']:
-                    return msi_row
-
-        else:
-            return None
+    def get_msi_row_at_point(self, point: dict) -> MSIRow:
+        # Return the MSI row with the same kilometre registration
+        for msi_row in self.MSIrows:
+            if msi_row.info['km'] == point['km']:
+                return msi_row
 
 
 class MSILegends:
