@@ -1079,24 +1079,25 @@ class MSINetwork:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
                                        section_id in point_data['section_ids'] and point_data['km'] > current_km]
 
-        print(other_points_on_section)
-
         if other_points_on_section:
-            msis_on_section = len([point for point in other_points_on_section if point['properties']['Type'] == 'Signalering'])
+            msis_on_section = [point for point in other_points_on_section if point['properties']['Type'] == 'Signalering']
 
-            if msis_on_section == 1:
-                for other_point in other_points_on_section:
-                    if other_point['properties']['Type'] == 'Signalering':
-                        return self.get_msi_row_at_point(other_point)
+            if len(msis_on_section) == 1:
+                return self.get_msi_row_at_point(msis_on_section[0])
 
-            if msis_on_section > 1:
-                raise NotImplementedError("Multiple other MSIs on one section are not supported yet.")
-                # TODO: Implement: select the next DOWNSTREAM/UPSTREAM MSI.
+            elif len(msis_on_section) > 1:
+                nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['km']))
+                return self.get_msi_row_at_point(nearest_msi)
 
             # If we arrive here, msis_on_section is 0.
-            for other_point in other_points_on_section:
-                if other_point['properties']['Type'] == 'Signalering':
-                    return self.get_msi_row_at_point(other_point)
+            # for other_point in other_points_on_section:
+            #     if other_point['properties']['Type'] == 'Convergence':
+            #         return self.get_msi_row_at_point(other_point)
+
+            # 'U': 'Uitvoeging',
+            # 'D': 'Splitsing',
+            # 'C': 'Samenvoeging',
+            # 'I': 'Invoeging'
 
             # Check if any of the points are *vergences
             # Act accordingly, using downstream boolean.
