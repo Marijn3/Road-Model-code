@@ -277,18 +277,11 @@ class RoadModel:
             'I': 'Invoeging'
         }
 
-        if name == 'Convergenties':
-            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
+        km = row['KMTR']
 
-        if name == 'Divergenties':
-            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
-
-        if name == 'Rijstrooksignaleringen':
-            properties['Type'] = 'Signalering'
-            properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
-
-        # Get the roadside letter
         overlapping_sections = self.get_sections_at_point(row['geometry'])
+
+        # Get the roadside letter and number from the (first) section it overlaps
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
         roadnumber = [section_info['roadnumber'] for section_info in overlapping_sections.values()][0]
 
@@ -303,9 +296,28 @@ class RoadModel:
         # Get the local orientation
         properties['Local angle'] = self.get_local_angle(section_ids, row['geometry'])
 
+        if name == 'Convergenties':
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
+            print(len(overlapping_sections), overlapping_sections)
+            properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
+            properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                       if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
+
+        if name == 'Divergenties':
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
+            properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
+            properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                       if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
+
+        if name == 'Rijstrooksignaleringen':
+            properties['Type'] = 'Signalering'
+            properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
+
         return {'roadside': roadside,
                 'roadnumber': roadnumber,
-                'km': row['KMTR'],
+                'km': km,
                 'section_ids': section_ids,
                 'properties': properties,
                 'geometry': row['geometry']}
