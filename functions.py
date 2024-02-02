@@ -1071,7 +1071,7 @@ class MSINetwork:
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
 
-    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> tuple | None:
+    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list | dict | None:
         current_location = msi_row.info['geometry']
         current_km = msi_row.info['km']
         roadside = msi_row.local_road_info['roadside']
@@ -1083,10 +1083,13 @@ class MSINetwork:
         # Starting point for recursion
         starting_section_id = next(iter(roadmodel_section.keys()))  # Obtain first (and only) ID in dict.
         print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {roadside}")
-        return self.find_msi_recursive(starting_section_id, current_km, downstream, roadside)
+        msis = self.find_msi_recursive(starting_section_id, current_km, downstream, roadside)
+        if isinstance(msis, dict):
+            return [msis]
+        return msis
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
-                           roadside: str, annotation: int = 0) -> tuple | None:
+                           roadside: str, annotation: int = 0) -> list | None:
         # Only takes points that are upstream/downstream of current point.
         if roadside == 'L' and downstream or roadside == 'R' and not downstream:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
@@ -1101,13 +1104,13 @@ class MSINetwork:
         # Base case 1: Single MSI found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['properties']}")
-            return self.get_msi_row_at_point(msis_on_section[0]), annotation
+            return {self.get_msi_row_at_point(msis_on_section[0]): annotation}
 
         # Base case 2: Multiple MSIs found
         if len(msis_on_section) > 1:
             print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['properties']}")
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['km']))
-            return self.get_msi_row_at_point(nearest_msi), annotation
+            return {self.get_msi_row_at_point(nearest_msi): annotation}
 
         # Recursive case 1: No other points on the section
         if not other_points_on_section:
@@ -1127,12 +1130,12 @@ class MSINetwork:
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
                 print(f"No connections at all with {current_section_id}")
-                return None, annotation
+                return {None: annotation}
             #
             elif len(connecting_section_ids) > 1:
                 print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
                 # This is likely an intersection. These are of no interest for MSI relations.
-                return None, annotation
+                return {None: annotation}
             else:
                 # Find an MSI in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
@@ -1156,7 +1159,7 @@ class MSINetwork:
                 section_id = other_point['properties']['Lanes_in'][0]
 
             print(f"The *vergence point leads to section {section_id}")
-
+            # Add an annotation if applicable!!!
             return self.find_msi_recursive(section_id, other_point['km'], downstream, roadside)
 
         if us_split:
@@ -1183,7 +1186,8 @@ class MSINetwork:
         # Make it do the recursive function twice. Then store the result.
         option1 = self.find_msi_recursive(section_a, other_point['km'], downstream, roadside, annotation)
         option2 = self.find_msi_recursive(section_b, other_point['km'], downstream, roadside, annotation + annotation_b)
-        return option1, option2
+        # Return a list of dictionaries
+        return [option1, option2]
 
     def get_msi_row_at_point(self, point: dict) -> MSIRow:
         # Return the MSI row with the same kilometre registration
@@ -1349,14 +1353,18 @@ class MSI(MSILegends):
         if self.lane_number - 1 in self.row.MSIs.keys():
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
+        # TODO: Move to MSI row level so this is called 2-5 times less.
+
+        print(f"{self.row.name} has the following downstream relations:")
+
         downstream_rows = self.row.msi_network.travel_roadmodel(self.row, True)
-        print(downstream_rows)
 
-        # print(f"{self.row.name} downstream relations:")
+        for row in downstream_rows:
+            for msi_row, desc in row.items():
+                if msi_row is not None:
+                    print(msi_row.name, desc)
 
-        # for msi_row, desc in downstream_rows:
-        #     if msi_row is not None:
-        #         print(msi_row.name, desc)
+        print("")
 
         #     # if self.lane_number in downstream_row.MSIs.keys():
         #     self.properties['d'] = row.MSIs[self.lane_number].name
