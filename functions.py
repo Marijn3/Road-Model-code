@@ -1071,7 +1071,7 @@ class MSINetwork:
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
 
-    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list | dict | None:
+    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         current_location = msi_row.info['geometry']
         current_km = msi_row.info['km']
         roadside = msi_row.local_road_info['roadside']
@@ -1089,7 +1089,7 @@ class MSINetwork:
         return msis
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
-                           roadside: str, annotation: int = 0) -> list | None:
+                           roadside: str, annotation: int = 0) -> list | dict:
         # Only takes points that are upstream/downstream of current point.
         if roadside == 'L' and downstream or roadside == 'R' and not downstream:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
@@ -1152,15 +1152,26 @@ class MSINetwork:
         us_split = not downstream and other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']
 
         if not (ds_split or us_split):
+            current_section = self.roadmodel.sections[current_section_id]
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
                 section_id = other_point['properties']['Lanes_out'][0]
+                if not 'Puntstuk' in current_section['properties'].values():
+                    # we are section b.
+                    other_section_id = [sid for sid in other_point['properties']['Lanes_in'] if sid != current_section_id][0]
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
+                    annotation = annotation + n_lanes_other
             else:
                 section_id = other_point['properties']['Lanes_in'][0]
+                if not 'Puntstuk' in current_section['properties'].values():
+                    # we are section b.
+                    other_section_id = [sid for sid in other_point['properties']['Lanes_out'] if sid != current_section_id][0]
+                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
+                annotation = annotation + n_lanes_other
 
             print(f"The *vergence point leads to section {section_id}")
-            # Add an annotation if applicable!!!
-            return self.find_msi_recursive(section_id, other_point['km'], downstream, roadside)
+
+            return self.find_msi_recursive(section_id, other_point['km'], downstream, roadside, annotation)
 
         if us_split:
             section_ids = other_point['properties']['Lanes_in']
