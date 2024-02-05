@@ -417,7 +417,6 @@ class RoadModel:
         if same_direction(other_section_geom, new_section['geometry']):
             new_section_geom = new_section['geometry']
         else:
-            print("Attention: new geometry is reversed.")
             new_section_geom = reverse(new_section['geometry'])
 
         sections_to_remove = set()
@@ -946,25 +945,28 @@ def determine_range_overlap(range1: list, range2: list) -> bool:
 def same_direction(geom1: LineString, geom2: LineString) -> bool:
     """
     Determines whether two LineString geometries are in the same direction.
-    The assumption is made that the lines are close enough together that a
+    The assumption is made that the lines overlap in such a way that a
     projection of one point on another line is accurate.
-    Geom1 is taken as the 'correct' orientation.
     Args:
         geom1: The first shapely LineString geometry.
         geom2: The second shapely LineString geometry.
     Returns:
-        Boolean value that is True when the geometries are in the same directions.
+        Boolean value that is True when the geometries are in the same direction.
     """
-    geom1_linedist_a = line_locate_point(geom1, Point(geom2.coords[0]))
-    geom1_linedist_b = line_locate_point(geom1, Point(geom2.coords[-1]))
+    if geom1.length <= geom2.length:
+        small_geom = geom1
+        large_geom = geom2
+    else:
+        small_geom = geom2
+        large_geom = geom1
 
-    # Catch cases where both linedistances are equal (likely 0 or 1)
-    if geom1_linedist_a == geom1_linedist_b:
-        geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
-        geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
-        return geom2_linedist_a < geom2_linedist_b
+    linedist_a = line_locate_point(large_geom, Point(small_geom.coords[0]))
+    linedist_b = line_locate_point(large_geom, Point(small_geom.coords[-1]))
 
-    return geom1_linedist_a < geom1_linedist_b
+    if linedist_a == linedist_b:
+        raise Exception(f"This is unaccounted for in same_direction(): {linedist_a, linedist_b}")
+
+    return linedist_a < linedist_b
 
 
 def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
