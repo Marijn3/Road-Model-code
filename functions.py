@@ -1063,6 +1063,7 @@ class MSIRow:
                 lanes_in_current_cw = [lane_number + 1]
                 cw_index += 1
 
+    def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
 
         print(f"Downstream of {self.name} is")
@@ -1083,8 +1084,9 @@ class MSIRow:
                     self.upstream.update({msi_row: desc})
         print("")
 
+    def fill_msi_properties(self):
         for msi in self.MSIs.values():
-            msi.fill_msi_properties()
+            msi.fill_properties()
 
 
 class MSINetwork:
@@ -1097,6 +1099,11 @@ class MSINetwork:
 
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
+
+        # These can only be called once all msi_rows are initialised.
+        for msi_row in self.MSIrows:
+            msi_row.determine_msi_row_relations()
+            msi_row.fill_msi_properties()
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         current_location = msi_row.info['geometry']
@@ -1130,12 +1137,12 @@ class MSINetwork:
 
         # Base case 1: Single MSI found
         if len(msis_on_section) == 1:
-            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['properties']}")
+            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['km']}")
             return {self.get_msi_row_at_point(msis_on_section[0]): annotation}
 
         # Base case 2: Multiple MSIs found
         if len(msis_on_section) > 1:
-            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['properties']}")
+            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['km']}")
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['km']))
             return {self.get_msi_row_at_point(nearest_msi): annotation}
 
@@ -1173,7 +1180,7 @@ class MSINetwork:
         # Recursive case 2: *vergence point on the section
         other_point = other_points_on_section[0]
 
-        print(f"There is a *vergence point on {current_section_id}: {other_point}")
+        # print(f"There is a *vergence point on {current_section_id}: {other_point['properties']}")
 
         ds_split = downstream and other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging']
         us_split = not downstream and other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']
@@ -1334,15 +1341,15 @@ class MSI(MSILegends):
             # 'State': None,  # Active legend. [Not applicable]
         }
 
-    def fill_msi_properties(self):
-        self.determine_MSI_properties()
-        self.determine_MSI_relations()
+    def fill_properties(self):
+        self.determine_properties()
+        self.determine_relations()
 
         filtered_properties = {key: value for key, value in self.properties.items() if value is not None}
         print(f"{self.name} has the following properties:\n{filtered_properties}")
         print("")
 
-    def determine_MSI_properties(self):
+    def determine_properties(self):
         self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
         # self.properties['C_X'] =
         # self.properties['C_V'] =
@@ -1387,7 +1394,7 @@ class MSI(MSILegends):
         if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_left'] = True
 
-    def determine_MSI_relations(self):
+    def determine_relations(self):
         self.properties['c'] = self.name
         if self.lane_number + 1 in self.row.MSIs.keys():
             self.properties['r'] = self.row.MSIs[self.lane_number + 1].name
