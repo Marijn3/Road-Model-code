@@ -1025,7 +1025,13 @@ class MSIRow:
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['properties']
         self.name = f"A{self.info['roadnumber']}{self.info['roadside']}:{self.info['km']}"
+        self.lane_numbers = []
+        self.n_lanes = 0
+        self.n_msis = 0
+        self.MSIs = {}
+        self.cw = {}
 
+    def fill_row_properties(self):
         # Determine everything there is to know about the road in general
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
                                     if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']])
@@ -1055,7 +1061,16 @@ class MSIRow:
                 lanes_in_current_cw = [lane_number + 1]
                 cw_index += 1
 
-    def fill_row_properties(self):
+        downstream_rows = self.msi_network.travel_roadmodel(self, True)
+
+        print(f"Downstream of {self.name} is")
+        for row in downstream_rows:
+            for msi_row, desc in row.items():
+                if msi_row is not None:
+                    print(msi_row.name, desc)
+
+        print("")
+
         for msi in self.MSIs.values():
             msi.fill_msi_properties()
 
@@ -1366,16 +1381,16 @@ class MSI(MSILegends):
 
         # TODO: Move to MSI row level so this is called 2-5 times less.
 
-        print(f"{self.row.name} has the following downstream relations:")
+        # print(f"{self.row.name} has the following downstream relations:")
 
-        downstream_rows = self.row.msi_network.travel_roadmodel(self.row, True)
+        # downstream_rows = self.row.msi_network.travel_roadmodel(self.row, True)
+        #
+        # for row in downstream_rows:
+        #     for msi_row, desc in row.items():
+        #         if msi_row is not None:
+        #             print(msi_row.name, desc)
 
-        for row in downstream_rows:
-            for msi_row, desc in row.items():
-                if msi_row is not None:
-                    print(msi_row.name, desc)
-
-        print("")
+        # print("")
 
         #     # if self.lane_number in downstream_row.MSIs.keys():
         #     self.properties['d'] = row.MSIs[self.lane_number].name
