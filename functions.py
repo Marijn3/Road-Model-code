@@ -1070,18 +1070,18 @@ class MSIRow:
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print(msi_row.name, desc)
-                    self.downstream.update({msi_row: desc})
+                    self.downstream[msi_row] = desc
         print("")
 
-        # upstream_rows = self.msi_network.travel_roadmodel(self, False)
-        #
-        # print(f"Upstream of {self.name} is")
-        # for row in upstream_rows:
-        #     for msi_row, desc in row.items():
-        #         if msi_row is not None:
-        #             print(msi_row.name, desc)
-        #             self.upstream.update({msi_row: desc})
-        # print("")
+        upstream_rows = self.msi_network.travel_roadmodel(self, False)
+
+        print(f"Upstream of {self.name} is")
+        for row in upstream_rows:
+            for msi_row, desc in row.items():
+                if msi_row is not None:
+                    print(msi_row.name, desc)
+                    self.upstream.update({msi_row: desc})
+        print("")
 
         for msi in self.MSIs.values():
             msi.fill_msi_properties()
@@ -1184,17 +1184,17 @@ class MSINetwork:
             if downstream:
                 section_id = other_point['properties']['Lanes_out'][0]
                 if 'Puntstuk' not in current_section['properties'].values():
-                    # we are section b.
+                    # we are section b. determine annotation.
                     other_section_id = [sid for sid in other_point['properties']['Lanes_in'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
                     annotation = annotation + n_lanes_other
             else:
                 section_id = other_point['properties']['Lanes_in'][0]
                 if 'Puntstuk' not in current_section['properties'].values():
-                    # we are section b.
+                    # we are section b. determine annotation.
                     other_section_id = [sid for sid in other_point['properties']['Lanes_out'] if sid != current_section_id][0]
-                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
-                annotation = annotation + n_lanes_other
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
+                    annotation = annotation + n_lanes_other
 
             print(f"The *vergence point leads to section {section_id}")
             print(f"Marking {section_id} with +{annotation}")
@@ -1396,8 +1396,7 @@ class MSI(MSILegends):
         for downstream_row, desc in self.row.downstream.items():
             if self.lane_number + desc in downstream_row.MSIs.keys():
                 self.properties['d'] = downstream_row.MSIs[self.lane_number + desc].name
-        #
-        # upstream_rows = self.row.msi_network.travel_roadmodel(self.row, False)
-        # if upstream_rows:
-        #     # and self.lane_number in upstream_row.MSIs.keys():
-        #     self.properties['u'] = upstream_rows.MSIs[self.lane_number].name
+
+        for upstream_row, desc in self.row.upstream.items():
+            if self.lane_number + desc in upstream_row.MSIs.keys():
+                self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
