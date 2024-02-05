@@ -1166,7 +1166,7 @@ class MSINetwork:
             else:
                 # Find an MSI in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
-                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, roadside)
+                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, roadside, annotation)
 
         assert len(other_points_on_section) == 1, f"Did not expect {other_points_on_section}"
 
@@ -1220,11 +1220,12 @@ class MSINetwork:
             section_b = section_ids[0]
             annotation_b, _ = self.roadmodel.get_n_lanes(potential_div_section['properties'])
 
-        print(f"Marking {section_b} with +{annotation_b}")
+        # Store negative value in this direction.
+        print(f"Marking {section_b} with -{annotation_b}")
 
         # Make it do the recursive function twice. Then store the result.
         option1 = self.find_msi_recursive(section_a, other_point['km'], downstream, roadside, annotation)
-        option2 = self.find_msi_recursive(section_b, other_point['km'], downstream, roadside, annotation + annotation_b)
+        option2 = self.find_msi_recursive(section_b, other_point['km'], downstream, roadside, annotation - annotation_b)
         # Return a list of dictionaries
         return [option1, option2]
 
