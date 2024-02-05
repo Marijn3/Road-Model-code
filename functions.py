@@ -1331,7 +1331,7 @@ class MSI(MSILegends):
 
             'row': None,  # All MSIs in row.
 
-            'RHL': None,  # [V] True if MSI in RHL.
+            'RHL': None,  # [V] True if MSI in RHL. (Any lane that is open sometimes)
             'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right.
             'RHL_neighbor': None,  # [V] True if RHL in row.
 
@@ -1377,16 +1377,22 @@ class MSI(MSILegends):
             self.properties['TS_right'] = self.properties['CW_right']
             self.properties['TS_left'] = self.properties['CW_left']
 
-        # DIF - V heeft richtlijnen (bv 20 naar links, 0 naar rechts)
-        # self.properties['DIF_V_right'] =
-        # self.properties['DIF_V_left'] =
+        # Safest assumption: 0 for both directions. DIF_V heeft evt. richtlijnen (bv 20 naar links, 0 naar rechts).
+        self.properties['DIF_V_right'] = 0
+        self.properties['DIF_V_left'] = 0
 
         self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
         if self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook']:
             self.properties['RHL'] = True
-        # self.properties['Exit-entry'] =
-        if 'Spitsstrook' in self.row.local_road_properties.values():
+
+        if (self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook'] and
+                self.row.n_lanes > self.lane_number > 1):
+            self.properties['Exit-entry'] = True
+
+        if ('Spitsstrook' in self.row.local_road_properties.values() or
+                'Plusstrook' in self.row.local_road_properties.values() or
+                'Bufferstrook' in self.row.local_road_properties.values()):
             self.properties['RHL_neighbor'] = True
 
         if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
