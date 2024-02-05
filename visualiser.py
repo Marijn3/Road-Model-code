@@ -305,8 +305,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
 
     angle = prop['Local angle']
     rotate_angle = 90 - angle
-    msibox_size = 6
-    play = 1.2
+    msibox_size = 5
+    play = 1
     info_offset = LANE_WIDTH * (prop['nTotalLanes'] + (prop['nTotalLanes'] - prop['nMainLanes'])) / 2
 
     coords = get_transformed_coords(geom)[0]
