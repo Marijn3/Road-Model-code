@@ -6,7 +6,7 @@ from copy import deepcopy
 import math
 
 pd.set_option('display.max_columns', None)
-GRID_SIZE = 0.000001
+GRID_SIZE = 0.00001
 
 
 class DataFrameLoader:
@@ -116,22 +116,40 @@ class DataFrameLoader:
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
-        lane_mapping = {'1 -> 1': 1, '1 -> 2': 1.1, '2 -> 1': 1.9,
-                        '1.6 -> 1': 1.7, '1 -> 1.6': 1.8,
-                        '1.6 -> 2': 1.7, '2 -> 1.6': 1.8,  # TODO: Taper numbers not final
-                        '1.6 -> 3': 2.7, '3 -> 1.6': 2.8,  # These two only occur ONCE in NL.
-                        '2 -> 2': 2, '2 -> 3': 2.1, '3 -> 2': 2.9,
-                        '3 -> 3': 3, '3 -> 4': 3.1, '4 -> 3': 3.9,
-                        '4 -> 4': 4, '4 -> 5': 4.1, '5 -> 4': 4.9,
-                        '5 -> 5': 5, '5 -> 6': 5.1, '6 -> 5': 5.9,
-                        '6 -> 6': 6,
-                        '7 -> 7': 7}
+        # Mapping from lane registration to (nLanes, Special feature)
+        lane_mapping_h = {'1 -> 1': (1, None), '1 -> 2': (2, 'Broadening'), '2 -> 1': (2, 'Narrowing'),
+                          '1 -> 1.6': (1, 'TaperStart'), '1.6 -> 1': (1, 'TaperEnd'),
+                          '2 -> 1.6': (2, 'TaperStart'), '1.6 -> 2': (2, 'TaperEnd'),
+                          '2 -> 2': (2, None), '2 -> 3': (3, 'Broadening'), '3 -> 2': (3, 'Narrowing'),
+                          '3 -> 3': (3, None), '3 -> 4': (4, 'Broadening'), '4 -> 3': (4, 'Narrowing'),
+                          '4 -> 4': (4, None), '4 -> 5': (5, 'Broadening'), '5 -> 4': (5, 'Narrowing'),
+                          '5 -> 5': (5, None), '5 -> 6': (6, 'Broadening'), '6 -> 5': (6, 'Narrowing'),
+                          '6 -> 6': (6, None),
+                          '7 -> 7': (7, None)}
+        # All registrations with T as kantcode as marked in the opposite direction.
+        lane_mapping_t = {'1 -> 1': (1, None), '1 -> 2': (2, 'Narrowing'), '2 -> 1': (2, 'Broadening'),
+                          '1 -> 1.6': (1, 'TaperEnd'), '1.6 -> 1': (1, 'TaperStart'),
+                          '2 -> 1.6': (2, 'TaperEnd'), '1.6 -> 2': (2, 'TaperStart'),
+                          '2 -> 2': (2, None), '2 -> 3': (3, 'Narrowing'), '3 -> 2': (3, 'Broadening'),
+                          '3 -> 3': (3, None), '3 -> 4': (4, 'Narrowing'), '4 -> 3': (4, 'Broadening'),
+                          '4 -> 4': (4, None), '4 -> 5': (5, 'Narrowing'), '5 -> 4': (5, 'Broadening'),
+                          '5 -> 5': (5, None), '5 -> 6': (6, 'Narrowing'), '6 -> 5': (6, 'Broadening'),
+                          '6 -> 6': (6, None),
+                          '7 -> 7': (7, None)}
 
         if name == 'Rijstroken':
-            self.data[name]['nRijstroken'] = self.data[name]['OMSCHR'].apply(lambda df: lane_mapping.get(df, df))
+            self.data[name]['VOLGNRSTRK'] = pd.to_numeric(self.data[name]['VOLGNRSTRK'], errors='coerce').astype('Int64')
+
+            mapping_function = lambda row: lane_mapping_h.get(row['OMSCHR'], row['OMSCHR']) \
+                if row['KANTCODE'] == "H" \
+                else lane_mapping_t.get(row['OMSCHR'], row['OMSCHR'])
+            self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Mengstroken':
-            self.data[name]['nMengstroken'] = self.data[name]['AANT_MSK'].apply(lambda df: lane_mapping.get(df, df))
+            mapping_function = lambda row: lane_mapping_h.get(row['AANT_MSK'], row['AANT_MSK']) \
+                if row['KANTCODE'] == "H" \
+                else lane_mapping_t.get(row['AANT_MSK'], row['AANT_MSK'])
+            self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Kantstroken':
             # 'Redresseerstrook', 'Bufferstrook', 'Pechhaven' and such are not considered
@@ -178,7 +196,6 @@ class DataFrameLoader:
 
 
 class RoadModel:
-
     __LAYER_NAMES = ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                      'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
 
@@ -252,22 +269,55 @@ class RoadModel:
     def __extract_point_properties(self, row: pd.Series, name: str):
         properties = {}
 
+        # TODO: This part should be moved to DFL class.
+        VERGENCE_TYPE_MAPPING = {
+            'U': 'Uitvoeging',
+            'D': 'Splitsing',
+            'C': 'Samenvoeging',
+            'I': 'Invoeging'
+        }
+
+        km = row['KMTR']
+
+        overlapping_sections = self.get_sections_at_point(row['geometry'])
+
+        # Get the roadside letter and number from the (first) section it overlaps
+        roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
+        roadnumber = [section_info['roadnumber'] for section_info in overlapping_sections.values()][0]
+
+        # Get the IDs of the sections it overlaps
+        section_ids = [section_id for section_id in overlapping_sections.keys()]
+
+        # Get the local number of (main) lanes. Take the highest value if there are multiple.
+        lane_info = [self.get_n_lanes(section_info['properties']) for section_info in overlapping_sections.values()]
+        properties['nMainLanes'] = max(lane_info, key=lambda x: x[0])[0]
+        properties['nTotalLanes'] = max(lane_info, key=lambda x: x[1])[1]
+
+        # Get the local orientation
+        properties['Local angle'] = self.get_local_angle(section_ids, row['geometry'])
+
         if name == 'Convergenties':
-            properties['Type convergentie'] = row['TYPE_CONV']
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
+            print(len(overlapping_sections), overlapping_sections)
+            properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
+            properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                       if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
 
         if name == 'Divergenties':
-            properties['Type divergentie'] = row['TYPE_DIV']
+            properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
+            properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['properties'])[1] == properties['nTotalLanes']]
+            properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                       if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
 
         if name == 'Rijstrooksignaleringen':
+            properties['Type'] = 'Signalering'
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        # Get the IDs of the sections it overlaps, as well as the roadside letter
-        overlapping_sections = self.get_sections_at_point(row['geometry'])
-        section_ids = [section_id for section_id in overlapping_sections.keys()]
-        roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
-
         return {'roadside': roadside,
-                'km': row['KMTR'],
+                'roadnumber': roadnumber,
+                'km': km,
                 'section_ids': section_ids,
                 'properties': properties,
                 'geometry': row['geometry']}
@@ -276,31 +326,31 @@ class RoadModel:
     def __extract_line_properties(row: pd.Series, name: str):
         properties = {}
         roadside = None
-        # wegnummer = None
+        roadnumber = None
 
         if name == 'Rijstroken':
-            roadside = row['IZI_SIDE']
-            # roadnumber = row['WEGNUMMER']
-
             first_lane_number = row['VNRWOL']
-            n_lanes = row['nRijstroken']
-            whole_lanes = int(n_lanes)
-            fraction = n_lanes - whole_lanes
+            n_lanes, special = row['laneInfo']
 
             # Indicate lane number and type of lane. Example: {1: 'Rijstrook', 2: 'Rijstrook'}
-            for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
+            for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
                 properties[lane_nr] = 'Rijstrook'
 
-            # Handle broadening or narrowing road
-            if fraction != 0:
-                properties[n_lanes] = 'Rijstrook'
+            # Take note of special circumstances on this feature.
+            if special:
+                changing_lane = row['VOLGNRSTRK']
+                properties['Special'] = (special, changing_lane)
 
-            if row['IZI_SIDE'] == 'R':
+            roadside = row['IZI_SIDE']
+            roadnumber = row['WEGNUMMER']
+
+            if roadside == 'R':
                 km_range = [row['BEGINKM'], row['EINDKM']]
             else:
                 km_range = [row['EINDKM'], row['BEGINKM']]
 
             return {'roadside': roadside,
+                    'roadnumber': roadnumber,
                     'km_range': km_range,
                     'properties': properties,
                     'geometry': set_precision(row['geometry'], GRID_SIZE)}
@@ -312,22 +362,21 @@ class RoadModel:
 
         elif name == 'Mengstroken':
             first_lane_number = row['VNRWOL']
-            n_lanes = row['nMengstroken']
-            whole_lanes = int(n_lanes)
-            fraction = n_lanes - whole_lanes
+            n_lanes, special = row['laneInfo']
 
-            # Indicate lane number and type of mengstrook. Example: {4: 'Weefstrook'}
-            for lane_nr in range(first_lane_number, first_lane_number + whole_lanes):
+            # Indicate lane number and type of lane. Example: {4: 'Weefstrook'}
+            for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
                 properties[lane_nr] = row['OMSCHR']
 
-            # Handle broadening or narrowing road
-            if fraction != 0:
-                properties[n_lanes] = row['OMSCHR']
+            # Take note of special circumstances on this feature.
+            if special:
+                properties['Special'] = special
 
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
 
         return {'roadside': roadside,
+                'roadnumber': roadnumber,
                 'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
                 'geometry': set_precision(row['geometry'], GRID_SIZE)}
@@ -341,7 +390,7 @@ class RoadModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            print("No overlap detected.")
+            print(f"No overlap detected with {new_section}. It will not be added.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -351,6 +400,7 @@ class RoadModel:
         overlap_section_info = deepcopy(overlap_section['section_info'])
 
         other_section_side = overlap_section_info['roadside']
+        other_section_roadnumber = overlap_section_info['roadnumber']
         other_section_range = overlap_section_info['km_range']
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
@@ -367,6 +417,7 @@ class RoadModel:
         if same_direction(other_section_geom, new_section['geometry']):
             new_section_geom = new_section['geometry']
         else:
+            print("Attention: new geometry is reversed.")
             new_section_geom = reverse(new_section['geometry'])
 
         sections_to_remove = set()
@@ -385,14 +436,15 @@ class RoadModel:
 
             # print("New section range:", new_section_range)
             # print("New section props:", new_section_props)
-            # print("New section geom:", new_section['geometry'])
+            # print("New section geom:", set_precision(new_section['geometry'], 1))
             # print("Other section range:", other_section_range)
             # print("Other section props:", other_section_props)
-            # print("Other section geom:", other_section_geom)
+            # print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Ranges don't overlap."
             if abs(get_km_length(new_section['km_range']) - new_section['geometry'].length) > 100:
-                print(f"[WARNING:] Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}\n")
+                print(
+                    f"[WARNING:] Big length difference: {get_km_length(new_section['km_range'])} and {new_section['geometry'].length}\n")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
@@ -400,19 +452,19 @@ class RoadModel:
             left_side = other_section_side == 'L'
 
             new_section_first = (
-                (min(new_section_range) < min(other_section_range) and right_side)
+                                    (min(new_section_range) < min(other_section_range) and right_side)
                                 ) or (
-                (max(new_section_range) > max(other_section_range) and left_side))
+                                    (max(new_section_range) > max(other_section_range) and left_side))
 
             both_sections_first = (
-                (min(new_section_range) == min(other_section_range) and right_side)
-                         ) or (
-                (max(new_section_range) == max(other_section_range) and left_side))
+                                      (min(new_section_range) == min(other_section_range) and right_side)
+                                  ) or (
+                                      (max(new_section_range) == max(other_section_range) and left_side))
 
             other_section_first = (
-                (min(new_section_range) > min(other_section_range) and right_side)
-                                ) or (
-                (max(new_section_range) < max(other_section_range) and left_side))
+                                      (min(new_section_range) > min(other_section_range) and right_side)
+                                  ) or (
+                                      (max(new_section_range) < max(other_section_range) and left_side))
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -426,6 +478,7 @@ class RoadModel:
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
                     'roadside': other_section_side,
+                    'roadnumber': other_section_roadnumber,
                     'km_range': km_range,
                     'properties': new_section_props,
                     'geometry': added_geom
@@ -441,19 +494,19 @@ class RoadModel:
             elif both_sections_first:
 
                 other_ends_equal = (
-                    (max(new_section_range) == max(other_section_range) and right_side)
+                                       (max(new_section_range) == max(other_section_range) and right_side)
                                    ) or (
-                    (min(new_section_range) == min(other_section_range) and left_side))
+                                       (min(new_section_range) == min(other_section_range) and left_side))
 
                 other_section_larger = (
-                    (max(new_section_range) < max(other_section_range) and right_side)
-                                    ) or (
-                    (min(new_section_range) > min(other_section_range) and left_side))
+                                           (max(new_section_range) < max(other_section_range) and right_side)
+                                       ) or (
+                                           (min(new_section_range) > min(other_section_range) and left_side))
 
                 new_section_larger = (
-                    (max(new_section_range) > max(other_section_range) and right_side)
-                            ) or (
-                    (min(new_section_range) < min(other_section_range) and left_side))
+                                         (max(new_section_range) > max(other_section_range) and right_side)
+                                     ) or (
+                                         (min(new_section_range) < min(other_section_range) and left_side))
 
                 # Update the overlapping section properties
                 if other_ends_equal:
@@ -464,7 +517,7 @@ class RoadModel:
                     self.__update_section(other_section_index,
                                           km_range=new_section_range,
                                           props=new_section_props,
-                                          geom=new_section_geom)
+                                          geom=other_section_geom)
                     # This is the final iteration.
                     break
 
@@ -484,6 +537,7 @@ class RoadModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'roadside': other_section_side,
+                        'roadnumber': other_section_roadnumber,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -509,6 +563,7 @@ class RoadModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'roadside': other_section_side,
+                        'roadnumber': other_section_roadnumber,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -528,6 +583,7 @@ class RoadModel:
                         # This is the final iteration
                         self.__add_section({
                             'roadside': other_section_side,
+                            'roadnumber': other_section_roadnumber,
                             'km_range': new_section_range,
                             'properties': new_section_props,
                             'geometry': new_section_geom
@@ -549,6 +605,7 @@ class RoadModel:
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
                     'roadside': other_section_side,
+                    'roadnumber': other_section_roadnumber,
                     'km_range': km_range,
                     'properties': other_section_props,
                     'geometry': added_geom
@@ -706,6 +763,22 @@ class RoadModel:
 
         return overlapping_sections
 
+    @staticmethod
+    def get_n_lanes(prop: dict) -> tuple[int, int]:
+        """
+        Determines the number of lanes given road properties.
+        Args:
+            prop (dict): Road properties to be evaluated.
+        Returns:
+            1) The number of main lanes - only 'Rijstrook', 'Splitsing' and 'Samenvoeging' registrations.
+            2) The number of lanes, exluding 'puntstuk' registrations.
+        """
+        main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
+                      and lane_type in ['Rijstrook', 'Splitsing', 'Samenvoeging']]
+        any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
+                     and lane_type not in ['Puntstuk']]
+        return len(main_lanes), len(any_lanes)
+
     def get_sections(self) -> list[dict]:
         """
         Obtain a list of all sections in the road model.
@@ -726,20 +799,20 @@ class RoadModel:
 
         return [point for point in self.points.values()]
 
-    def get_local_angle(self, point_info: dict) -> float:
+    def get_local_angle(self, overlapping_ids, point_geom: Point) -> float:
         """
         Find the approximate local angle of sections in the road model at a given point.
         Returns:
             Local angle in degrees.
         """
-        overlapping_lines = [line for index, line in self.sections.items() if index in point_info['section_ids']]
+        overlapping_lines = [line for index, line in self.sections.items() if index in overlapping_ids]
 
         assert overlapping_lines, "Point is not overlapping any lines."
 
         angles = []
         for line in overlapping_lines:
             line_points = [point for point in line['geometry'].coords]
-            closest_point = min(line_points, key=lambda coord: distance(point_info['geometry'], Point(coord)))
+            closest_point = min(line_points, key=lambda coord: distance(point_geom, Point(coord)))
             closest_index = line_points.index(closest_point)
 
             if closest_index + 1 < len(line_points):
@@ -823,7 +896,7 @@ class RoadModel:
         Args:
             point (Point): Geometric position of the point.
         Returns:
-            tuple[int, dict]: Attributes of the (first) road section at the specified kilometer point.
+            dict[int, dict]: Attributes of the (first) road section at the specified kilometer point.
         """
         return {index: section for index, section in self.sections.items() if dwithin(point, section['geometry'], 0.1)}
 
@@ -851,7 +924,7 @@ def get_km_length(km: list[float]) -> int:
     Returns:
         Distance in meters between km1 and km2.
     """
-    return round(1000*abs(km[1] - km[0]))
+    return round(1000 * abs(km[1] - km[0]))
 
 
 def determine_range_overlap(range1: list, range2: list) -> bool:
@@ -878,13 +951,19 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     Geom1 is taken as the 'correct' orientation.
     Args:
         geom1: The first shapely LineString geometry.
-        geom2: The first shapely LineString geometry.
+        geom2: The second shapely LineString geometry.
     Returns:
         Boolean value that is True when the geometries are in the same directions.
     """
-
     geom1_linedist_a = line_locate_point(geom1, Point(geom2.coords[0]))
     geom1_linedist_b = line_locate_point(geom1, Point(geom2.coords[-1]))
+
+    # Catch cases where both linedistances are equal (likely 0 or 1)
+    if geom1_linedist_a == geom1_linedist_b:
+        geom2_linedist_a = line_locate_point(geom2, Point(geom1.coords[0]))
+        geom2_linedist_b = line_locate_point(geom2, Point(geom1.coords[-1]))
+        return geom2_linedist_a < geom2_linedist_b
+
     return geom1_linedist_a < geom1_linedist_b
 
 
@@ -939,17 +1018,26 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
 
 
 class MSIRow:
-    def __init__(self, msi_network, name: str, msi_row_info: dict, local_road_info: dict):
+    def __init__(self, msi_network, msi_row_info: dict, local_road_info: dict):
         self.msi_network = msi_network
-        self.name = name
         self.info = msi_row_info
         self.properties = self.info['properties']
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['properties']
+        self.name = f"A{self.info['roadnumber']}{self.info['roadside']}:{self.info['km']}"
+        self.lane_numbers = []
+        self.n_lanes = 0
+        self.n_msis = 0
+        self.MSIs = {}
+        self.cw = {}
+        self.downstream = {}
+        self.upstream = {}
 
+    def fill_row_properties(self):
         # Determine everything there is to know about the road in general
-        self.n_lanes = max((lane_nr for lane_nr, lane_type in self.local_road_properties.items()
-                            if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']), default=0)
+        self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
+                                    if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']])
+        self.n_lanes = len(self.lane_numbers)
         self.n_msis = len(self.properties['Rijstroken'])
 
         # Create all MSIs in row, passing the parent row class as argument
@@ -960,8 +1048,12 @@ class MSIRow:
         cw_index = 1
         lanes_in_current_cw = [1]
 
-        # TODO: Does NOT work for taper or broadening/narrowing. Assumes whole numbers
-        for lane_number in range(1, self.n_lanes):
+        for lane_number in self.lane_numbers:
+            # Add final lane and stop
+            if lane_number == self.n_lanes:
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                break
+
             current_lane = self.local_road_properties[lane_number]
             next_lane = self.local_road_properties[lane_number + 1]
             if current_lane == next_lane:
@@ -971,13 +1063,30 @@ class MSIRow:
                 lanes_in_current_cw = [lane_number + 1]
                 cw_index += 1
 
-            # Add final lane
-            if lane_number + 1 == self.n_lanes:
-                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+    def determine_msi_row_relations(self):
+        downstream_rows = self.msi_network.travel_roadmodel(self, True)
 
-    def fill_row_properties(self):
+        print(f"Downstream of {self.name} is")
+        for row in downstream_rows:
+            for msi_row, desc in row.items():
+                if msi_row is not None:
+                    print(msi_row.name, desc)
+                    self.downstream[msi_row] = desc
+        print("")
+
+        upstream_rows = self.msi_network.travel_roadmodel(self, False)
+
+        print(f"Upstream of {self.name} is")
+        for row in upstream_rows:
+            for msi_row, desc in row.items():
+                if msi_row is not None:
+                    print(msi_row.name, desc)
+                    self.upstream.update({msi_row: desc})
+        print("")
+
+    def fill_msi_properties(self):
         for msi in self.MSIs.values():
-            msi.fill_msi_properties()
+            msi.fill_properties()
 
 
 class MSINetwork:
@@ -985,48 +1094,153 @@ class MSINetwork:
         self.roadmodel = roadmodel
         msi_data = self.roadmodel.get_points('MSI')
 
-        self.MSIrows = [MSIRow(self, f"MSI-{str(row_numbering)}-{msi_row['km']}",
-                               msi_row, self.roadmodel.get_one_section_info_at_point(msi_row['geometry']))
+        self.MSIrows = [MSIRow(self, msi_row, self.roadmodel.get_one_section_info_at_point(msi_row['geometry']))
                         for row_numbering, msi_row in enumerate(msi_data)]
 
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
 
-    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool = True) -> MSIRow | None:
-        # current_location = msi_row.info['geometry']
-        # roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
-        #
-        # # TODO: Ensure that the geometry does not directly intersect another registered point!
-        #
-        # # Extract the first and last points of the geometry
-        # if downstream:
-        #     connection_point = roadmodel_section.coords[-1]
-        # else:
-        #     connection_point = roadmodel_section.coords[0]
-        #
-        # next_section = ...
+        # These can only be called once all msi_rows are initialised.
+        for msi_row in self.MSIrows:
+            msi_row.determine_msi_row_relations()
+            msi_row.fill_msi_properties()
 
+    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
+        current_location = msi_row.info['geometry']
         current_km = msi_row.info['km']
         roadside = msi_row.local_road_info['roadside']
+        annotation = None
 
-        # Filter points based on roadside and travel direction.
+        roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
+        assert len(roadmodel_section) == 1, "More than one section found at MSI location."
+
+        # Starting point for recursion
+        starting_section_id = next(iter(roadmodel_section.keys()))  # Obtain first (and only) ID in dict.
+        print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {roadside}")
+        msis = self.find_msi_recursive(starting_section_id, current_km, downstream, roadside)
+        if isinstance(msis, dict):
+            return [msis]
+        return msis
+
+    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
+                           roadside: str, annotation: int = 0) -> list | dict:
+        # Only takes points that are upstream/downstream of current point.
         if roadside == 'L' and downstream or roadside == 'R' and not downstream:
-            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] < current_km
-                               and point['roadside'] == roadside]
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                       current_section_id in point_data['section_ids'] and point_data['km'] < current_km]
         else:
-            eligible_points = [point for point in self.roadmodel.get_points('MSI') if point['km'] > current_km
-                               and point['roadside'] == roadside]
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                       current_section_id in point_data['section_ids'] and point_data['km'] > current_km]
 
-        if eligible_points:
-            closest_point = min(eligible_points, key=lambda point: abs(current_km - point['km']))
+        msis_on_section = [point for point in other_points_on_section if
+                           point['properties']['Type'] == 'Signalering']
 
-            # Return the MSI row with the same kilometre registration
-            for msi_row in self.MSIrows:
-                if msi_row.info['km'] == closest_point['km']:
-                    return msi_row
+        # Base case 1: Single MSI found
+        if len(msis_on_section) == 1:
+            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['km']}")
+            return {self.get_msi_row_at_point(msis_on_section[0]): annotation}
 
+        # Base case 2: Multiple MSIs found
+        if len(msis_on_section) > 1:
+            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['km']}")
+            nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['km']))
+            return {self.get_msi_row_at_point(nearest_msi): annotation}
+
+        # Recursive case 1: No other points on the section
+        if not other_points_on_section:
+            print(f"No other points on {current_section_id}")
+            # Obtain connection point of section
+            this_section_geom = self.roadmodel.sections[current_section_id]['geometry']
+            if downstream:
+                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
+                                          dwithin(Point(sinfo['geometry'].coords[0]),
+                                                  Point(this_section_geom.coords[-1]), 0.1)]
+
+            else:
+                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
+                                          dwithin(Point(sinfo['geometry'].coords[-1]),
+                                                  Point(this_section_geom.coords[0]), 0.1)]
+
+            if not connecting_section_ids:
+                # There are no further sections connected to the current one. Return empty-handed.
+                print(f"No connections at all with {current_section_id}")
+                return {None: annotation}
+            #
+            elif len(connecting_section_ids) > 1:
+                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
+                # This is likely an intersection. These are of no interest for MSI relations.
+                return {None: annotation}
+            else:
+                # Find an MSI in the next section
+                print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
+                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, roadside, annotation)
+
+        assert len(other_points_on_section) == 1, f"Did not expect {other_points_on_section}"
+
+        # Recursive case 2: *vergence point on the section
+        other_point = other_points_on_section[0]
+
+        # print(f"There is a *vergence point on {current_section_id}: {other_point['properties']}")
+
+        ds_split = downstream and other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging']
+        us_split = not downstream and other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']
+
+        if not (ds_split or us_split):
+            current_section = self.roadmodel.sections[current_section_id]
+            # The recursive function can be called once, for the (only) section that is in the travel direction.
+            if downstream:
+                section_id = other_point['properties']['Lanes_out'][0]
+                if 'Puntstuk' not in current_section['properties'].values():
+                    # we are section b. determine annotation.
+                    other_section_id = [sid for sid in other_point['properties']['Lanes_in'] if sid != current_section_id][0]
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
+                    annotation = annotation + n_lanes_other
+            else:
+                section_id = other_point['properties']['Lanes_in'][0]
+                if 'Puntstuk' not in current_section['properties'].values():
+                    # we are section b. determine annotation.
+                    other_section_id = [sid for sid in other_point['properties']['Lanes_out'] if sid != current_section_id][0]
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['properties'])
+                    annotation = annotation + n_lanes_other
+
+            print(f"The *vergence point leads to section {section_id}")
+            print(f"Marking {section_id} with +{annotation}")
+
+            return self.find_msi_recursive(section_id, other_point['km'], downstream, roadside, annotation)
+
+        if us_split:
+            section_ids = other_point['properties']['Lanes_in']
+            print(f"The *vergence point is an upstream split into {section_ids}")
+
+        elif ds_split:
+            section_ids = other_point['properties']['Lanes_out']
+            print(f"The *vergence point is a downstream split into {section_ids}")
+
+        potential_cont_section = self.roadmodel.sections[section_ids[0]]
+        potential_div_section = self.roadmodel.sections[section_ids[1]]
+        if 'Puntstuk' in potential_cont_section['properties'].values():
+            section_a = section_ids[0]
+            section_b = section_ids[1]
+            annotation_b, _ = self.roadmodel.get_n_lanes(potential_cont_section['properties'])
         else:
-            return None
+            section_a = section_ids[1]
+            section_b = section_ids[0]
+            annotation_b, _ = self.roadmodel.get_n_lanes(potential_div_section['properties'])
+
+        # Store negative value in this direction.
+        print(f"Marking {section_b} with -{annotation_b}")
+
+        # Make it do the recursive function twice. Then store the result.
+        option1 = self.find_msi_recursive(section_a, other_point['km'], downstream, roadside, annotation)
+        option2 = self.find_msi_recursive(section_b, other_point['km'], downstream, roadside, annotation - annotation_b)
+        # Return a list of dictionaries
+        return [option1, option2]
+
+    def get_msi_row_at_point(self, point: dict) -> MSIRow:
+        # Return the MSI row with the same kilometre registration
+        for msi_row in self.MSIrows:
+            if msi_row.info['km'] == point['km']:
+                return msi_row
 
 
 class MSILegends:
@@ -1076,11 +1290,11 @@ class MSI(MSILegends):
         # Store all that is unique to the MSI
         self.lane_number = lane_number
         self.displayoptions = self.displayset_all
-        self.name = f"{self.row.name}-{str(lane_number)}"
+        self.name = f"{self.row.name}:{str(lane_number)}"
 
         self.properties = {
             # 'RSU': None,  # RSU name [Not available]
-            'c': None,  # Current MSI
+            'c': None,  # Current MSI (center)
             'r': None,  # MSI right
             'l': None,  # MSI left
             'd': None,  # MSI downstream
@@ -1095,9 +1309,8 @@ class MSI(MSILegends):
             'un': None,  # MSI upstream narrowing
 
             'STAT_V': None,  # Static maximum speed
-            'DYN_V': None,  # Dynamic maximum speed [?]
-            'C_X': None,  # True if continue-X relation [?]
-            'C_V': None,  # True if continue-V relation [?]
+            'C_X': None,  # True if continue-X relation
+            'C_V': None,  # True if continue-V relation
 
             'N_row': None,  # [~] Number of MSIs in row.
             'N_TS': None,  # Number of MSIs in traffic stream.
@@ -1113,13 +1326,13 @@ class MSI(MSILegends):
             'TS_right': None,  # All MSIs in TS to the right.
             'TS_left': None,  # All MSIs in TS to the left.
 
-            'DIF_V_right': None,  # DIF-V influence from the right [?]
-            'DIF_V_left': None,  # DIF-V influence from the left [?]
+            'DIF_V_right': None,  # DIF-V influence from the right
+            'DIF_V_left': None,  # DIF-V influence from the left
 
             'row': None,  # All MSIs in row.
 
-            'RHL': None,  # [V] True if MSI in RHL.
-            'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right. [?]
+            'RHL': None,  # [V] True if MSI in RHL. (Any lane that is open sometimes)
+            'Exit_Entry': None,  # True if MSI in RHL and normal lanes left and right.
             'RHL_neighbor': None,  # [V] True if RHL in row.
 
             'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
@@ -1128,16 +1341,16 @@ class MSI(MSILegends):
             # 'State': None,  # Active legend. [Not applicable]
         }
 
-    def fill_msi_properties(self):
-        self.determine_MSI_properties()
-        self.determine_MSI_relations()
+    def fill_properties(self):
+        self.determine_properties()
+        self.determine_relations()
 
         filtered_properties = {key: value for key, value in self.properties.items() if value is not None}
         print(f"{self.name} has the following properties:\n{filtered_properties}")
+        print("")
 
-    def determine_MSI_properties(self):
+    def determine_properties(self):
         self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
-        # self.properties['DYN_V'] =
         # self.properties['C_X'] =
         # self.properties['C_V'] =
 
@@ -1164,16 +1377,22 @@ class MSI(MSILegends):
             self.properties['TS_right'] = self.properties['CW_right']
             self.properties['TS_left'] = self.properties['CW_left']
 
-        # DIF - V heeft richtlijnen (bv 20 naar links, 0 naar rechts)
-        # self.properties['DIF_V_right'] =
-        # self.properties['DIF_V_left'] =
+        # Safest assumption: 0 for both directions. DIF_V heeft evt. richtlijnen (bv 20 naar links, 0 naar rechts).
+        self.properties['DIF_V_right'] = 0
+        self.properties['DIF_V_left'] = 0
 
         self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
-        if self.row.local_road_properties[self.lane_number] == 'Spitsstrook':
+        if self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook']:
             self.properties['RHL'] = True
-        # self.properties['Exit-entry'] =
-        if 'Spitsstrook' in self.row.local_road_properties.values():
+
+        if (self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook'] and
+                self.row.n_lanes > self.lane_number > 1):
+            self.properties['Exit-entry'] = True
+
+        if ('Spitsstrook' in self.row.local_road_properties.values() or
+                'Plusstrook' in self.row.local_road_properties.values() or
+                'Bufferstrook' in self.row.local_road_properties.values()):
             self.properties['RHL_neighbor'] = True
 
         if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
@@ -1181,17 +1400,17 @@ class MSI(MSILegends):
         if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == 'Vluchtstrook':
             self.properties['Hard_shoulder_left'] = True
 
-    def determine_MSI_relations(self):
+    def determine_relations(self):
         self.properties['c'] = self.name
         if self.lane_number + 1 in self.row.MSIs.keys():
             self.properties['r'] = self.row.MSIs[self.lane_number + 1].name
         if self.lane_number - 1 in self.row.MSIs.keys():
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
-        downstream_row = self.row.msi_network.travel_roadmodel(self.row, True)
-        if downstream_row and self.lane_number in downstream_row.MSIs.keys():
-            self.properties['d'] = downstream_row.MSIs[self.lane_number].name
+        for downstream_row, desc in self.row.downstream.items():
+            if self.lane_number + desc in downstream_row.MSIs.keys():
+                self.properties['d'] = downstream_row.MSIs[self.lane_number + desc].name
 
-        upstream_row = self.row.msi_network.travel_roadmodel(self.row, False)
-        if upstream_row and self.lane_number in upstream_row.MSIs.keys():
-            self.properties['u'] = upstream_row.MSIs[self.lane_number].name
+        for upstream_row, desc in self.row.upstream.items():
+            if self.lane_number + desc in upstream_row.MSIs.keys():
+                self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
