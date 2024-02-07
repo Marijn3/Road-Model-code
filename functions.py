@@ -1112,39 +1112,44 @@ class MSINetwork:
         current_location = msi_row.info['geometry']
         current_km = msi_row.info['km']
         roadside = msi_row.local_road_info['roadside']
-        annotation = None
 
-        roadmodel_section = self.roadmodel.get_sections_at_point(current_location)
-        assert len(roadmodel_section) == 1, "More than one section found at MSI location."
+        start_sections = self.roadmodel.get_sections_at_point(current_location)
 
-        # Starting point for recursion
-        starting_section_id = next(iter(roadmodel_section.keys()))  # Obtain first (and only) ID in dict.
+        if len(start_sections) == 1:
+            starting_section_id = next(iter(start_sections.keys()))  # Obtain first (and only) ID in dict.
+
+        elif len(start_sections) > 1:
+            print("More than one section found at MSI location.")  # Filter the correct ID in dict.
+            if (downstream and roadside == 'R') or (not downstream and roadside == 'L'):
+                for section_id, section in start_sections.items():
+                    if section['km_range'][0] == current_km:
+                        starting_section_id = section_id
+                        break
+            elif (downstream and roadside == 'L') or (not downstream and roadside == 'R'):
+                for section_id, section in start_sections.items():
+                    if section['km_range'][1] == current_km:
+                        starting_section_id = section_id
+                        break
+
         print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {roadside}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, roadside)
+
         if isinstance(msis, dict):
             return [msis]
         return msis
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
                            roadside: str, offset: int = 0, current_distance: float = 0) -> list | dict:
-        # Only takes points that are upstream/downstream of current point.
-        if roadside == 'L' and downstream or roadside == 'R' and not downstream:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
-                                       current_section_id in point_data['section_ids'] and point_data['km'] < current_km]
-        else:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
-                                       current_section_id in point_data['section_ids'] and point_data['km'] > current_km]
-
-        msis_on_section = [point for point in other_points_on_section if
-                           point['properties']['Type'] == 'Signalering']
+        other_points_on_section, msis_on_section = (
+            self.evaluate_section_points(current_section_id, current_km, roadside, downstream))
 
         current_section = self.roadmodel.sections[current_section_id]
         current_distance += current_section['geometry'].length
+        print(f"Current depth: {current_distance}")
 
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['km']}")
-            print(f"Current depth: {current_distance}")
             return {self.get_msi_row_at_point(msis_on_section[0]): offset}
 
         # Base case 2: Multiple MSI rows found
@@ -1189,13 +1194,10 @@ class MSINetwork:
 
         # Recursive case 2: *vergence point on the section
         other_point = other_points_on_section[0]
+        downstream_split = downstream and other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging']
+        upstream_split = not downstream and other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']
 
-        # print(f"There is a *vergence point on {current_section_id}: {other_point['properties']}")
-
-        ds_split = downstream and other_point['properties']['Type'] in ['Splitsing', 'Uitvoeging']
-        us_split = not downstream and other_point['properties']['Type'] in ['Samenvoeging', 'Invoeging']
-
-        if not (ds_split or us_split):
+        if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
                 section_id = other_point['properties']['Lanes_out'][0]
@@ -1217,11 +1219,11 @@ class MSINetwork:
 
             return self.find_msi_recursive(section_id, other_point['km'], downstream, roadside, offset, current_distance)
 
-        if us_split:
+        if upstream_split:
             section_ids = other_point['properties']['Lanes_in']
             print(f"The *vergence point is an upstream split into {section_ids}")
 
-        elif ds_split:
+        elif downstream_split:
             section_ids = other_point['properties']['Lanes_out']
             print(f"The *vergence point is a downstream split into {section_ids}")
 
@@ -1240,10 +1242,25 @@ class MSINetwork:
         print(f"Marking {section_b} with -{offset_b}")
 
         # Make it do the recursive function twice. Then store the result.
-        option1 = self.find_msi_recursive(section_a, other_point['km'], downstream, roadside, offset, current_distance)
-        option2 = self.find_msi_recursive(section_b, other_point['km'], downstream, roadside, offset - offset_b, current_distance)
+        option_continuation = self.find_msi_recursive(section_a, other_point['km'], downstream, roadside, offset, current_distance)
+        option_diversion = self.find_msi_recursive(section_b, other_point['km'], downstream, roadside, offset - offset_b, current_distance)
         # Return a list of dictionaries
-        return [option1, option2]
+        return [option_continuation, option_diversion]
+
+    def evaluate_section_points(self, current_section_id: int, current_km: float, roadside: str, downstream: bool):
+        # Only takes points that are upstream/downstream of current point.
+        if roadside == 'L' and downstream or roadside == 'R' and not downstream:
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                       current_section_id in point_data['section_ids'] and point_data['km'] < current_km]
+        else:
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+                                       current_section_id in point_data['section_ids'] and point_data['km'] > current_km]
+
+        # Further filters for MSIs specifically
+        msis_on_section = [point for point in other_points_on_section if
+                           point['properties']['Type'] == 'Signalering']
+
+        return other_points_on_section, msis_on_section
 
     def get_msi_row_at_point(self, point: dict) -> MSIRow:
         # Return the MSI row with the same kilometer registration
