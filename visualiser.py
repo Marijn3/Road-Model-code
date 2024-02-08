@@ -2,8 +2,8 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLoader("Vught")
-roadmodel = RoadModel(dfl)
+dfl = DataFrameLader("Vught")
+roadmodel = WegModel(dfl)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5

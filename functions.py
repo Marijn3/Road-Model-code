@@ -10,7 +10,7 @@ GRID_SIZE = 0.00001
 MSI_RELATION_MAX_SEARCH_DISTANCE = 5000
 
 
-class DataFrameLoader:
+class DataFrameLader:
     """
    A class for loading GeoDataFrames from shapefiles based on a specified location extent.
 
@@ -48,7 +48,7 @@ class DataFrameLoader:
             location (str): The name of the location.
         """
         self.__define_extent(location)
-        for file_path in DataFrameLoader.__FILE_PATHS:
+        for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             self.data[df_layer_name] = self.__load_dataframe(file_path)
             self.__edit_columns(df_layer_name)
@@ -215,7 +215,7 @@ class DataFrameLoader:
             ValueError: If there is an error reading the csv file.
         """
         try:
-            with open(DataFrameLoader.__LOCATIONS_CSV_PATH, 'r') as file:
+            with open(DataFrameLader.__LOCATIONS_CSV_PATH, 'r') as file:
                 csv_reader = csv.DictReader(file, delimiter=';')
                 for row in csv_reader:
                     if row['locatie'] == location:
@@ -227,16 +227,16 @@ class DataFrameLoader:
                         }
             return {}  # Return empty dictionary if the location is not found
         except FileNotFoundError:
-            raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLoader.__LOCATIONS_CSV_PATH}")
+            raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
         except csv.Error as e:
             raise ValueError(f"Fout bij het lezen van het csv bestand: {e}")
 
 
-class RoadModel:
+class WegModel:
     __LAYER_NAMES = ['Wegcat beleving', 'Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                      'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
 
-    def __init__(self, dfl: DataFrameLoader):
+    def __init__(self, dfl: DataFrameLader):
         self.sections = {}
         self.section_index = 0
         self.points = {}
@@ -245,11 +245,11 @@ class RoadModel:
 
         self.__import_dataframes(dfl)
 
-    def __import_dataframes(self, dfl: DataFrameLoader) -> None:
+    def __import_dataframes(self, dfl: DataFrameLader) -> None:
         """
         Load road attributes from all DataFrames.
         Args:
-            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
+            dfl (DataFrameLader): DataFrameLoader class with all dataframes.
         Note:
             The 'Wegcat beleving' layer is the first layer to be imported because two assumptions hold for it:
                 1) it is defined everywhere where it would be necessary.
@@ -267,11 +267,11 @@ class RoadModel:
                   f"en {self.point_index - current_points} punten toe aan het model.\n"
                   f"Het model heeft nu in totaal {self.section_index} secties en {self.point_index} punten.\n")
 
-    def __import_dataframe(self, dfl: DataFrameLoader, df_name: str):
+    def __import_dataframe(self, dfl: DataFrameLader, df_name: str):
         """
         Load line and point features and their attributes from a GeoDataFrame.
         Args:
-            dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
+            dfl (DataFrameLader): DataFrameLoader class with all dataframes.
             df_name (str): Name of DataFrame to be imported.
         """
         dataframe = dfl.data[df_name]
@@ -906,7 +906,7 @@ class RoadModel:
                 section_info.append(section)
         return section_info
 
-    def get_properties_at(self, km: float, rijrichting: str) -> dict | list[dict]:
+    def print_props(self, km: float, rijrichting: str) -> dict | list[dict]:
         """
         Prints the properties of a road section at a specific km and rijrichting.
         Args:
@@ -1134,8 +1134,8 @@ class MSIRow:
             msi.fill_properties()
 
 
-class MSINetwork:
-    def __init__(self, roadmodel: RoadModel):
+class MSINetwerk:
+    def __init__(self, roadmodel: WegModel):
         self.roadmodel = roadmodel
         msi_data = self.roadmodel.get_points('MSI')
 
