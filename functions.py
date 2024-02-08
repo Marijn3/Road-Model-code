@@ -887,7 +887,7 @@ class WegModel:
                 angles.pop(outlier_index)
 
         average_angle = sum(angles) / len(angles)
-        return average_angle
+        return round(average_angle, 2)
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         """
