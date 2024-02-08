@@ -25,7 +25,8 @@ class DataFrameLoader:
 
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
-        "data/Rijstroken/rijstroken-edit.dbf",
+        "data/Wegcat beleving/wegcat_beleving-edit.dbf",
+        "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
         "data/Mengstroken/mengstroken.dbf",
         "data/Maximum snelheid/max_snelheden.dbf",
@@ -197,7 +198,7 @@ class DataFrameLoader:
 
 
 class RoadModel:
-    __LAYER_NAMES = ['Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
+    __LAYER_NAMES = ['Wegcat beleving', 'Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                      'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
 
     def __init__(self, dfl: DataFrameLoader):
@@ -215,12 +216,10 @@ class RoadModel:
         Args:
             dfl (DataFrameLoader): DataFrameLoader class with all dataframes.
         Note:
-            The 'Rijstroken' layer is the first layer to be imported because two assumptions hold for it:
+            The 'Wegcat beleving' layer is the first layer to be imported because two assumptions hold for it:
                 1) it is defined everywhere where it would be necessary.
                 2) it does not have internal overlap.
-            Additionally, it is the most reliable source for roadside. The only other candidate
-            is maximumsnelheden, but this unfortunately sometimes has places where it is
-            undefined, therefore the first assumption doesn't hold.
+                3) Additionally, it is a reliable source for roadside.
         """
         for df_name in self.__LAYER_NAMES:
             print(f"[STATUS:] Importing {df_name}...")
@@ -284,7 +283,7 @@ class RoadModel:
 
         # Get the roadside letter and number from the (first) section it overlaps
         roadside = [section_info['roadside'] for section_info in overlapping_sections.values()][0]
-        roadnumber = [section_info['roadnumber'] for section_info in overlapping_sections.values()][0]
+        wegnummer = [section_info['wegnummer'] for section_info in overlapping_sections.values()][0]
 
         # Get the IDs of the sections it overlaps
         section_ids = [section_id for section_id in overlapping_sections.keys()]
@@ -317,7 +316,7 @@ class RoadModel:
             properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
 
         return {'roadside': roadside,
-                'roadnumber': roadnumber,
+                'wegnummer': wegnummer,
                 'km': km,
                 'section_ids': section_ids,
                 'properties': properties,
@@ -327,7 +326,27 @@ class RoadModel:
     def __extract_line_properties(row: pd.Series, name: str):
         properties = {}
         roadside = None
-        roadnumber = None
+        wegnummer = None
+
+        if name == "Wegcat beleving":
+            if row['OMSCHR'] == 'Autosnelweg':
+                wegletter = 'A'  # Autosnelweg
+            else:
+                wegletter = 'N'  # Niet-autosnelweg
+
+            roadside = row['IZI_SIDE']
+            wegnummer = wegletter + str(row['WEGNUMMER'])
+
+            if roadside == 'R':
+                km_range = [row['BEGINKM'], row['EINDKM']]
+            else:
+                km_range = [row['EINDKM'], row['BEGINKM']]
+
+            return {'roadside': roadside,
+                    'wegnummer': wegnummer,
+                    'km_range': km_range,
+                    'properties': properties,
+                    'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
         if name == 'Rijstroken':
             first_lane_number = row['VNRWOL']
@@ -341,20 +360,6 @@ class RoadModel:
             if special:
                 changing_lane = row['VOLGNRSTRK']
                 properties['Special'] = (special, changing_lane)
-
-            roadside = row['IZI_SIDE']
-            roadnumber = row['WEGNUMMER']
-
-            if roadside == 'R':
-                km_range = [row['BEGINKM'], row['EINDKM']]
-            else:
-                km_range = [row['EINDKM'], row['BEGINKM']]
-
-            return {'roadside': roadside,
-                    'roadnumber': roadnumber,
-                    'km_range': km_range,
-                    'properties': properties,
-                    'geometry': set_precision(row['geometry'], GRID_SIZE)}
 
         elif name == 'Kantstroken':
             # Indicate lane number and type of kantstrook. Example: {3: 'Spitsstrook'}
@@ -377,7 +382,7 @@ class RoadModel:
             properties['Maximumsnelheid'] = row['OMSCHR']
 
         return {'roadside': roadside,
-                'roadnumber': roadnumber,
+                'wegnummer': wegnummer,
                 'km_range': [row['BEGINKM'], row['EINDKM']],
                 'properties': properties,
                 'geometry': set_precision(row['geometry'], GRID_SIZE)}
@@ -401,7 +406,7 @@ class RoadModel:
         overlap_section_info = deepcopy(overlap_section['section_info'])
 
         other_section_side = overlap_section_info['roadside']
-        other_section_roadnumber = overlap_section_info['roadnumber']
+        other_section_wegnummer = overlap_section_info['wegnummer']
         other_section_range = overlap_section_info['km_range']
         other_section_props = overlap_section_info['properties']
         other_section_geom = overlap_section_info['geometry']
@@ -478,7 +483,7 @@ class RoadModel:
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
                     'roadside': other_section_side,
-                    'roadnumber': other_section_roadnumber,
+                    'wegnummer': other_section_wegnummer,
                     'km_range': km_range,
                     'properties': new_section_props,
                     'geometry': added_geom
@@ -537,7 +542,7 @@ class RoadModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'roadside': other_section_side,
-                        'roadnumber': other_section_roadnumber,
+                        'wegnummer': other_section_wegnummer,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -563,7 +568,7 @@ class RoadModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'roadside': other_section_side,
-                        'roadnumber': other_section_roadnumber,
+                        'wegnummer': other_section_wegnummer,
                         'km_range': km_range,
                         'properties': both_props,
                         'geometry': added_geom
@@ -583,7 +588,7 @@ class RoadModel:
                         # This is the final iteration
                         self.__add_section({
                             'roadside': other_section_side,
-                            'roadnumber': other_section_roadnumber,
+                            'wegnummer': other_section_wegnummer,
                             'km_range': new_section_range,
                             'properties': new_section_props,
                             'geometry': new_section_geom
@@ -605,7 +610,7 @@ class RoadModel:
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
                     'roadside': other_section_side,
-                    'roadnumber': other_section_roadnumber,
+                    'wegnummer': other_section_wegnummer,
                     'km_range': km_range,
                     'properties': other_section_props,
                     'geometry': added_geom
@@ -1027,7 +1032,7 @@ class MSIRow:
         self.properties = self.info['properties']
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['properties']
-        self.name = f"A{self.info['roadnumber']}{self.info['roadside']}:{self.info['km']}"
+        self.name = f"A{self.info['wegnummer']}{self.info['roadside']}:{self.info['km']}"
         self.lane_numbers = []
         self.n_lanes = 0
         self.n_msis = 0
@@ -1120,6 +1125,7 @@ class MSINetwork:
 
         elif len(start_sections) > 1:
             print("More than one section found at MSI location.")  # Filter the correct ID in dict.
+            print(f"Using {downstream} {roadside} on {start_sections}")
             if (downstream and roadside == 'R') or (not downstream and roadside == 'L'):
                 for section_id, section in start_sections.items():
                     if section['km_range'][0] == current_km:
@@ -1130,6 +1136,8 @@ class MSINetwork:
                     if section['km_range'][1] == current_km:
                         starting_section_id = section_id
                         break
+            else:
+                raise Exception(f"Did not expect {downstream} {roadside}")
 
         print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {roadside}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, roadside)
