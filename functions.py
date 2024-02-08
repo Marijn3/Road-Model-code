@@ -35,10 +35,11 @@ class DataFrameLoader:
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
-    def __init__(self, location: str) -> None:
+    def __init__(self, location: str = None) -> None:
         self.data = {}
         self.extent = None
-        self.__load_dataframes(location)
+        if location:
+            self.__load_dataframes(location)
 
     def __load_dataframes(self, location: str) -> None:
         """

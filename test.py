@@ -9,13 +9,13 @@ def makeData(rijstroken_data, kantstroken_data) -> dict:
             'Maximum snelheid': pd.DataFrame(),
             'Convergenties': pd.DataFrame(),
             'Divergenties': pd.DataFrame(),
-            'Rijstrooksignaleringen': pd.DataFrame()}
+            'Rijstrooksignaleringen': pd.DataFrame(),
+            'Wegcat beleving': pd.DataFrame()}
 
 
 class TestRoadModel(unittest.TestCase):
 
     def setUp(self):
-        self.road_model = RoadModel()
         self.dfl = DataFrameLoader()
         self.rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
                                              'BEGINKM': [0, 2],
@@ -41,7 +41,7 @@ class TestRoadModel(unittest.TestCase):
                                          'geometry': [LineString([[0, 0], [2000, 0]]),
                                                       LineString([[2000, 0], [4000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = RoadModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
@@ -64,7 +64,7 @@ class TestRoadModel(unittest.TestCase):
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[0, 0], [4000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = RoadModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
         self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
@@ -81,7 +81,7 @@ class TestRoadModel(unittest.TestCase):
                                          'geometry': [LineString([[0, 0], [2000, 0]]),
                                                       LineString([[2000, 0], [4000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = RoadModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
         self.assertEqual(len(self.road_model.sections[0]['properties']), 3)
@@ -95,7 +95,7 @@ class TestRoadModel(unittest.TestCase):
                                          'geometry': [LineString([[-1000, 0], [1000, 0]]),
                                                       LineString([[3000, 0], [5000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = RoadModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 6)
         self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
@@ -111,7 +111,7 @@ class TestRoadModel(unittest.TestCase):
                                          'VNRWOL': [2],
                                          'geometry': [LineString([[5000, 0], [7000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = RoadModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
         self.assertDictEqual(self.road_model.get_properties_at(3, 'R'),
