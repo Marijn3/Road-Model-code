@@ -106,6 +106,39 @@ class DataFrameLoader:
         folder_name = parts[-2]
         return folder_name
 
+    @staticmethod
+    def convert_to_linestring(geom: MultiLineString) -> LineString:
+        merged = line_merge(geom)
+        if isinstance(merged, LineString):
+            return merged
+
+        # Catching a specific case where there is a slight mismatch in the endpoints of a multilinestring
+        if get_num_geometries(geom) == 2:
+            line1 = geom.geoms[0]
+            line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
+
+            line2 = geom.geoms[1]
+            line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
+
+            common_points = [point for point in line1_points if point in line2_points]
+            assert len(common_points) == 1, "More than one point in common."
+            common_point = common_points[0]
+            index_line1 = line1_points.index(common_point)
+            index_line2 = line2_points.index(common_point)
+
+            if index_line1 == 1:
+                line1 = LineString([coord for coord in line1.coords if coord != line1_points[0]])
+            if index_line1 == 2:
+                line1 = LineString([coord for coord in line1.coords if coord != line1_points[-1]])
+            if index_line2 == 1:
+                line2 = LineString([coord for coord in line2.coords if coord != line2_points[0]])
+            if index_line2 == 2:
+                line2 = LineString([coord for coord in line2.coords if coord != line2_points[-1]])
+
+            return line_merge(MultiLineString([line1, line2]))
+
+        assert False, f"Conversion to linestring failed for {geom}"
+
     def __edit_columns(self, name: str) -> None:
         """
         Edits columns of GeoDataFrames in self.data in place.
@@ -115,27 +148,31 @@ class DataFrameLoader:
         # Applies some rounding to geometry
         # self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: set_precision(geom, GRID_SIZE))
 
+        # Ensure all MultiLineStrings are converted to LineStrings. The double call is necessary.
+        self.data[name]['geometry'] = self.data[name]['geometry'].apply(lambda geom: self.convert_to_linestring(geom)
+                                                                        if isinstance(geom, MultiLineString) else geom)
+
         # These column variable types should be changed.
         self.data[name]['WEGNUMMER'] = pd.to_numeric(self.data[name]['WEGNUMMER'], errors='coerce').astype('Int64')
 
         # Mapping from lane registration to (nLanes, Special feature)
-        lane_mapping_h = {'1 -> 1': (1, None), '1 -> 2': (2, 'Broadening'), '2 -> 1': (2, 'Narrowing'),
-                          '1 -> 1.6': (1, 'TaperStart'), '1.6 -> 1': (1, 'TaperEnd'),
-                          '2 -> 1.6': (2, 'TaperStart'), '1.6 -> 2': (2, 'TaperEnd'),
-                          '2 -> 2': (2, None), '2 -> 3': (3, 'Broadening'), '3 -> 2': (3, 'Narrowing'),
-                          '3 -> 3': (3, None), '3 -> 4': (4, 'Broadening'), '4 -> 3': (4, 'Narrowing'),
-                          '4 -> 4': (4, None), '4 -> 5': (5, 'Broadening'), '5 -> 4': (5, 'Narrowing'),
-                          '5 -> 5': (5, None), '5 -> 6': (6, 'Broadening'), '6 -> 5': (6, 'Narrowing'),
+        lane_mapping_h = {'1 -> 1': (1, None), '1 -> 2': (2, 'ExtraRijstrook'), '2 -> 1': (2, 'Rijstrookbeëindiging'),
+                          '1 -> 1.6': (1, 'TaperStart'), '1.6 -> 1': (1, 'TaperEinde'),
+                          '2 -> 1.6': (2, 'TaperStart'), '1.6 -> 2': (2, 'TaperEinde'),
+                          '2 -> 2': (2, None), '2 -> 3': (3, 'ExtraRijstrook'), '3 -> 2': (3, 'Rijstrookbeëindiging'),
+                          '3 -> 3': (3, None), '3 -> 4': (4, 'ExtraRijstrook'), '4 -> 3': (4, 'Rijstrookbeëindiging'),
+                          '4 -> 4': (4, None), '4 -> 5': (5, 'ExtraRijstrook'), '5 -> 4': (5, 'Rijstrookbeëindiging'),
+                          '5 -> 5': (5, None), '5 -> 6': (6, 'ExtraRijstrook'), '6 -> 5': (6, 'Rijstrookbeëindiging'),
                           '6 -> 6': (6, None),
                           '7 -> 7': (7, None)}
         # All registrations with T as kantcode as marked in the opposite direction.
-        lane_mapping_t = {'1 -> 1': (1, None), '1 -> 2': (2, 'Narrowing'), '2 -> 1': (2, 'Broadening'),
-                          '1 -> 1.6': (1, 'TaperEnd'), '1.6 -> 1': (1, 'TaperStart'),
-                          '2 -> 1.6': (2, 'TaperEnd'), '1.6 -> 2': (2, 'TaperStart'),
-                          '2 -> 2': (2, None), '2 -> 3': (3, 'Narrowing'), '3 -> 2': (3, 'Broadening'),
-                          '3 -> 3': (3, None), '3 -> 4': (4, 'Narrowing'), '4 -> 3': (4, 'Broadening'),
-                          '4 -> 4': (4, None), '4 -> 5': (5, 'Narrowing'), '5 -> 4': (5, 'Broadening'),
-                          '5 -> 5': (5, None), '5 -> 6': (6, 'Narrowing'), '6 -> 5': (6, 'Broadening'),
+        lane_mapping_t = {'1 -> 1': (1, None), '1 -> 2': (2, 'Rijstrookbeëindiging'), '2 -> 1': (2, 'ExtraRijstrook'),
+                          '1 -> 1.6': (1, 'TaperEinde'), '1.6 -> 1': (1, 'TaperStart'),
+                          '2 -> 1.6': (2, 'TaperEinde'), '1.6 -> 2': (2, 'TaperStart'),
+                          '2 -> 2': (2, None), '2 -> 3': (3, 'Rijstrookbeëindiging'), '3 -> 2': (3, 'ExtraRijstrook'),
+                          '3 -> 3': (3, None), '3 -> 4': (4, 'Rijstrookbeëindiging'), '4 -> 3': (4, 'ExtraRijstrook'),
+                          '4 -> 4': (4, None), '4 -> 5': (5, 'Rijstrookbeëindiging'), '5 -> 4': (5, 'ExtraRijstrook'),
+                          '5 -> 5': (5, None), '5 -> 6': (6, 'Rijstrookbeëindiging'), '6 -> 5': (6, 'ExtraRijstrook'),
                           '6 -> 6': (6, None),
                           '7 -> 7': (7, None)}
 
@@ -298,7 +335,6 @@ class RoadModel:
 
         if name == 'Convergenties':
             properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
-            print(len(overlapping_sections), overlapping_sections)
             properties['Lanes_in'] = [section_id for section_id, section_info in overlapping_sections.items()
                                       if self.get_n_lanes(section_info['properties'])[1] != properties['nTotalLanes']]
             properties['Lanes_out'] = [section_id for section_id, section_info in overlapping_sections.items()
@@ -324,9 +360,14 @@ class RoadModel:
 
     @staticmethod
     def __extract_line_properties(row: pd.Series, name: str):
-        properties = {}
         roadside = None
         wegnummer = None
+        km_range = [row['BEGINKM'], row['EINDKM']]
+        properties = {}
+
+        geom = set_precision(row['geometry'], GRID_SIZE)
+        # if isinstance(geom, MultiLineString):
+        #     geom = line_merge(geom)
 
         if name == "Wegcat beleving":
             if row['OMSCHR'] == 'Autosnelweg':
@@ -337,18 +378,11 @@ class RoadModel:
             roadside = row['IZI_SIDE']
             wegnummer = wegletter + str(row['WEGNUMMER'])
 
-            if roadside == 'R':
-                km_range = [row['BEGINKM'], row['EINDKM']]
-            else:
+            # Flip range only if roadside is L.
+            if roadside == 'L':
                 km_range = [row['EINDKM'], row['BEGINKM']]
 
-            return {'roadside': roadside,
-                    'wegnummer': wegnummer,
-                    'km_range': km_range,
-                    'properties': properties,
-                    'geometry': set_precision(row['geometry'], GRID_SIZE)}
-
-        if name == 'Rijstroken':
+        elif name == 'Rijstroken':
             first_lane_number = row['VNRWOL']
             n_lanes, special = row['laneInfo']
 
@@ -383,9 +417,9 @@ class RoadModel:
 
         return {'roadside': roadside,
                 'wegnummer': wegnummer,
-                'km_range': [row['BEGINKM'], row['EINDKM']],
+                'km_range': km_range,
                 'properties': properties,
-                'geometry': set_precision(row['geometry'], GRID_SIZE)}
+                'geometry': geom}
 
     def __determine_sectioning(self, new_section: dict) -> None:
         """
@@ -721,6 +755,7 @@ class RoadModel:
         """
         print(f"[LOG:] Section {index} added: \t"
               f"[{self.sections[index]['km_range'][0]:>7.3f}, {self.sections[index]['km_range'][1]:>7.3f}] km \t"
+              f"{self.sections[index]['wegnummer']}\t"
               f"{self.sections[index]['roadside']}\t"
               f"{self.sections[index]['properties']} \n"
               f"\t\t\t\t\t\t\t{set_precision(self.sections[index]['geometry'], 1)}")
@@ -733,6 +768,7 @@ class RoadModel:
         """
         print(f"[LOG:] Section {index} changed: \t"
               f"[{self.sections[index]['km_range'][0]:>7.3f}, {self.sections[index]['km_range'][1]:>7.3f}] km \t"
+              f"{self.sections[index]['wegnummer']}\t"
               f"{self.sections[index]['roadside']}\t"
               f"{self.sections[index]['properties']} \n"
               f"\t\t\t\t\t\t\t{set_precision(self.sections[index]['geometry'], 1)}")
@@ -1334,13 +1370,13 @@ class MSI(MSILegends):
             'd': None,  # MSI downstream
             'ds': None,  # MSI downstream secondary
             'dt': None,  # MSI downstream taper
-            'db': None,  # MSI downstream broadening
-            'dn': None,  # MSI downstream narrowing
+            'db': None,  # MSI downstream ExtraRijstrook
+            'dn': None,  # MSI downstream Rijstrookbeëindiging
             'u': None,  # MSI upstream
             'us': None,  # MSI upstream secondary
             'ut': None,  # MSI upstream taper
-            'ub': None,  # MSI upstream broadening
-            'un': None,  # MSI upstream narrowing
+            'ub': None,  # MSI upstream ExtraRijstrook
+            'un': None,  # MSI upstream Rijstrookbeëindiging
 
             'STAT_V': None,  # Static maximum speed
             'C_X': None,  # True if continue-X relation
