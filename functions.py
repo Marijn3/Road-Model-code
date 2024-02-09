@@ -1110,24 +1110,18 @@ class MSIRow:
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
-
-        print(f"Stroomafwaarts van {self.name} is")
         for row in downstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print(msi_row.name, desc)
                     self.downstream[msi_row] = desc
-        print("")
 
         upstream_rows = self.msi_network.travel_roadmodel(self, False)
-
-        print(f"Stroomopwaarts van {self.name} is")
         for row in upstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print(msi_row.name, desc)
-                    self.upstream.update({msi_row: desc})
-        print("")
+                    self.upstream[msi_row] = desc
 
     def fill_msi_properties(self):
         for msi in self.MSIs.values():
@@ -1149,6 +1143,13 @@ class MSINetwerk:
         for msi_row in self.MSIrows:
             msi_row.determine_msi_row_relations()
             msi_row.fill_msi_properties()
+
+        # Print resulting properties once everything has been determined
+        for msi_row in self.MSIrows:
+            for msi in msi_row.MSIs.values():
+                filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
+                print(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
+                print("")
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         current_location = msi_row.info['Geometrie']
@@ -1413,10 +1414,6 @@ class MSI(MSILegends):
         self.determine_properties()
         self.determine_relations()
 
-        filtered_properties = {key: value for key, value in self.properties.items() if value is not None}
-        print(f"{self.name} heeft de volgende eigenschappen:\n{filtered_properties}")
-        print("")
-
     def determine_properties(self):
         self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
         # self.properties['C_X'] =
@@ -1475,6 +1472,7 @@ class MSI(MSILegends):
         if self.lane_number - 1 in self.row.MSIs.keys():
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
+        # Primary relations
         for downstream_row, desc in self.row.downstream.items():
             if self.lane_number + desc in downstream_row.MSIs.keys():
                 self.properties['d'] = downstream_row.MSIs[self.lane_number + desc].name
@@ -1482,3 +1480,19 @@ class MSI(MSILegends):
         for upstream_row, desc in self.row.upstream.items():
             if self.lane_number + desc in upstream_row.MSIs.keys():
                 self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
+
+        # Secondary relations
+        if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Invoegstrook':  # weef = temporary test
+            for downstream_row, desc in self.row.downstream.items():
+                msi_number = self.lane_number + desc - 1
+                if msi_number in downstream_row.MSIs.keys():
+                    self.properties['ds'] = downstream_row.MSIs[msi_number].name
+                    downstream_row.MSIs[msi_number].properties['us'] = self.name
+
+        if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Uitrijstrook':  # weef = temporary test
+            for upstream_row, desc in self.row.upstream.items():
+                msi_number = self.lane_number + desc - 1
+                if msi_number in upstream_row.MSIs.keys():
+                    self.properties['us'] = upstream_row.MSIs[msi_number].name
+                    upstream_row.MSIs[msi_number].properties['ds'] = self.name
+

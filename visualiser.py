@@ -345,10 +345,12 @@ dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
 
 # Section data (roads)
+print("Sectiedata visualiseren...")
 for section_id, section in roadmodel.sections.items():
     svg_add_section(section_id, section, dwg)
 
 # Point data (MSIs, convergence, divergence)
+print("Puntdata visualiseren...")
 points = roadmodel.get_points()  # 'MSI'
 for point in points:
     svg_add_point(point, dwg)
