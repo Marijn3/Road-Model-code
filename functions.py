@@ -1144,6 +1144,13 @@ class MSINetwerk:
             msi_row.determine_msi_row_relations()
             msi_row.fill_msi_properties()
 
+        # Print resulting properties once everything has been determined
+        for msi_row in self.MSIrows:
+            for msi in msi_row.MSIs.values():
+                filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
+                print(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
+                print("")
+
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         current_location = msi_row.info['Geometrie']
         current_km = msi_row.info['km']
@@ -1407,10 +1414,6 @@ class MSI(MSILegends):
         self.determine_properties()
         self.determine_relations()
 
-        filtered_properties = {key: value for key, value in self.properties.items() if value is not None}
-        print(f"{self.name} heeft de volgende eigenschappen:\n{filtered_properties}")
-        print("")
-
     def determine_properties(self):
         self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
         # self.properties['C_X'] =
@@ -1479,11 +1482,12 @@ class MSI(MSILegends):
                 self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
 
         # Secondary relations
-        if self.row.local_road_properties[self.lane_number] == 'Invoegstrook':
+        if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Invoegstrook':  # temporary test
             for downstream_row, desc in self.row.downstream.items():
                 msi_number = self.lane_number + desc - 1
-                self.properties['ds'] = downstream_row.MSIs[msi_number].name
-                downstream_row.MSIs[msi_number].properties['us'] = self.name
+                if msi_number in downstream_row.MSIs.keys():
+                    self.properties['ds'] = downstream_row.MSIs[msi_number].name
+                    downstream_row.MSIs[msi_number].properties['us'] = self.name
 
         # if self.row.local_road_properties[self.lane_number] == 'Uitrijstrook':
         #     for upstream_row, desc in self.row.upstream.items():
