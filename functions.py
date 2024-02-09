@@ -1482,16 +1482,17 @@ class MSI(MSILegends):
                 self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
 
         # Secondary relations
-        if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Invoegstrook':  # temporary test
+        if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Invoegstrook':  # weef = temporary test
             for downstream_row, desc in self.row.downstream.items():
                 msi_number = self.lane_number + desc - 1
                 if msi_number in downstream_row.MSIs.keys():
                     self.properties['ds'] = downstream_row.MSIs[msi_number].name
                     downstream_row.MSIs[msi_number].properties['us'] = self.name
 
-        # if self.row.local_road_properties[self.lane_number] == 'Uitrijstrook':
-        #     for upstream_row, desc in self.row.upstream.items():
-        #         msi_number = self.lane_number + desc - 1
-        #         self.properties['ds'] = upstream_row.MSIs[msi_number].name
-        #         upstream_row.MSIs[msi_number].properties['us'] = self.name
+        if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Uitrijstrook':  # weef = temporary test
+            for upstream_row, desc in self.row.upstream.items():
+                msi_number = self.lane_number + desc - 1
+                if msi_number in upstream_row.MSIs.keys():
+                    self.properties['us'] = upstream_row.MSIs[msi_number].name
+                    upstream_row.MSIs[msi_number].properties['ds'] = self.name
 
