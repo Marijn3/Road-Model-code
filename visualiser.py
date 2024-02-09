@@ -111,9 +111,9 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
 
     # Store where the point is (if applicable). This is used for puntstuk visualisation.
     if point_at_line_start:
-        section_data['*vergence'] = 'start'
+        section_data['*vergence'] = 'Start'
     if point_at_line_end:
-        section_data['*vergence'] = 'end'
+        section_data['*vergence'] = 'Einde'
 
     if point_type == 'Splitsing' and point_at_line_start:
         other_lane_id = [sid for sid in point_data['Eigenschappen']['Uitgaande_Secties'] if sid != section_id][0]
@@ -143,9 +143,9 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
     other_has_puntstuk = 'Puntstuk' in other_section_data['Eigenschappen'].values()
 
     assert not (this_has_puntstuk and other_has_puntstuk),\
-        f"Two sections have puntstuk: {section_data}{other_section_data}"
+        f"Twee secties met puntstuk: {section_data}{other_section_data}"
     assert (this_has_puntstuk or other_has_puntstuk),\
-        f"Neither section has puntstuk: {section_data}{other_section_data}"
+        f"Geen sectie met puntstuk: {section_data}{other_section_data}"
 
     displacement = 0
     n_lanes_largest = point_data['Eigenschappen']['Aantal_Hoofdstroken']
@@ -229,9 +229,9 @@ def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, sv
         # A puntstuk is the final lane.
         if next_lane == 'Puntstuk':
             if '*vergence' in section_data.keys():
-                if section_data['*vergence'] == 'start':
+                if section_data['*vergence'] == 'Start':
                     add_markerline(line_coords, svg_dwg, "Punt_Start")
-                elif section_data['*vergence'] == 'end':
+                elif section_data['*vergence'] == 'Einde':
                     add_markerline(line_coords, svg_dwg, "Punt_Einde")
             # else:
                 # print(f"not found in keys of {section_data}")
