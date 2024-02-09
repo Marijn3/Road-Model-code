@@ -1110,24 +1110,18 @@ class MSIRow:
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
-
-        print(f"Stroomafwaarts van {self.name} is")
         for row in downstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print(msi_row.name, desc)
                     self.downstream[msi_row] = desc
-        print("")
 
         upstream_rows = self.msi_network.travel_roadmodel(self, False)
-
-        print(f"Stroomopwaarts van {self.name} is")
         for row in upstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print(msi_row.name, desc)
-                    self.upstream.update({msi_row: desc})
-        print("")
+                    self.upstream[msi_row] = desc
 
     def fill_msi_properties(self):
         for msi in self.MSIs.values():
@@ -1475,6 +1469,7 @@ class MSI(MSILegends):
         if self.lane_number - 1 in self.row.MSIs.keys():
             self.properties['l'] = self.row.MSIs[self.lane_number - 1].name
 
+        # Primary relations
         for downstream_row, desc in self.row.downstream.items():
             if self.lane_number + desc in downstream_row.MSIs.keys():
                 self.properties['d'] = downstream_row.MSIs[self.lane_number + desc].name
@@ -1482,3 +1477,17 @@ class MSI(MSILegends):
         for upstream_row, desc in self.row.upstream.items():
             if self.lane_number + desc in upstream_row.MSIs.keys():
                 self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
+
+        # Secondary relations
+        if self.row.local_road_properties[self.lane_number] == 'Invoegstrook':
+            for downstream_row, desc in self.row.downstream.items():
+                msi_number = self.lane_number + desc - 1
+                self.properties['ds'] = downstream_row.MSIs[msi_number].name
+                downstream_row.MSIs[msi_number].properties['us'] = self.name
+
+        # if self.row.local_road_properties[self.lane_number] == 'Uitrijstrook':
+        #     for upstream_row, desc in self.row.upstream.items():
+        #         msi_number = self.lane_number + desc - 1
+        #         self.properties['ds'] = upstream_row.MSIs[msi_number].name
+        #         upstream_row.MSIs[msi_number].properties['us'] = self.name
+
