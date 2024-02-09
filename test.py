@@ -9,14 +9,14 @@ def makeData(rijstroken_data, kantstroken_data) -> dict:
             'Maximum snelheid': pd.DataFrame(),
             'Convergenties': pd.DataFrame(),
             'Divergenties': pd.DataFrame(),
-            'Rijstrooksignaleringen': pd.DataFrame()}
+            'Rijstrooksignaleringen': pd.DataFrame(),
+            'Wegcat beleving': pd.DataFrame()}
 
 
 class TestRoadModel(unittest.TestCase):
 
     def setUp(self):
-        self.road_model = RoadModel()
-        self.dfl = DataFrameLoader()
+        self.dfl = DataFrameLader()
         self.rijstroken_data = pd.DataFrame({'IZI_SIDE': ['R', 'R'],
                                              'BEGINKM': [0, 2],
                                              'EINDKM': [2, 4],
@@ -41,12 +41,12 @@ class TestRoadModel(unittest.TestCase):
                                          'geometry': [LineString([[0, 0], [2000, 0]]),
                                                       LineString([[2000, 0], [4000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = WegModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 1.9: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(2.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(2.5, 'R'),
                              {1: 'Rijstrook', 2: 'Vluchtstrook'})
 
     def test_broadening(self):
@@ -64,12 +64,12 @@ class TestRoadModel(unittest.TestCase):
                                          'VNRWOL': [3],
                                          'geometry': [LineString([[0, 0], [4000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = WegModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 1.1: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(2.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(2.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
 
     def test_equal_sections(self):
@@ -81,7 +81,7 @@ class TestRoadModel(unittest.TestCase):
                                          'geometry': [LineString([[0, 0], [2000, 0]]),
                                                       LineString([[2000, 0], [4000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = WegModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
         self.assertEqual(len(self.road_model.sections[0]['properties']), 3)
@@ -95,12 +95,12 @@ class TestRoadModel(unittest.TestCase):
                                          'geometry': [LineString([[-1000, 0], [1000, 0]]),
                                                       LineString([[3000, 0], [5000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = WegModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 6)
-        self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(0.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_neither_equal_sections(self):  # Should not be added
@@ -111,10 +111,10 @@ class TestRoadModel(unittest.TestCase):
                                          'VNRWOL': [2],
                                          'geometry': [LineString([[5000, 0], [7000, 0]])]})
         self.dfl.data = makeData(self.rijstroken_data, kantstroken_data)
-        self.road_model.import_dataframes(self.dfl)
+        self.road_model = WegModel(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 2)
-        self.assertDictEqual(self.road_model.get_properties_at(3, 'R'),
+        self.assertDictEqual(self.road_model.print_props(3, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_double_overlap_sections(self):
@@ -128,13 +128,13 @@ class TestRoadModel(unittest.TestCase):
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(1.7, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.7, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(3.3, 'R'),
+        self.assertDictEqual(self.road_model.print_props(3.3, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(3.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_reversed_sections(self):
@@ -148,9 +148,9 @@ class TestRoadModel(unittest.TestCase):
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 3)
-        self.assertDictEqual(self.road_model.get_properties_at(0.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(0.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
 
     def test_segmented_sections(self):
@@ -164,9 +164,9 @@ class TestRoadModel(unittest.TestCase):
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(3.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_two_remainders(self):
@@ -180,11 +180,11 @@ class TestRoadModel(unittest.TestCase):
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
-        self.assertDictEqual(self.road_model.get_properties_at(1, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(1.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(3.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook'})
 
     def test_two_remainders_reverse(self):
@@ -198,9 +198,9 @@ class TestRoadModel(unittest.TestCase):
         self.road_model.import_dataframes(self.dfl)
 
         self.assertEqual(len(self.road_model.sections), 4)
-        self.assertDictEqual(self.road_model.get_properties_at(1, 'R'),
+        self.assertDictEqual(self.road_model.print_props(1, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
-        self.assertDictEqual(self.road_model.get_properties_at(3.5, 'R'),
+        self.assertDictEqual(self.road_model.print_props(3.5, 'R'),
                              {1: 'Rijstrook', 2: 'Rijstrook', 3: 'Vluchtstrook'})
         # self.assertRaises(IndexError, self.road_model.get_properties_at(6, 'R'))
 
