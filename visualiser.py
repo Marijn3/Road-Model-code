@@ -3,7 +3,8 @@ import svgwrite
 import math
 
 dfl = DataFrameLader("Vught")
-roadmodel = WegModel(dfl)
+wegmodel = WegModel(dfl)
+netwerk = MSINetwerk(wegmodel)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -88,7 +89,7 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
 
 def check_point_on_line(section_id: int) -> None | dict:
     # Assumes at most one *vergence point per section. In any case, the first one encountered is returned.
-    for point_data in roadmodel.get_points():
+    for point_data in wegmodel.get_points():
         if section_id in point_data['section_ids'] and point_data['Eigenschappen']['Type'] not in ['Signalering']:
             return point_data
     return None
@@ -134,7 +135,7 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
         # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
         return line_geom
 
-    other_section_data = roadmodel.sections[other_lane_id]
+    other_section_data = wegmodel.sections[other_lane_id]
     return move_endpoint(section_data, other_section_data, point_data, change_start)
 
 
@@ -154,13 +155,13 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
     n_lanes_largest = point_data['Eigenschappen']['Aantal_Hoofdstroken']
 
     if this_has_puntstuk:
-        n_lanes_a, _ = roadmodel.get_n_lanes(section_data['Eigenschappen'])
-        n_lanes_b, _ = roadmodel.get_n_lanes(other_section_data['Eigenschappen'])
+        n_lanes_a, _ = wegmodel.get_n_lanes(section_data['Eigenschappen'])
+        n_lanes_b, _ = wegmodel.get_n_lanes(other_section_data['Eigenschappen'])
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
 
     if other_has_puntstuk:
-        n_lanes_a, _ = roadmodel.get_n_lanes(other_section_data['Eigenschappen'])
-        n_lanes_b, _ = roadmodel.get_n_lanes(section_data['Eigenschappen'])
+        n_lanes_a, _ = wegmodel.get_n_lanes(other_section_data['Eigenschappen'])
+        n_lanes_b, _ = wegmodel.get_n_lanes(section_data['Eigenschappen'])
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
     line_geom = section_data['Geometrie']
@@ -186,7 +187,7 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
     else:
         geom = section_data['Geometrie']
 
-    n_main_lanes, n_total_lanes = roadmodel.get_n_lanes(section_data['Eigenschappen'])
+    n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_data['Eigenschappen'])
 
     if n_main_lanes < 1 or n_total_lanes < 1:
         # These sections are not added. They fall outside the visualisation frame.
@@ -386,27 +387,29 @@ dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDT
 
 # Section data (roads)
 print("Sectiedata visualiseren...")
-for section_id, section in roadmodel.sections.items():
+for section_id, section in wegmodel.sections.items():
     svg_add_section(section_id, section, dwg)
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = roadmodel.get_points()  # 'MSI'
+points = wegmodel.get_points()  # 'MSI'
 for point in points:
     svg_add_point(point, dwg)
 
-# Draw line between squares with given IDs (temporary test code)
-start_id = "A2L:121.338:3"
-end_id = "A2L:121.839:4"
-start_element = element_by_id.get(start_id)
-end_element = element_by_id.get(end_id)
-if start_element is not None and end_element is not None:
+for element_id in element_by_id.keys():
+    start_element = element_by_id.get(element_id)
     start_pos = (start_element.attribs['x'] + start_element.attribs['width'] / 2,
                  start_element.attribs['y'] + start_element.attribs['height'] / 2)
-    end_pos = (end_element.attribs['x'] + end_element.attribs['width'] / 2,
-               end_element.attribs['y'] + end_element.attribs['height'] / 2)
-    line = svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=0.1)
-    dwg.add(line)
+    for row in netwerk.MSIrows:
+        for msi in row.MSIs.values():
+            if msi.name == element_id:
+                end_id = msi.properties['d']
+                end_element = element_by_id.get(end_id)
+                if end_element is not None:
+                    end_pos = (end_element.attribs['x'] + end_element.attribs['width'] / 2,
+                               end_element.attribs['y'] + end_element.attribs['height'] / 2)
+                    line = svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2)
+                    dwg.add(line)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
