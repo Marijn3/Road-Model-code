@@ -330,7 +330,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
                                       size=(MSIBOX_SIZE, MSIBOX_SIZE),
                                       fill="#1e1b17", stroke="black", stroke_width=0.3)
         group_msi_row.add(square)
-        element_by_id[msi_name] = square
+        element_by_id[msi_name] = square, rotate_angle, coords
 
     text = svgwrite.text.Text(point_data['km'],
                               insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
@@ -356,7 +356,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
                                       onmouseover="evt.target.setAttribute('fill', 'red');",
                                       onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
-        element_by_id[msi_name] = square
+        element_by_id[msi_name] = square, rotate_angle, coords
 
     text = svgwrite.text.Text(point_data['km'],
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
@@ -379,6 +379,37 @@ def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate
     svg_dwg.add(group_vergence)
 
 
+def drawMSIrelations(svg_dwg: svgwrite.Drawing):
+    # Draw primary relations
+    for element_id in element_by_id.keys():
+        start_element, start_rotation, start_origin = element_by_id.get(element_id)
+        start_pos = get_center_coords(start_element, start_rotation, start_origin)
+        for row in netwerk.MSIrows:
+            for msi in row.MSIs.values():
+                if msi.name == element_id:
+                    end_id = msi.properties['d']
+                    if end_id is not None:
+                        end_element, end_rotation, end_origin = element_by_id.get(end_id)
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        line = svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2)
+                        svg_dwg.add(line)
+
+
+def get_center_coords(element, angle_degrees, origin):
+    x = element.attribs['x'] + element.attribs['width'] / 2
+    y = element.attribs['y'] + element.attribs['height'] / 2
+    return rotate_point((x, y), origin, angle_degrees)
+
+
+def rotate_point(point, origin, angle_degrees):
+    angle_rad = math.radians(angle_degrees)
+    x, y = point
+    ox, oy = origin
+    qx = ox + math.cos(angle_rad) * (x - ox) - math.sin(angle_rad) * (y - oy)
+    qy = oy + math.sin(angle_rad) * (x - ox) + math.cos(angle_rad) * (y - oy)
+    return qx, qy
+
+
 # Create SVG drawing
 dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
 
@@ -396,20 +427,8 @@ points = wegmodel.get_points()  # 'MSI'
 for point in points:
     svg_add_point(point, dwg)
 
-for element_id in element_by_id.keys():
-    start_element = element_by_id.get(element_id)
-    start_pos = (start_element.attribs['x'] + start_element.attribs['width'] / 2,
-                 start_element.attribs['y'] + start_element.attribs['height'] / 2)
-    for row in netwerk.MSIrows:
-        for msi in row.MSIs.values():
-            if msi.name == element_id:
-                end_id = msi.properties['d']
-                end_element = element_by_id.get(end_id)
-                if end_element is not None:
-                    end_pos = (end_element.attribs['x'] + end_element.attribs['width'] / 2,
-                               end_element.attribs['y'] + end_element.attribs['height'] / 2)
-                    line = svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2)
-                    dwg.add(line)
+# MSI relations
+drawMSIrelations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
