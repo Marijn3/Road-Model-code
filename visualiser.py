@@ -303,39 +303,46 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
 
 
 def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
-    eig = point_data['Eigenschappen']
-    rotate_angle = 90 - eig['Lokale_hoek']
-    info_offset = LANE_WIDTH * (eig['Aantal_Stroken'] + (eig['Aantal_Stroken'] - eig['Aantal_Hoofdstroken'])) / 2
-
     coords = get_flipped_coords(point_data['Geometrie'])[0]
-    if eig['Type'] == 'Signalering':
-        group_msi_row = svgwrite.container.Group()
-        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        # group_msi_row.add(circle)
+    props = point_data['Eigenschappen']
+    info_offset = LANE_WIDTH * (props['Aantal_Stroken'] + (props['Aantal_Stroken'] - props['Aantal_Hoofdstroken'])) / 2
+    rotate_angle = 90 - props['Lokale_hoek']
 
-        for nr in eig['Rijstroken']:
-            displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
-            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE/2),
-                                          size=(MSIBOX_SIZE, MSIBOX_SIZE),
-                                          fill="#1e1b17", stroke="black", stroke_width=0.3)
-            group_msi_row.add(square)
-        text = svgwrite.text.Text(point_data['km'],
-                                  insert=(coords[0] + displacement + MSIBOX_SIZE*1.2, coords[1] + 1.5),
-                                  fill="white", font_family="Arial", font_size=4)
-        group_msi_row.add(text)
-        group_msi_row.rotate(rotate_angle, center=coords)
-        svg_dwg.add(group_msi_row)
+    if props['Type'] == 'Signalering':
+        display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
-        group_vergence = svgwrite.container.Group()
-        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        # group_vergence.add(circle)
-        point_type = eig['Type']
-        text = svgwrite.text.Text(f"{point_data['km']} {point_type}",
-                                  insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1),
-                                  fill="white", font_family="Arial", font_size=3)
-        group_vergence.add(text)
-        group_vergence.rotate(rotate_angle, center=coords)
-        svg_dwg.add(group_vergence)
+        display_vergence(point_data, coords, info_offset, rotate_angle, svg_dwg)
+
+
+def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
+    group_msi_row = svgwrite.container.Group()
+
+    for nr in point_data['Eigenschappen']['Rijstroken']:
+        displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
+        square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2),
+                                      size=(MSIBOX_SIZE, MSIBOX_SIZE),
+                                      fill="#1e1b17", stroke="black", stroke_width=0.3)
+        group_msi_row.add(square)
+
+    text = svgwrite.text.Text(point_data['km'],
+                              insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
+                              fill="white", font_family="Arial", font_size=4)
+
+    group_msi_row.add(text)
+    group_msi_row.rotate(rotate_angle, center=coords)
+    svg_dwg.add(group_msi_row)
+
+
+def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
+    group_vergence = svgwrite.container.Group()
+
+    text = svgwrite.text.Text(f"{point_data['km']} {point_data['Eigenschappen']['Type']}",
+                              insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1),
+                              fill="white", font_family="Arial", font_size=3)
+
+    group_vergence.add(text)
+    group_vergence.rotate(rotate_angle, center=coords)
+    svg_dwg.add(group_vergence)
 
 
 # Create SVG drawing
