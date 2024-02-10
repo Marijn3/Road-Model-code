@@ -3,7 +3,8 @@ import svgwrite
 import math
 
 dfl = DataFrameLader("Vught")
-roadmodel = WegModel(dfl)
+wegmodel = WegModel(dfl)
+netwerk = MSINetwerk(wegmodel)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -19,6 +20,9 @@ BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]
 VIEWBOX_WIDTH = abs(TOP_LEFT_X - BOTTOM_RIGHT_X)
 VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
 RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
+
+# Dictionary to store squares by ID
+element_by_id = {}
 
 
 def get_road_color(prop: dict) -> str:
@@ -85,7 +89,7 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
 
 def check_point_on_line(section_id: int) -> None | dict:
     # Assumes at most one *vergence point per section. In any case, the first one encountered is returned.
-    for point_data in roadmodel.get_points():
+    for point_data in wegmodel.get_points():
         if section_id in point_data['section_ids'] and point_data['Eigenschappen']['Type'] not in ['Signalering']:
             return point_data
     return None
@@ -131,7 +135,7 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
         # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
         return line_geom
 
-    other_section_data = roadmodel.sections[other_lane_id]
+    other_section_data = wegmodel.sections[other_lane_id]
     return move_endpoint(section_data, other_section_data, point_data, change_start)
 
 
@@ -151,13 +155,13 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
     n_lanes_largest = point_data['Eigenschappen']['Aantal_Hoofdstroken']
 
     if this_has_puntstuk:
-        n_lanes_a, _ = roadmodel.get_n_lanes(section_data['Eigenschappen'])
-        n_lanes_b, _ = roadmodel.get_n_lanes(other_section_data['Eigenschappen'])
+        n_lanes_a, _ = wegmodel.get_n_lanes(section_data['Eigenschappen'])
+        n_lanes_b, _ = wegmodel.get_n_lanes(other_section_data['Eigenschappen'])
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
 
     if other_has_puntstuk:
-        n_lanes_a, _ = roadmodel.get_n_lanes(other_section_data['Eigenschappen'])
-        n_lanes_b, _ = roadmodel.get_n_lanes(section_data['Eigenschappen'])
+        n_lanes_a, _ = wegmodel.get_n_lanes(other_section_data['Eigenschappen'])
+        n_lanes_b, _ = wegmodel.get_n_lanes(section_data['Eigenschappen'])
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
     line_geom = section_data['Geometrie']
@@ -183,7 +187,7 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
     else:
         geom = section_data['Geometrie']
 
-    n_main_lanes, n_total_lanes = roadmodel.get_n_lanes(section_data['Eigenschappen'])
+    n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_data['Eigenschappen'])
 
     if n_main_lanes < 1 or n_total_lanes < 1:
         # These sections are not added. They fall outside the visualisation frame.
@@ -303,39 +307,114 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
 
 
 def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
-    eig = point_data['Eigenschappen']
-    rotate_angle = 90 - eig['Lokale_hoek']
-    info_offset = LANE_WIDTH * (eig['Aantal_Stroken'] + (eig['Aantal_Stroken'] - eig['Aantal_Hoofdstroken'])) / 2
-
     coords = get_flipped_coords(point_data['Geometrie'])[0]
-    if eig['Type'] == 'Signalering':
-        group_msi_row = svgwrite.container.Group()
-        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        # group_msi_row.add(circle)
+    props = point_data['Eigenschappen']
+    info_offset = LANE_WIDTH * (props['Aantal_Stroken'] + (props['Aantal_Stroken'] - props['Aantal_Hoofdstroken'])) / 2
+    rotate_angle = 90 - props['Lokale_hoek']
 
-        for nr in eig['Rijstroken']:
-            displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
-            square = svgwrite.shapes.Rect(insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE/2),
-                                          size=(MSIBOX_SIZE, MSIBOX_SIZE),
-                                          fill="#1e1b17", stroke="black", stroke_width=0.3)
-            group_msi_row.add(square)
-        text = svgwrite.text.Text(point_data['km'],
-                                  insert=(coords[0] + displacement + MSIBOX_SIZE*1.2, coords[1] + 1.5),
-                                  fill="white", font_family="Arial", font_size=4)
-        group_msi_row.add(text)
-        group_msi_row.rotate(rotate_angle, center=coords)
-        svg_dwg.add(group_msi_row)
+    if props['Type'] == 'Signalering':
+        display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        # display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
-        group_vergence = svgwrite.container.Group()
-        # circle = svgwrite.shapes.Circle(center=coords, r=1.5, fill="black")
-        # group_vergence.add(circle)
-        point_type = eig['Type']
-        text = svgwrite.text.Text(f"{point_data['km']} {point_type}",
-                                  insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1),
-                                  fill="white", font_family="Arial", font_size=3)
-        group_vergence.add(text)
-        group_vergence.rotate(rotate_angle, center=coords)
-        svg_dwg.add(group_vergence)
+        display_vergence(point_data, coords, info_offset, rotate_angle, svg_dwg)
+
+
+def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
+    group_msi_row = svgwrite.container.Group()
+
+    for nr in point_data['Eigenschappen']['Rijstroken']:
+        msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
+        displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
+        square = svgwrite.shapes.Rect(id=msi_name,
+                                      insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2),
+                                      size=(MSIBOX_SIZE, MSIBOX_SIZE),
+                                      fill="#1e1b17", stroke="black", stroke_width=0.3,
+                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+        group_msi_row.add(square)
+        element_by_id[msi_name] = square, rotate_angle, coords
+
+    text = svgwrite.text.Text(point_data['km'],
+                              insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
+                              fill="white", font_family="Arial", font_size=4)
+
+    group_msi_row.add(text)
+    group_msi_row.rotate(rotate_angle, center=coords)
+    svg_dwg.add(group_msi_row)
+
+
+def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
+    group_msi_row = svgwrite.container.Group()
+    box_size = LANE_WIDTH*0.8
+    play = (LANE_WIDTH - box_size)/2
+
+    for nr in point_data['Eigenschappen']['Rijstroken']:
+        msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
+        displacement = LANE_WIDTH * (nr - 1) - point_data['Eigenschappen']['Aantal_Hoofdstroken'] * LANE_WIDTH / 2
+        square = svgwrite.shapes.Rect(id=msi_name,
+                                      insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
+                                      size=(box_size, box_size),
+                                      fill="#1e1b17", stroke="black", stroke_width=0.3,
+                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+        group_msi_row.add(square)
+        element_by_id[msi_name] = square, rotate_angle, coords
+
+    text = svgwrite.text.Text(point_data['km'],
+                              insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
+                              fill="white", font_family="Arial", font_size=3)
+
+    group_msi_row.add(text)
+    group_msi_row.rotate(rotate_angle, center=coords)
+    svg_dwg.add(group_msi_row)
+
+
+def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
+    group_vergence = svgwrite.container.Group()
+
+    text = svgwrite.text.Text(f"{point_data['km']} {point_data['Eigenschappen']['Type']}",
+                              insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1),
+                              fill="white", font_family="Arial", font_size=3)
+
+    group_vergence.add(text)
+    group_vergence.rotate(rotate_angle, center=coords)
+    svg_dwg.add(group_vergence)
+
+
+def draw_msi_relations(svg_dwg: svgwrite.Drawing):
+    # Draw primary relations
+    for element_id in element_by_id.keys():
+        start_element, start_rotation, start_origin = element_by_id.get(element_id)
+        start_pos = get_center_coords(start_element, start_rotation, start_origin)
+        for row in netwerk.MSIrows:
+            for msi in row.MSIs.values():
+                if msi.name == element_id:
+                    end_id = msi.properties['d']
+                    if end_id is not None:
+                        end_element, end_rotation, end_origin = element_by_id.get(end_id)
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_primary(start_pos, end_pos, svg_dwg)
+
+
+def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
+    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2) )
+    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.5, fill="cyan") )
+    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.5, fill="cyan") )
+
+
+def get_center_coords(element, angle_degrees, origin):
+    x = element.attribs['x'] + element.attribs['width'] / 2
+    y = element.attribs['y'] + element.attribs['height'] / 2
+    return rotate_point((x, y), origin, angle_degrees)
+
+
+def rotate_point(point, origin, angle_degrees):
+    angle_rad = math.radians(angle_degrees)
+    x, y = point
+    ox, oy = origin
+    qx = ox + math.cos(angle_rad) * (x - ox) - math.sin(angle_rad) * (y - oy)
+    qy = oy + math.sin(angle_rad) * (x - ox) + math.cos(angle_rad) * (y - oy)
+    return qx, qy
 
 
 # Create SVG drawing
@@ -346,14 +425,17 @@ dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDT
 
 # Section data (roads)
 print("Sectiedata visualiseren...")
-for section_id, section in roadmodel.sections.items():
+for section_id, section in wegmodel.sections.items():
     svg_add_section(section_id, section, dwg)
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = roadmodel.get_points()  # 'MSI'
+points = wegmodel.get_points()  # 'MSI'
 for point in points:
     svg_add_point(point, dwg)
+
+# MSI relations
+# draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
