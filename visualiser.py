@@ -309,7 +309,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     rotate_angle = 90 - props['Lokale_hoek']
 
     if props['Type'] == 'Signalering':
-        display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        # display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
         display_vergence(point_data, coords, info_offset, rotate_angle, svg_dwg)
 
@@ -327,6 +328,27 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
     text = svgwrite.text.Text(point_data['km'],
                               insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
                               fill="white", font_family="Arial", font_size=4)
+
+    group_msi_row.add(text)
+    group_msi_row.rotate(rotate_angle, center=coords)
+    svg_dwg.add(group_msi_row)
+
+
+def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
+    group_msi_row = svgwrite.container.Group()
+    box_size = LANE_WIDTH*0.8
+    play = (LANE_WIDTH - box_size)/2
+
+    for nr in point_data['Eigenschappen']['Rijstroken']:
+        displacement = LANE_WIDTH * (nr - 1) - point_data['Eigenschappen']['Aantal_Hoofdstroken'] * LANE_WIDTH / 2
+        square = svgwrite.shapes.Rect(insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
+                                      size=(box_size, box_size),
+                                      fill="#1e1b17", stroke="black", stroke_width=0.3)
+        group_msi_row.add(square)
+
+    text = svgwrite.text.Text(point_data['km'],
+                              insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
+                              fill="white", font_family="Arial", font_size=3)
 
     group_msi_row.add(text)
     group_msi_row.rotate(rotate_angle, center=coords)
