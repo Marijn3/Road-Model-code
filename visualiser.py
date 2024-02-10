@@ -328,7 +328,9 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2),
                                       size=(MSIBOX_SIZE, MSIBOX_SIZE),
-                                      fill="#1e1b17", stroke="black", stroke_width=0.3)
+                                      fill="#1e1b17", stroke="black", stroke_width=0.3,
+                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -353,7 +355,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
                                       insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
                                       size=(box_size, box_size),
                                       fill="#1e1b17", stroke="black", stroke_width=0.3,
-                                      onmouseover="evt.target.setAttribute('fill', 'red');",
+                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                                       onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
@@ -379,7 +381,7 @@ def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate
     svg_dwg.add(group_vergence)
 
 
-def drawMSIrelations(svg_dwg: svgwrite.Drawing):
+def draw_msi_relations(svg_dwg: svgwrite.Drawing):
     # Draw primary relations
     for element_id in element_by_id.keys():
         start_element, start_rotation, start_origin = element_by_id.get(element_id)
@@ -391,8 +393,13 @@ def drawMSIrelations(svg_dwg: svgwrite.Drawing):
                     if end_id is not None:
                         end_element, end_rotation, end_origin = element_by_id.get(end_id)
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        line = svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2)
-                        svg_dwg.add(line)
+                        draw_primary(start_pos, end_pos, svg_dwg)
+
+
+def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
+    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2) )
+    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.5, fill="cyan") )
+    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.5, fill="cyan") )
 
 
 def get_center_coords(element, angle_degrees, origin):
@@ -428,7 +435,7 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-drawMSIrelations(dwg)
+draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
