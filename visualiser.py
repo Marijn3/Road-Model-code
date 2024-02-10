@@ -313,8 +313,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     rotate_angle = 90 - props['Lokale_hoek']
 
     if props['Type'] == 'Signalering':
-        # display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
-        display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        # display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
         display_vergence(point_data, coords, info_offset, rotate_angle, svg_dwg)
 
@@ -435,7 +435,7 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-draw_msi_relations(dwg)
+# draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
