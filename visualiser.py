@@ -120,16 +120,16 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
         section_data['*vergence'] = 'Einde'
 
     if point_type == 'Splitsing' and point_at_line_start:
-        other_lane_id = [sid for sid in point_data['Eigenschappen']['Uitgaande_Secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Eigenschappen']['Uitgaande_secties'] if sid != section_id][0]
         change_start = True
     elif point_type == 'Samenvoeging' and point_at_line_end:
-        other_lane_id = [sid for sid in point_data['Eigenschappen']['Ingaande_Secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Eigenschappen']['Ingaande_secties'] if sid != section_id][0]
         change_start = False
     elif point_type == 'Uitvoeging' and point_at_line_start:
-        other_lane_id = [sid for sid in point_data['Eigenschappen']['Uitgaande_Secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Eigenschappen']['Uitgaande_secties'] if sid != section_id][0]
         change_start = True
     elif point_type == 'Invoeging' and point_at_line_end:
-        other_lane_id = [sid for sid in point_data['Eigenschappen']['Ingaande_Secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Eigenschappen']['Ingaande_secties'] if sid != section_id][0]
         change_start = False
     else:
         # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
@@ -152,7 +152,7 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
         f"Geen sectie met puntstuk: {section_data}{other_section_data}"
 
     displacement = 0
-    n_lanes_largest = point_data['Eigenschappen']['Aantal_Hoofdstroken']
+    n_lanes_largest = point_data['Eigenschappen']['Aantal_hoofdstroken']
 
     if this_has_puntstuk:
         n_lanes_a, _ = wegmodel.get_n_lanes(section_data['Eigenschappen'])
@@ -309,7 +309,7 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
 def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     coords = get_flipped_coords(point_data['Geometrie'])[0]
     props = point_data['Eigenschappen']
-    info_offset = LANE_WIDTH * (props['Aantal_Stroken'] + (props['Aantal_Stroken'] - props['Aantal_Hoofdstroken'])) / 2
+    info_offset = LANE_WIDTH * (props['Aantal_stroken'] + (props['Aantal_stroken'] - props['Aantal_hoofdstroken'])) / 2
     rotate_angle = 90 - props['Lokale_hoek']
 
     if props['Type'] == 'Signalering':
@@ -350,7 +350,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
     for nr in point_data['Eigenschappen']['Rijstroken']:
         msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
-        displacement = LANE_WIDTH * (nr - 1) - point_data['Eigenschappen']['Aantal_Hoofdstroken'] * LANE_WIDTH / 2
+        displacement = LANE_WIDTH * (nr - 1) - point_data['Eigenschappen']['Aantal_hoofdstroken'] * LANE_WIDTH / 2
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
                                       size=(box_size, box_size),
