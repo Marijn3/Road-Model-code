@@ -25,7 +25,7 @@ class DataFrameLader:
 
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
-        "data/Wegcat beleving/wegcat_beleving-edit.dbf",
+        "data/Wegvakken/wegvakken.dbf",
         "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
         "data/Mengstroken/mengstroken.dbf",
@@ -198,6 +198,9 @@ class DataFrameLader:
             is_kp = self.data[name]['CODE'] == 'KP'
             self.data[name] = self.data[name][is_kp]
 
+        if name == 'Wegvakken':
+            self.data[name] = self.data[name].dropna(subset=['BEGINKM'])
+
         if 'stroken' in name:
             # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
             self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
@@ -233,14 +236,17 @@ class DataFrameLader:
 
 
 class WegModel:
-    __LAYER_NAMES = ['Wegcat beleving', 'Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
+    __LAYER_NAMES = ['Wegvakken', 'Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                      'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
 
     def __init__(self, dfl: DataFrameLader):
+        self.base = {}
+        self.base_index = 0
         self.sections = {}
         self.section_index = 0
         self.points = {}
         self.point_index = 0
+        self.has_base_layer = False
         self.has_initial_layer = False
 
         self.__import_dataframes(dfl)
@@ -251,10 +257,12 @@ class WegModel:
         Args:
             dfl (DataFrameLader): DataFrameLoader class with all dataframes.
         Note:
-            The 'Wegcat beleving' layer is the first layer to be imported because two assumptions hold for it:
+            The 'wegvakken' layer from the shivi subset of WEGGEG is the
+            first layer to be imported because these statements hold for it:
                 1) it is defined everywhere where it would be necessary.
                 2) it does not have internal overlap.
-                3) Additionally, it is a reliable source for roadside/travel_direction.
+                3) It is a reliable source for roadside and travel_direction.
+                4) It contains the hectoletter.
         """
         for df_name in self.__LAYER_NAMES:
             print(f"[STATUS:] Laag '{df_name}' wordt geïmporteerd...")
@@ -278,6 +286,10 @@ class WegModel:
         for index, row in dataframe.iterrows():
             feature_info = self.__extract_row_properties(row, df_name)
 
+            if not self.has_base_layer:
+                self.__add_base(feature_info)
+                continue
+
             if not self.has_initial_layer:
                 self.__add_section(feature_info)
                 continue
@@ -287,7 +299,10 @@ class WegModel:
             else:
                 self.__determine_sectioning(feature_info)
 
-        self.has_initial_layer = True
+        if df_name == 'Wegvakken':
+            self.has_base_layer = True
+        if df_name == 'Rijstroken':
+            self.has_initial_layer = True
 
     def __extract_row_properties(self, row: pd.Series, name: str):
         """
@@ -301,7 +316,7 @@ class WegModel:
         else:
             return self.__extract_line_properties(row, name)
 
-    def __extract_point_properties(self, row: pd.Series, name: str):
+    def __extract_point_properties(self, row: pd.Series, name: str) -> dict:
         properties = {}
 
         # TODO: This part should be moved to DFL class.
@@ -358,30 +373,25 @@ class WegModel:
                 'Geometrie': geometrie}
 
     @staticmethod
-    def __extract_line_properties(row: pd.Series, name: str):
+    def __extract_line_properties(row: pd.Series, name: str) -> dict:
         travel_direction = None
-        road_number = None
+        road_number = ''
+        hectoletter = ''
         km_bereik = [row['BEGINKM'], row['EINDKM']]
         properties = {}
-
         geom = set_precision(row['geometry'], GRID_SIZE)
-        # if isinstance(geom, MultiLineString):
-        #     geom = line_merge(geom)
 
-        if name == "Wegcat beleving":
-            if row['OMSCHR'] == 'Autosnelweg':
-                road_letter = 'A'  # Autosnelweg
-            else:
-                road_letter = 'N'  # Niet-autosnelweg
+        if name == "Wegvakken":
+            road_number = row['WEGNR_HMP']
+            hectoletter = row['HECTO_LTTR']
 
+        elif name == 'Rijstroken':
             travel_direction = row['IZI_SIDE']
-            road_number = road_letter + str(row['WEGNUMMER'])
 
             # Flip range only if travel_direction is L.
             if travel_direction == 'L':
                 km_bereik = [row['EINDKM'], row['BEGINKM']]
 
-        elif name == 'Rijstroken':
             first_lane_number = row['VNRWOL']
             n_lanes, special = row['laneInfo']
 
@@ -416,6 +426,7 @@ class WegModel:
 
         return {'Rijrichting': travel_direction,
                 'Wegnummer': road_number,
+                'Hectoletter': hectoletter,
                 'Km_bereik': km_bereik,
                 'Eigenschappen': properties,
                 'Geometrie': geom}
@@ -472,12 +483,12 @@ class WegModel:
                 other_section_props = overlap_section_info['Eigenschappen']
                 other_section_geom = overlap_section_info['Geometrie']
 
-            # print("New section range:", new_section_range)
-            # print("New section props:", new_section_props)
-            # print("New section geom:", set_precision(new_section['Geometrie'], 1))
-            # print("Other section range:", other_section_range)
-            # print("Other section props:", other_section_props)
-            # print("Other section geom:", set_precision(other_section_geom, 1))
+            print("New section range:", new_section_range)
+            print("New section props:", new_section_props)
+            print("New section geom:", set_precision(new_section['Geometrie'], 1))
+            print("Other section range:", other_section_range)
+            print("Other section props:", other_section_props)
+            print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section['Km_bereik']) - new_section['Geometrie'].length) > 100:
@@ -719,6 +730,23 @@ class WegModel:
         self.__log_section(self.section_index)
         self.section_index += 1
 
+    def __add_base(self, new_section: dict) -> None:
+        """
+        Adds a section to the base variable and increases the index.
+        Args:
+            new_section (dict): Containing at least:
+                - Wegnummer (str): Letter and number indicating the name of the road.
+                - Eigenschappen (dict): All properties that belong to the section.
+                - Geometrie (LineString): The geometry of the section.
+        Prints:
+            Newly added section properties.
+        """
+        assert not is_empty(new_section['Geometrie']), f"Poging om een lege lijngeometrie toe te voegen: {new_section}"
+
+        self.base[self.base_index] = new_section
+        self.__log_base(self.base_index)
+        self.base_index += 1
+
     def __add_point(self, point: dict) -> None:
         """
         Adds a point to the points variable and increases the index.
@@ -748,6 +776,17 @@ class WegModel:
               f"{self.points[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t{set_precision(self.points[index]['Geometrie'], 1)}")
 
+    def __log_base(self, index: int) -> None:
+        """
+        Prints addition LOG for section in self.base at given index.
+        Args:
+            index (int): Index of section to print info for.
+        """
+        print(f"[LOG:] Basis {index} toegevoegd: \t"
+              f"{self.base[index]['Wegnummer']}\t"
+              f"{self.base[index]['Hectoletter']}\n"
+              f"\t\t\t\t\t\t\t\t{set_precision(self.base[index]['Geometrie'], 1)}")
+
     def __log_section(self, index: int) -> None:
         """
         Prints addition LOG for section in self.sections at given index.
@@ -757,6 +796,7 @@ class WegModel:
         print(f"[LOG:] Sectie {index} toegevoegd: \t"
               f"[{self.sections[index]['Km_bereik'][0]:<7.3f}, {self.sections[index]['Km_bereik'][1]:<7.3f}] km \t"
               f"{self.sections[index]['Wegnummer']}\t"
+              f"{self.sections[index]['Hectoletter']}\t"
               f"{self.sections[index]['Rijrichting']}\t"
               f"{self.sections[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]['Geometrie'], 1)}")
@@ -770,6 +810,7 @@ class WegModel:
         print(f"[LOG:] Sectie {index} veranderd:  \t"
               f"[{self.sections[index]['Km_bereik'][0]:<7.3f}, {self.sections[index]['Km_bereik'][1]:<7.3f}] km \t"
               f"{self.sections[index]['Wegnummer']}\t"
+              f"{self.sections[index]['Hectoletter']}\t"
               f"{self.sections[index]['Rijrichting']}\t"
               f"{self.sections[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]['Geometrie'], 1)}")
