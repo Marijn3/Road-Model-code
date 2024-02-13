@@ -98,7 +98,7 @@ def check_point_on_line(section_id: int) -> None | dict:
 def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) -> LineString:
     """
     Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
-    *vergence point and it is necessary to move it. Also adds a general property to the section
+    *vergentiepunt point, and it is necessary to move it. Also adds a general property to the section
     that details whether there is a *vergence point at the start or end of it.
     Args:
         section_id (int): ID of section to be moved.
@@ -107,7 +107,7 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
     Returns:
         The geometry of the section, where one of the endpoints is displaced if necessary.
     """
-    line_geom = section_data['Geometrie']
+    line_geom = section_data['Pos_eigs']['Geometrie']
     point_type = point_data['Obj_eigs']['Type']
 
     point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['Geometrie'], 0.5)
@@ -115,9 +115,9 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
 
     # Store where the point is (if applicable). This is used for puntstuk visualisation.
     if point_at_line_start:
-        section_data['*vergence'] = 'Start'
+        section_data['Verw_eigs']['*vergentiepunt'] = 'Start'
     if point_at_line_end:
-        section_data['*vergence'] = 'Einde'
+        section_data['Verw_eigs']['*vergentiepunt'] = 'Einde'
 
     if point_type == 'Splitsing' and point_at_line_start:
         other_lane_id = [sid for sid in point_data['Obj_eigs']['Uitgaande_secties'] if sid != section_id][0]
@@ -164,7 +164,7 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
         n_lanes_b, _ = wegmodel.get_n_lanes(section_data['Obj_eigs'])
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
-    line_geom = section_data['Geometrie']
+    line_geom = section_data['Pos_eigs']['Geometrie']
     if change_start:
         point_to_displace = line_geom.coords[0]
     else:
@@ -185,7 +185,7 @@ def svg_add_section(section_id: int, section_data: dict, svg_dwg: svgwrite.Drawi
     if point_on_line:
         geom = get_changed_geometry(section_id, section_data, point_on_line)
     else:
-        geom = section_data['Geometrie']
+        geom = section_data['Pos_eigs']['Geometrie']
 
     n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_data['Obj_eigs'])
 
@@ -232,10 +232,10 @@ def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, sv
 
         # A puntstuk is the final lane.
         if next_lane == 'Puntstuk':
-            if '*vergence' in section_data.keys():
-                if section_data['*vergence'] == 'Start':
+            if '*vergentiepunt' in section_data['Verw_eigs'].keys():
+                if section_data['Verw_eigs']['*vergentiepunt'] == 'Start':
                     add_markerline(line_coords, svg_dwg, "Punt_Start")
-                elif section_data['*vergence'] == 'Einde':
+                elif section_data['Verw_eigs']['*vergentiepunt'] == 'Einde':
                     add_markerline(line_coords, svg_dwg, "Punt_Einde")
             # else:
                 # print(f"not found in keys of {section_data}")
@@ -431,8 +431,8 @@ dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDT
 
 # Section data (roads)
 print("Sectiedata visualiseren...")
-for section_id, section in wegmodel.sections.items():
-    svg_add_section(section_id, section, dwg)
+for section_id, section_info in wegmodel.sections.items():
+    svg_add_section(section_id, section_info, dwg)
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
