@@ -177,15 +177,15 @@ class DataFrameLader:
         if name == 'Rijstroken':
             self.data[name]['VOLGNRSTRK'] = pd.to_numeric(self.data[name]['VOLGNRSTRK'], errors='coerce').astype('Int64')
 
-            mapping_function = lambda row: lane_mapping_h.get(row['OMSCHR'], row['OMSCHR']) \
+            mapping_function = lambda row: lane_mapping_h.get(row['OMSCHR'], 'Unknown') \
                 if row['KANTCODE'] == "H" \
-                else lane_mapping_t.get(row['OMSCHR'], row['OMSCHR'])
+                else lane_mapping_t.get(row['OMSCHR'], 'Unknown')
             self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Mengstroken':
-            mapping_function = lambda row: lane_mapping_h.get(row['AANT_MSK'], row['AANT_MSK']) \
+            mapping_function = lambda row: lane_mapping_h.get(row['AANT_MSK'], 'Unknown') \
                 if row['KANTCODE'] == "H" \
-                else lane_mapping_t.get(row['AANT_MSK'], row['AANT_MSK'])
+                else lane_mapping_t.get(row['AANT_MSK'], 'Unknown')
             self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Kantstroken':
@@ -201,6 +201,21 @@ class DataFrameLader:
         # Some registrations don't have BEGINKM. These can be ignored.
         if name == 'Wegvakken':
             self.data[name] = self.data[name].dropna(subset=['BEGINKM'])
+
+        vergence_mapping = {
+            'U': 'Uitvoeging',
+            'D': 'Splitsing',
+            'C': 'Samenvoeging',
+            'I': 'Invoeging'
+        }
+
+        if name == 'Convergenties':
+            print(self.data[name].columns)
+            print(self.data[name]['TYPE_CONV'].unique())
+            self.data[name]['Type'] = self.data[name]['TYPE_CONV'].apply(lambda entry: vergence_mapping.get(entry, 'Unknown'))
+
+        if name == 'Divergenties':
+            self.data[name]['Type'] = self.data[name]['TYPE_DIV'].apply(lambda entry: vergence_mapping.get(entry, 'Unknown'))
 
         if 'stroken' in name:
             # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
@@ -342,14 +357,6 @@ class WegModel:
             }
         }
 
-        # TODO: This part should be moved to DFL class.
-        VERGENCE_TYPE_MAPPING = {
-            'U': 'Uitvoeging',
-            'D': 'Splitsing',
-            'C': 'Samenvoeging',
-            'I': 'Invoeging'
-        }
-
         overlapping_sections = self.get_sections_at_point(row['geometry'])
 
         # Get the road number and travel direction from the (first) section it overlaps
@@ -371,14 +378,14 @@ class WegModel:
         point_info['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(point_info['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
 
         if name == 'Convergenties':
-            point_info['Obj_eigs']['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
+            point_info['Obj_eigs']['Type'] = row['Type']
             point_info['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
                                       if self.get_n_lanes(section_info['Obj_eigs'])[1] != point_info['Verw_eigs']['Aantal_stroken']]
             point_info['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
                                       if self.get_n_lanes(section_info['Obj_eigs'])[1] == point_info['Verw_eigs']['Aantal_stroken']]
 
         if name == 'Divergenties':
-            point_info['Obj_eigs']['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
+            point_info['Obj_eigs']['Type'] = row['Type']
             point_info['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
                                       if self.get_n_lanes(section_info['Obj_eigs'])[1] == point_info['Verw_eigs']['Aantal_stroken']]
             point_info['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
