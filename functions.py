@@ -1165,7 +1165,10 @@ class MSIRow:
         self.properties = self.info['Eigenschappen']
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['Eigenschappen']
-        self.name = f"{self.info['Wegnummer']}{self.info['Rijrichting']}:{self.info['km']}"
+        if self.info['Hectoletter']:
+            self.name = f"{self.info['Wegnummer']}_{self.info['Hectoletter'].upper()}:{self.info['km']}"
+        else:
+            self.name = f"{self.info['Wegnummer']}{self.info['Rijrichting']}:{self.info['km']}"
         self.lane_numbers = []
         self.n_lanes = 0
         self.n_msis = 0
