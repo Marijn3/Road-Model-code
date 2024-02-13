@@ -25,7 +25,7 @@ class DataFrameLader:
 
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
-        "data/Wegcat beleving/wegcat_beleving-edit.dbf",
+        "data/Wegvakken/wegvakken.dbf",
         "data/Rijstroken/rijstroken.dbf",
         "data/Kantstroken/kantstroken.dbf",
         "data/Mengstroken/mengstroken.dbf",
@@ -198,6 +198,9 @@ class DataFrameLader:
             is_kp = self.data[name]['CODE'] == 'KP'
             self.data[name] = self.data[name][is_kp]
 
+        if name == 'Wegvakken':
+            self.data[name] = self.data[name].dropna(subset=['BEGINKM'])
+
         if 'stroken' in name:
             # All 'stroken' dataframes have VNRWOL columns which should be converted to integer.
             self.data[name]['VNRWOL'] = pd.to_numeric(self.data[name]['VNRWOL'], errors='coerce').astype('Int64')
@@ -233,14 +236,17 @@ class DataFrameLader:
 
 
 class WegModel:
-    __LAYER_NAMES = ['Wegcat beleving', 'Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
+    __LAYER_NAMES = ['Wegvakken', 'Rijstroken', 'Kantstroken', 'Mengstroken', 'Maximum snelheid',
                      'Rijstrooksignaleringen', 'Convergenties', 'Divergenties']
 
     def __init__(self, dfl: DataFrameLader):
+        self.base = {}
+        self.base_index = 0
         self.sections = {}
         self.section_index = 0
         self.points = {}
         self.point_index = 0
+        self.has_base_layer = False
         self.has_initial_layer = False
 
         self.__import_dataframes(dfl)
@@ -251,10 +257,12 @@ class WegModel:
         Args:
             dfl (DataFrameLader): DataFrameLoader class with all dataframes.
         Note:
-            The 'Wegcat beleving' layer is the first layer to be imported because two assumptions hold for it:
+            The 'wegvakken' layer from the shivi subset of WEGGEG is the
+            first layer to be imported because these statements hold for it:
                 1) it is defined everywhere where it would be necessary.
                 2) it does not have internal overlap.
-                3) Additionally, it is a reliable source for roadside/rijrichting.
+                3) It is a reliable source for roadside and travel_direction.
+                4) It contains the hectoletter.
         """
         for df_name in self.__LAYER_NAMES:
             print(f"[STATUS:] Laag '{df_name}' wordt geïmporteerd...")
@@ -278,8 +286,12 @@ class WegModel:
         for index, row in dataframe.iterrows():
             feature_info = self.__extract_row_properties(row, df_name)
 
+            if not self.has_base_layer:
+                self.__add_base(feature_info)
+                continue
+
             if not self.has_initial_layer:
-                self.__add_section(feature_info)
+                self.__add_initial_section(feature_info)
                 continue
 
             if isinstance(row['geometry'], (Point, MultiPoint)):
@@ -287,7 +299,10 @@ class WegModel:
             else:
                 self.__determine_sectioning(feature_info)
 
-        self.has_initial_layer = True
+        if df_name == 'Wegvakken':
+            self.has_base_layer = True
+        if df_name == 'Rijstroken':
+            self.has_initial_layer = True
 
     def __extract_row_properties(self, row: pd.Series, name: str):
         """
@@ -301,7 +316,7 @@ class WegModel:
         else:
             return self.__extract_line_properties(row, name)
 
-    def __extract_point_properties(self, row: pd.Series, name: str):
+    def __extract_point_properties(self, row: pd.Series, name: str) -> dict:
         properties = {}
 
         # TODO: This part should be moved to DFL class.
@@ -317,71 +332,68 @@ class WegModel:
 
         overlapping_sections = self.get_sections_at_point(geometrie)
 
-        # Get the roadside letter and number from the (first) section it overlaps
-        rijrichting = [section_info['Rijrichting'] for section_info in overlapping_sections.values()][0]
-        wegnummer = [section_info['Wegnummer'] for section_info in overlapping_sections.values()][0]
+        # Get the road number and travel direction from the (first) section it overlaps
+        travel_direction = [section_info['Rijrichting'] for section_info in overlapping_sections.values()][0]
+        road_number = [section_info['Wegnummer'] for section_info in overlapping_sections.values()][0]
+        hectoletter = [section_info['Hectoletter'] for section_info in overlapping_sections.values()][0]
 
         # Get the IDs of the sections it overlaps
         section_ids = [section_id for section_id in overlapping_sections.keys()]
 
         # Get the local number of (main) lanes. Take the highest value if there are multiple.
         lane_info = [self.get_n_lanes(section_info['Eigenschappen']) for section_info in overlapping_sections.values()]
-        properties['Aantal_Hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
-        properties['Aantal_Stroken'] = max(lane_info, key=lambda x: x[1])[1]
+        properties['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
+        properties['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
 
         # Get the local orientation
         properties['Lokale_hoek'] = self.get_local_angle(section_ids, geometrie)
 
         if name == 'Convergenties':
             properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_CONV'], "Unknown")
-            properties['Ingaande_Secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] != properties['Aantal_Stroken']]
-            properties['Uitgaande_Secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] == properties['Aantal_Stroken']]
+            properties['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] != properties['Aantal_stroken']]
+            properties['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] == properties['Aantal_stroken']]
 
         if name == 'Divergenties':
             properties['Type'] = VERGENCE_TYPE_MAPPING.get(row['TYPE_DIV'], "Unknown")
-            properties['Ingaande_Secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] == properties['Aantal_Stroken']]
-            properties['Uitgaande_Secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] != properties['Aantal_Stroken']]
+            properties['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] == properties['Aantal_stroken']]
+            properties['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
+                                      if self.get_n_lanes(section_info['Eigenschappen'])[1] != properties['Aantal_stroken']]
 
         if name == 'Rijstrooksignaleringen':
             properties['Type'] = 'Signalering'
-            properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
+            properties['Rijstrooknummers'] = [int(char) for char in row['RIJSTRKNRS']]
 
-        return {'Rijrichting': rijrichting,
-                'Wegnummer': wegnummer,
+        return {'Rijrichting': travel_direction,
+                'Wegnummer': road_number,
+                'Hectoletter': hectoletter,
                 'km': km,
                 'section_ids': section_ids,
                 'Eigenschappen': properties,
                 'Geometrie': geometrie}
 
     @staticmethod
-    def __extract_line_properties(row: pd.Series, name: str):
-        rijrichting = None
-        wegnummer = None
+    def __extract_line_properties(row: pd.Series, name: str) -> dict:
+        travel_direction = None
+        road_number = ''
+        hectoletter = ''
         km_bereik = [row['BEGINKM'], row['EINDKM']]
         properties = {}
-
         geom = set_precision(row['geometry'], GRID_SIZE)
-        # if isinstance(geom, MultiLineString):
-        #     geom = line_merge(geom)
 
-        if name == "Wegcat beleving":
-            if row['OMSCHR'] == 'Autosnelweg':
-                wegletter = 'A'  # Autosnelweg
-            else:
-                wegletter = 'N'  # Niet-autosnelweg
-
-            rijrichting = row['IZI_SIDE']
-            wegnummer = wegletter + str(row['WEGNUMMER'])
-
-            # Flip range only if rijrichting is L.
-            if rijrichting == 'L':
-                km_bereik = [row['EINDKM'], row['BEGINKM']]
+        if name == "Wegvakken":
+            road_number = row['WEGNR_HMP']
+            hectoletter = row['HECTO_LTTR']
 
         elif name == 'Rijstroken':
+            travel_direction = row['IZI_SIDE']
+
+            # Flip range only if travel_direction is L.
+            if travel_direction == 'L':
+                km_bereik = [row['EINDKM'], row['BEGINKM']]
+
             first_lane_number = row['VNRWOL']
             n_lanes, special = row['laneInfo']
 
@@ -414,8 +426,9 @@ class WegModel:
         elif name == 'Maximum snelheid':
             properties['Maximumsnelheid'] = row['OMSCHR']
 
-        return {'Rijrichting': rijrichting,
-                'Wegnummer': wegnummer,
+        return {'Rijrichting': travel_direction,
+                'Wegnummer': road_number,
+                'Hectoletter': hectoletter,
                 'Km_bereik': km_bereik,
                 'Eigenschappen': properties,
                 'Geometrie': geom}
@@ -439,7 +452,8 @@ class WegModel:
         overlap_section_info = deepcopy(overlap_section['section_info'])
 
         other_section_side = overlap_section_info['Rijrichting']
-        other_section_wegnummer = overlap_section_info['Wegnummer']
+        other_section_road_number = overlap_section_info['Wegnummer']
+        other_section_hectoletter = overlap_section_info['Hectoletter']
         other_section_range = overlap_section_info['Km_bereik']
         other_section_props = overlap_section_info['Eigenschappen']
         other_section_geom = overlap_section_info['Geometrie']
@@ -516,7 +530,8 @@ class WegModel:
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section({
                     'Rijrichting': other_section_side,
-                    'Wegnummer': other_section_wegnummer,
+                    'Wegnummer': other_section_road_number,
+                    'Hectoletter': other_section_hectoletter,
                     'Km_bereik': km_bereik,
                     'Eigenschappen': new_section_props,
                     'Geometrie': added_geom
@@ -575,7 +590,8 @@ class WegModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'Rijrichting': other_section_side,
-                        'Wegnummer': other_section_wegnummer,
+                        'Wegnummer': other_section_road_number,
+                        'Hectoletter': other_section_hectoletter,
                         'Km_bereik': km_bereik,
                         'Eigenschappen': both_props,
                         'Geometrie': added_geom
@@ -601,7 +617,8 @@ class WegModel:
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
                         'Rijrichting': other_section_side,
-                        'Wegnummer': other_section_wegnummer,
+                        'Wegnummer': other_section_road_number,
+                        'Hectoletter': other_section_hectoletter,
                         'Km_bereik': km_bereik,
                         'Eigenschappen': both_props,
                         'Geometrie': added_geom
@@ -621,7 +638,8 @@ class WegModel:
                         # This is the final iteration
                         self.__add_section({
                             'Rijrichting': other_section_side,
-                            'Wegnummer': other_section_wegnummer,
+                            'Wegnummer': other_section_road_number,
+                            'Hectoletter': other_section_hectoletter,
                             'Km_bereik': new_section_range,
                             'Eigenschappen': new_section_props,
                             'Geometrie': new_section_geom
@@ -643,7 +661,8 @@ class WegModel:
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
                     'Rijrichting': other_section_side,
-                    'Wegnummer': other_section_wegnummer,
+                    'Wegnummer': other_section_road_number,
+                    'Hectoletter': other_section_hectoletter,
                     'Km_bereik': km_bereik,
                     'Eigenschappen': other_section_props,
                     'Geometrie': added_geom
@@ -719,6 +738,52 @@ class WegModel:
         self.__log_section(self.section_index)
         self.section_index += 1
 
+    def __add_initial_section(self, new_section: dict) -> None:
+        """
+        Adds a section to the sections variable and increases the index.
+        Args:
+            new_section (dict): Containing:
+                - Rijrichting (str): Side of the road. Either 'R' or 'L'.
+                - Wegnummer (str): Letter and number indicating the name of the road.
+                - Km_bereik (list[float]): Start and end registration kilometre.
+                - Eigenschappen (dict): All properties that belong to the section.
+                - Geometrie (LineString): The geometry of the section.
+        Prints:
+            Newly added section properties.
+        """
+        overlap_base = self.__get_overlapping_base(new_section)
+
+        if not overlap_base:
+            print(f"[WAARSCHUWING:] {new_section} overlapt niet met de basis. Deze sectie wordt niet toegevoegd.")
+            # Do NOT add the section, as there is no guarantee the geometry direction is correct.
+            return
+
+        new_section['Wegnummer'] = overlap_base['section_info']['Wegnummer']
+        new_section['Hectoletter'] = overlap_base['section_info']['Hectoletter']
+
+        # Ensure all new geometries are also oriented in driving direction
+        if not same_direction(new_section['Geometrie'], overlap_base['section_info']['Geometrie']):
+            new_section['Geometrie'] = reverse(new_section['Geometrie'])
+
+        self.__add_section(new_section)
+
+    def __add_base(self, new_section: dict) -> None:
+        """
+        Adds a section to the base variable and increases the index.
+        Args:
+            new_section (dict): Containing at least:
+                - Wegnummer (str): Letter and number indicating the name of the road.
+                - Eigenschappen (dict): All properties that belong to the section.
+                - Geometrie (LineString): The geometry of the section.
+        Prints:
+            Newly added section properties.
+        """
+        assert not is_empty(new_section['Geometrie']), f"Poging om een lege lijngeometrie toe te voegen: {new_section}"
+
+        self.base[self.base_index] = new_section
+        self.__log_base(self.base_index)
+        self.base_index += 1
+
     def __add_point(self, point: dict) -> None:
         """
         Adds a point to the points variable and increases the index.
@@ -748,6 +813,17 @@ class WegModel:
               f"{self.points[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t{set_precision(self.points[index]['Geometrie'], 1)}")
 
+    def __log_base(self, index: int) -> None:
+        """
+        Prints addition LOG for section in self.base at given index.
+        Args:
+            index (int): Index of section to print info for.
+        """
+        print(f"[LOG:] Basis {index} toegevoegd:  \t"
+              f"{self.base[index]['Wegnummer']}\t"
+              f"{self.base[index]['Hectoletter']}\n"
+              f"\t\t\t\t\t\t\t\t{set_precision(self.base[index]['Geometrie'], 1)}")
+
     def __log_section(self, index: int) -> None:
         """
         Prints addition LOG for section in self.sections at given index.
@@ -757,6 +833,7 @@ class WegModel:
         print(f"[LOG:] Sectie {index} toegevoegd: \t"
               f"[{self.sections[index]['Km_bereik'][0]:<7.3f}, {self.sections[index]['Km_bereik'][1]:<7.3f}] km \t"
               f"{self.sections[index]['Wegnummer']}\t"
+              f"{self.sections[index]['Hectoletter']}\t"
               f"{self.sections[index]['Rijrichting']}\t"
               f"{self.sections[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]['Geometrie'], 1)}")
@@ -770,9 +847,28 @@ class WegModel:
         print(f"[LOG:] Sectie {index} veranderd:  \t"
               f"[{self.sections[index]['Km_bereik'][0]:<7.3f}, {self.sections[index]['Km_bereik'][1]:<7.3f}] km \t"
               f"{self.sections[index]['Wegnummer']}\t"
+              f"{self.sections[index]['Hectoletter']}\t"
               f"{self.sections[index]['Rijrichting']}\t"
               f"{self.sections[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]['Geometrie'], 1)}")
+
+    def __get_overlapping_base(self, new_section):
+        overlapping_base = []
+        for base_index, base in self.base.items():
+            if get_overlap(new_section['Geometrie'], base['Geometrie']):
+                overlapping_base.append({'index': base_index, 'section_info': base})
+
+        # if overlapping_base:
+        #     # For the rest of the implementation, sorting in driving direction is assumed.
+        #     # Thus, sections on the left side should be ordered from high to low ranges.
+        #     travel_direction = overlapping_sections[0]['section_info']['Rijrichting']
+        #     should_reverse = travel_direction == 'L'
+        #     overlapping_sections = sorted(overlapping_sections,
+        #                                   key=lambda x: max(x['section_info']['Km_bereik']),
+        #                                   reverse=should_reverse)
+        # Return just one of them (for now. TODO)
+        return overlapping_base[0]
+
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
@@ -797,8 +893,8 @@ class WegModel:
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
             # Thus, sections on the left side should be ordered from high to low ranges.
-            rijrichting = overlapping_sections[0]['section_info']['Rijrichting']
-            should_reverse = rijrichting == 'L'
+            travel_direction = overlapping_sections[0]['section_info']['Rijrichting']
+            should_reverse = travel_direction == 'L'
             overlapping_sections = sorted(overlapping_sections,
                                           key=lambda x: max(x['section_info']['Km_bereik']),
                                           reverse=should_reverse)
@@ -837,7 +933,7 @@ class WegModel:
             List of all point information.
         """
         if specifier == 'MSI':
-            return [point for point in self.points.values() if 'Rijstroken' in point['Eigenschappen'].keys()]
+            return [point for point in self.points.values() if point['Eigenschappen']['Type'] == 'Signalering']
 
         return [point for point in self.points.values()]
 
@@ -891,7 +987,7 @@ class WegModel:
 
     def get_section_info_at(self, km: float, side: str) -> list[dict]:
         """
-        Finds the full properties of a road section at a specific km and rijrichting.
+        Finds the full properties of a road section at a specific km and travel_direction.
         Args:
             km (float): Kilometer point to retrieve the road section properties for.
             side (str): Side of the road to retrieve the road section properties for.
@@ -906,29 +1002,29 @@ class WegModel:
                 section_info.append(section)
         return section_info
 
-    def print_props(self, km: float, rijrichting: str) -> dict | list[dict]:
+    def print_props(self, km: float, travel_direction: str) -> dict | list[dict]:
         """
-        Prints the properties of a road section at a specific km and rijrichting.
+        Prints the properties of a road section at a specific km and travel_direction.
         Args:
             km (float): Kilometer point to retrieve the road section properties for.
-            rijrichting (str): Side of the road to retrieve the road section properties for.
+            travel_direction (str): Side of the road to retrieve the road section properties for.
         Prints:
             Road section(s) properties.
         Returns:
             list[dict]: Attributes of the (first) road section at the specified kilometer point.
         """
-        section_info = self.get_section_info_at(km, rijrichting)
+        section_info = self.get_section_info_at(km, travel_direction)
         if len(section_info) > 1:
-            print(f"Eigenschappen in rijrichting {rijrichting}, op {km} km:")
+            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km:")
             for index, section in enumerate(section_info):
                 print(f"    {index}) {section['Eigenschappen']}")
             print("")
             return section_info
         elif len(section_info) == 1:
-            print(f"Eigenschappen in rijrichting {rijrichting}, op {km} km: {section_info[0]['Eigenschappen']}\n")
+            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km: {section_info[0]['Eigenschappen']}\n")
             return section_info[0]['Eigenschappen']
         else:
-            print(f"Geen secties gevonden met rijrichting {rijrichting} en {km} km.\n")
+            print(f"Geen secties gevonden met rijrichting {travel_direction} en {km} km.\n")
             return section_info
 
     def get_sections_at_point(self, point: Point) -> dict[int: dict]:
@@ -1069,7 +1165,10 @@ class MSIRow:
         self.properties = self.info['Eigenschappen']
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['Eigenschappen']
-        self.name = f"{self.info['Wegnummer']}{self.info['Rijrichting']}:{self.info['km']}"
+        if self.info['Hectoletter']:
+            self.name = f"{self.info['Wegnummer']}_{self.info['Hectoletter'].upper()}:{self.info['km']}"
+        else:
+            self.name = f"{self.info['Wegnummer']}{self.info['Rijrichting']}:{self.info['km']}"
         self.lane_numbers = []
         self.n_lanes = 0
         self.n_msis = 0
@@ -1083,10 +1182,10 @@ class MSIRow:
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
                                     if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']])
         self.n_lanes = len(self.lane_numbers)
-        self.n_msis = len(self.properties['Rijstroken'])
+        self.n_msis = len(self.properties['Rijstrooknummers'])
 
         # Create all MSIs in row, passing the parent row class as argument
-        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.properties['Rijstroken']}
+        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.properties['Rijstrooknummers']}
 
         # Determine carriageways based on road properties
         self.cw = {}
@@ -1154,7 +1253,7 @@ class MSINetwerk:
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         current_location = msi_row.info['Geometrie']
         current_km = msi_row.info['km']
-        rijrichting = msi_row.local_road_info['Rijrichting']
+        travel_direction = msi_row.local_road_info['Rijrichting']
 
         start_sections = self.roadmodel.get_sections_at_point(current_location)
 
@@ -1163,28 +1262,28 @@ class MSINetwerk:
 
         elif len(start_sections) > 1:
             print("[WAARSCHUWING:] Meer dan één sectie gevonden op MSI locatie.")  # Filter the correct ID in dict.
-            if (downstream and rijrichting == 'R') or (not downstream and rijrichting == 'L'):
+            if (downstream and travel_direction == 'R') or (not downstream and travel_direction == 'L'):
                 for section_id, section in start_sections.items():
                     if section['Km_bereik'][0] == current_km:
                         starting_section_id = section_id
                         break
-            if (downstream and rijrichting == 'L') or (not downstream and rijrichting == 'R'):
+            if (downstream and travel_direction == 'L') or (not downstream and travel_direction == 'R'):
                 for section_id, section in start_sections.items():
                     if section['Km_bereik'][1] == current_km:
                         starting_section_id = section_id
                         break
 
-        print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {rijrichting}")
-        msis = self.find_msi_recursive(starting_section_id, current_km, downstream, rijrichting)
+        print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
+        msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
 
         if isinstance(msis, dict):
             return [msis]
         return msis
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
-                           rijrichting: str, offset: int = 0, current_distance: float = 0) -> list | dict:
+                           travel_direction: str, offset: int = 0, current_distance: float = 0) -> list | dict:
         other_points_on_section, msis_on_section = (
-            self.evaluate_section_points(current_section_id, current_km, rijrichting, downstream))
+            self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
         current_section = self.roadmodel.sections[current_section_id]
         current_distance += current_section['Geometrie'].length
@@ -1231,7 +1330,7 @@ class MSINetwerk:
             else:
                 # Find an MSI in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
-                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, rijrichting, offset, current_distance)
+                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction, offset, current_distance)
 
         assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {other_points_on_section}"
 
@@ -1243,31 +1342,31 @@ class MSINetwerk:
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
-                section_id = other_point['Eigenschappen']['Uitgaande_Secties'][0]
+                section_id = other_point['Eigenschappen']['Uitgaande_secties'][0]
                 if 'Puntstuk' not in current_section['Eigenschappen'].values():
                     # we are section b. determine annotation.
-                    other_section_id = [sid for sid in other_point['Eigenschappen']['Ingaande_Secties'] if sid != current_section_id][0]
+                    other_section_id = [sid for sid in other_point['Eigenschappen']['Ingaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Eigenschappen'])
                     offset = offset + n_lanes_other
             else:
-                section_id = other_point['Eigenschappen']['Ingaande_Secties'][0]
+                section_id = other_point['Eigenschappen']['Ingaande_secties'][0]
                 if 'Puntstuk' not in current_section['Eigenschappen'].values():
                     # we are section b. determine annotation.
-                    other_section_id = [sid for sid in other_point['Eigenschappen']['Uitgaande_Secties'] if sid != current_section_id][0]
+                    other_section_id = [sid for sid in other_point['Eigenschappen']['Uitgaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Eigenschappen'])
                     offset = offset + n_lanes_other
 
             print(f"The *vergence point leads to section {section_id}")
             print(f"Marking {section_id} with +{offset}")
 
-            return self.find_msi_recursive(section_id, other_point['km'], downstream, rijrichting, offset, current_distance)
+            return self.find_msi_recursive(section_id, other_point['km'], downstream, travel_direction, offset, current_distance)
 
         if upstream_split:
-            section_ids = other_point['Eigenschappen']['Ingaande_Secties']
+            section_ids = other_point['Eigenschappen']['Ingaande_secties']
             print(f"The *vergence point is an upstream split into {section_ids}")
 
         elif downstream_split:
-            section_ids = other_point['Eigenschappen']['Uitgaande_Secties']
+            section_ids = other_point['Eigenschappen']['Uitgaande_secties']
             print(f"The *vergence point is a downstream split into {section_ids}")
 
         potential_cont_section = self.roadmodel.sections[section_ids[0]]
@@ -1285,14 +1384,14 @@ class MSINetwerk:
         print(f"Marking {section_b} with -{offset_b}")
 
         # Make it do the recursive function twice. Then store the result.
-        option_continuation = self.find_msi_recursive(section_a, other_point['km'], downstream, rijrichting, offset, current_distance)
-        option_diversion = self.find_msi_recursive(section_b, other_point['km'], downstream, rijrichting, offset - offset_b, current_distance)
+        option_continuation = self.find_msi_recursive(section_a, other_point['km'], downstream, travel_direction, offset, current_distance)
+        option_diversion = self.find_msi_recursive(section_b, other_point['km'], downstream, travel_direction, offset - offset_b, current_distance)
         # Return a list of dictionaries
         return [option_continuation, option_diversion]
 
-    def evaluate_section_points(self, current_section_id: int, current_km: float, rijrichting: str, downstream: bool):
+    def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
         # Only takes points that are upstream/downstream of current point.
-        if rijrichting == 'L' and downstream or rijrichting == 'R' and not downstream:
+        if travel_direction == 'L' and downstream or travel_direction == 'R' and not downstream:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
                                        current_section_id in point_data['section_ids'] and point_data['km'] < current_km]
         else:
