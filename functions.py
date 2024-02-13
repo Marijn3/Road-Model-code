@@ -291,7 +291,7 @@ class WegModel:
                 continue
 
             if not self.has_initial_layer:
-                self.__add_section(feature_info)
+                self.__add_initial_section(feature_info)
                 continue
 
             if isinstance(row['geometry'], (Point, MultiPoint)):
@@ -451,6 +451,7 @@ class WegModel:
 
         other_section_side = overlap_section_info['Rijrichting']
         other_section_road_number = overlap_section_info['Wegnummer']
+        other_section_hectoletter = overlap_section_info['Hectoletter']
         other_section_range = overlap_section_info['Km_bereik']
         other_section_props = overlap_section_info['Eigenschappen']
         other_section_geom = overlap_section_info['Geometrie']
@@ -483,12 +484,12 @@ class WegModel:
                 other_section_props = overlap_section_info['Eigenschappen']
                 other_section_geom = overlap_section_info['Geometrie']
 
-            print("New section range:", new_section_range)
-            print("New section props:", new_section_props)
-            print("New section geom:", set_precision(new_section['Geometrie'], 1))
-            print("Other section range:", other_section_range)
-            print("Other section props:", other_section_props)
-            print("Other section geom:", set_precision(other_section_geom, 1))
+            # print("New section range:", new_section_range)
+            # print("New section props:", new_section_props)
+            # print("New section geom:", set_precision(new_section['Geometrie'], 1))
+            # print("Other section range:", other_section_range)
+            # print("Other section props:", other_section_props)
+            # print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section['Km_bereik']) - new_section['Geometrie'].length) > 100:
@@ -528,6 +529,7 @@ class WegModel:
                 self.__add_section({
                     'Rijrichting': other_section_side,
                     'Wegnummer': other_section_road_number,
+                    'Hectoletter': other_section_hectoletter,
                     'Km_bereik': km_bereik,
                     'Eigenschappen': new_section_props,
                     'Geometrie': added_geom
@@ -587,6 +589,7 @@ class WegModel:
                     self.__add_section({
                         'Rijrichting': other_section_side,
                         'Wegnummer': other_section_road_number,
+                        'Hectoletter': other_section_hectoletter,
                         'Km_bereik': km_bereik,
                         'Eigenschappen': both_props,
                         'Geometrie': added_geom
@@ -613,6 +616,7 @@ class WegModel:
                     self.__add_section({
                         'Rijrichting': other_section_side,
                         'Wegnummer': other_section_road_number,
+                        'Hectoletter': other_section_hectoletter,
                         'Km_bereik': km_bereik,
                         'Eigenschappen': both_props,
                         'Geometrie': added_geom
@@ -633,6 +637,7 @@ class WegModel:
                         self.__add_section({
                             'Rijrichting': other_section_side,
                             'Wegnummer': other_section_road_number,
+                            'Hectoletter': other_section_hectoletter,
                             'Km_bereik': new_section_range,
                             'Eigenschappen': new_section_props,
                             'Geometrie': new_section_geom
@@ -655,6 +660,7 @@ class WegModel:
                 self.__add_section({
                     'Rijrichting': other_section_side,
                     'Wegnummer': other_section_road_number,
+                    'Hectoletter': other_section_hectoletter,
                     'Km_bereik': km_bereik,
                     'Eigenschappen': other_section_props,
                     'Geometrie': added_geom
@@ -730,6 +736,35 @@ class WegModel:
         self.__log_section(self.section_index)
         self.section_index += 1
 
+    def __add_initial_section(self, new_section: dict) -> None:
+        """
+        Adds a section to the sections variable and increases the index.
+        Args:
+            new_section (dict): Containing:
+                - Rijrichting (str): Side of the road. Either 'R' or 'L'.
+                - Wegnummer (str): Letter and number indicating the name of the road.
+                - Km_bereik (list[float]): Start and end registration kilometre.
+                - Eigenschappen (dict): All properties that belong to the section.
+                - Geometrie (LineString): The geometry of the section.
+        Prints:
+            Newly added section properties.
+        """
+        overlap_base = self.__get_overlapping_base(new_section)
+
+        if not overlap_base:
+            print(f"[WAARSCHUWING:] {new_section} overlapt niet met de basis. Deze sectie wordt niet toegevoegd.")
+            # Do NOT add the section, as there is no guarantee the geometry direction is correct.
+            return
+
+        new_section['Wegnummer'] = overlap_base['section_info']['Wegnummer']
+        new_section['Hectoletter'] = overlap_base['section_info']['Hectoletter']
+
+        # Ensure all new geometries are also oriented in driving direction
+        if not same_direction(new_section['Geometrie'], overlap_base['section_info']['Geometrie']):
+            new_section['Geometrie'] = reverse(new_section['Geometrie'])
+
+        self.__add_section(new_section)
+
     def __add_base(self, new_section: dict) -> None:
         """
         Adds a section to the base variable and increases the index.
@@ -782,7 +817,7 @@ class WegModel:
         Args:
             index (int): Index of section to print info for.
         """
-        print(f"[LOG:] Basis {index} toegevoegd: \t"
+        print(f"[LOG:] Basis {index} toegevoegd:  \t"
               f"{self.base[index]['Wegnummer']}\t"
               f"{self.base[index]['Hectoletter']}\n"
               f"\t\t\t\t\t\t\t\t{set_precision(self.base[index]['Geometrie'], 1)}")
@@ -814,6 +849,24 @@ class WegModel:
               f"{self.sections[index]['Rijrichting']}\t"
               f"{self.sections[index]['Eigenschappen']} \n"
               f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]['Geometrie'], 1)}")
+
+    def __get_overlapping_base(self, new_section):
+        overlapping_base = []
+        for base_index, base in self.base.items():
+            if get_overlap(new_section['Geometrie'], base['Geometrie']):
+                overlapping_base.append({'index': base_index, 'section_info': base})
+
+        # if overlapping_base:
+        #     # For the rest of the implementation, sorting in driving direction is assumed.
+        #     # Thus, sections on the left side should be ordered from high to low ranges.
+        #     travel_direction = overlapping_sections[0]['section_info']['Rijrichting']
+        #     should_reverse = travel_direction == 'L'
+        #     overlapping_sections = sorted(overlapping_sections,
+        #                                   key=lambda x: max(x['section_info']['Km_bereik']),
+        #                                   reverse=should_reverse)
+        # Return just one of them (for now. TODO)
+        return overlapping_base[0]
+
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
