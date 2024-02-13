@@ -90,7 +90,7 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
 def check_point_on_line(section_id: int) -> None | dict:
     # Assumes at most one *vergence point per section. In any case, the first one encountered is returned.
     for point_data in wegmodel.get_points():
-        if section_id in point_data['section_ids'] and point_data['Obj_eigs']['Type'] not in ['Signalering']:
+        if section_id in point_data['Verw_eigs']['Sectie_ids'] and point_data['Obj_eigs']['Type'] not in ['Signalering']:
             return point_data
     return None
 
@@ -110,8 +110,8 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
     line_geom = section_data['Pos_eigs']['Geometrie']
     point_type = point_data['Obj_eigs']['Type']
 
-    point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['Geometrie'], 0.5)
-    point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data['Geometrie'], 0.5)
+    point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['Pos_eigs']['Geometrie'], 0.5)
+    point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data['Pos_eigs']['Geometrie'], 0.5)
 
     # Store where the point is (if applicable). This is used for puntstuk visualisation.
     if point_at_line_start:
@@ -120,16 +120,16 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
         section_data['Verw_eigs']['*vergentiepunt'] = 'Einde'
 
     if point_type == 'Splitsing' and point_at_line_start:
-        other_lane_id = [sid for sid in point_data['Obj_eigs']['Uitgaande_secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Verw_eigs']['Uitgaande_secties'] if sid != section_id][0]
         change_start = True
     elif point_type == 'Samenvoeging' and point_at_line_end:
-        other_lane_id = [sid for sid in point_data['Obj_eigs']['Ingaande_secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Verw_eigs']['Ingaande_secties'] if sid != section_id][0]
         change_start = False
     elif point_type == 'Uitvoeging' and point_at_line_start:
-        other_lane_id = [sid for sid in point_data['Obj_eigs']['Uitgaande_secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Verw_eigs']['Uitgaande_secties'] if sid != section_id][0]
         change_start = True
     elif point_type == 'Invoeging' and point_at_line_end:
-        other_lane_id = [sid for sid in point_data['Obj_eigs']['Ingaande_secties'] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_data['Verw_eigs']['Ingaande_secties'] if sid != section_id][0]
         change_start = False
     else:
         # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
@@ -140,7 +140,7 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
 
 
 def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict, change_start: bool = True):
-    angle_radians = math.radians(point_data['Obj_eigs']['Lokale_hoek'])
+    angle_radians = math.radians(point_data['Verw_eigs']['Lokale_hoek'])
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
     this_has_puntstuk = 'Puntstuk' in section_data['Obj_eigs'].values()
@@ -152,7 +152,7 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
         f"Geen sectie met puntstuk: {section_data}{other_section_data}"
 
     displacement = 0
-    n_lanes_largest = point_data['Obj_eigs']['Aantal_hoofdstroken']
+    n_lanes_largest = point_data['Verw_eigs']['Aantal_hoofdstroken']
 
     if this_has_puntstuk:
         n_lanes_a, _ = wegmodel.get_n_lanes(section_data['Obj_eigs'])
@@ -307,12 +307,11 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
 
 
 def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
-    coords = get_flipped_coords(point_data['Geometrie'])[0]
-    props = point_data['Obj_eigs']
-    info_offset = LANE_WIDTH * (props['Aantal_stroken'] + (props['Aantal_stroken'] - props['Aantal_hoofdstroken'])) / 2
-    rotate_angle = 90 - props['Lokale_hoek']
+    coords = get_flipped_coords(point_data['Pos_eigs']['Geometrie'])[0]
+    info_offset = LANE_WIDTH * (point_data['Verw_eigs']['Aantal_stroken'] + (point_data['Verw_eigs']['Aantal_stroken'] - point_data['Verw_eigs']['Aantal_hoofdstroken'])) / 2
+    rotate_angle = 90 - point_data['Verw_eigs']['Lokale_hoek']
 
-    if props['Type'] == 'Signalering':
+    if point_data['Obj_eigs']['Type'] == 'Signalering':
         display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
         # display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
@@ -323,7 +322,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
     group_msi_row = svgwrite.container.Group()
 
     for nr in point_data['Obj_eigs']['Rijstrooknummers']:
-        msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
+        msi_name = f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
         displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2),
@@ -334,7 +333,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
-    text = svgwrite.text.Text(make_name(point_data['km'], point_data['Hectoletter']),
+    text = svgwrite.text.Text(make_name(point_data['Pos_eigs']['Km'], point_data['Pos_eigs']['Hectoletter']),
                               insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
                               fill="white", font_family="Arial", font_size=4)
 
@@ -349,8 +348,8 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
     play = (LANE_WIDTH - box_size)/2
 
     for nr in point_data['Obj_eigs']['Rijstrooknummers']:
-        msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
-        displacement = LANE_WIDTH * (nr - 1) - point_data['Obj_eigs']['Aantal_hoofdstroken'] * LANE_WIDTH / 2
+        msi_name = f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
+        displacement = LANE_WIDTH * (nr - 1) - point_data['Verw_eigs']['Aantal_hoofdstroken'] * LANE_WIDTH / 2
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
                                       size=(box_size, box_size),
@@ -360,7 +359,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
-    text = svgwrite.text.Text(make_name(point_data['km'], point_data['Hectoletter']),
+    text = svgwrite.text.Text(make_name(point_data['Pos_eigs']['Km'], point_data['Pos_eigs']['Hectoletter']),
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
                               fill="white", font_family="Arial", font_size=3)
 
@@ -372,7 +371,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_vergence = svgwrite.container.Group()
 
-    text = svgwrite.text.Text(f"{point_data['km']} {point_data['Obj_eigs']['Type']}",
+    text = svgwrite.text.Text(f"{point_data['Pos_eigs']['Km']} {point_data['Obj_eigs']['Type']}",
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1),
                               fill="white", font_family="Arial", font_size=3)
 
