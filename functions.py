@@ -926,6 +926,24 @@ class WegModel:
         return len(main_lanes), len(any_lanes)
 
     def __post_processing(self) -> None:
+        for section_index, section_info in self.sections.items():
+            start_point = Point(section_info['Pos_eigs']['Geometrie'].coords[0])
+            end_point = Point(section_info['Pos_eigs']['Geometrie'].coords[-1])
+
+            start_sections = self.get_sections_at_point(start_point)
+            end_sections = self.get_sections_at_point(end_point)
+
+            # TODO: Conserve also the 'main lanes'-ness of this!
+            self.sections[section_index]['Verw_eigs']['Secties_stroomopwaarts'] = [index for index in start_sections.keys() if index != section_index]
+            self.sections[section_index]['Verw_eigs']['Secties_stroomafwaarts'] = [index for index in end_sections.keys() if index != section_index]
+
+            # Store where the convergence point is (if applicable). This is used for puntstuk visualisation.
+            # if point_at_line_start:
+            #     self.sections[section_index]['Verw_eigs']['*vergentiepunt'] = 'Start'
+            # if point_at_line_end:
+            #     self.sections[section_index]['Verw_eigs']['*vergentiepunt'] = 'Einde'
+            print(self.sections[section_index])
+
         for index, point_info in self.points.items():
             overlapping_sections = self.get_sections_at_point(point_info['Pos_eigs']['Geometrie'])
 
@@ -959,14 +977,6 @@ class WegModel:
                                                                            overlapping_sections.items()
                                                                            if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
                                                                            self.points[index]['Verw_eigs']['Aantal_stroken']]
-
-    def get_sections(self) -> list[dict]:
-        """
-        Obtain a list of all sections in the road model.
-        Returns:
-            List of section information.
-        """
-        return [section for section in self.sections.values()]
 
     def get_points(self, specifier: str = None) -> list[dict]:
         """
@@ -1072,8 +1082,7 @@ class WegModel:
 
     def get_sections_at_point(self, point: Point) -> dict[int: dict]:
         """
-        Prints the properties of a road section at a specific point.
-        Assumes that only one section is close to the point.
+        Finds sections in self.sections that overlap the given point.
         Args:
             point (Point): Geometric position of the point.
         Returns:
@@ -1083,7 +1092,7 @@ class WegModel:
 
     def get_one_section_info_at_point(self, point: Point) -> dict:
         """
-        Prints the properties of a road section at a specific point.
+        Returns the properties of a road section at a specific point.
         Assumes that only one section is close to the point.
         Args:
             point (Point): Geometric position of the point.
