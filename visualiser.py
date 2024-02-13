@@ -334,7 +334,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
-    text = svgwrite.text.Text(point_data['km'],
+    text = svgwrite.text.Text(make_name(point_data['km'], point_data['Hectoletter']),
                               insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
                               fill="white", font_family="Arial", font_size=4)
 
@@ -360,7 +360,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
-    text = svgwrite.text.Text(point_data['km'],
+    text = svgwrite.text.Text(make_name(point_data['km'], point_data['Hectoletter']),
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
                               fill="white", font_family="Arial", font_size=3)
 
@@ -415,6 +415,12 @@ def rotate_point(point, origin, angle_degrees):
     qx = ox + math.cos(angle_rad) * (x - ox) - math.sin(angle_rad) * (y - oy)
     qy = oy + math.sin(angle_rad) * (x - ox) + math.cos(angle_rad) * (y - oy)
     return qx, qy
+
+
+def make_name(km: float, letter: str | None) -> str:
+    if letter:
+        return f"{km} {letter}"
+    return f"{km}"
 
 
 # Create SVG drawing

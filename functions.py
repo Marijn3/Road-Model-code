@@ -332,9 +332,10 @@ class WegModel:
 
         overlapping_sections = self.get_sections_at_point(geometrie)
 
-        # Get the roadside letter and number from the (first) section it overlaps
+        # Get the road number and travel direction from the (first) section it overlaps
         travel_direction = [section_info['Rijrichting'] for section_info in overlapping_sections.values()][0]
         road_number = [section_info['Wegnummer'] for section_info in overlapping_sections.values()][0]
+        hectoletter = [section_info['Hectoletter'] for section_info in overlapping_sections.values()][0]
 
         # Get the IDs of the sections it overlaps
         section_ids = [section_id for section_id in overlapping_sections.keys()]
@@ -367,6 +368,7 @@ class WegModel:
 
         return {'Rijrichting': travel_direction,
                 'Wegnummer': road_number,
+                'Hectoletter': hectoletter,
                 'km': km,
                 'section_ids': section_ids,
                 'Eigenschappen': properties,
