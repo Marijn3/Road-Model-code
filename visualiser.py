@@ -322,7 +322,7 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
 def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
 
-    for nr in point_data['Eigenschappen']['Rijstroken']:
+    for nr in point_data['Eigenschappen']['Rijstrooknummers']:
         msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
         displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
         square = svgwrite.shapes.Rect(id=msi_name,
@@ -348,7 +348,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
     box_size = LANE_WIDTH*0.8
     play = (LANE_WIDTH - box_size)/2
 
-    for nr in point_data['Eigenschappen']['Rijstroken']:
+    for nr in point_data['Eigenschappen']['Rijstrooknummers']:
         msi_name = f"{point_data['Wegnummer']}{point_data['Rijrichting']}:{point_data['km']}:{nr}"
         displacement = LANE_WIDTH * (nr - 1) - point_data['Eigenschappen']['Aantal_hoofdstroken'] * LANE_WIDTH / 2
         square = svgwrite.shapes.Rect(id=msi_name,

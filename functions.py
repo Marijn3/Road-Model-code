@@ -364,7 +364,7 @@ class WegModel:
 
         if name == 'Rijstrooksignaleringen':
             properties['Type'] = 'Signalering'
-            properties['Rijstroken'] = [int(char) for char in row['RIJSTRKNRS']]
+            properties['Rijstrooknummers'] = [int(char) for char in row['RIJSTRKNRS']]
 
         return {'Rijrichting': travel_direction,
                 'Wegnummer': road_number,
@@ -933,7 +933,7 @@ class WegModel:
             List of all point information.
         """
         if specifier == 'MSI':
-            return [point for point in self.points.values() if 'Rijstroken' in point['Eigenschappen'].keys()]
+            return [point for point in self.points.values() if point['Eigenschappen']['Type'] == 'Signalering']
 
         return [point for point in self.points.values()]
 
@@ -1182,10 +1182,10 @@ class MSIRow:
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
                                     if isinstance(lane_nr, int) and lane_type not in ['Puntstuk']])
         self.n_lanes = len(self.lane_numbers)
-        self.n_msis = len(self.properties['Rijstroken'])
+        self.n_msis = len(self.properties['Rijstrooknummers'])
 
         # Create all MSIs in row, passing the parent row class as argument
-        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.properties['Rijstroken']}
+        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.properties['Rijstrooknummers']}
 
         # Determine carriageways based on road properties
         self.cw = {}
