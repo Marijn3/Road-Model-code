@@ -210,8 +210,6 @@ class DataFrameLader:
         }
 
         if name == 'Convergenties':
-            print(self.data[name].columns)
-            print(self.data[name]['TYPE_CONV'].unique())
             self.data[name]['Type'] = self.data[name]['TYPE_CONV'].apply(lambda entry: vergence_mapping.get(entry, 'Unknown'))
 
         if name == 'Divergenties':
@@ -267,6 +265,7 @@ class WegModel:
         self.has_initial_layer = False
 
         self.__import_dataframes(dfl)
+        self.__post_processing()
 
     def __import_dataframes(self, dfl: DataFrameLader) -> None:
         """
@@ -339,7 +338,7 @@ class WegModel:
                 'Rijrichting': '',
                 'Wegnummer': '',
                 'Hectoletter': '',
-                'Km_bereik': [],
+                'Km': [],
                 'Geometrie': None
             },
             'Obj_eigs': {
@@ -353,7 +352,7 @@ class WegModel:
                 'Ingaande_secties': [],
                 'Uitgaande_secties': [],
                 'Hoofdbaan_secties': [],
-                'Afwijkende_sectie': [],
+                'Afwijkende_sectie': None,
             }
         }
 
@@ -362,34 +361,12 @@ class WegModel:
         # Get the road number and travel direction from the (first) section it overlaps
         point_info['Pos_eigs']['Rijrichting'] = [section_info['Pos_eigs']['Rijrichting'] for section_info in overlapping_sections.values()][0]
         point_info['Pos_eigs']['Wegnummer'] = [section_info['Pos_eigs']['Wegnummer'] for section_info in overlapping_sections.values()][0]
-        point_info['Pos_eigs']['Km'] = row['KMTR']
         point_info['Pos_eigs']['Hectoletter'] = [section_info['Pos_eigs']['Hectoletter'] for section_info in overlapping_sections.values()][0]
+        point_info['Pos_eigs']['Km'] = row['KMTR']
         point_info['Pos_eigs']['Geometrie'] = row['geometry']
 
-        # Get the IDs of the sections it overlaps
-        point_info['Verw_eigs']['Sectie_ids'] = [section_id for section_id in overlapping_sections.keys()]
-
-        # Get the local number of (main) lanes. Take the highest value if there are multiple.
-        lane_info = [self.get_n_lanes(section_info['Obj_eigs']) for section_info in overlapping_sections.values()]
-        point_info['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
-        point_info['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
-
-        # Get the local orientation
-        point_info['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(point_info['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
-
-        if name == 'Convergenties':
+        if name == 'Convergenties' or name == 'Divergenties':
             point_info['Obj_eigs']['Type'] = row['Type']
-            point_info['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] != point_info['Verw_eigs']['Aantal_stroken']]
-            point_info['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] == point_info['Verw_eigs']['Aantal_stroken']]
-
-        if name == 'Divergenties':
-            point_info['Obj_eigs']['Type'] = row['Type']
-            point_info['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] == point_info['Verw_eigs']['Aantal_stroken']]
-            point_info['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] != point_info['Verw_eigs']['Aantal_stroken']]
 
         if name == 'Rijstrooksignaleringen':
             point_info['Obj_eigs']['Type'] = 'Signalering'
@@ -947,6 +924,41 @@ class WegModel:
         any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
                      and lane_type not in ['Puntstuk']]
         return len(main_lanes), len(any_lanes)
+
+    def __post_processing(self) -> None:
+        for index, point_info in self.points.items():
+            overlapping_sections = self.get_sections_at_point(point_info['Pos_eigs']['Geometrie'])
+
+            self.points[index]['Verw_eigs']['Sectie_ids'] = [section_id for section_id in overlapping_sections.keys()]
+
+            # Get the local number of (main) lanes. Take the highest value if there are multiple.
+            lane_info = [self.get_n_lanes(section_info['Obj_eigs']) for section_info in overlapping_sections.values()]
+            self.points[index]['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
+            self.points[index]['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
+
+            self.points[index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(self.points[index]['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
+
+            # TODO: Determine all ingoing, outgoing, main and diverging stroken in a more neat way.
+
+            if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
+                self.points[index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
+                                                                          overlapping_sections.items()
+                                                                          if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
+                                                                          self.points[index]['Verw_eigs']['Aantal_stroken']]
+                self.points[index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
+                                                                           overlapping_sections.items()
+                                                                           if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
+                                                                           self.points[index]['Verw_eigs']['Aantal_stroken']]
+
+            if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
+                self.points[index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
+                                                                          overlapping_sections.items()
+                                                                          if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
+                                                                          self.points[index]['Verw_eigs']['Aantal_stroken']]
+                self.points[index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
+                                                                           overlapping_sections.items()
+                                                                           if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
+                                                                           self.points[index]['Verw_eigs']['Aantal_stroken']]
 
     def get_sections(self) -> list[dict]:
         """
