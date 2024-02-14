@@ -10,7 +10,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:121.839:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -19,7 +19,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -35,7 +35,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:121.839:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -44,7 +44,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -60,8 +60,8 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
-          "Secondary": null,
+          "Primary": "A2L:121.839:3",
+          "Secondary": "A2L:121.839:4",
           "Taper": null,
           "Broadening": null,
           "Narrowing": null
@@ -69,7 +69,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -106,7 +106,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -131,7 +131,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -156,7 +156,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -166,7 +166,7 @@
       "4": {
         "Downstream": {
           "Primary": null,
-          "Secondary": null,
+          "Secondary": "A2L:121.338:3",
           "Taper": null,
           "Broadening": null,
           "Narrowing": null
@@ -181,7 +181,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -218,7 +218,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -243,7 +243,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -268,7 +268,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -293,7 +293,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -321,7 +321,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:121.601:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -330,7 +330,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -346,7 +346,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:121.601:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -355,7 +355,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -371,7 +371,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:121.601:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -380,7 +380,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -396,8 +396,8 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
-          "Secondary": null,
+          "Primary": "A2_R:121.6:1",
+          "Secondary": "A2R:121.601:3",
           "Taper": null,
           "Broadening": null,
           "Narrowing": null
@@ -405,7 +405,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -433,7 +433,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:120.461:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -442,7 +442,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -458,7 +458,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:120.461:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -467,7 +467,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -483,7 +483,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:120.461:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -492,7 +492,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -517,7 +517,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -542,7 +542,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -570,7 +570,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:120.92:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -579,7 +579,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -595,7 +595,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:120.92:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -604,7 +604,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -620,7 +620,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:120.92:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -629,7 +629,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -657,7 +657,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.472:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -666,7 +666,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -682,7 +682,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.472:4",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -691,7 +691,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -707,7 +707,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.472:5",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -716,7 +716,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -744,7 +744,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:121.338:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -753,7 +753,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -769,7 +769,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:121.338:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -778,7 +778,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -794,7 +794,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:121.338:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -803,7 +803,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -831,7 +831,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:121.33:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -840,7 +840,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -856,7 +856,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:121.33:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -865,7 +865,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -875,13 +875,13 @@
       "3": {
         "Downstream": {
           "Primary": "A2R:121.955:3",
-          "Secondary": null,
+          "Secondary": "A2R:121.955:4",
           "Taper": null,
           "Broadening": null,
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:121.33:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -890,7 +890,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -918,7 +918,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:118.395:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -927,7 +927,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -943,7 +943,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:118.395:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -952,7 +952,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -968,7 +968,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:118.395:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -977,7 +977,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -993,7 +993,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:118.395:4",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1002,7 +1002,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1027,7 +1027,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1055,7 +1055,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.204:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1064,7 +1064,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1080,7 +1080,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.204:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1089,7 +1089,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1105,7 +1105,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.204:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1114,7 +1114,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1130,7 +1130,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.204:4",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1139,7 +1139,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1155,7 +1155,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.204:5",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1164,7 +1164,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1192,7 +1192,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2_N:118.706:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1201,7 +1201,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1217,7 +1217,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2_N:118.706:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1226,7 +1226,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1254,7 +1254,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:120.906:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1263,7 +1263,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1279,7 +1279,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:120.906:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1288,7 +1288,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1304,7 +1304,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:120.906:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1313,7 +1313,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1341,7 +1341,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.844:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1350,7 +1350,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1366,7 +1366,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.844:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1375,7 +1375,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1391,7 +1391,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.844:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1400,7 +1400,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1428,7 +1428,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2_N:119.205:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1437,7 +1437,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1453,7 +1453,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2_N:119.205:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1462,7 +1462,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1499,7 +1499,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1527,7 +1527,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.2:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1536,7 +1536,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1552,7 +1552,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.2:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1561,7 +1561,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1589,7 +1589,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:120.46:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1598,7 +1598,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1614,7 +1614,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:120.46:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1623,7 +1623,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1639,7 +1639,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:120.46:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1648,7 +1648,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1676,7 +1676,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.472:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1685,7 +1685,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1701,7 +1701,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.472:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1710,7 +1710,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1738,7 +1738,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.47:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1747,7 +1747,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1763,7 +1763,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.47:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1772,7 +1772,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1788,7 +1788,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.47:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1797,7 +1797,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1813,7 +1813,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.47:4",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1822,7 +1822,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1838,7 +1838,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2R:119.47:5",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1847,7 +1847,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1875,7 +1875,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.839:1",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1884,7 +1884,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1900,7 +1900,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.839:2",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1909,7 +1909,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 1,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1925,7 +1925,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.839:3",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1934,7 +1934,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1950,7 +1950,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.839:4",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1959,7 +1959,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
@@ -1975,7 +1975,7 @@
           "Narrowing": null
         },
         "Upstream": {
-          "Primary": null,
+          "Primary": "A2L:119.839:5",
           "Secondary": null,
           "Taper": null,
           "Broadening": null,
@@ -1984,7 +1984,7 @@
         "State": null,
         "Rush_hour_lane": null,
         "Exit-Entry": false,
-        "TrafficStream": "1",
+        "TrafficStream": 2,
         "TrafficStream_Influence": {
           "Left": null,
           "Right": null
