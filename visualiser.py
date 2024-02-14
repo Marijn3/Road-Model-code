@@ -89,7 +89,7 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
 
 def check_point_on_line(section_id: int) -> None | dict:
     # Assumes at most one *vergence point per section. In any case, the first one encountered is returned.
-    for point_data in wegmodel.get_points():
+    for point_data in wegmodel.get_points_info():
         if section_id in point_data['Verw_eigs']['Sectie_ids'] and point_data['Obj_eigs']['Type'] not in ['Signalering']:
             return point_data
     return None
@@ -442,7 +442,7 @@ for section_id, section_info in wegmodel.sections.items():
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = wegmodel.get_points()  # 'MSI'
+points = wegmodel.get_points_info()  # 'MSI'
 for point in points:
     svg_add_point(point, dwg)
 
