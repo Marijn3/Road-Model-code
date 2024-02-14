@@ -1625,4 +1625,3 @@ class MSI(MSILegends):
                 if msi_number in upstream_row.MSIs.keys():
                     self.properties['us'] = upstream_row.MSIs[msi_number].name
                     upstream_row.MSIs[msi_number].properties['ds'] = self.name
-
