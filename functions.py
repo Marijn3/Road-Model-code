@@ -928,6 +928,8 @@ class WegModel:
 
     def __post_processing(self) -> None:
         for section_index, section_info in self.sections.items():
+            print(section_index, section_info)
+
             start_point = Point(section_info['Pos_eigs']['Geometrie'].coords[0])
             end_point = Point(section_info['Pos_eigs']['Geometrie'].coords[-1])
 
@@ -944,24 +946,29 @@ class WegModel:
             start_sections = self.get_sections_at_point(start_point)
             end_sections = self.get_sections_at_point(end_point)
 
-            upstream_sections = [
-                index for index, section in start_sections.items()
-                if index != section_index and section['Pos_eigs']['Hectoletter'] == section_info['Pos_eigs']['Hectoletter']]
-            downstream_sections = [
-                index for index, section in end_sections.items()
-                if index != section_index and section['Pos_eigs']['Hectoletter'] == section_info['Pos_eigs']['Hectoletter']]
+            upstream_sections = {index: section for index, section in start_sections.items() if index != section_index}
+            downstream_sections = {index: section for index, section in end_sections.items() if index != section_index}
 
-            self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = upstream_sections[0] if upstream_sections else None
-            self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = downstream_sections[0] if downstream_sections else None
+            # Further selection when necessary. TODO: FINISH
 
-            if len(start_sections) > len(end_sections):
-                self.sections[section_index]['Verw_eigs']['Sectie_afbuigend'] = [
-                    index for index, section in start_sections.items()
-                    if index != section_index and section['Pos_eigs']['Hectoletter'] != section_info['Pos_eigs']['Hectoletter']]
-            elif len(start_sections) < len(end_sections):
-                self.sections[section_index]['Verw_eigs']['Sectie_afbuigend'] = [
-                    index for index, section in end_sections.items()
-                    if index != section_index and section['Pos_eigs']['Hectoletter'] != section_info['Pos_eigs']['Hectoletter']]
+            print('#1:', upstream_sections)
+            if len(upstream_sections) == 1:
+                hoofdbaan_upstream = [index for index in upstream_sections.keys()][0]
+            elif len(upstream_sections) > 1:
+                hoofdbaan_downstream = None
+                afbuigend = None
+                upstream_sections = {index: section for index, section in upstream_sections.items()
+                                     if not determine_range_overlap(section['Pos_eigs']['Km_bereik'], section_info['Pos_eigs']['Km_bereik'])}
+                if len(upstream_sections) > 1:
+                    print('#2:', upstream_sections)
+                    afbuigend = [index for index, section in upstream_sections.items() if 'Puntstuk' in section['Obj_eigs'].values()][0]
+                    hoofdbaan_upstream = [index for index, section in upstream_sections.items() if 'Puntstuk' not in section['Obj_eigs'].values()][0]
+                else:
+                    hoofdbaan_upstream = [index for index, section in upstream_sections.items()][0]
+
+            self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = hoofdbaan_upstream
+            self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = hoofdbaan_downstream
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend'] = afbuigend
 
             print(section_index, self.sections[section_index]['Verw_eigs'])
 
