@@ -312,8 +312,8 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     rotate_angle = 90 - point_data['Verw_eigs']['Lokale_hoek']
 
     if point_data['Obj_eigs']['Type'] == 'Signalering':
-        display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
-        # display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        # display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
         display_vergence(point_data, coords, info_offset, rotate_angle, svg_dwg)
 
@@ -322,7 +322,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
     group_msi_row = svgwrite.container.Group()
 
     for nr in point_data['Obj_eigs']['Rijstrooknummers']:
-        msi_name = f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
+        msi_name = make_name(point_data, nr)
         displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2),
@@ -333,7 +333,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
-    text = svgwrite.text.Text(make_name(point_data['Pos_eigs']['Km'], point_data['Pos_eigs']['Hectoletter']),
+    text = svgwrite.text.Text(make_text_hecto(point_data['Pos_eigs']['Km'], point_data['Pos_eigs']['Hectoletter']),
                               insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1] + 1.5),
                               fill="white", font_family="Arial", font_size=4)
 
@@ -348,7 +348,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
     play = (LANE_WIDTH - box_size)/2
 
     for nr in point_data['Obj_eigs']['Rijstrooknummers']:
-        msi_name = f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
+        msi_name = make_name(point_data, nr)
         displacement = LANE_WIDTH * (nr - 1) - point_data['Verw_eigs']['Aantal_hoofdstroken'] * LANE_WIDTH / 2
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
@@ -359,7 +359,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
-    text = svgwrite.text.Text(make_name(point_data['Pos_eigs']['Km'], point_data['Pos_eigs']['Hectoletter']),
+    text = svgwrite.text.Text(make_text_hecto(point_data['Pos_eigs']['Km'], point_data['Pos_eigs']['Hectoletter']),
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
                               fill="white", font_family="Arial", font_size=3)
 
@@ -396,9 +396,9 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
 
 
 def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.2) )
-    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.5, fill="cyan") )
-    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.5, fill="cyan") )
+    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.4) )
+    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="cyan") )
+    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="cyan") )
 
 
 def get_center_coords(element, angle_degrees, origin):
@@ -416,7 +416,14 @@ def rotate_point(point, origin, angle_degrees):
     return qx, qy
 
 
-def make_name(km: float, letter: str | None) -> str:
+def make_name(point_data, nr) -> str:
+    if point_data['Pos_eigs']['Hectoletter']:
+        return f"{point_data['Pos_eigs']['Wegnummer']}_{point_data['Pos_eigs']['Hectoletter'].upper()}:{point_data['Pos_eigs']['Km']}:{nr}"
+    else:
+        return f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
+
+
+def make_text_hecto(km: float, letter: str | None) -> str:
     if letter:
         return f"{km} {letter}"
     return f"{km}"
@@ -440,7 +447,8 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-# draw_msi_relations(dwg)
+print("MSI-relaties visualiseren...")
+draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)

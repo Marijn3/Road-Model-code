@@ -1196,6 +1196,7 @@ class MSIRow:
         self.properties = self.info['Obj_eigs']
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info['Obj_eigs']
+        # TODO: use make_name(self.info) function for this!
         if self.info['Pos_eigs']['Hectoletter']:
             self.name = f"{self.info['Pos_eigs']['Wegnummer']}_{self.info['Pos_eigs']['Hectoletter'].upper()}:{self.info['Pos_eigs']['Km']}"
         else:
