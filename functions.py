@@ -1583,7 +1583,7 @@ class MSI(MSILegends):
 
         if (self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook'] and
                 self.row.n_lanes > self.lane_number > 1):
-            self.properties['Exit-entry'] = True
+            self.properties['Exit_Entry'] = True
 
         if ('Spitsstrook' in self.row.local_road_properties.values() or
                 'Plusstrook' in self.row.local_road_properties.values() or
@@ -1625,4 +1625,3 @@ class MSI(MSILegends):
                 if msi_number in upstream_row.MSIs.keys():
                     self.properties['us'] = upstream_row.MSIs[msi_number].name
                     upstream_row.MSIs[msi_number].properties['ds'] = self.name
-

@@ -4,3 +4,5 @@ __pycache__/functions.cpython-311.pyc
 __pycache__/
 
 *.svg
+
+*.json
