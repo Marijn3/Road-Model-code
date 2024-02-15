@@ -1312,7 +1312,7 @@ class MSINetwerk:
         return msis
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
-                           travel_direction: str, offset: int = 0, current_distance: float = 0) -> list | dict:
+                           travel_direction: str, shift: int = 0, current_distance: float = 0) -> list | dict:
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
@@ -1323,18 +1323,18 @@ class MSINetwerk:
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
-            return {self.get_msi_row_at_point(msis_on_section[0]): offset}
+            return {self.get_msi_row_at_point(msis_on_section[0]): shift}
 
         # Base case 2: Multiple MSI rows found
         if len(msis_on_section) > 1:
             print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['Pos_eigs']['Km']}")
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['Pos_eigs']['Km']))
-            return {self.get_msi_row_at_point(nearest_msi): offset}
+            return {self.get_msi_row_at_point(nearest_msi): shift}
 
         # Base case 3: Maximum depth reached
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
-            return {None: offset}
+            return {None: shift}
 
         # Recursive case 1: No other points on the section
         if not other_points_on_section:
@@ -1353,15 +1353,15 @@ class MSINetwerk:
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
                 print(f"No connections at all with {current_section_id}")
-                return {None: offset}
+                return {None: shift}
             elif len(connecting_section_ids) > 1:
                 print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
                 # This is likely an intersection. These are of no interest for MSI relations.
-                return {None: offset}
+                return {None: shift}
             else:
                 # Find an MSI in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
-                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction, offset, current_distance)
+                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction, shift, current_distance)
 
         assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {other_points_on_section}"
 
@@ -1378,19 +1378,19 @@ class MSINetwerk:
                     # we are section b. determine annotation.
                     other_section_id = [sid for sid in other_point['Verw_eigs']['Ingaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
-                    offset = offset + n_lanes_other
+                    shift = shift + n_lanes_other
             else:
                 section_id = other_point['Verw_eigs']['Ingaande_secties'][0]
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
                     # we are section b. determine annotation.
                     other_section_id = [sid for sid in other_point['Verw_eigs']['Uitgaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
-                    offset = offset + n_lanes_other
+                    shift = shift + n_lanes_other
 
             print(f"The *vergence point leads to section {section_id}")
-            print(f"Marking {section_id} with +{offset}")
+            print(f"Marking {section_id} with +{shift}")
 
-            return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, offset, current_distance)
+            return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
 
         if upstream_split:
             section_ids = other_point['Verw_eigs']['Ingaande_secties']
@@ -1405,18 +1405,18 @@ class MSINetwerk:
         if 'Puntstuk' in potential_cont_section['Obj_eigs'].values():
             section_a = section_ids[0]
             section_b = section_ids[1]
-            offset_b, _ = self.roadmodel.get_n_lanes(potential_cont_section['Obj_eigs'])
+            shift_b, _ = self.roadmodel.get_n_lanes(potential_cont_section['Obj_eigs'])
         else:
             section_a = section_ids[1]
             section_b = section_ids[0]
-            offset_b, _ = self.roadmodel.get_n_lanes(potential_div_section['Obj_eigs'])
+            shift_b, _ = self.roadmodel.get_n_lanes(potential_div_section['Obj_eigs'])
 
         # Store negative value in this direction.
-        print(f"Marking {section_b} with -{offset_b}")
+        print(f"Marking {section_b} with -{shift_b}")
 
         # Make it do the recursive function twice. Then store the result.
-        option_continuation = self.find_msi_recursive(section_a, other_point['Pos_eigs']['Km'], downstream, travel_direction, offset, current_distance)
-        option_diversion = self.find_msi_recursive(section_b, other_point['Pos_eigs']['Km'], downstream, travel_direction, offset - offset_b, current_distance)
+        option_continuation = self.find_msi_recursive(section_a, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
+        option_diversion = self.find_msi_recursive(section_b, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift - shift_b, current_distance)
         # Return a list of dictionaries
         return [option_continuation, option_diversion]
 
