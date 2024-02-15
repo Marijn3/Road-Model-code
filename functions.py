@@ -189,7 +189,7 @@ class DataFrameLader:
             self.data[name]['laneInfo'] = self.data[name].apply(mapping_function, axis=1)
 
         if name == 'Kantstroken':
-            # 'Redresseerstrook', 'Bufferstrook', 'Pechhaven' and such are not considered
+            # 'Redresseerstrook', 'Bushalte', 'Pechhaven' and such are not considered.
             is_considered = self.data[name]['OMSCHR'].isin(['Vluchtstrook', 'Puntstuk', 'Spitsstrook', 'Plusstrook'])
             self.data[name] = self.data[name][is_considered]
 
@@ -1578,16 +1578,15 @@ class MSI(MSILegends):
 
         self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
-        if self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook']:
+        if self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook']:
             self.properties['RHL'] = True
 
-        if (self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook', 'Bufferstrook'] and
+        if (self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook'] and
                 self.row.n_lanes > self.lane_number > 1):
             self.properties['Exit_Entry'] = True
 
         if ('Spitsstrook' in self.row.local_road_properties.values() or
-                'Plusstrook' in self.row.local_road_properties.values() or
-                'Bufferstrook' in self.row.local_road_properties.values()):
+                'Plusstrook' in self.row.local_road_properties.values()):
             self.properties['RHL_neighbor'] = True
 
         if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == 'Vluchtstrook':
