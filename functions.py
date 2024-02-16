@@ -951,20 +951,22 @@ class WegModel:
 
             # Further selection when necessary. TODO: FINISH
 
-            print('#1:', upstream_sections)
+            hoofdbaan_upstream = None
+            hoofdbaan_downstream = None
+            afbuigend = None
+
+            # print('#1:', upstream_sections)
             if len(upstream_sections) == 1:
                 hoofdbaan_upstream = [index for index in upstream_sections.keys()][0]
-            elif len(upstream_sections) > 1:
-                hoofdbaan_downstream = None
-                afbuigend = None
-                upstream_sections = {index: section for index, section in upstream_sections.items()
-                                     if not determine_range_overlap(section['Pos_eigs']['Km_bereik'], section_info['Pos_eigs']['Km_bereik'])}
-                if len(upstream_sections) > 1:
-                    print('#2:', upstream_sections)
-                    afbuigend = [index for index, section in upstream_sections.items() if 'Puntstuk' in section['Obj_eigs'].values()][0]
-                    hoofdbaan_upstream = [index for index, section in upstream_sections.items() if 'Puntstuk' not in section['Obj_eigs'].values()][0]
-                else:
-                    hoofdbaan_upstream = [index for index, section in upstream_sections.items()][0]
+            # elif len(upstream_sections) > 1:
+            #     upstream_sections = {index: section for index, section in upstream_sections.items()
+            #                          if not determine_range_overlap(section['Pos_eigs']['Km_bereik'], section_info['Pos_eigs']['Km_bereik'])}
+            #     if len(upstream_sections) > 1:
+            #         # print('#2:', upstream_sections)
+            #         afbuigend = [index for index, section in upstream_sections.items() if 'Puntstuk' in section['Obj_eigs'].values()][0]
+            #         hoofdbaan_upstream = [index for index, section in upstream_sections.items() if 'Puntstuk' not in section['Obj_eigs'].values()][0]
+            #     else:
+            #         hoofdbaan_upstream = [index for index, section in upstream_sections.items()][0]
 
             self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = hoofdbaan_upstream
             self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = hoofdbaan_downstream
