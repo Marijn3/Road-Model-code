@@ -113,11 +113,11 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
     point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['Pos_eigs']['Geometrie'], 0.5)
     point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data['Pos_eigs']['Geometrie'], 0.5)
 
-    # Store where the point is (if applicable). This is used for puntstuk visualisation.
-    if point_at_line_start:
-        section_data['Verw_eigs']['*vergentiepunt'] = 'Start'
-    if point_at_line_end:
-        section_data['Verw_eigs']['*vergentiepunt'] = 'Einde'
+    # Store where the point is (if applicable). This was used for puntstuk visualisation.
+    # if point_at_line_start:
+    #     section_data['Verw_eigs']['*vergentiepunt_start'] = True
+    # if point_at_line_end:
+    #     section_data['Verw_eigs']['*vergentiepunt_einde'] = True
 
     if point_type == 'Splitsing' and point_at_line_start:
         other_lane_id = [sid for sid in point_data['Verw_eigs']['Uitgaande_secties'] if sid != section_id][0]
@@ -232,11 +232,11 @@ def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, sv
 
         # A puntstuk is the final lane.
         if next_lane == 'Puntstuk':
-            if '*vergentiepunt' in section_data['Verw_eigs'].keys():
-                if section_data['Verw_eigs']['*vergentiepunt'] == 'Start':
-                    add_markerline(line_coords, svg_dwg, "Punt_Start")
-                elif section_data['Verw_eigs']['*vergentiepunt'] == 'Einde':
-                    add_markerline(line_coords, svg_dwg, "Punt_Einde")
+            print(section_data['Verw_eigs'])
+            if section_data['Verw_eigs']['*vergentiepunt_start']:
+                add_markerline(line_coords, svg_dwg, "Punt_start")
+            elif section_data['Verw_eigs']['*vergentiepunt_einde']:
+                add_markerline(line_coords, svg_dwg, "Punt_einde")
             # else:
                 # print(f"not found in keys of {section_data}")
             break
@@ -284,8 +284,8 @@ def add_markerline(coords: list[tuple], svg_dwg: svgwrite.Drawing, linetype: str
     elif linetype == "Blok":
         line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=C_WHITE, stroke_width=0.6,
                                         stroke_dasharray="0.8 4")
-    elif linetype == "Punt_Start" or linetype == "Punt_Einde":
-        triangle_end = coords[-1] if linetype == "Punt_Start" else coords[0]
+    elif linetype == "Punt_start" or linetype == "Punt_einde":
+        triangle_end = coords[-1] if linetype == "Punt_start" else coords[0]
 
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
         mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)

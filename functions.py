@@ -388,11 +388,13 @@ class WegModel:
                 'Maximumsnelheid': None
             },
             'Verw_eigs': {
+                '*vergentiepunt_start': None,
+                '*vergentiepunt_einde': None,
                 'Sectie_stroomopwaarts': None,
                 'Sectie_stroomafwaarts': None,
                 'Sectie_afbuigend': None,
                 'Start_kenmerk': None,
-                'Einde_kenmerk': None
+                'Einde_kenmerk': None,
             }
         }
 
@@ -443,6 +445,8 @@ class WegModel:
         elif name == 'Maximum snelheid':
             section_info['Obj_eigs']['Maximumsnelheid'] = row['OMSCHR']
 
+        print(section_info['Verw_eigs'])
+
         return section_info
 
     def __determine_sectioning(self, new_section: dict) -> None:
@@ -469,6 +473,7 @@ class WegModel:
         other_section_range = overlap_section_info['Pos_eigs']['Km_bereik']
         other_section_geom = overlap_section_info['Pos_eigs']['Geometrie']
         other_section_props = overlap_section_info['Obj_eigs']
+        base_verw_eigs = overlap_section_info['Verw_eigs']
 
         new_section_range = new_section['Pos_eigs']['Km_bereik']
 
@@ -549,7 +554,7 @@ class WegModel:
                         'Km_bereik': km_bereik,
                         'Geometrie': added_geom},
                     'Obj_eigs': new_section_props,
-                    'Verw_eigs': {}
+                    'Verw_eigs': base_verw_eigs
                 })
                 # Trim the new_section range and geometry for next iteration.
                 if right_side:
@@ -611,7 +616,7 @@ class WegModel:
                             'Km_bereik': km_bereik,
                             'Geometrie': added_geom},
                         'Obj_eigs': both_props,
-                        'Verw_eigs': {}
+                        'Verw_eigs': base_verw_eigs
                     })
                     if right_side:
                         km_remaining = [max(new_section_range), max(other_section_range)]
@@ -640,7 +645,7 @@ class WegModel:
                             'Km_bereik': km_bereik,
                             'Geometrie': added_geom},
                         'Obj_eigs': both_props,
-                        'Verw_eigs': {}
+                        'Verw_eigs': base_verw_eigs
                     })
                     # We can remove the old other_section from the road model, since it has now been completely used.
                     sections_to_remove.add(other_section_index)
@@ -663,7 +668,7 @@ class WegModel:
                                 'Km_bereik': new_section_range,
                                 'Geometrie': new_section_geom},
                             'Obj_eigs': new_section_props,
-                            'Verw_eigs': {}
+                            'Verw_eigs': base_verw_eigs
                         })
                         break
 
@@ -688,7 +693,7 @@ class WegModel:
                         'Km_bereik': km_bereik,
                         'Geometrie': added_geom},
                     'Obj_eigs': other_section_props,
-                    'Verw_eigs': {}
+                    'Verw_eigs': base_verw_eigs
                 })
                 # Trim the other_section range and geometry for next iteration.
                 if right_side:
@@ -827,7 +832,6 @@ class WegModel:
         Args:
             index (int): Index of point to print info for.
         """
-        print(self.points[index])
         print(f"[LOG:] Punt {index} toegevoegd: \t"
               f"{self.points[index]['Pos_eigs']['Km']:<7.3f} km \t"
               f"{self.points[index]['Pos_eigs']['Wegnummer']}\t"
@@ -934,28 +938,23 @@ class WegModel:
             end_point = Point(section_info['Pos_eigs']['Geometrie'].coords[-1])
 
             for point_info in self.get_points_info('*vergentie'):
-                if point_info['Pos_eigs']['Geometrie'] == start_point:
-                    self.sections[section_index]['Verw_eigs']['*vergentiepunt'] = 'Start'
+                if start_point.dwithin(point_info['Pos_eigs']['Geometrie'], 0.1):
+                    self.sections[section_index]['Verw_eigs']['*vergentiepunt_start'] = True
                     self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = False
-                    break
-                if point_info['Pos_eigs']['Geometrie'] == end_point:
-                    self.sections[section_index]['Verw_eigs']['*vergentiepunt'] = 'Einde'
+                if end_point.dwithin(point_info['Pos_eigs']['Geometrie'], 0.1):
+                    self.sections[section_index]['Verw_eigs']['*vergentiepunt_einde'] = True
                     self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = False
-                    break
 
             start_sections = self.get_sections_at_point(start_point)
             end_sections = self.get_sections_at_point(end_point)
 
             upstream_sections = {index: section for index, section in start_sections.items() if index != section_index}
-            downstream_sections = {index: section for index, section in end_sections.items() if index != section_index}
-
-            # Further selection when necessary. TODO: FINISH
 
             hoofdbaan_upstream = None
             hoofdbaan_downstream = None
             afbuigend = None
 
-            # print('#1:', upstream_sections)
+            print('#1:', upstream_sections)
             if len(upstream_sections) == 1:
                 hoofdbaan_upstream = [index for index in upstream_sections.keys()][0]
             # elif len(upstream_sections) > 1:
@@ -973,6 +972,11 @@ class WegModel:
             self.sections[section_index]['Verw_eigs']['Sectie_afbuigend'] = afbuigend
 
             print(section_index, self.sections[section_index]['Verw_eigs'])
+
+
+
+            downstream_sections = {index: section for index, section in end_sections.items() if index != section_index}
+            # ...
 
         for index, point_info in self.points.items():
             overlapping_sections = self.get_sections_at_point(point_info['Pos_eigs']['Geometrie'])
