@@ -942,13 +942,13 @@ class WegModel:
             start_sections = self.get_sections_at_point(start_point)
             end_sections = self.get_sections_at_point(end_point)
 
-            hoofdbaan_upstream, afbuigend_up = self.separate_hoofdbaan_and_afbuigend(start_sections, section_index, section_info)
-            hoofdbaan_downstream, afbuigend_down = self.separate_hoofdbaan_and_afbuigend(end_sections, section_index, section_info)
+            main_up, div_up = self.separate_main_and_div(start_sections, section_index, section_info)
+            main_down, div_down = self.separate_main_and_div(end_sections, section_index, section_info)
 
-            self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = hoofdbaan_upstream
-            self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = hoofdbaan_downstream
-            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'] = afbuigend_up
-            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'] = afbuigend_down
+            self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = main_up
+            self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = main_down
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'] = div_up
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'] = div_down
 
             print(section_index, self.sections[section_index]['Verw_eigs'])
 
@@ -998,41 +998,41 @@ class WegModel:
                                                                            self.points[point_index]['Verw_eigs']['Aantal_stroken']]
 
     @staticmethod
-    def separate_hoofdbaan_and_afbuigend(connecting_sections: dict, section_index, section_info) -> tuple:
-        hoofdbaan_stream = [index for index in connecting_sections.keys() if index != section_index]
-        if len(hoofdbaan_stream) == 0:
+    def separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
+        connected = [index for index in connecting_sections.keys() if index != section_index]
+        if len(connected) == 0:
             return None, None
 
-        if len(hoofdbaan_stream) == 1:
-            return hoofdbaan_stream[0], None
+        if len(connected) == 1:
+            return connected[0], None
 
         stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
 
         # If puntstuk itself, return section with same hectoletter
         if 'Puntstuk' in section_info['Obj_eigs'].values():
-            hoofdbaan_stream = [index for index, section in stream_sections.items() if
+            connected = [index for index, section in stream_sections.items() if
                                 section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
-            return hoofdbaan_stream[0], None
+            return connected[0], None
 
         # If one of the other sections is puntstuk, act accordingly.
-        hoofdbaan_stream = [index for index, section in stream_sections.items() if
+        connected = [index for index, section in stream_sections.items() if
                             'Puntstuk' not in section['Obj_eigs'].values()]
-        afbuigend = [index for index, section in stream_sections.items() if
+        diverging = [index for index, section in stream_sections.items() if
                      'Puntstuk' in section['Obj_eigs'].values()]
 
-        if len(hoofdbaan_stream) == 1:
-            return hoofdbaan_stream[0], afbuigend[0]
+        if len(connected) == 1:
+            return connected[0], diverging[0]
 
-        # If neither other section had puntstuk, return section with same hectoletter and other section
-        hoofdbaan_stream = [index for index, section in stream_sections.items() if
+        # If neither other section had puntstuk, return the one section with same hectoletter
+        connected = [index for index, section in stream_sections.items() if
                             section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
-        afbuigend = [index for index, section in stream_sections.items() if
+        diverging = [index for index, section in stream_sections.items() if
                      section_info['Pos_eigs']['Hectoletter'] != section['Pos_eigs']['Hectoletter']]
 
-        if len(hoofdbaan_stream) == 1:
-            return hoofdbaan_stream[0], afbuigend[0]
+        if len(connected) == 1:
+            return connected[0], diverging[0]
 
-        # This connection is an intersection, which will be treated as an end point.
+        # This connection must be an intersection, which will be treated as an end point.
         return None, None
 
 
