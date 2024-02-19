@@ -922,7 +922,8 @@ class WegModel:
                 '*vergentiepunt_einde': None,
                 'Sectie_stroomopwaarts': None,
                 'Sectie_stroomafwaarts': None,
-                'Sectie_afbuigend': None,
+                'Sectie_afbuigend_stroomopwaarts': None,
+                'Sectie_afbuigend_stroomafwaarts': None,
                 'Start_kenmerk': None,
                 'Einde_kenmerk': None,
             }
@@ -941,33 +942,15 @@ class WegModel:
             start_sections = self.get_sections_at_point(start_point)
             end_sections = self.get_sections_at_point(end_point)
 
-            upstream_sections = {index: section for index, section in start_sections.items() if index != section_index}
-
-            hoofdbaan_upstream = None
-            hoofdbaan_downstream = None
-            afbuigend = None
-
-            print('#1:', upstream_sections)
-            if len(upstream_sections) == 1:
-                hoofdbaan_upstream = [index for index in upstream_sections.keys()][0]
-            # elif len(upstream_sections) > 1:
-            #     upstream_sections = {index: section for index, section in upstream_sections.items()
-            #                          if not determine_range_overlap(section['Pos_eigs']['Km_bereik'], section_info['Pos_eigs']['Km_bereik'])}
-            #     if len(upstream_sections) > 1:
-            #         # print('#2:', upstream_sections)
-            #         afbuigend = [index for index, section in upstream_sections.items() if 'Puntstuk' in section['Obj_eigs'].values()][0]
-            #         hoofdbaan_upstream = [index for index, section in upstream_sections.items() if 'Puntstuk' not in section['Obj_eigs'].values()][0]
-            #     else:
-            #         hoofdbaan_upstream = [index for index, section in upstream_sections.items()][0]
+            hoofdbaan_upstream, afbuigend_up = self.separate_hoofdbaan_and_afbuigend(start_sections, section_index, section_info)
+            hoofdbaan_downstream, afbuigend_down = self.separate_hoofdbaan_and_afbuigend(end_sections, section_index, section_info)
 
             self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = hoofdbaan_upstream
             self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = hoofdbaan_downstream
-            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend'] = afbuigend
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'] = afbuigend_up
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'] = afbuigend_down
 
             print(section_index, self.sections[section_index]['Verw_eigs'])
-
-            downstream_sections = {index: section for index, section in end_sections.items() if index != section_index}
-            # ...
 
         for point_index, point_info in self.points.items():
             self.points[point_index]['Verw_eigs'] = {
@@ -1013,6 +996,45 @@ class WegModel:
                                                                            overlapping_sections.items()
                                                                            if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
                                                                            self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+
+    @staticmethod
+    def separate_hoofdbaan_and_afbuigend(connecting_sections: dict, section_index, section_info) -> tuple:
+        hoofdbaan_stream = [index for index in connecting_sections.keys() if index != section_index]
+        if len(hoofdbaan_stream) == 0:
+            return None, None
+
+        if len(hoofdbaan_stream) == 1:
+            return hoofdbaan_stream[0], None
+
+        stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
+
+        # If puntstuk itself, return section with same hectoletter
+        if 'Puntstuk' in section_info['Obj_eigs'].values():
+            hoofdbaan_stream = [index for index, section in stream_sections.items() if
+                                section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
+            return hoofdbaan_stream[0], None
+
+        # If one of the other sections is puntstuk, act accordingly.
+        hoofdbaan_stream = [index for index, section in stream_sections.items() if
+                            'Puntstuk' not in section['Obj_eigs'].values()]
+        afbuigend = [index for index, section in stream_sections.items() if
+                     'Puntstuk' in section['Obj_eigs'].values()]
+
+        if len(hoofdbaan_stream) == 1:
+            return hoofdbaan_stream[0], afbuigend[0]
+
+        # If neither other section had puntstuk, return section with same hectoletter and other section
+        hoofdbaan_stream = [index for index, section in stream_sections.items() if
+                            section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
+        afbuigend = [index for index, section in stream_sections.items() if
+                     section_info['Pos_eigs']['Hectoletter'] != section['Pos_eigs']['Hectoletter']]
+
+        if len(hoofdbaan_stream) == 1:
+            return hoofdbaan_stream[0], afbuigend[0]
+
+        # This connection is an intersection, which will be treated as an end point.
+        return None, None
+
 
     def get_points_info(self, specifier: str = None) -> list[dict]:
         """
