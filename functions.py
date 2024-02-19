@@ -1397,6 +1397,22 @@ class MSINetwerk:
         current_distance += current_section['Pos_eigs']['Geometrie'].length
         print(f"Current depth: {current_distance}")
 
+        # Added code for recognition of special cases
+        if 'Invoegstrook' in current_section['Obj_eigs'].values():
+            for lane_nr, lane_type in current_section['Obj_eigs'].items():
+                if lane_type == 'Invoegstrook':
+                    print(f"Encountered a section with invoegstrook on lane {lane_nr}.")
+                    break
+
+        if 'Uitrijstrook' in current_section['Obj_eigs'].values():
+            for lane_nr, lane_type in current_section['Obj_eigs'].items():
+                if lane_type == 'Uitrijstrook':
+                    print(f"Encountered a section with uitvoegstrook on lane {lane_nr}.")
+                    break
+
+        if 'Special' in current_section['Obj_eigs'].keys():
+            print(f"Encountered a section with {current_section['Obj_eigs']['Special']}")
+
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
@@ -1503,6 +1519,7 @@ class MSINetwerk:
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
         # Only takes points that are upstream/downstream of current point.
+        # TODO: Use something else than the km registration, as this does not work for certain connections.
         if travel_direction == 'L' and downstream or travel_direction == 'R' and not downstream:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points_info() if
                                        current_section_id in point_data['Verw_eigs']['Sectie_ids'] and point_data['Pos_eigs']['Km'] < current_km]
