@@ -210,8 +210,6 @@ class DataFrameLader:
         }
 
         if name == 'Convergenties':
-            print(self.data[name].columns)
-            print(self.data[name]['TYPE_CONV'].unique())
             self.data[name]['Type'] = self.data[name]['TYPE_CONV'].apply(lambda entry: vergence_mapping.get(entry, 'Unknown'))
 
         if name == 'Divergenties':
@@ -267,6 +265,7 @@ class WegModel:
         self.has_initial_layer = False
 
         self.__import_dataframes(dfl)
+        self.__post_processing()
 
     def __import_dataframes(self, dfl: DataFrameLader) -> None:
         """
@@ -339,22 +338,13 @@ class WegModel:
                 'Rijrichting': '',
                 'Wegnummer': '',
                 'Hectoletter': '',
-                'Km_bereik': [],
+                'Km': [],
                 'Geometrie': None
             },
             'Obj_eigs': {
                 'Type': None
             },
-            'Verw_eigs': {
-                'Sectie_ids': [],
-                'Aantal_hoofdstroken': None,
-                'Aantal_stroken': None,
-                'Lokale_hoek': None,
-                'Ingaande_secties': [],
-                'Uitgaande_secties': [],
-                'Hoofdbaan_secties': [],
-                'Afwijkende_sectie': [],
-            }
+            'Verw_eigs': {}
         }
 
         overlapping_sections = self.get_sections_at_point(row['geometry'])
@@ -362,34 +352,12 @@ class WegModel:
         # Get the road number and travel direction from the (first) section it overlaps
         point_info['Pos_eigs']['Rijrichting'] = [section_info['Pos_eigs']['Rijrichting'] for section_info in overlapping_sections.values()][0]
         point_info['Pos_eigs']['Wegnummer'] = [section_info['Pos_eigs']['Wegnummer'] for section_info in overlapping_sections.values()][0]
-        point_info['Pos_eigs']['Km'] = row['KMTR']
         point_info['Pos_eigs']['Hectoletter'] = [section_info['Pos_eigs']['Hectoletter'] for section_info in overlapping_sections.values()][0]
+        point_info['Pos_eigs']['Km'] = row['KMTR']
         point_info['Pos_eigs']['Geometrie'] = row['geometry']
 
-        # Get the IDs of the sections it overlaps
-        point_info['Verw_eigs']['Sectie_ids'] = [section_id for section_id in overlapping_sections.keys()]
-
-        # Get the local number of (main) lanes. Take the highest value if there are multiple.
-        lane_info = [self.get_n_lanes(section_info['Obj_eigs']) for section_info in overlapping_sections.values()]
-        point_info['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
-        point_info['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
-
-        # Get the local orientation
-        point_info['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(point_info['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
-
-        if name == 'Convergenties':
+        if name == 'Convergenties' or name == 'Divergenties':
             point_info['Obj_eigs']['Type'] = row['Type']
-            point_info['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] != point_info['Verw_eigs']['Aantal_stroken']]
-            point_info['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] == point_info['Verw_eigs']['Aantal_stroken']]
-
-        if name == 'Divergenties':
-            point_info['Obj_eigs']['Type'] = row['Type']
-            point_info['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] == point_info['Verw_eigs']['Aantal_stroken']]
-            point_info['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items()
-                                      if self.get_n_lanes(section_info['Obj_eigs'])[1] != point_info['Verw_eigs']['Aantal_stroken']]
 
         if name == 'Rijstrooksignaleringen':
             point_info['Obj_eigs']['Type'] = 'Signalering'
@@ -410,12 +378,7 @@ class WegModel:
             'Obj_eigs': {
                 'Maximumsnelheid': None
             },
-            'Verw_eigs': {
-                'Secties_stroomopwaarts': None,
-                'Secties_stroomafwaarts': None,
-                'Start_kenmerk': None,
-                'Einde_kenmerk': None
-            }
+            'Verw_eigs': {}
         }
 
         section_info['Pos_eigs']['Km_bereik'] = [row['BEGINKM'], row['EINDKM']]
@@ -465,6 +428,8 @@ class WegModel:
         elif name == 'Maximum snelheid':
             section_info['Obj_eigs']['Maximumsnelheid'] = row['OMSCHR']
 
+        print(section_info['Verw_eigs'])
+
         return section_info
 
     def __determine_sectioning(self, new_section: dict) -> None:
@@ -491,6 +456,7 @@ class WegModel:
         other_section_range = overlap_section_info['Pos_eigs']['Km_bereik']
         other_section_geom = overlap_section_info['Pos_eigs']['Geometrie']
         other_section_props = overlap_section_info['Obj_eigs']
+
 
         new_section_range = new_section['Pos_eigs']['Km_bereik']
 
@@ -849,7 +815,6 @@ class WegModel:
         Args:
             index (int): Index of point to print info for.
         """
-        print(self.points[index])
         print(f"[LOG:] Punt {index} toegevoegd: \t"
               f"{self.points[index]['Pos_eigs']['Km']:<7.3f} km \t"
               f"{self.points[index]['Pos_eigs']['Wegnummer']}\t"
@@ -948,15 +913,125 @@ class WegModel:
                      and lane_type not in ['Puntstuk']]
         return len(main_lanes), len(any_lanes)
 
-    def get_sections(self) -> list[dict]:
-        """
-        Obtain a list of all sections in the road model.
-        Returns:
-            List of section information.
-        """
-        return [section for section in self.sections.values()]
+    def __post_processing(self) -> None:
+        for section_index, section_info in self.sections.items():
+            self.sections[section_index]['Verw_eigs'] = {
+                '*vergentiepunt_start': None,
+                '*vergentiepunt_einde': None,
+                'Sectie_stroomopwaarts': None,
+                'Sectie_stroomafwaarts': None,
+                'Sectie_afbuigend_stroomopwaarts': None,
+                'Sectie_afbuigend_stroomafwaarts': None,
+                'Start_kenmerk': None,
+                'Einde_kenmerk': None,
+            }
+            skip_start_check = False
+            skip_end_check = False
 
-    def get_points(self, specifier: str = None) -> list[dict]:
+            start_point = Point(section_info['Pos_eigs']['Geometrie'].coords[0])
+            end_point = Point(section_info['Pos_eigs']['Geometrie'].coords[-1])
+
+            for point_info in self.get_points_info('*vergentie'):
+                if point_info['Pos_eigs']['Geometrie'].dwithin(start_point, 0.1):
+                    self.sections[section_index]['Verw_eigs']['*vergentiepunt_start'] = True
+                    skip_start_check = True
+                if point_info['Pos_eigs']['Geometrie'].dwithin(end_point, 0.1):
+                    self.sections[section_index]['Verw_eigs']['*vergentiepunt_einde'] = True
+                    skip_end_check = True
+
+            start_sections = self.get_sections_at_point(start_point)
+            end_sections = self.get_sections_at_point(end_point)
+
+            main_up, div_up = self.separate_main_and_div(start_sections, section_index, section_info)
+            main_down, div_down = self.separate_main_and_div(end_sections, section_index, section_info)
+
+            self.sections[section_index]['Verw_eigs']['Sectie_stroomopwaarts'] = main_up
+            self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = main_down
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'] = div_up
+            self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'] = div_down
+
+            if main_up and not skip_start_check:
+                self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = (
+                    self.get_dif_props(section_info['Obj_eigs'], self.sections[main_up]['Obj_eigs']))
+
+            if main_down and not skip_end_check:
+                self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = (
+                    self.get_dif_props(section_info['Obj_eigs'], self.sections[main_down]['Obj_eigs']))
+
+        for point_index, point_info in self.points.items():
+            self.points[point_index]['Verw_eigs'] = {
+                'Sectie_ids': [],
+                'Ingaande_secties': [],
+                'Uitgaande_secties': [],
+                'Aantal_hoofdstroken': None,
+                'Aantal_stroken': None,
+                'Lokale_hoek': None,
+            }
+
+            overlapping_sections = self.get_sections_at_point(point_info['Pos_eigs']['Geometrie'])
+            sections_near_point = [section_id for section_id in overlapping_sections.keys()]
+            self.points[point_index]['Verw_eigs']['Sectie_ids'] = sections_near_point
+
+            # Get the local number of (main) lanes. Take the highest value if there are multiple.
+            lane_info = [self.get_n_lanes(section_info['Obj_eigs']) for section_info in overlapping_sections.values()]
+            self.points[point_index]['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
+            self.points[point_index]['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
+
+            self.points[point_index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(sections_near_point, point_info['Pos_eigs']['Geometrie'])
+
+            if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
+                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] != self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] == self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+
+            if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
+                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] == self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] != self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+
+    @staticmethod
+    def separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
+        connected = [index for index in connecting_sections.keys() if index != section_index]
+        if len(connected) == 0:
+            return None, None
+
+        if len(connected) == 1:
+            return connected[0], None
+
+        stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
+
+        # If puntstuk itself, return section with same hectoletter
+        if 'Puntstuk' in section_info['Obj_eigs'].values():
+            connected = [index for index, section in stream_sections.items() if
+                                section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
+            return connected[0], None
+
+        # If one of the other sections is puntstuk, act accordingly.
+        connected = [index for index, section in stream_sections.items() if
+                            'Puntstuk' not in section['Obj_eigs'].values()]
+        diverging = [index for index, section in stream_sections.items() if
+                     'Puntstuk' in section['Obj_eigs'].values()]
+
+        if len(connected) == 1:
+            return connected[0], diverging[0]
+
+        # If neither other section had puntstuk, return the one section with same hectoletter
+        connected = [index for index, section in stream_sections.items() if
+                            section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
+        diverging = [index for index, section in stream_sections.items() if
+                     section_info['Pos_eigs']['Hectoletter'] != section['Pos_eigs']['Hectoletter']]
+
+        if len(connected) == 1:
+            return connected[0], diverging[0]
+
+        # This connection must be an intersection, which will be treated as an end point.
+        return None, None
+
+    @staticmethod
+    def get_dif_props(section_props: dict, other_props):
+        return {lane_nr: lane_type for lane_nr, lane_type in section_props.items()
+                if isinstance(lane_nr, int) and (lane_nr not in other_props) or (
+                lane_nr in other_props and other_props[lane_nr] != lane_type)}
+
+    def get_points_info(self, specifier: str = None) -> list[dict]:
         """
         Obtain a list of all point registrations in the road model.
         The type can be specified as 'MSI', to return only MSI data.
@@ -965,8 +1040,10 @@ class WegModel:
         """
         if specifier == 'MSI':
             return [point for point in self.points.values() if point['Obj_eigs']['Type'] == 'Signalering']
-
-        return [point for point in self.points.values()]
+        elif specifier == '*vergentie':
+            return [point for point in self.points.values() if point['Obj_eigs']['Type'] != 'Signalering']
+        else:
+            return [point for point in self.points.values()]
 
     def get_local_angle(self, overlapping_ids, point_geom: Point) -> float:
         """
@@ -974,6 +1051,7 @@ class WegModel:
         Returns:
             Local angle in degrees.
         """
+        # TODO: replace overlapping_ids with the info of the overlapping sections.
         overlapping_lines = [line for index, line in self.sections.items() if index in overlapping_ids]
 
         assert overlapping_lines, f"Punt {point_geom} overlapt niet met lijnen in het model."
@@ -1060,8 +1138,7 @@ class WegModel:
 
     def get_sections_at_point(self, point: Point) -> dict[int: dict]:
         """
-        Prints the properties of a road section at a specific point.
-        Assumes that only one section is close to the point.
+        Finds sections in self.sections that overlap the given point.
         Args:
             point (Point): Geometric position of the point.
         Returns:
@@ -1071,7 +1148,7 @@ class WegModel:
 
     def get_one_section_info_at_point(self, point: Point) -> dict:
         """
-        Prints the properties of a road section at a specific point.
+        Returns the properties of a road section at a specific point.
         Assumes that only one section is close to the point.
         Args:
             point (Point): Geometric position of the point.
@@ -1264,7 +1341,7 @@ class MSINetwerk:
         self.roadmodel = roadmodel
 
         self.MSIrows = [MSIRow(self, msi_info, self.roadmodel.get_one_section_info_at_point(msi_info['Pos_eigs']['Geometrie']))
-                        for row_numbering, msi_info in enumerate(self.roadmodel.get_points('MSI'))]
+                        for row_numbering, msi_info in enumerate(self.roadmodel.get_points_info('MSI'))]
 
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
@@ -1323,13 +1400,13 @@ class MSINetwerk:
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
-            return {self.get_msi_row_at_point(msis_on_section[0]): shift}
+            return {self.get_msi_row_at(msis_on_section[0]['Pos_eigs']['Km'], msis_on_section[0]['Pos_eigs']['Hectoletter']): shift}
 
         # Base case 2: Multiple MSI rows found
         if len(msis_on_section) > 1:
             print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['Pos_eigs']['Km']}")
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['Pos_eigs']['Km']))
-            return {self.get_msi_row_at_point(nearest_msi): shift}
+            return {self.get_msi_row_at(nearest_msi['Pos_eigs']['Km'], nearest_msi['Pos_eigs']['Hectoletter']): shift}
 
         # Base case 3: Maximum depth reached
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
@@ -1341,14 +1418,14 @@ class MSINetwerk:
             print(f"No other points on {current_section_id}")
             # Obtain connection point of section
             if downstream:
-                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
-                                          dwithin(Point(sinfo['Pos_eigs']['Geometrie'].coords[0]),
-                                                  Point(current_section['Pos_eigs']['Geometrie'].coords[-1]), 0.1)]
+                connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
+                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
+                                          if sid is not None]
 
             else:
-                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
-                                          dwithin(Point(sinfo['Pos_eigs']['Geometrie'].coords[-1]),
-                                                  Point(current_section['Pos_eigs']['Geometrie'].coords[0]), 0.1)]
+                connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
+                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
+                                          if sid is not None]
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
@@ -1356,10 +1433,10 @@ class MSINetwerk:
                 return {None: shift}
             elif len(connecting_section_ids) > 1:
                 print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
-                # This is likely an intersection. These are of no interest for MSI relations.
+                # This happens in the case of intersections. These are of no interest for MSI relations.
                 return {None: shift}
             else:
-                # Find an MSI in the next section
+                # Find an MSI row in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction, shift, current_distance)
 
@@ -1373,17 +1450,17 @@ class MSINetwerk:
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
-                section_id = other_point['Verw_eigs']['Uitgaande_secties'][0]
+                section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # we are section b. determine annotation.
-                    other_section_id = [sid for sid in other_point['Verw_eigs']['Ingaande_secties'] if sid != current_section_id][0]
+                    # this is section b. determine annotation.
+                    other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
             else:
-                section_id = other_point['Verw_eigs']['Ingaande_secties'][0]
+                section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # we are section b. determine annotation.
-                    other_section_id = [sid for sid in other_point['Verw_eigs']['Uitgaande_secties'] if sid != current_section_id][0]
+                    # this is section b. determine annotation.
+                    other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
 
@@ -1393,11 +1470,15 @@ class MSINetwerk:
             return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
 
         if upstream_split:
-            section_ids = other_point['Verw_eigs']['Ingaande_secties']
+            section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
+                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
+                           if sid is not None]
             print(f"The *vergence point is an upstream split into {section_ids}")
 
         elif downstream_split:
-            section_ids = other_point['Verw_eigs']['Uitgaande_secties']
+            section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
+                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
+                           if sid is not None]
             print(f"The *vergence point is a downstream split into {section_ids}")
 
         potential_cont_section = self.roadmodel.sections[section_ids[0]]
@@ -1423,10 +1504,10 @@ class MSINetwerk:
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
         # Only takes points that are upstream/downstream of current point.
         if travel_direction == 'L' and downstream or travel_direction == 'R' and not downstream:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points_info() if
                                        current_section_id in point_data['Verw_eigs']['Sectie_ids'] and point_data['Pos_eigs']['Km'] < current_km]
         else:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points() if
+            other_points_on_section = [point_data for point_data in self.roadmodel.get_points_info() if
                                        current_section_id in point_data['Verw_eigs']['Sectie_ids'] and point_data['Pos_eigs']['Km'] > current_km]
 
         # Further filters for MSIs specifically
@@ -1435,11 +1516,19 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def get_msi_row_at_point(self, point_info: dict) -> MSIRow:
-        # Return the MSI row with the same kilometer registration
+    def get_msi_row_at(self, km: float, hectoletter: str) -> MSIRow | None:
+        """
+        Find the MSI row in self.MSIrows with the provided km registration and hectoletter.
+        Args:
+            km (int): Point km registration to compare to.
+            hectoletter (str): Point hectoletter registration to compare to.
+        Returns:
+            MSIRow object as specified.
+        """
         for msi_row in self.MSIrows:
-            if msi_row.info['Pos_eigs']['Km'] == point_info['Pos_eigs']['Km']:
+            if msi_row.info['Pos_eigs']['Km'] == km and msi_row.info['Pos_eigs']['Hectoletter'] == hectoletter:
                 return msi_row
+        return None
 
 
 class MSILegends:
