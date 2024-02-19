@@ -1485,6 +1485,7 @@ class MSINetwerk:
 
             return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
 
+        # TODO: This part can be completely redone. First the two are joined, then split?!
         if upstream_split:
             section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
                                            current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
