@@ -961,47 +961,47 @@ class WegModel:
         for point_index, point_info in self.points.items():
             self.points[point_index]['Verw_eigs'] = {
                 'Sectie_ids': [],
+                # 'Ingaande_secties': [],
+                # 'Uitgaande_secties': [],
+                # 'Hoofdbaan_secties': [],
+                # 'Afwijkende_sectie': None,
                 'Aantal_hoofdstroken': None,
                 'Aantal_stroken': None,
                 'Lokale_hoek': None,
-                'Ingaande_secties': [],
-                'Uitgaande_secties': [],
-                'Hoofdbaan_secties': [],
-                'Afwijkende_sectie': None,
             }
 
             overlapping_sections = self.get_sections_at_point(point_info['Pos_eigs']['Geometrie'])
-
-            self.points[point_index]['Verw_eigs']['Sectie_ids'] = [section_id for section_id in overlapping_sections.keys()]
+            sections_near_point = [section_id for section_id in overlapping_sections.keys()]
+            self.points[point_index]['Verw_eigs']['Sectie_ids'] = sections_near_point
 
             # Get the local number of (main) lanes. Take the highest value if there are multiple.
             lane_info = [self.get_n_lanes(section_info['Obj_eigs']) for section_info in overlapping_sections.values()]
             self.points[point_index]['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
             self.points[point_index]['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
 
-            self.points[point_index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(self.points[point_index]['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
+            self.points[point_index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(sections_near_point, point_info['Pos_eigs']['Geometrie'])
 
-            # TODO: Determine all ingoing, outgoing, main and diverging stroken in a more neat way.
-
-            if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
-                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
-                                                                          overlapping_sections.items()
-                                                                          if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
-                                                                          self.points[point_index]['Verw_eigs']['Aantal_stroken']]
-                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
-                                                                           overlapping_sections.items()
-                                                                           if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
-                                                                           self.points[point_index]['Verw_eigs']['Aantal_stroken']]
-
-            if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
-                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
-                                                                          overlapping_sections.items()
-                                                                          if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
-                                                                          self.points[point_index]['Verw_eigs']['Aantal_stroken']]
-                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
-                                                                           overlapping_sections.items()
-                                                                           if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
-                                                                           self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+            # TODO: Determine all ingoing, outgoing, main and diverging stroken in a more neat way, if necessary.
+            #
+            # if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
+            #     self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
+            #                                                               overlapping_sections.items()
+            #                                                               if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
+            #                                                               self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+            #     self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
+            #                                                                overlapping_sections.items()
+            #                                                                if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
+            #                                                                self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+            #
+            # if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
+            #     self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
+            #                                                               overlapping_sections.items()
+            #                                                               if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
+            #                                                               self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+            #     self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
+            #                                                                overlapping_sections.items()
+            #                                                                if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
+            #                                                                self.points[point_index]['Verw_eigs']['Aantal_stroken']]
 
     @staticmethod
     def separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
@@ -1434,22 +1434,22 @@ class MSINetwerk:
             print(f"No other points on {current_section_id}")
             # Obtain connection point of section
             if downstream:
-                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
-                                          dwithin(Point(sinfo['Pos_eigs']['Geometrie'].coords[0]),
-                                                  Point(current_section['Pos_eigs']['Geometrie'].coords[-1]), 0.1)]
+                connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
+                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
+                                          if sid is not None]
 
             else:
-                connecting_section_ids = [sid for sid, sinfo in self.roadmodel.sections.items() if
-                                          dwithin(Point(sinfo['Pos_eigs']['Geometrie'].coords[-1]),
-                                                  Point(current_section['Pos_eigs']['Geometrie'].coords[0]), 0.1)]
+                connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
+                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
+                                          if sid is not None]
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
                 print(f"No connections at all with {current_section_id}")
                 return {None: shift}
             elif len(connecting_section_ids) > 1:
-                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
-                # This is likely an intersection. These are of no interest for MSI relations.
+                print(f"[WARNING:] It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
+                # This used to be for intersections. These are of no interest for MSI relations. This should no longer be possible.
                 return {None: shift}
             else:
                 # Find an MSI in the next section
@@ -1466,17 +1466,21 @@ class MSINetwerk:
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
-                section_id = other_point['Verw_eigs']['Uitgaande_secties'][0]
+                section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
+                # section_id = other_point['Verw_eigs']['Uitgaande_secties'][0]
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
                     # we are section b. determine annotation.
-                    other_section_id = [sid for sid in other_point['Verw_eigs']['Ingaande_secties'] if sid != current_section_id][0]
+                    other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
+                    # other_section_id = [sid for sid in other_point['Verw_eigs']['Ingaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
             else:
-                section_id = other_point['Verw_eigs']['Ingaande_secties'][0]
+                section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
+                # section_id = other_point['Verw_eigs']['Ingaande_secties'][0]
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
                     # we are section b. determine annotation.
-                    other_section_id = [sid for sid in other_point['Verw_eigs']['Uitgaande_secties'] if sid != current_section_id][0]
+                    other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
+                    # other_section_id = [sid for sid in other_point['Verw_eigs']['Uitgaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
 
@@ -1486,11 +1490,17 @@ class MSINetwerk:
             return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
 
         if upstream_split:
-            section_ids = other_point['Verw_eigs']['Ingaande_secties']
+            section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
+                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
+                           if sid is not None]
+            # section_ids = other_point['Verw_eigs']['Ingaande_secties']
             print(f"The *vergence point is an upstream split into {section_ids}")
 
         elif downstream_split:
-            section_ids = other_point['Verw_eigs']['Uitgaande_secties']
+            section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
+                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
+                           if sid is not None]
+            # section_ids = other_point['Verw_eigs']['Uitgaande_secties']
             print(f"The *vergence point is a downstream split into {section_ids}")
 
         potential_cont_section = self.roadmodel.sections[section_ids[0]]
