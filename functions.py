@@ -1529,9 +1529,17 @@ class MSINetwerk:
         return other_points_on_section, msis_on_section
 
     def get_msi_row_at_point(self, point_info: dict) -> MSIRow:
-        # Return the MSI row with the same kilometer registration
+        """
+        Find the MSI row in self.MSIrows with the same km registration and hectoletter as the provided point_info.
+        Args:
+            point_info (dict): Point info dict to compare to
+        Returns:
+            MSIRow object as specified.
+        """
+        # Return the MSI row with the same kilometer registration and hectoletter
         for msi_row in self.MSIrows:
-            if msi_row.info['Pos_eigs']['Km'] == point_info['Pos_eigs']['Km']:
+            if (msi_row.info['Pos_eigs']['Km'] == point_info['Pos_eigs']['Km'] and
+                    msi_row.info['Pos_eigs']['Hectoletter'] == point_info['Pos_eigs']['Hectoletter']):
                 return msi_row
 
 
