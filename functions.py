@@ -915,8 +915,6 @@ class WegModel:
 
     def __post_processing(self) -> None:
         for section_index, section_info in self.sections.items():
-            print(section_index, section_info)
-
             self.sections[section_index]['Verw_eigs'] = {
                 '*vergentiepunt_start': None,
                 '*vergentiepunt_einde': None,
@@ -953,22 +951,12 @@ class WegModel:
             self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'] = div_down
 
             if main_up and not skip_start_check:
-                upstream_props = self.sections[main_up]['Obj_eigs']
-                starting_properties = {lane_nr: lane_type for lane_nr, lane_type in section_info['Obj_eigs'].items()
-                                       if isinstance(lane_nr, int)
-                                       and lane_nr in upstream_props
-                                       and upstream_props[lane_nr] != lane_type}
-            if main_up and not skip_start_check:
-                downstream_props = self.sections[main_down]['Obj_eigs']
-                ending_properties = {lane_nr: lane_type for lane_nr, lane_type in section_info['Obj_eigs'].items()
-                                       if isinstance(lane_nr, int)
-                                       and lane_nr in downstream_props
-                                       and downstream_props[lane_nr] != lane_type}
+                self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = (
+                    self.get_dif_props(section_info['Obj_eigs'], self.sections[main_up]['Obj_eigs']))
 
-            self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = starting_properties
-            self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = ending_properties
-
-            print(section_index, self.sections[section_index]['Verw_eigs'])
+            if main_down and not skip_end_check:
+                self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = (
+                    self.get_dif_props(section_info['Obj_eigs'], self.sections[main_down]['Obj_eigs']))
 
         for point_index, point_info in self.points.items():
             self.points[point_index]['Verw_eigs'] = {
@@ -1053,6 +1041,11 @@ class WegModel:
         # This connection must be an intersection, which will be treated as an end point.
         return None, None
 
+    @staticmethod
+    def get_dif_props(section_props: dict, other_props):
+        return {lane_nr: lane_type for lane_nr, lane_type in section_props.items()
+                if isinstance(lane_nr, int) and (lane_nr not in other_props) or (
+                lane_nr in other_props and other_props[lane_nr] != lane_type)}
 
     def get_points_info(self, specifier: str = None) -> list[dict]:
         """
