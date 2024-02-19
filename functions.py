@@ -1416,13 +1416,13 @@ class MSINetwerk:
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
-            return {self.get_msi_row_at_point(msis_on_section[0]): shift}
+            return {self.get_msi_row_at(msis_on_section[0]['Pos_eigs']['Km'], msis_on_section[0]['Pos_eigs']['Hectoletter']): shift}
 
         # Base case 2: Multiple MSI rows found
         if len(msis_on_section) > 1:
             print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['Pos_eigs']['Km']}")
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['Pos_eigs']['Km']))
-            return {self.get_msi_row_at_point(nearest_msi): shift}
+            return {self.get_msi_row_at(nearest_msi['Pos_eigs']['Km'], nearest_msi['Pos_eigs']['Hectoletter']): shift}
 
         # Base case 3: Maximum depth reached
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
@@ -1528,19 +1528,19 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def get_msi_row_at_point(self, point_info: dict) -> MSIRow:
+    def get_msi_row_at(self, km: float, hectoletter: str) -> MSIRow | None:
         """
-        Find the MSI row in self.MSIrows with the same km registration and hectoletter as the provided point_info.
+        Find the MSI row in self.MSIrows with the provided km registration and hectoletter.
         Args:
-            point_info (dict): Point info dict to compare to
+            km (int): Point km registration to compare to.
+            hectoletter (str): Point hectoletter registration to compare to.
         Returns:
             MSIRow object as specified.
         """
-        # Return the MSI row with the same kilometer registration and hectoletter
         for msi_row in self.MSIrows:
-            if (msi_row.info['Pos_eigs']['Km'] == point_info['Pos_eigs']['Km'] and
-                    msi_row.info['Pos_eigs']['Hectoletter'] == point_info['Pos_eigs']['Hectoletter']):
+            if msi_row.info['Pos_eigs']['Km'] == km and msi_row.info['Pos_eigs']['Hectoletter'] == hectoletter:
                 return msi_row
+        return None
 
 
 class MSILegends:
