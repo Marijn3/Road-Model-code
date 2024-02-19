@@ -1448,11 +1448,11 @@ class MSINetwerk:
                 print(f"No connections at all with {current_section_id}")
                 return {None: shift}
             elif len(connecting_section_ids) > 1:
-                print(f"[WARNING:] It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
-                # This used to be for intersections. These are of no interest for MSI relations. This should no longer be possible.
+                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
+                # This happens in the case of intersections. These are of no interest for MSI relations.
                 return {None: shift}
             else:
-                # Find an MSI in the next section
+                # Find an MSI row in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction, shift, current_distance)
 
@@ -1467,20 +1467,16 @@ class MSINetwerk:
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
                 section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
-                # section_id = other_point['Verw_eigs']['Uitgaande_secties'][0]
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # we are section b. determine annotation.
+                    # this is section b. determine annotation.
                     other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
-                    # other_section_id = [sid for sid in other_point['Verw_eigs']['Ingaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
             else:
                 section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
-                # section_id = other_point['Verw_eigs']['Ingaande_secties'][0]
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # we are section b. determine annotation.
+                    # this is section b. determine annotation.
                     other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
-                    # other_section_id = [sid for sid in other_point['Verw_eigs']['Uitgaande_secties'] if sid != current_section_id][0]
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
 
@@ -1493,14 +1489,12 @@ class MSINetwerk:
             section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
                                            current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
                            if sid is not None]
-            # section_ids = other_point['Verw_eigs']['Ingaande_secties']
             print(f"The *vergence point is an upstream split into {section_ids}")
 
         elif downstream_split:
             section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
                                            current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
                            if sid is not None]
-            # section_ids = other_point['Verw_eigs']['Uitgaande_secties']
             print(f"The *vergence point is a downstream split into {section_ids}")
 
         potential_cont_section = self.roadmodel.sections[section_ids[0]]
