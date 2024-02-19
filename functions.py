@@ -927,6 +927,8 @@ class WegModel:
                 'Start_kenmerk': None,
                 'Einde_kenmerk': None,
             }
+            skip_start_check = False
+            skip_end_check = False
 
             start_point = Point(section_info['Pos_eigs']['Geometrie'].coords[0])
             end_point = Point(section_info['Pos_eigs']['Geometrie'].coords[-1])
@@ -934,10 +936,10 @@ class WegModel:
             for point_info in self.get_points_info('*vergentie'):
                 if point_info['Pos_eigs']['Geometrie'].dwithin(start_point, 0.1):
                     self.sections[section_index]['Verw_eigs']['*vergentiepunt_start'] = True
-                    self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = False
+                    skip_start_check = True
                 if point_info['Pos_eigs']['Geometrie'].dwithin(end_point, 0.1):
                     self.sections[section_index]['Verw_eigs']['*vergentiepunt_einde'] = True
-                    self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = False
+                    skip_end_check = True
 
             start_sections = self.get_sections_at_point(start_point)
             end_sections = self.get_sections_at_point(end_point)
@@ -949,6 +951,22 @@ class WegModel:
             self.sections[section_index]['Verw_eigs']['Sectie_stroomafwaarts'] = main_down
             self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'] = div_up
             self.sections[section_index]['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'] = div_down
+
+            if main_up and not skip_start_check:
+                upstream_props = self.sections[main_up]['Obj_eigs']
+                starting_properties = {lane_nr: lane_type for lane_nr, lane_type in section_info['Obj_eigs'].items()
+                                       if isinstance(lane_nr, int)
+                                       and lane_nr in upstream_props
+                                       and upstream_props[lane_nr] != lane_type}
+            if main_up and not skip_start_check:
+                downstream_props = self.sections[main_down]['Obj_eigs']
+                ending_properties = {lane_nr: lane_type for lane_nr, lane_type in section_info['Obj_eigs'].items()
+                                       if isinstance(lane_nr, int)
+                                       and lane_nr in downstream_props
+                                       and downstream_props[lane_nr] != lane_type}
+
+            self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = starting_properties
+            self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = ending_properties
 
             print(section_index, self.sections[section_index]['Verw_eigs'])
 
