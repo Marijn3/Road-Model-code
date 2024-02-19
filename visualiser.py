@@ -113,12 +113,7 @@ def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) 
     point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data['Pos_eigs']['Geometrie'], 0.5)
     point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data['Pos_eigs']['Geometrie'], 0.5)
 
-    # Store where the point is (if applicable). This was used for puntstuk visualisation.
-    # if point_at_line_start:
-    #     section_data['Verw_eigs']['*vergentiepunt_start'] = True
-    # if point_at_line_end:
-    #     section_data['Verw_eigs']['*vergentiepunt_einde'] = True
-
+    # TODO: it may be possible that both the start and end of a section should be adjusted.
     if point_type == 'Splitsing' and point_at_line_start:
         other_lane_id = [sid for sid in point_data['Verw_eigs']['Uitgaande_secties'] if sid != section_id][0]
         change_start = True

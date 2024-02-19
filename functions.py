@@ -961,10 +961,8 @@ class WegModel:
         for point_index, point_info in self.points.items():
             self.points[point_index]['Verw_eigs'] = {
                 'Sectie_ids': [],
-                # 'Ingaande_secties': [],
-                # 'Uitgaande_secties': [],
-                # 'Hoofdbaan_secties': [],
-                # 'Afwijkende_sectie': None,
+                'Ingaande_secties': [],
+                'Uitgaande_secties': [],
                 'Aantal_hoofdstroken': None,
                 'Aantal_stroken': None,
                 'Lokale_hoek': None,
@@ -981,27 +979,13 @@ class WegModel:
 
             self.points[point_index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(sections_near_point, point_info['Pos_eigs']['Geometrie'])
 
-            # TODO: Determine all ingoing, outgoing, main and diverging stroken in a more neat way, if necessary.
-            #
-            # if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
-            #     self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
-            #                                                               overlapping_sections.items()
-            #                                                               if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
-            #                                                               self.points[point_index]['Verw_eigs']['Aantal_stroken']]
-            #     self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
-            #                                                                overlapping_sections.items()
-            #                                                                if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
-            #                                                                self.points[point_index]['Verw_eigs']['Aantal_stroken']]
-            #
-            # if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
-            #     self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
-            #                                                               overlapping_sections.items()
-            #                                                               if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
-            #                                                               self.points[point_index]['Verw_eigs']['Aantal_stroken']]
-            #     self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
-            #                                                                overlapping_sections.items()
-            #                                                                if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
-            #                                                                self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+            if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
+                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] != self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] == self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+
+            if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
+                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] == self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info['Obj_eigs'])[1] != self.points[point_index]['Verw_eigs']['Aantal_stroken']]
 
     @staticmethod
     def separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
