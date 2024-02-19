@@ -232,7 +232,6 @@ def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, sv
 
         # A puntstuk is the final lane.
         if next_lane == 'Puntstuk':
-            print(section_data['Verw_eigs'])
             if section_data['Verw_eigs']['*vergentiepunt_start']:
                 add_markerline(line_coords, svg_dwg, "Punt_start")
             elif section_data['Verw_eigs']['*vergentiepunt_einde']:

@@ -344,16 +344,7 @@ class WegModel:
             'Obj_eigs': {
                 'Type': None
             },
-            'Verw_eigs': {
-                'Sectie_ids': [],
-                'Aantal_hoofdstroken': None,
-                'Aantal_stroken': None,
-                'Lokale_hoek': None,
-                'Ingaande_secties': [],
-                'Uitgaande_secties': [],
-                'Hoofdbaan_secties': [],
-                'Afwijkende_sectie': None,
-            }
+            'Verw_eigs': {}
         }
 
         overlapping_sections = self.get_sections_at_point(row['geometry'])
@@ -387,15 +378,7 @@ class WegModel:
             'Obj_eigs': {
                 'Maximumsnelheid': None
             },
-            'Verw_eigs': {
-                '*vergentiepunt_start': None,
-                '*vergentiepunt_einde': None,
-                'Sectie_stroomopwaarts': None,
-                'Sectie_stroomafwaarts': None,
-                'Sectie_afbuigend': None,
-                'Start_kenmerk': None,
-                'Einde_kenmerk': None,
-            }
+            'Verw_eigs': {}
         }
 
         section_info['Pos_eigs']['Km_bereik'] = [row['BEGINKM'], row['EINDKM']]
@@ -473,7 +456,7 @@ class WegModel:
         other_section_range = overlap_section_info['Pos_eigs']['Km_bereik']
         other_section_geom = overlap_section_info['Pos_eigs']['Geometrie']
         other_section_props = overlap_section_info['Obj_eigs']
-        base_verw_eigs = overlap_section_info['Verw_eigs']
+
 
         new_section_range = new_section['Pos_eigs']['Km_bereik']
 
@@ -554,7 +537,7 @@ class WegModel:
                         'Km_bereik': km_bereik,
                         'Geometrie': added_geom},
                     'Obj_eigs': new_section_props,
-                    'Verw_eigs': base_verw_eigs
+                    'Verw_eigs': {}
                 })
                 # Trim the new_section range and geometry for next iteration.
                 if right_side:
@@ -616,7 +599,7 @@ class WegModel:
                             'Km_bereik': km_bereik,
                             'Geometrie': added_geom},
                         'Obj_eigs': both_props,
-                        'Verw_eigs': base_verw_eigs
+                        'Verw_eigs': {}
                     })
                     if right_side:
                         km_remaining = [max(new_section_range), max(other_section_range)]
@@ -645,7 +628,7 @@ class WegModel:
                             'Km_bereik': km_bereik,
                             'Geometrie': added_geom},
                         'Obj_eigs': both_props,
-                        'Verw_eigs': base_verw_eigs
+                        'Verw_eigs': {}
                     })
                     # We can remove the old other_section from the road model, since it has now been completely used.
                     sections_to_remove.add(other_section_index)
@@ -668,7 +651,7 @@ class WegModel:
                                 'Km_bereik': new_section_range,
                                 'Geometrie': new_section_geom},
                             'Obj_eigs': new_section_props,
-                            'Verw_eigs': base_verw_eigs
+                            'Verw_eigs': {}
                         })
                         break
 
@@ -693,7 +676,7 @@ class WegModel:
                         'Km_bereik': km_bereik,
                         'Geometrie': added_geom},
                     'Obj_eigs': other_section_props,
-                    'Verw_eigs': base_verw_eigs
+                    'Verw_eigs': {}
                 })
                 # Trim the other_section range and geometry for next iteration.
                 if right_side:
@@ -934,14 +917,24 @@ class WegModel:
         for section_index, section_info in self.sections.items():
             print(section_index, section_info)
 
+            self.sections[section_index]['Verw_eigs'] = {
+                '*vergentiepunt_start': None,
+                '*vergentiepunt_einde': None,
+                'Sectie_stroomopwaarts': None,
+                'Sectie_stroomafwaarts': None,
+                'Sectie_afbuigend': None,
+                'Start_kenmerk': None,
+                'Einde_kenmerk': None,
+            }
+
             start_point = Point(section_info['Pos_eigs']['Geometrie'].coords[0])
             end_point = Point(section_info['Pos_eigs']['Geometrie'].coords[-1])
 
             for point_info in self.get_points_info('*vergentie'):
-                if start_point.dwithin(point_info['Pos_eigs']['Geometrie'], 0.1):
+                if point_info['Pos_eigs']['Geometrie'].dwithin(start_point, 0.1):
                     self.sections[section_index]['Verw_eigs']['*vergentiepunt_start'] = True
                     self.sections[section_index]['Verw_eigs']['Start_kenmerk'] = False
-                if end_point.dwithin(point_info['Pos_eigs']['Geometrie'], 0.1):
+                if point_info['Pos_eigs']['Geometrie'].dwithin(end_point, 0.1):
                     self.sections[section_index]['Verw_eigs']['*vergentiepunt_einde'] = True
                     self.sections[section_index]['Verw_eigs']['Einde_kenmerk'] = False
 
@@ -973,44 +966,53 @@ class WegModel:
 
             print(section_index, self.sections[section_index]['Verw_eigs'])
 
-
-
             downstream_sections = {index: section for index, section in end_sections.items() if index != section_index}
             # ...
 
-        for index, point_info in self.points.items():
+        for point_index, point_info in self.points.items():
+            self.points[point_index]['Verw_eigs'] = {
+                'Sectie_ids': [],
+                'Aantal_hoofdstroken': None,
+                'Aantal_stroken': None,
+                'Lokale_hoek': None,
+                'Ingaande_secties': [],
+                'Uitgaande_secties': [],
+                'Hoofdbaan_secties': [],
+                'Afwijkende_sectie': None,
+            }
+
             overlapping_sections = self.get_sections_at_point(point_info['Pos_eigs']['Geometrie'])
 
-            self.points[index]['Verw_eigs']['Sectie_ids'] = [section_id for section_id in overlapping_sections.keys()]
+            self.points[point_index]['Verw_eigs']['Sectie_ids'] = [section_id for section_id in overlapping_sections.keys()]
 
             # Get the local number of (main) lanes. Take the highest value if there are multiple.
             lane_info = [self.get_n_lanes(section_info['Obj_eigs']) for section_info in overlapping_sections.values()]
-            self.points[index]['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
-            self.points[index]['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
+            self.points[point_index]['Verw_eigs']['Aantal_hoofdstroken'] = max(lane_info, key=lambda x: x[0])[0]
+            self.points[point_index]['Verw_eigs']['Aantal_stroken'] = max(lane_info, key=lambda x: x[1])[1]
 
-            self.points[index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(self.points[index]['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
+            self.points[point_index]['Verw_eigs']['Lokale_hoek'] = self.get_local_angle(self.points[point_index]['Verw_eigs']['Sectie_ids'], point_info['Pos_eigs']['Geometrie'])
 
             # TODO: Determine all ingoing, outgoing, main and diverging stroken in a more neat way.
 
             if point_info['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']:
-                self.points[index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
+                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
                                                                           overlapping_sections.items()
                                                                           if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
-                                                                          self.points[index]['Verw_eigs']['Aantal_stroken']]
-                self.points[index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
+                                                                          self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
                                                                            overlapping_sections.items()
                                                                            if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
-                                                                           self.points[index]['Verw_eigs']['Aantal_stroken']]
+                                                                           self.points[point_index]['Verw_eigs']['Aantal_stroken']]
 
             if point_info['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']:
-                self.points[index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
+                self.points[point_index]['Verw_eigs']['Ingaande_secties'] = [section_id for section_id, section_info in
                                                                           overlapping_sections.items()
                                                                           if self.get_n_lanes(section_info['Obj_eigs'])[1] ==
-                                                                          self.points[index]['Verw_eigs']['Aantal_stroken']]
-                self.points[index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
+                                                                          self.points[point_index]['Verw_eigs']['Aantal_stroken']]
+                self.points[point_index]['Verw_eigs']['Uitgaande_secties'] = [section_id for section_id, section_info in
                                                                            overlapping_sections.items()
                                                                            if self.get_n_lanes(section_info['Obj_eigs'])[1] !=
-                                                                           self.points[index]['Verw_eigs']['Aantal_stroken']]
+                                                                           self.points[point_index]['Verw_eigs']['Aantal_stroken']]
 
     def get_points_info(self, specifier: str = None) -> list[dict]:
         """
