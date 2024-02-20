@@ -998,10 +998,19 @@ class WegModel:
 
         stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
 
-        # If puntstuk itself, return section with same hectoletter
+        # If puntstuk itself, return section with same hectoletter. If all hectoletters are the same, use the km registration.
         if 'Puntstuk' in section_info['Obj_eigs'].values():
             connected = [index for index, section in stream_sections.items() if
                                 section_info['Pos_eigs']['Hectoletter'] == section['Pos_eigs']['Hectoletter']]
+            if len(connected) > 1:
+                if section_info['Pos_eigs']['Rijrichting'] == "L":
+                    connected = [index for index, section in stream_sections.items() if
+                                 section_info['Pos_eigs']['Km_bereik'][1] == section['Pos_eigs']['Km_bereik'][0]]
+                if section_info['Pos_eigs']['Rijrichting'] == "R":
+                    connected = [index for index, section in stream_sections.items() if
+                                 section_info['Pos_eigs']['Km_bereik'][0] == section['Pos_eigs']['Km_bereik'][1]]
+            if len(connected) > 1:
+                raise AssertionError("Meer dan één sectie lijkt kandidaat voor de hoofdbaan.")
             return connected[0], None
 
         # If one of the other sections is puntstuk, act accordingly.
@@ -1446,7 +1455,7 @@ class MSINetwerk:
                 print(f"No connections at all with {current_section_id}")
                 return {None: shift}
             elif len(connecting_section_ids) > 1:
-                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}")
+                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}. Stopping.")
                 # This happens in the case of intersections. These are of no interest for MSI relations.
                 return {None: shift}
             else:
