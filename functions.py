@@ -1394,34 +1394,32 @@ class MSINetwerk:
             return [msis]
         return msis
 
-    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
-                           shift: int = 0, current_distance: float = 0, annotation: list = []) -> list | dict:
-        other_points_on_section, msis_on_section = (
-            self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
-
-        current_section = self.roadmodel.sections[current_section_id]
-        current_distance += current_section['Pos_eigs']['Geometrie'].length
-        print(f"Current depth: {current_distance}")
-
-        # Added code for recognition of special cases
+    @staticmethod
+    def get_annotation(current_section: dict):
         if 'Invoegstrook' in current_section['Obj_eigs'].values():
             for lane_nr, lane_type in current_section['Obj_eigs'].items():
                 if lane_type == 'Invoegstrook':
                     print(f"Encountered a section with invoegstrook on lane {lane_nr}.")
-                    annotation = annotation + [{lane_nr: lane_type}]
-                    break
+                    return [{lane_nr: lane_type}]
         if 'Uitrijstrook' in current_section['Obj_eigs'].values():
             for lane_nr, lane_type in current_section['Obj_eigs'].items():
                 if lane_type == 'Uitrijstrook':
                     print(f"Encountered a section with uitvoegstrook on lane {lane_nr}.")
-                    annotation = annotation + [{lane_nr: lane_type}]
-                    break
+                    return [{lane_nr: lane_type}]
         if 'Special' in current_section['Obj_eigs'].keys():
             print(f"Encountered a section with {current_section['Obj_eigs']['Special']}")
-            annotation = annotation + [{'Special': current_section['Obj_eigs']['Special']}]
+            return [{'Special': current_section['Obj_eigs']['Special']}]
 
-        # annotation = get_annotation(current_section)
+    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
+                           shift: int = 0, current_distance: float = 0, annotation_prev: list = []) -> list | dict:
+        current_section = self.roadmodel.sections[current_section_id]
+        other_points_on_section, msis_on_section = (
+            self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
+        current_distance += current_section['Pos_eigs']['Geometrie'].length
+        print(f"Current depth: {current_distance}")
+
+        annotation = annotation_prev + self.get_annotation(current_section)
         print("Encountered so far:", annotation)
 
         # Base case 1: Single MSI row found
