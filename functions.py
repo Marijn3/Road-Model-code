@@ -1457,24 +1457,26 @@ class MSINetwerk:
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
-                section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
+                next_section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
                     # this is diverging section. determine annotation.
-                    other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
-                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
+                    next_section = self.roadmodel.sections[next_section_id]
+                    puntstuk_section_id = next_section['Verw_eigs']['Sectie_stroomopwaarts']
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
             else:
-                section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
+                next_section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
                     # this is diverging section. determine annotation.
-                    other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
-                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
+                    next_section = self.roadmodel.sections[next_section_id]
+                    puntstuk_section_id = next_section['Verw_eigs']['Sectie_stroomafwaarts']
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
 
-            print(f"The *vergence point leads to section {section_id}")
-            print(f"Marking {section_id} with +{shift}")
+            print(f"The *vergence point leads to section {next_section_id}")
+            print(f"Marking {next_section_id} with +{shift}")
 
-            return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction,
+            return self.find_msi_recursive(next_section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction,
                                            shift, current_distance, annotation)
 
         if upstream_split:
