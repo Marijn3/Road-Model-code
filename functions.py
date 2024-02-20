@@ -1519,7 +1519,7 @@ class MSINetwerk:
     @staticmethod
     def get_annotation(current_section: dict) -> list:
         for key, value in current_section['Obj_eigs'].items():
-            if value in ['Invoegstrook', 'Uitrijstrook', 'Weefstrook'] or key in ['Special']:
+            if value in ['Invoegstrook', 'Uitrijstrook'] or key in ['Special']:
                 print(f"Encountered a special section: {key}, {value}.")
                 return [(key, value)]
         return []
@@ -1716,17 +1716,15 @@ class MSI(MSILegends):
                     lane_type, lane_nr = lane_type
                 print('Lane_info extracted:', lane_nr, lane_type)
 
-                if lane_type == 'Weefstrook' and lane_nr == self.lane_number:
+                if lane_type == 'Invoegstrook' and lane_nr == self.lane_number + shift:
                     msi_number = self.lane_number + shift - 1
                     if msi_number in downstream_row.MSIs.keys():
-                        self.properties['ds'] = downstream_row.MSIs[msi_number].name
-                        downstream_row.MSIs[msi_number].properties['us'] = self.name
+                        self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
 
-                if lane_type == 'Weefstrook' and lane_nr == self.lane_number + shift + 1:
+                if lane_type == 'Uitrijstrook' and lane_nr == self.lane_number + shift + 1:
                     msi_number = self.lane_number + shift + 1
                     if msi_number in downstream_row.MSIs.keys():
-                        self.properties['ds'] = downstream_row.MSIs[msi_number].name
-                        downstream_row.MSIs[msi_number].properties['us'] = self.name
+                        self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
 
         # Upstream relations
         for upstream_row, desc in self.row.upstream.items():
@@ -1744,6 +1742,12 @@ class MSI(MSILegends):
             # The following relation can be added.
             for upstream_row, desc in self.row.upstream.items():
                 highest_msi_number = max([msi_nr for msi_nr in upstream_row.MSIs.keys()])
-                self.properties['us'] = upstream_row.MSIs[highest_msi_number].name
-                upstream_row.MSIs[highest_msi_number].properties['ds'] = self.name
+                self.make_secondary_connection(self, upstream_row.MSIs[highest_msi_number])
 
+    @staticmethod
+    def make_secondary_connection(row1, row2):
+        """
+        First entry is the row that should have an upstream secondary relation.
+        """
+        row1.properties['us'] = row2.name
+        row2.properties['ds'] = row1.name
