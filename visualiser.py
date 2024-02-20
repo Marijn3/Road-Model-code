@@ -382,12 +382,12 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
         for row in netwerk.MSIrows:
             for msi in row.MSIs.values():
                 if msi.name == element_id:
-                    end_id = msi.properties['d']
+                    end_id = msi.properties['u']
                     if end_id is not None:
                         end_element, end_rotation, end_origin = element_by_id.get(end_id)
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
                         draw_primary(start_pos, end_pos, svg_dwg)
-                    end_id = msi.properties['ds']
+                    end_id = msi.properties['us']
                     if end_id is not None:
                         end_element, end_rotation, end_origin = element_by_id.get(end_id)
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
