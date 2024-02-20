@@ -1005,10 +1005,8 @@ class WegModel:
             return connected[0], None
 
         # If one of the other sections is puntstuk, act accordingly.
-        connected = [index for index, section in stream_sections.items() if
-                            'Puntstuk' not in section['Obj_eigs'].values()]
-        diverging = [index for index, section in stream_sections.items() if
-                     'Puntstuk' in section['Obj_eigs'].values()]
+        connected = [index for index, section in stream_sections.items() if 'Puntstuk' in section['Obj_eigs'].values()]
+        diverging = [index for index, section in stream_sections.items() if 'Puntstuk' not in section['Obj_eigs'].values()]
 
         if len(connected) == 1:
             return connected[0], diverging[0]
