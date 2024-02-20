@@ -1737,24 +1737,7 @@ class MSI(MSILegends):
             if self.lane_number + shift in upstream_row.MSIs.keys():
                 self.properties['u'] = upstream_row.MSIs[self.lane_number + shift].name
 
-            # MSIs that do not have any upstream relation, get a secondary relation
-            # if not self.properties['u']:
-
-        # Secondary relations
-        # if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Invoegstrook':  # weef = temporary test
-        #     for downstream_row, desc in self.row.downstream.items():
-        #         shift, annotation = desc
-        #         print("Downstream secondary annotation:", annotation)
-        #         msi_number = self.lane_number + shift - 1
-        #         if msi_number in downstream_row.MSIs.keys():
-        #             self.properties['ds'] = downstream_row.MSIs[msi_number].name
-        #             downstream_row.MSIs[msi_number].properties['us'] = self.name
-        #
-        # if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Uitrijstrook':  # weef = temporary test
-        #     for upstream_row, desc in self.row.upstream.items():
-        #         shift, annotation = desc
-        #         print("Upstream secondary annotation:", annotation)
-        #         msi_number = self.lane_number + shift - 1
-        #         if msi_number in upstream_row.MSIs.keys():
-        #             self.properties['us'] = upstream_row.MSIs[msi_number].name
-        #             upstream_row.MSIs[msi_number].properties['ds'] = self.name
+        # MSIs that do not have any upstream relation, get a secondary relation
+        if not self.properties['u'] and self.row.upstream:
+            print(f"{self.name} needs a secondary relation!")
+            print(self.properties['u'], self.row.upstream)
