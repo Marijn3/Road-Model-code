@@ -1418,8 +1418,8 @@ class MSINetwerk:
 
         # Base case 2: Multiple MSI rows found
         if len(msis_on_section) > 1:
-            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {msis_on_section[0]['Pos_eigs']['Km']}")
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['Pos_eigs']['Km']))
+            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi['Pos_eigs']['Km']}")
             return {self.get_msi_row_at(nearest_msi['Pos_eigs']['Km'], nearest_msi['Pos_eigs']['Hectoletter']): shift}
 
         # Base case 3: Maximum depth reached
@@ -1466,14 +1466,14 @@ class MSINetwerk:
             if downstream:
                 section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # this is section b. determine annotation.
+                    # this is diverging section. determine annotation.
                     other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
             else:
                 section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # this is section b. determine annotation.
+                    # this is diverging section. determine annotation.
                     other_section_id = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[other_section_id]['Obj_eigs'])
                     shift = shift + n_lanes_other
@@ -1483,36 +1483,24 @@ class MSINetwerk:
 
             return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
 
-        # TODO: This part can be completely redone. First the two are joined, then split?!
+        print(current_section['Verw_eigs'])
         if upstream_split:
-            section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
-                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
-                           if sid is not None]
-            print(f"The *vergence point is an upstream split into {section_ids}")
-
+            section_continuation = current_section['Verw_eigs']['Sectie_stroomopwaarts']
+            section_diversion = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
+            print(f"The *vergence point is an upstream split into {section_continuation} and {section_diversion}")
         elif downstream_split:
-            section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
-                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
-                           if sid is not None]
-            print(f"The *vergence point is a downstream split into {section_ids}")
+            section_continuation = current_section['Verw_eigs']['Sectie_stroomafwaarts']
+            section_diversion = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
+            print(f"The *vergence point is a downstream split into {section_continuation} and {section_diversion}")
 
-        potential_cont_section = self.roadmodel.sections[section_ids[0]]
-        potential_div_section = self.roadmodel.sections[section_ids[1]]
-        if 'Puntstuk' in potential_cont_section['Obj_eigs'].values():
-            section_a = section_ids[0]
-            section_b = section_ids[1]
-            shift_b, _ = self.roadmodel.get_n_lanes(potential_cont_section['Obj_eigs'])
-        else:
-            section_a = section_ids[1]
-            section_b = section_ids[0]
-            shift_b, _ = self.roadmodel.get_n_lanes(potential_div_section['Obj_eigs'])
+        shift_div, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[section_continuation]['Obj_eigs'])
 
         # Store negative value in this direction.
-        print(f"Marking {section_b} with -{shift_b}")
+        print(f"Marking {section_diversion} with -{shift_div}")
 
         # Make it do the recursive function twice. Then store the result.
-        option_continuation = self.find_msi_recursive(section_a, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
-        option_diversion = self.find_msi_recursive(section_b, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift - shift_b, current_distance)
+        option_continuation = self.find_msi_recursive(section_continuation, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
+        option_diversion = self.find_msi_recursive(section_diversion, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift - shift_div, current_distance)
         # Return a list of dictionaries
         return [option_continuation, option_diversion]
 
