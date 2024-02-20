@@ -1739,5 +1739,11 @@ class MSI(MSILegends):
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if not self.properties['u'] and self.row.upstream:
-            print(f"{self.name} needs a secondary relation!")
-            print(self.properties['u'], self.row.upstream)
+            print(f"[LOG:] {self.name} Could use a secondary upstream relation.")
+
+            # The following relation can be added.
+            for upstream_row, desc in self.row.upstream.items():
+                highest_msi_number = max([msi_nr for msi_nr in upstream_row.MSIs.keys()])
+                self.properties['us'] = upstream_row.MSIs[highest_msi_number].name
+                upstream_row.MSIs[highest_msi_number].properties['ds'] = self.name
+
