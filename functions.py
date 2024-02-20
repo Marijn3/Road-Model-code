@@ -1394,8 +1394,8 @@ class MSINetwerk:
             return [msis]
         return msis
 
-    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool,
-                           travel_direction: str, shift: int = 0, current_distance: float = 0) -> list | dict:
+    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
+                           shift: int = 0, current_distance: float = 0, annotation: list = []) -> list | dict:
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
@@ -1408,32 +1408,37 @@ class MSINetwerk:
             for lane_nr, lane_type in current_section['Obj_eigs'].items():
                 if lane_type == 'Invoegstrook':
                     print(f"Encountered a section with invoegstrook on lane {lane_nr}.")
+                    annotation = annotation + [{lane_nr: lane_type}]
                     break
-
         if 'Uitrijstrook' in current_section['Obj_eigs'].values():
             for lane_nr, lane_type in current_section['Obj_eigs'].items():
                 if lane_type == 'Uitrijstrook':
                     print(f"Encountered a section with uitvoegstrook on lane {lane_nr}.")
+                    annotation = annotation + [{lane_nr: lane_type}]
                     break
-
         if 'Special' in current_section['Obj_eigs'].keys():
             print(f"Encountered a section with {current_section['Obj_eigs']['Special']}")
+            annotation = annotation + [{'Special': current_section['Obj_eigs']['Special']}]
+
+        # annotation = get_annotation(current_section)
+
+        print("Encountered so far:", annotation)
 
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
-            return {self.get_msi_row_at(msis_on_section[0]['Pos_eigs']['Km'], msis_on_section[0]['Pos_eigs']['Hectoletter']): shift}
+            return {self.get_msi_row_at(msis_on_section[0]['Pos_eigs']['Km'], msis_on_section[0]['Pos_eigs']['Hectoletter']): (shift, annotation)}
 
         # Base case 2: Multiple MSI rows found
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['Pos_eigs']['Km']))
             print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi['Pos_eigs']['Km']}")
-            return {self.get_msi_row_at(nearest_msi['Pos_eigs']['Km'], nearest_msi['Pos_eigs']['Hectoletter']): shift}
+            return {self.get_msi_row_at(nearest_msi['Pos_eigs']['Km'], nearest_msi['Pos_eigs']['Hectoletter']): (shift, annotation)}
 
         # Base case 3: Maximum depth reached
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
-            return {None: shift}
+            return {None: (shift, annotation)}
 
         # Recursive case 1: No other points on the section
         if not other_points_on_section:
@@ -1450,16 +1455,16 @@ class MSINetwerk:
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
                 print(f"No connections at all with {current_section_id}")
-                return {None: shift}
+                return {None: (shift, annotation)}
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
                 print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}. Stopping.")
-                return {None: shift}
+                return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
-                                               shift, current_distance)
+                                               shift, current_distance, annotation)
 
         assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {other_points_on_section}"
 
@@ -1489,9 +1494,8 @@ class MSINetwerk:
             print(f"Marking {section_id} with +{shift}")
 
             return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction,
-                                           shift, current_distance)
+                                           shift, current_distance, annotation)
 
-        print(current_section['Verw_eigs'])
         if upstream_split:
             section_continuation = current_section['Verw_eigs']['Sectie_stroomopwaarts']
             section_diversion = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
@@ -1508,9 +1512,9 @@ class MSINetwerk:
 
         # Make it do the recursive function twice. Then store the result.
         option_continuation = self.find_msi_recursive(section_continuation, other_point['Pos_eigs']['Km'], downstream, travel_direction,
-                                                      shift, current_distance)
+                                                      shift, current_distance, annotation)
         option_diversion = self.find_msi_recursive(section_diversion, other_point['Pos_eigs']['Km'], downstream, travel_direction,
-                                                   shift - shift_div, current_distance)
+                                                   shift - shift_div, current_distance, annotation)
         # Return both options as a list of dictionaries
         return [option_continuation, option_diversion]
 
@@ -1697,6 +1701,7 @@ class MSI(MSILegends):
             self.properties['Hard_shoulder_left'] = True
 
     def determine_relations(self):
+        # Center and neighbors
         self.properties['c'] = self.name
         if self.lane_number + 1 in self.row.MSIs.keys():
             self.properties['r'] = self.row.MSIs[self.lane_number + 1].name
@@ -1705,24 +1710,32 @@ class MSI(MSILegends):
 
         # Primary relations
         for downstream_row, desc in self.row.downstream.items():
-            if self.lane_number + desc in downstream_row.MSIs.keys():
-                self.properties['d'] = downstream_row.MSIs[self.lane_number + desc].name
+            shift, annotation = desc
+            print(annotation)
+            if self.lane_number + shift in downstream_row.MSIs.keys():
+                self.properties['d'] = downstream_row.MSIs[self.lane_number + shift].name
 
         for upstream_row, desc in self.row.upstream.items():
-            if self.lane_number + desc in upstream_row.MSIs.keys():
-                self.properties['u'] = upstream_row.MSIs[self.lane_number + desc].name
+            shift, annotation = desc
+            print(annotation)
+            if self.lane_number + shift in upstream_row.MSIs.keys():
+                self.properties['u'] = upstream_row.MSIs[self.lane_number + shift].name
 
         # Secondary relations
         if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Invoegstrook':  # weef = temporary test
             for downstream_row, desc in self.row.downstream.items():
-                msi_number = self.lane_number + desc - 1
+                shift, annotation = desc
+                print(annotation)
+                msi_number = self.lane_number + shift - 1
                 if msi_number in downstream_row.MSIs.keys():
                     self.properties['ds'] = downstream_row.MSIs[msi_number].name
                     downstream_row.MSIs[msi_number].properties['us'] = self.name
 
         if self.row.local_road_properties[self.lane_number] == 'Weefstrook':  # 'Uitrijstrook':  # weef = temporary test
             for upstream_row, desc in self.row.upstream.items():
-                msi_number = self.lane_number + desc - 1
+                shift, annotation = desc
+                print(annotation)
+                msi_number = self.lane_number + shift - 1
                 if msi_number in upstream_row.MSIs.keys():
                     self.properties['us'] = upstream_row.MSIs[msi_number].name
                     upstream_row.MSIs[msi_number].properties['ds'] = self.name
