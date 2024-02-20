@@ -1366,11 +1366,10 @@ class MSINetwerk:
                 print("")
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
-        current_location = msi_row.info['Pos_eigs']['Geometrie']
         current_km = msi_row.info['Pos_eigs']['Km']
         travel_direction = msi_row.local_road_info['Pos_eigs']['Rijrichting']
 
-        start_sections = self.roadmodel.get_sections_at_point(current_location)
+        start_sections = self.roadmodel.get_sections_at_point(msi_row.info['Pos_eigs']['Geometrie'])
 
         if len(start_sections) == 1:
             starting_section_id = next(iter(start_sections.keys()))  # Obtain first (and only) ID in dict.
@@ -1439,29 +1438,28 @@ class MSINetwerk:
         # Recursive case 1: No other points on the section
         if not other_points_on_section:
             print(f"No other points on {current_section_id}")
-            # Obtain connection point of section
+            # Obtain connected sections
             if downstream:
                 connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
-                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts'])
-                                          if sid is not None]
+                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']) if sid is not None]
 
             else:
                 connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomopwaarts'],
-                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts'])
-                                          if sid is not None]
+                                                          current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']) if sid is not None]
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
                 print(f"No connections at all with {current_section_id}")
                 return {None: shift}
             elif len(connecting_section_ids) > 1:
-                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}. Stopping.")
                 # This happens in the case of intersections. These are of no interest for MSI relations.
+                print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}. Stopping.")
                 return {None: shift}
             else:
                 # Find an MSI row in the next section
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
-                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction, shift, current_distance)
+                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
+                                               shift, current_distance)
 
         assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {other_points_on_section}"
 
@@ -1490,7 +1488,8 @@ class MSINetwerk:
             print(f"The *vergence point leads to section {section_id}")
             print(f"Marking {section_id} with +{shift}")
 
-            return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
+            return self.find_msi_recursive(section_id, other_point['Pos_eigs']['Km'], downstream, travel_direction,
+                                           shift, current_distance)
 
         print(current_section['Verw_eigs'])
         if upstream_split:
@@ -1508,14 +1507,15 @@ class MSINetwerk:
         print(f"Marking {section_diversion} with -{shift_div}")
 
         # Make it do the recursive function twice. Then store the result.
-        option_continuation = self.find_msi_recursive(section_continuation, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift, current_distance)
-        option_diversion = self.find_msi_recursive(section_diversion, other_point['Pos_eigs']['Km'], downstream, travel_direction, shift - shift_div, current_distance)
-        # Return a list of dictionaries
+        option_continuation = self.find_msi_recursive(section_continuation, other_point['Pos_eigs']['Km'], downstream, travel_direction,
+                                                      shift, current_distance)
+        option_diversion = self.find_msi_recursive(section_diversion, other_point['Pos_eigs']['Km'], downstream, travel_direction,
+                                                   shift - shift_div, current_distance)
+        # Return both options as a list of dictionaries
         return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
         # Only takes points that are upstream/downstream of current point.
-        # TODO: Use something else than the km registration, as this does not work for certain connections.
         if travel_direction == 'L' and downstream or travel_direction == 'R' and not downstream:
             other_points_on_section = [point_data for point_data in self.roadmodel.get_points_info() if
                                        current_section_id in point_data['Verw_eigs']['Sectie_ids'] and point_data['Pos_eigs']['Km'] < current_km]
