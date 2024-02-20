@@ -1328,14 +1328,14 @@ class MSIRow:
         for row in downstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
-                    print(msi_row.name, desc)
+                    print("Conclusion:", msi_row.name, desc)
                     self.downstream[msi_row] = desc
 
         upstream_rows = self.msi_network.travel_roadmodel(self, False)
         for row in upstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
-                    print(msi_row.name, desc)
+                    print("Conclusion:", msi_row.name, desc)
                     self.upstream[msi_row] = desc
 
     def fill_msi_properties(self):
@@ -1394,22 +1394,6 @@ class MSINetwerk:
             return [msis]
         return msis
 
-    @staticmethod
-    def get_annotation(current_section: dict):
-        if 'Invoegstrook' in current_section['Obj_eigs'].values():
-            for lane_nr, lane_type in current_section['Obj_eigs'].items():
-                if lane_type == 'Invoegstrook':
-                    print(f"Encountered a section with invoegstrook on lane {lane_nr}.")
-                    return [{lane_nr: lane_type}]
-        if 'Uitrijstrook' in current_section['Obj_eigs'].values():
-            for lane_nr, lane_type in current_section['Obj_eigs'].items():
-                if lane_type == 'Uitrijstrook':
-                    print(f"Encountered a section with uitvoegstrook on lane {lane_nr}.")
-                    return [{lane_nr: lane_type}]
-        if 'Special' in current_section['Obj_eigs'].keys():
-            print(f"Encountered a section with {current_section['Obj_eigs']['Special']}")
-            return [{'Special': current_section['Obj_eigs']['Special']}]
-
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
                            shift: int = 0, current_distance: float = 0, annotation_prev: list = []) -> list | dict:
         current_section = self.roadmodel.sections[current_section_id]
@@ -1420,7 +1404,6 @@ class MSINetwerk:
         print(f"Current depth: {current_distance}")
 
         annotation = annotation_prev + self.get_annotation(current_section)
-        print("Encountered so far:", annotation)
 
         # Base case 1: Single MSI row found
         if len(msis_on_section) == 1:
@@ -1530,6 +1513,14 @@ class MSINetwerk:
                            point['Obj_eigs']['Type'] == 'Signalering']
 
         return other_points_on_section, msis_on_section
+
+    @staticmethod
+    def get_annotation(current_section: dict) -> list:
+        for key, value in current_section['Obj_eigs'].items():
+            if value in ['Invoegstrook', 'Uitrijstrook', 'Weefstrook'] or key in ['Special']:
+                print(f"Encountered a special section: {key}, {value}.")
+                return [(key, value)]
+        return []
 
     def get_msi_row_at(self, km: float, hectoletter: str) -> MSIRow | None:
         """
