@@ -50,6 +50,7 @@ class DataFrameLader:
         self.__define_extent(location)
         for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
+            print(f"[LOG:] Laag {df_layer_name} laden...")
             self.data[df_layer_name] = self.__load_dataframe(file_path)
             self.__edit_columns(df_layer_name)
 
@@ -428,8 +429,6 @@ class WegModel:
 
         elif name == "Maximum snelheid":
             section_info["Obj_eigs"]["Maximumsnelheid"] = row["OMSCHR"]
-
-        print(section_info["Verw_eigs"])
 
         return section_info
 
