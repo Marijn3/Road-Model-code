@@ -1639,7 +1639,7 @@ class MSI(MSILegends):
             'r': None,  # MSI right
             'l': None,  # MSI left
             'd': None,  # MSI downstream
-            'ds': None,  # MSI downstream secondary
+            'ds': [],  # MSI downstream secondary
             'dt': None,  # MSI downstream taper
             'db': None,  # MSI downstream ExtraRijstrook
             'dn': None,  # MSI downstream Rijstrookbeëindiging
@@ -1795,6 +1795,6 @@ class MSI(MSILegends):
         """
         First entry is the row that should have an upstream secondary relation.
         """
-        # TODO: support multiple downstream secondary relations by always using a list.
         row1.properties['us'] = row2.name
-        row2.properties['ds'] = row1.name
+        if row1.name not in row2.properties['ds']:
+            row2.properties['ds'].append(row1.name)

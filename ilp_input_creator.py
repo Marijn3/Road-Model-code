@@ -47,7 +47,7 @@ def make_ILP_input(network: MSINetwerk) -> dict:
         for i_msi, msi in row.MSIs.items():
             road_dict[row.name]["MSI"][msi.lane_number] = deepcopy(msi_dict)
             road_dict[row.name]["MSI"][msi.lane_number]["Downstream"]["Primary"] = msi.properties["d"]
-            road_dict[row.name]["MSI"][msi.lane_number]["Downstream"]["Secondary"] = msi.properties["ds"]  # This is the (only) registration that should be a list!
+            road_dict[row.name]["MSI"][msi.lane_number]["Downstream"]["Secondary"] = msi.properties["ds"]
 
             road_dict[row.name]["MSI"][msi.lane_number]["Upstream"]["Primary"] = msi.properties["u"]
             road_dict[row.name]["MSI"][msi.lane_number]["Upstream"]["Secondary"] = msi.properties["us"]
