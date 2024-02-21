@@ -1714,10 +1714,11 @@ class MSI(MSILegends):
             self.properties["TS_right"] = self.properties["CW_right"]
             self.properties["TS_left"] = self.properties["CW_left"]
 
-        # Safest assumption: 0 for both directions. DIF_V heeft evt. richtlijnen (bv 20 naar links, 0 naar rechts).
+        # Safest assumption: 0 for both directions.
+        # Influence levels are only filled in when the MSI borders a different traffic stream.
         # TODO: Influence levels that are not null may only be specified if the MSI is bordering a different traffic stream.
-        self.properties["DIF_V_right"] = 0
-        self.properties["DIF_V_left"] = 0
+        self.properties["DIF_V_right"] = 0 if cw_number + 1 in self.row.cw.keys() else None  # cw_number != ...
+        self.properties["DIF_V_left"] = 0 if cw_number - 1 in self.row.cw.keys() else None
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
