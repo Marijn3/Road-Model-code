@@ -349,7 +349,7 @@ class WegModel:
 
         overlapping_sections = self.get_sections_at_point(row["geometry"])
 
-        # Get the road number and travel direction from the (first) section it overlaps
+        # Get the road number, travel direction and hectoletter from the (first) section it overlaps
         point_info["Pos_eigs"]["Rijrichting"] = [section_info["Pos_eigs"]["Rijrichting"] for section_info in overlapping_sections.values()][0]
         point_info["Pos_eigs"]["Wegnummer"] = [section_info["Pos_eigs"]["Wegnummer"] for section_info in overlapping_sections.values()][0]
         point_info["Pos_eigs"]["Hectoletter"] = [section_info["Pos_eigs"]["Hectoletter"] for section_info in overlapping_sections.values()][0]
@@ -1550,11 +1550,11 @@ class MSINetwerk:
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
         # Only takes points that are upstream/downstream of current point.
         if travel_direction == "L" and downstream or travel_direction == "R" and not downstream:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points_info() if
-                                       current_section_id in point_data["Verw_eigs"]["Sectie_ids"] and point_data["Pos_eigs"]["Km"] < current_km]
+            other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                                       current_section_id in point_info["Verw_eigs"]["Sectie_ids"] and point_info["Pos_eigs"]["Km"] < current_km]
         else:
-            other_points_on_section = [point_data for point_data in self.roadmodel.get_points_info() if
-                                       current_section_id in point_data["Verw_eigs"]["Sectie_ids"] and point_data["Pos_eigs"]["Km"] > current_km]
+            other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                                       current_section_id in point_info["Verw_eigs"]["Sectie_ids"] and point_info["Pos_eigs"]["Km"] > current_km]
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if

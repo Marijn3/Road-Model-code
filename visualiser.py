@@ -87,10 +87,18 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
         return get_flipped_coords(offset_geom)
 
 
-def check_point_on_line(section_id: int) -> None | dict:
-    # Assumes at most one *vergence point per section. In any case, the first one encountered is returned.
+def check_point_on_line(sid: int) -> None | dict:
+    """
+    Finds a *vergence point on the section. Assumes there is at most one *vergence
+    point per section. In any case, the first one encountered is returned.
+    Args:
+        sid (int): Section ID to search for.
+    Returns:
+
+    """
+    #
     for point_data in wegmodel.get_points_info():
-        if section_id in point_data["Verw_eigs"]["Sectie_ids"] and point_data["Obj_eigs"]["Type"] not in ["Signalering"]:
+        if sid in point_data["Verw_eigs"]["Sectie_ids"] and point_data["Obj_eigs"]["Type"] not in ["Signalering"]:
             return point_data
     return None
 
