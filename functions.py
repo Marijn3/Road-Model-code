@@ -175,7 +175,7 @@ class DataFrameLader:
                           "7 -> 7": (7, None)}
 
         if name == "Rijstroken":
-            self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="coerce").astype("Int64")
+            self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
             mapping_function = lambda row: lane_mapping_h.get(row["OMSCHR"], "Unknown") \
                 if row["KANTCODE"] == "H" \
@@ -333,6 +333,8 @@ class WegModel:
             return self.__extract_line_properties(row, name)
 
     def __extract_point_properties(self, row: pd.Series, name: str) -> dict:
+        assert isinstance(row["geometry"], Point), f"Dit is geen simpele puntgeometrie: {row}"
+
         point_info = {
             "Pos_eigs": {
                 "Rijrichting": "",
@@ -347,16 +349,15 @@ class WegModel:
             "Verw_eigs": {}
         }
 
-        overlapping_sections = self.get_sections_at_point(row["geometry"])
+        section_info = self.get_one_section_info_at_point(row["geometry"])
+        point_info["Pos_eigs"]["Rijrichting"] = section_info["Pos_eigs"]["Rijrichting"]
+        point_info["Pos_eigs"]["Wegnummer"] = section_info["Pos_eigs"]["Wegnummer"]
+        point_info["Pos_eigs"]["Hectoletter"] = section_info["Pos_eigs"]["Hectoletter"]
 
-        # Get the road number, travel direction and hectoletter from the (first) section it overlaps
-        point_info["Pos_eigs"]["Rijrichting"] = [section_info["Pos_eigs"]["Rijrichting"] for section_info in overlapping_sections.values()][0]
-        point_info["Pos_eigs"]["Wegnummer"] = [section_info["Pos_eigs"]["Wegnummer"] for section_info in overlapping_sections.values()][0]
-        point_info["Pos_eigs"]["Hectoletter"] = [section_info["Pos_eigs"]["Hectoletter"] for section_info in overlapping_sections.values()][0]
         point_info["Pos_eigs"]["Km"] = row["KMTR"]
         point_info["Pos_eigs"]["Geometrie"] = row["geometry"]
 
-        if name == "Convergenties" or name == "Divergenties":
+        if name in ["Convergenties", "Divergenties"]:
             point_info["Obj_eigs"]["Type"] = row["Type"]
 
         if name == "Rijstrooksignaleringen":
@@ -1549,7 +1550,7 @@ class MSINetwerk:
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
         # Only takes points that are upstream/downstream of current point.
-        if travel_direction == "L" and downstream or travel_direction == "R" and not downstream:
+        if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
                                        current_section_id in point_info["Verw_eigs"]["Sectie_ids"] and point_info["Pos_eigs"]["Km"] < current_km]
         else:
