@@ -1589,7 +1589,6 @@ class MSI(MSILegends):
         self.name = f"{self.row.name}:{str(lane_number)}"
 
         self.properties = {
-            # 'RSU': None,  # RSU name [Not available]
             'c': None,  # Current MSI (center)
             'r': None,  # MSI right
             'l': None,  # MSI left
@@ -1633,8 +1632,6 @@ class MSI(MSILegends):
 
             'Hard_shoulder_right': None,  # [V] True if hard shoulder directly to the right.
             'Hard_shoulder_left': None,  # [V] True if hard shoulder directly to the left.
-
-            # 'State': None,  # Active legend. [Not applicable]
         }
 
     def fill_properties(self):
@@ -1643,8 +1640,10 @@ class MSI(MSILegends):
 
     def determine_properties(self):
         self.properties['STAT_V'] = self.row.local_road_properties['Maximumsnelheid']
-        # self.properties['C_X'] =
-        # self.properties['C_V'] =
+        # TODO: Determine when C_V and C_X are true, based on road properties.
+        #  This is implemented as a continue-V relation with the upstream RSU’s.
+        self.properties['C_X'] = False
+        self.properties['C_V'] = False
 
         self.properties['N_row'] = self.row.n_msis
 
@@ -1670,13 +1669,14 @@ class MSI(MSILegends):
             self.properties['TS_left'] = self.properties['CW_left']
 
         # Safest assumption: 0 for both directions. DIF_V heeft evt. richtlijnen (bv 20 naar links, 0 naar rechts).
+        # TODO: Influence levels that are not null may only be specified if the MSI is bordering a different traffic stream.
         self.properties['DIF_V_right'] = 0
         self.properties['DIF_V_left'] = 0
 
         self.properties['row'] = [msi.name for msi in self.row.MSIs.values()]
 
         if self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook']:
-            self.properties['RHL'] = True
+            self.properties['RHL'] = True  # TODO: Replace with RHL section name?? See report Jeroen 2 p67.
 
         if (self.row.local_road_properties[self.lane_number] in ['Spitsstrook', 'Plusstrook'] and
                 self.row.n_lanes > self.lane_number > 1):
@@ -1749,5 +1749,6 @@ class MSI(MSILegends):
         """
         First entry is the row that should have an upstream secondary relation.
         """
+        # TODO: support multiple downstream secondary relations by always using a list.
         row1.properties['us'] = row2.name
         row2.properties['ds'] = row1.name
