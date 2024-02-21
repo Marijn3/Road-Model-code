@@ -1156,7 +1156,8 @@ class WegModel:
     def get_one_section_info_at_point(self, point: Point) -> dict:
         """
         Returns the properties of a road section at a specific point.
-        Assumes that only one section is close to the point.
+        Assumes that only one section is close to the point, or that if there
+        are multiple sections close to the point, that their properties are the same.
         Args:
             point (Point): Geometric position of the point.
         Returns:
@@ -1366,26 +1367,20 @@ class MSINetwerk:
                 print("")
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
+        """
+        Travels through the road model in upstream or downstream direction,
+        starting from the indicated MSI row, and finds MSI rows in specified direction.
+        Args:
+            msi_row (MSIRow): MSIRow class object which is the starting point of the search.
+            downstream: Boolean to indicate search direction. False for upstream search.
+        Returns:
+            List containing the first MSI rows encountered in the specified direction.
+            Every MSI also has a shift and annotation value, depending on what was encountered
+            during the travel towards that MSI row from the start MSI row.
+        """
+        starting_section_id = self.get_travel_starting_section_id(msi_row, downstream)
         current_km = msi_row.info['Pos_eigs']['Km']
         travel_direction = msi_row.local_road_info['Pos_eigs']['Rijrichting']
-
-        start_sections = self.roadmodel.get_sections_at_point(msi_row.info['Pos_eigs']['Geometrie'])
-
-        if len(start_sections) == 1:
-            starting_section_id = next(iter(start_sections.keys()))  # Obtain first (and only) ID in dict.
-
-        elif len(start_sections) > 1:
-            print("[WAARSCHUWING:] Meer dan één sectie gevonden op MSI locatie.")  # Filter the correct ID in dict.
-            if (downstream and travel_direction == 'R') or (not downstream and travel_direction == 'L'):
-                for section_id, section in start_sections.items():
-                    if section['Pos_eigs']['Km_bereik'][0] == current_km:
-                        starting_section_id = section_id
-                        break
-            if (downstream and travel_direction == 'L') or (not downstream and travel_direction == 'R'):
-                for section_id, section in start_sections.items():
-                    if section['Pos_eigs']['Km_bereik'][1] == current_km:
-                        starting_section_id = section_id
-                        break
 
         print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
@@ -1393,6 +1388,37 @@ class MSINetwerk:
         if isinstance(msis, dict):
             return [msis]
         return msis
+
+    def get_travel_starting_section_id(self, msi_row: MSIRow, downstream: bool) -> int:
+        """
+        Obtain section ID of section under MSI row. In case there are multiple sections,
+        the upstream/downstream section will be taken as the starting section, depending
+        on the indicated direction.
+        Args:
+            msi_row (MSIRow): MSI row instance to find section ID for.
+            downstream (bool): Boolean to indicate search direction. False for upstream search.
+        Returns:
+            Section ID of starting section, considering the MSI row and the
+            downstream/upstream search direction.
+        """
+        start_sections = self.roadmodel.get_sections_at_point(msi_row.info['Pos_eigs']['Geometrie'])
+
+        if len(start_sections) == 0:  # Nothing found
+            raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info['Pos_eigs']}.")
+
+        if len(start_sections) == 1:  # Obtain first (and only) ID in dict.
+            return next(iter(start_sections.keys()))
+
+        print("[WAARSCHUWING:] Meer dan één sectie gevonden op MSI locatie. Keuze op basis van zoekrichting.")
+        if ((downstream and msi_row.local_road_info['Pos_eigs']['Rijrichting'] == 'L')
+                or (not downstream and msi_row.local_road_info['Pos_eigs']['Rijrichting'] == 'R')):
+            km_registration_to_equate = 1
+        else:
+            km_registration_to_equate = 0
+
+        for section_id, section in start_sections.items():
+            if section['Pos_eigs']['Km_bereik'][km_registration_to_equate] == msi_row.info['Pos_eigs']['Km']:
+                return section_id
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
                            shift: int = 0, current_distance: float = 0, annotation_prev: list = []) -> list | dict:
