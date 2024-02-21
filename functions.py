@@ -281,7 +281,7 @@ class WegModel:
                 4) It contains the hectoletter.
         """
         for df_name in self.__LAYER_NAMES:
-            print(f"[STATUS:] Laag "{df_name}" wordt geïmporteerd...")
+            print(f"[STATUS:] Laag '{df_name}' wordt geïmporteerd...")
             current_sections = self.section_index
             current_points = self.point_index
 
@@ -342,7 +342,7 @@ class WegModel:
                 "Geometrie": None
             },
             "Obj_eigs": {
-                "Type": None
+                "Type": ""
             },
             "Verw_eigs": {}
         }
@@ -495,8 +495,8 @@ class WegModel:
 
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section["Pos_eigs"]["Km_bereik"]) - new_section["Pos_eigs"]["Geometrie"].length) > 100:
-                print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section["Pos_eigs"]["Km_bereik"])} "
-                      f" en {new_section["Pos_eigs"]["Geometrie"].length}\n")
+                print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section['Pos_eigs']['Km_bereik'])} "
+                      f" en {new_section['Pos_eigs']['Geometrie'].length}\n")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
@@ -621,7 +621,7 @@ class WegModel:
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section({
-                        "Pos_eigs":{
+                        "Pos_eigs": {
                             "Rijrichting": other_section_side,
                             "Wegnummer": other_section_road_number,
                             "Hectoletter": other_section_hectoletter,
@@ -669,7 +669,7 @@ class WegModel:
                     km_bereik = [max(other_section_range), max(new_section_range)]
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section({
-                    "Pos_eigs":{
+                    "Pos_eigs": {
                         "Rijrichting": other_section_side,
                         "Wegnummer": other_section_road_number,
                         "Hectoletter": other_section_hectoletter,
@@ -743,7 +743,7 @@ class WegModel:
         assert not is_empty(new_section["Pos_eigs"]["Geometrie"]), f"Poging om een lege lijngeometrie toe te voegen: {new_section}"
         if abs(get_km_length(new_section["Pos_eigs"]["Km_bereik"]) - new_section["Pos_eigs"]["Geometrie"].length) > 100:
             print(f"[WAARSCHUWING:] Groot lengteverschil: "
-                  f"{get_km_length(new_section["Pos_eigs"]["Km_bereik"])} en {new_section["Pos_eigs"]["Geometrie"].length}\n")
+                  f"{get_km_length(new_section['Pos_eigs']['Km_bereik'])} en {new_section['Pos_eigs']['Geometrie'].length}\n")
 
         self.sections[self.section_index] = new_section
         self.__log_section(self.section_index, False)
@@ -816,12 +816,12 @@ class WegModel:
             index (int): Index of point to print info for.
         """
         print(f"[LOG:] Punt {index} toegevoegd: \t"
-              f"{self.points[index]["Pos_eigs"]["Km"]:<7.3f} km \t"
-              f"{self.points[index]["Pos_eigs"]["Wegnummer"]}\t"
-              f"{self.points[index]["Pos_eigs"]["Rijrichting"]}\t"
-              f"{self.points[index]["Pos_eigs"]["Hectoletter"]}\t"
-              f"{self.points[index]["Obj_eigs"]} \n"
-              f"\t\t\t\t\t\t\t{set_precision(self.points[index]["Pos_eigs"]["Geometrie"], 1)}")
+              f"{self.points[index]['Pos_eigs']['Km']:<7.3f} km \t"
+              f"{self.points[index]['Pos_eigs']['Wegnummer']}\t"
+              f"{self.points[index]['Pos_eigs']['Rijrichting']}\t"
+              f"{self.points[index]['Pos_eigs']['Hectoletter']}\t"
+              f"{self.points[index]['Obj_eigs']} \n"
+              f"\t\t\t\t\t\t\t{set_precision(self.points[index]['Pos_eigs']['Geometrie'], 1)}")
 
     def __log_base(self, index: int) -> None:
         """
@@ -830,9 +830,9 @@ class WegModel:
             index (int): Index of section to print info for.
         """
         print(f"[LOG:] Basis {index} toegevoegd:  \t"
-              f"{self.base[index]["Pos_eigs"]["Wegnummer"]}\t"
-              f"{self.base[index]["Pos_eigs"]["Hectoletter"]}\n"
-              f"\t\t\t\t\t\t\t\t{set_precision(self.base[index]["Pos_eigs"]["Geometrie"], 1)}")
+              f"{self.base[index]['Pos_eigs']['Wegnummer']}\t"
+              f"{self.base[index]['Pos_eigs']['Hectoletter']}\n"
+              f"\t\t\t\t\t\t\t\t{set_precision(self.base[index]['Pos_eigs']['Geometrie'], 1)}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
         """
@@ -842,12 +842,12 @@ class WegModel:
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
         print(f"[LOG:] Sectie {index} {wording.get(changed)}\t"
-              f"[{self.sections[index]["Pos_eigs"]["Km_bereik"][0]:<7.3f}, {self.sections[index]["Pos_eigs"]["Km_bereik"][1]:<7.3f}] km \t"
-              f"{self.sections[index]["Pos_eigs"]["Wegnummer"]}\t"
-              f"{self.sections[index]["Pos_eigs"]["Rijrichting"]}\t"
-              f"{self.sections[index]["Pos_eigs"]["Hectoletter"]}\t"
-              f"{self.sections[index]["Obj_eigs"]} \n"
-              f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]["Pos_eigs"]["Geometrie"], 1)}")
+              f"[{self.sections[index]['Pos_eigs']['Km_bereik'][0]:<7.3f}, {self.sections[index]['Pos_eigs']['Km_bereik'][1]:<7.3f}] km \t"
+              f"{self.sections[index]['Pos_eigs']['Wegnummer']}\t"
+              f"{self.sections[index]['Pos_eigs']['Rijrichting']}\t"
+              f"{self.sections[index]['Pos_eigs']['Hectoletter']}\t"
+              f"{self.sections[index]['Obj_eigs']} \n"
+              f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index]['Pos_eigs']['Geometrie'], 1)}")
 
     def __get_overlapping_base(self, new_section):
         overlapping_base = []
@@ -1001,7 +1001,7 @@ class WegModel:
         # If puntstuk itself, return section with same hectoletter. If all hectoletters are the same, use the km registration.
         if "Puntstuk" in section_info["Obj_eigs"].values():
             connected = [index for index, section in stream_sections.items() if
-                                section_info["Pos_eigs"]["Hectoletter"] == section["Pos_eigs"]["Hectoletter"]]
+                         section_info["Pos_eigs"]["Hectoletter"] == section["Pos_eigs"]["Hectoletter"]]
             if len(connected) > 1:
                 if section_info["Pos_eigs"]["Rijrichting"] == "L":
                     connected = [index for index, section in stream_sections.items() if
@@ -1022,7 +1022,7 @@ class WegModel:
 
         # If neither other section had puntstuk, return the one section with same hectoletter
         connected = [index for index, section in stream_sections.items() if
-                            section_info["Pos_eigs"]["Hectoletter"] == section["Pos_eigs"]["Hectoletter"]]
+                     section_info["Pos_eigs"]["Hectoletter"] == section["Pos_eigs"]["Hectoletter"]]
         diverging = [index for index, section in stream_sections.items() if
                      section_info["Pos_eigs"]["Hectoletter"] != section["Pos_eigs"]["Hectoletter"]]
 
@@ -1133,11 +1133,11 @@ class WegModel:
         if len(section_info) > 1:
             print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km:")
             for index, section in enumerate(section_info):
-                print(f"    {index}) {section["Obj_eigs"]}")
+                print(f"    {index}) {section['Obj_eigs']}")
             print("")
             return section_info
         elif len(section_info) == 1:
-            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km: {section_info[0]["Obj_eigs"]}\n")
+            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km: {section_info[0]['Obj_eigs']}\n")
             return section_info[0]["Obj_eigs"]
         else:
             print(f"Geen secties gevonden met rijrichting {travel_direction} en {km} km.\n")
@@ -1283,9 +1283,9 @@ class MSIRow:
         self.local_road_properties = self.local_road_info["Obj_eigs"]
         # TODO: use make_name(self.info) function for this!
         if self.info["Pos_eigs"]["Hectoletter"]:
-            self.name = f"{self.info["Pos_eigs"]["Wegnummer"]}_{self.info["Pos_eigs"]["Hectoletter"].upper()}:{self.info["Pos_eigs"]["Km"]}"
+            self.name = f"{self.info['Pos_eigs']['Wegnummer']}_{self.info['Pos_eigs']['Hectoletter'].upper()}:{self.info['Pos_eigs']['Km']}"
         else:
-            self.name = f"{self.info["Pos_eigs"]["Wegnummer"]}{self.info["Pos_eigs"]["Rijrichting"]}:{self.info["Pos_eigs"]["Km"]}"
+            self.name = f"{self.info['Pos_eigs']['Wegnummer']}{self.info['Pos_eigs']['Rijrichting']}:{self.info['Pos_eigs']['Km']}"
         self.lane_numbers = []
         self.n_lanes = 0
         self.n_msis = 0
@@ -1404,7 +1404,7 @@ class MSINetwerk:
         start_sections = self.roadmodel.get_sections_at_point(msi_row.info["Pos_eigs"]["Geometrie"])
 
         if len(start_sections) == 0:  # Nothing found
-            raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info["Pos_eigs"]}.")
+            raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info['Pos_eigs']}.")
 
         if len(start_sections) == 1:  # Obtain first (and only) ID in dict.
             return next(iter(start_sections.keys()))
@@ -1455,13 +1455,13 @@ class MSINetwerk:
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
-            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]["Pos_eigs"]["Km"]}")
+            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
             return {self.get_msi_row_at(msis_on_section[0]["Pos_eigs"]["Km"], msis_on_section[0]["Pos_eigs"]["Hectoletter"]): (shift, annotation)}
 
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi["Pos_eigs"]["Km"]))
-            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi["Pos_eigs"]["Km"]}")
+            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi['Pos_eigs']['Km']}")
             return {self.get_msi_row_at(nearest_msi["Pos_eigs"]["Km"], nearest_msi["Pos_eigs"]["Hectoletter"]): (shift, annotation)}
 
         # Base case 3: Maximum depth reached.

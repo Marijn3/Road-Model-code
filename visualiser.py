@@ -322,8 +322,8 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
                                       insert=(coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2),
                                       size=(MSIBOX_SIZE, MSIBOX_SIZE),
                                       fill="#1e1b17", stroke="black", stroke_width=0.3,
-                                      onmouseover="evt.target.setAttribute("fill", "darkslategrey");",
-                                      onmouseout="evt.target.setAttribute("fill", "#1e1b17");")
+                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -348,8 +348,8 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
                                       insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
                                       size=(box_size, box_size),
                                       fill="#1e1b17", stroke="black", stroke_width=0.3,
-                                      onmouseover="evt.target.setAttribute("fill", "darkslategrey");",
-                                      onmouseout="evt.target.setAttribute("fill", "#1e1b17");")
+                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -365,7 +365,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_vergence = svgwrite.container.Group()
 
-    text = svgwrite.text.Text(f"{point_data["Pos_eigs"]["Km"]} {point_data["Obj_eigs"]["Type"]}",
+    text = svgwrite.text.Text(f"{point_data['Pos_eigs']['Km']} {point_data['Obj_eigs']['Type']}",
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1),
                               fill="white", font_family="Arial", font_size=3)
 
@@ -394,17 +394,16 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
                         draw_secondary(start_pos, end_pos, svg_dwg)
 
 
-
 def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.4) )
-    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="cyan") )
-    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="cyan") )
+    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.4))
+    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="cyan"))
+    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="cyan"))
 
 
 def draw_secondary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=0.4) )
-    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="magenta") )
-    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="magenta") )
+    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=0.4))
+    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="magenta"))
+    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="magenta"))
 
 
 def get_center_coords(element, angle_degrees, origin):
@@ -413,9 +412,9 @@ def get_center_coords(element, angle_degrees, origin):
     return rotate_point((x, y), origin, angle_degrees)
 
 
-def rotate_point(point, origin, angle_degrees):
+def rotate_point(draw_point, origin, angle_degrees):
     angle_rad = math.radians(angle_degrees)
-    x, y = point
+    x, y = draw_point
     ox, oy = origin
     qx = ox + math.cos(angle_rad) * (x - ox) - math.sin(angle_rad) * (y - oy)
     qy = oy + math.sin(angle_rad) * (x - ox) + math.cos(angle_rad) * (y - oy)
@@ -424,9 +423,9 @@ def rotate_point(point, origin, angle_degrees):
 
 def make_name(point_data, nr) -> str:
     if point_data["Pos_eigs"]["Hectoletter"]:
-        return f"{point_data["Pos_eigs"]["Wegnummer"]}_{point_data["Pos_eigs"]["Hectoletter"].upper()}:{point_data["Pos_eigs"]["Km"]}:{nr}"
+        return f"{point_data['Pos_eigs']['Wegnummer']}_{point_data['Pos_eigs']['Hectoletter'].upper()}:{point_data['Pos_eigs']['Km']}:{nr}"
     else:
-        return f"{point_data["Pos_eigs"]["Wegnummer"]}{point_data["Pos_eigs"]["Rijrichting"]}:{point_data["Pos_eigs"]["Km"]}:{nr}"
+        return f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
 
 
 def make_text_hecto(km: float, letter: str | None) -> str:
