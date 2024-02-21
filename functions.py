@@ -1312,7 +1312,9 @@ class MSIRow:
         for lane_number in self.lane_numbers:
             # Add final lane and stop
             if lane_number == self.n_lanes:
-                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                if last_lane:
+                    self.cw[cw_index] = last_lane
                 break
 
             current_lane = self.local_road_properties[lane_number]
@@ -1639,7 +1641,7 @@ class MSI(MSILegends):
             "r": None,  # MSI right
             "l": None,  # MSI left
             "d": None,  # MSI downstream
-            "ds": [],  # MSI downstream secondary
+            "ds": None,  # MSI downstream secondary
             "dt": None,  # MSI downstream taper
             "db": None,  # MSI downstream ExtraRijstrook
             "dn": None,  # MSI downstream Rijstrookbeëindiging
@@ -1754,7 +1756,6 @@ class MSI(MSILegends):
         # Downstream relations
         for downstream_row, desc in self.row.downstream.items():
             shift, annotation = desc
-            print("Downstream annotation:", annotation)
 
             # Primary
             if self.lane_number + shift in downstream_row.MSIs.keys():
@@ -1781,7 +1782,6 @@ class MSI(MSILegends):
         # Upstream relations
         for upstream_row, desc in self.row.upstream.items():
             shift, annotation = desc
-            print("Upstream annotation:", annotation)
 
             # Primary
             if self.lane_number + shift in upstream_row.MSIs.keys():
@@ -1802,5 +1802,7 @@ class MSI(MSILegends):
         First entry is the row that should have an upstream secondary relation.
         """
         row1.properties["us"] = row2.name
+        if not row2.properties["ds"]:
+            row2.properties["ds"] = []
         if row1.name not in row2.properties["ds"]:
             row2.properties["ds"].append(row1.name)

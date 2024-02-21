@@ -390,16 +390,15 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
         for row in netwerk.MSIrows:
             for msi in row.MSIs.values():
                 if msi.name == element_id:
-                    end_id = msi.properties["d"]
-                    if end_id is not None:
-                        end_element, end_rotation, end_origin = element_by_id.get(end_id)
+                    if msi.properties["d"]:
+                        end_element, end_rotation, end_origin = element_by_id.get(msi.properties["d"])
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
                         draw_primary(start_pos, end_pos, svg_dwg)
-                    for ds in msi.properties["ds"]:
-                        end_id = ds
-                        end_element, end_rotation, end_origin = element_by_id.get(end_id)
-                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        draw_secondary(start_pos, end_pos, svg_dwg)
+                    if msi.properties["ds"]:
+                        for end_id in msi.properties["ds"]:
+                            end_element, end_rotation, end_origin = element_by_id.get(end_id)
+                            end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                            draw_secondary(start_pos, end_pos, svg_dwg)
 
 
 def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
