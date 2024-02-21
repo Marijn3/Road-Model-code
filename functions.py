@@ -1368,7 +1368,7 @@ class MSINetwerk:
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         """
-        Travels through the road model in upstream or downstream direction,
+        Initiates travel through the road model in upstream or downstream direction,
         starting from the indicated MSI row, and finds MSI rows in specified direction.
         Args:
             msi_row (MSIRow): MSIRow class object which is the starting point of the search.
@@ -1422,6 +1422,28 @@ class MSINetwerk:
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
                            shift: int = 0, current_distance: float = 0, annotation_prev: list = []) -> list | dict:
+        """
+        This is recursive function, meaning that it calls itself. The function requires
+        variables to keep track of where a branch of the recursive search is. These have
+        to be specified, forming the starting point of the recursive search. The function
+        also logs the shift, distance and annotation of that branch. The latter do not
+        have to be specfied when calling the function.
+        Args:
+            current_section_id (int): ID of section in current iteration.
+            current_km (float): Latest km registration encountered.
+            downstream (bool): Value representing the search direction.
+            travel_direction (str): Travel direction of traffic on the road ("L" or "R").
+            shift (int): Amount of lanes shifted from the leftmost lane of the
+                original road section so far.
+            current_distance (float): Distance travelled through model so far. This is
+                used to cut off search after passing a threshold.
+            annotation_prev (list): Annotation so far.
+        Returns:
+            (List of) dictionaries, structured as: {MSIRow object: (shift, annotation)}.
+            In case only one MSI row is found, the dictionary is returned directly.
+            In case multiple are found, their dictionaries are placed in a list. This
+            should be handled outside the function.
+        """
         current_section = self.roadmodel.sections[current_section_id]
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
@@ -1431,26 +1453,25 @@ class MSINetwerk:
 
         annotation = annotation_prev + self.get_annotation(current_section)
 
-        # Base case 1: Single MSI row found
+        # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
             return {self.get_msi_row_at(msis_on_section[0]['Pos_eigs']['Km'], msis_on_section[0]['Pos_eigs']['Hectoletter']): (shift, annotation)}
 
-        # Base case 2: Multiple MSI rows found
+        # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi['Pos_eigs']['Km']))
             print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi['Pos_eigs']['Km']}")
             return {self.get_msi_row_at(nearest_msi['Pos_eigs']['Km'], nearest_msi['Pos_eigs']['Hectoletter']): (shift, annotation)}
 
-        # Base case 3: Maximum depth reached
+        # Base case 3: Maximum depth reached.
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
             return {None: (shift, annotation)}
 
-        # Recursive case 1: No other points on the section
+        # Recursive case 1: No other points on the section.
         if not other_points_on_section:
-            print(f"No other points on {current_section_id}")
-            # Obtain connected sections
+            print(f"No other points on {current_section_id}.")
             if downstream:
                 connecting_section_ids = [sid for sid in (current_section['Verw_eigs']['Sectie_stroomafwaarts'],
                                                           current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']) if sid is not None]
@@ -1468,14 +1489,14 @@ class MSINetwerk:
                 print(f"It seems that more than one section is connected to {current_section_id}: {connecting_section_ids}. Stopping.")
                 return {None: (shift, annotation)}
             else:
-                # Find an MSI row in the next section
+                # Find an MSI row in the next section.
                 print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
         assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {other_points_on_section}"
 
-        # Recursive case 2: *vergence point on the section
+        # Recursive case 2: *vergence point on the section.
         other_point = other_points_on_section[0]
         downstream_split = downstream and other_point['Obj_eigs']['Type'] in ['Splitsing', 'Uitvoeging']
         upstream_split = not downstream and other_point['Obj_eigs']['Type'] in ['Samenvoeging', 'Invoeging']
@@ -1485,7 +1506,7 @@ class MSINetwerk:
             if downstream:
                 next_section_id = current_section['Verw_eigs']['Sectie_stroomafwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # this is diverging section. determine annotation.
+                    # This is the diverging section. Determine annotation.
                     next_section = self.roadmodel.sections[next_section_id]
                     puntstuk_section_id = next_section['Verw_eigs']['Sectie_stroomopwaarts']
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]['Obj_eigs'])
@@ -1493,7 +1514,7 @@ class MSINetwerk:
             else:
                 next_section_id = current_section['Verw_eigs']['Sectie_stroomopwaarts']
                 if 'Puntstuk' not in current_section['Obj_eigs'].values():
-                    # this is diverging section. determine annotation.
+                    # This is the diverging section. Determine annotation.
                     next_section = self.roadmodel.sections[next_section_id]
                     puntstuk_section_id = next_section['Verw_eigs']['Sectie_stroomafwaarts']
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]['Obj_eigs'])
@@ -1509,7 +1530,7 @@ class MSINetwerk:
             section_continuation = current_section['Verw_eigs']['Sectie_stroomopwaarts']
             section_diversion = current_section['Verw_eigs']['Sectie_afbuigend_stroomopwaarts']
             print(f"The *vergence point is an upstream split into {section_continuation} and {section_diversion}")
-        elif downstream_split:
+        else:
             section_continuation = current_section['Verw_eigs']['Sectie_stroomafwaarts']
             section_diversion = current_section['Verw_eigs']['Sectie_afbuigend_stroomafwaarts']
             print(f"The *vergence point is a downstream split into {section_continuation} and {section_diversion}")
@@ -1519,12 +1540,11 @@ class MSINetwerk:
         # Store negative value in this direction.
         print(f"Marking {section_diversion} with -{shift_div}")
 
-        # Make it do the recursive function twice. Then store the result.
+        # Make it do the recursive function twice. Then return both options as a list.
         option_continuation = self.find_msi_recursive(section_continuation, other_point['Pos_eigs']['Km'], downstream, travel_direction,
                                                       shift, current_distance, annotation)
         option_diversion = self.find_msi_recursive(section_diversion, other_point['Pos_eigs']['Km'], downstream, travel_direction,
                                                    shift - shift_div, current_distance, annotation)
-        # Return both options as a list of dictionaries
         return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
