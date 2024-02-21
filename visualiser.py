@@ -382,17 +382,29 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
         for row in netwerk.MSIrows:
             for msi in row.MSIs.values():
                 if msi.name == element_id:
-                    end_id = msi.properties['d']
+                    end_id = msi.properties['u']
                     if end_id is not None:
                         end_element, end_rotation, end_origin = element_by_id.get(end_id)
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
                         draw_primary(start_pos, end_pos, svg_dwg)
+                    end_id = msi.properties['us']
+                    if end_id is not None:
+                        end_element, end_rotation, end_origin = element_by_id.get(end_id)
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_secondary(start_pos, end_pos, svg_dwg)
+
 
 
 def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
     svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.4) )
     svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="cyan") )
     svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="cyan") )
+
+
+def draw_secondary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
+    svg_dwg.add( svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=0.4) )
+    svg_dwg.add( svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="magenta") )
+    svg_dwg.add( svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="magenta") )
 
 
 def get_center_coords(element, angle_degrees, origin):
