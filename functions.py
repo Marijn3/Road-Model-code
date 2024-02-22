@@ -32,7 +32,7 @@ class DataFrameLader:
         "data/Maximum snelheid/max_snelheden.dbf",
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn-edit.dbf",
     ]
 
     def __init__(self, location: str = None) -> None:
