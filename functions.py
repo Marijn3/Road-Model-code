@@ -5,9 +5,9 @@ import csv
 from copy import deepcopy
 import math
 
-pd.set_option("display.max_columns", None)
 GRID_SIZE = 0.00001
-MSI_RELATION_MAX_SEARCH_DISTANCE = 5000
+MSI_RELATION_MAX_SEARCH_DISTANCE = 2000  # [m] - Richtlijn zegt max 1200 m tussen portalen.
+DISTANCE_TOLERANCE = 0.5  # [m] Distance tolerance for overlap checking
 
 
 class DataFrameLader:
@@ -932,10 +932,10 @@ class WegModel:
             end_point = Point(section_info["Pos_eigs"]["Geometrie"].coords[-1])
 
             for point_info in self.get_points_info("*vergentie"):
-                if point_info["Pos_eigs"]["Geometrie"].dwithin(start_point, 0.1):
+                if point_info["Pos_eigs"]["Geometrie"].dwithin(start_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_start"] = True
                     skip_start_check = True
-                if point_info["Pos_eigs"]["Geometrie"].dwithin(end_point, 0.1):
+                if point_info["Pos_eigs"]["Geometrie"].dwithin(end_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_einde"] = True
                     skip_end_check = True
 
@@ -1151,7 +1151,7 @@ class WegModel:
         Returns:
             dict[int, dict]: Attributes of the (first) road section at the specified kilometer point.
         """
-        return {index: section for index, section in self.sections.items() if dwithin(point, section["Pos_eigs"]["Geometrie"], 0.1)}
+        return {index: section for index, section in self.sections.items() if dwithin(point, section["Pos_eigs"]["Geometrie"], DISTANCE_TOLERANCE)}
 
     def get_one_section_info_at_point(self, point: Point) -> dict:
         """
@@ -1164,7 +1164,7 @@ class WegModel:
             dict: Attributes of the (first) road section at the specified kilometer point.
         """
         for section_info in self.sections.values():
-            if dwithin(point, section_info["Pos_eigs"]["Geometrie"], 0.1):
+            if dwithin(point, section_info["Pos_eigs"]["Geometrie"], DISTANCE_TOLERANCE):
                 return section_info
         return {}
 
@@ -1791,10 +1791,11 @@ class MSI(MSILegends):
         if not self.properties["u"] and self.row.upstream:
             print(f"[LOG:] {self.name} Could use a secondary upstream relation.")
 
-            # The following relation can be added.
-            for upstream_row, desc in self.row.upstream.items():
-                highest_msi_number = max([msi_nr for msi_nr in upstream_row.MSIs.keys()])
-                self.make_secondary_connection(self, upstream_row.MSIs[highest_msi_number])
+            if True:
+                print("Applying relation!")
+                for upstream_row, desc in self.row.upstream.items():
+                    highest_msi_number = max([msi_nr for msi_nr in upstream_row.MSIs.keys()])
+                    self.make_secondary_connection(self, upstream_row.MSIs[highest_msi_number])
 
     @staticmethod
     def make_secondary_connection(row1, row2):
