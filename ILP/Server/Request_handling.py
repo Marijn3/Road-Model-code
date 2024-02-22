@@ -190,6 +190,7 @@ def request_light(request):
 
 
 def create_rsu_based_result(model, msi_data):
+    # TODO: Als het goed is, komen hier de beelden uit.
     out_legends = {}
     for (key, value) in msi_data.items():
         msi = int(key[-2]) - 1
