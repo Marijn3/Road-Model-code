@@ -1472,7 +1472,7 @@ class MSINetwerk:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
             return {None: (shift, annotation)}
 
-        # Annotation should be updated before recursion, but after the base cases.
+        # TODO: Annotation should be updated when the new section is known.
         annotation = annotation + self.get_annotation(current_section)
 
         # Recursive case 1: No other points on the section.
