@@ -1,6 +1,7 @@
 import json
 from functions import *
 
+
 msi_dict = {
     "Downstream": {
         "Primary": None,
@@ -61,9 +62,9 @@ def make_ILP_input(network: MSINetwerk) -> dict:
             road_dict[row.name]["MSI"][msi.lane_number]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
             road_dict[row.name]["MSI"][msi.lane_number]["Carriageway"] = str(msi.properties["CW_num"])
 
-        road_dict[row.name]["MSI"]["Continue-V"] = msi.properties["C_V"]
-        road_dict[row.name]["MSI"]["Continue-X"] = msi.properties["C_X"]
-        road_dict[row.name]["MSI"]["Stat-V"] = msi.properties["STAT_V"]
+        road_dict[row.name]["Continue-V"] = msi.properties["C_V"]
+        road_dict[row.name]["Continue-X"] = msi.properties["C_X"]
+        road_dict[row.name]["Stat-V"] = msi.properties["STAT_V"]
 
     return road_dict
 
