@@ -38,7 +38,9 @@ def getRelations(road_layout, msirow, msi_nr, relation_type):
     if temp:
         if isinstance(temp, list):
             temp = temp[0]
-        return f"({msirow}:{msi_nr}, {temp})   {type_1} {type_2}"
+        road, km, msi_nr2 = temp.split(":")
+        msi_row2 = f"{road}:{km}"
+        return f"({msirow}:{msi_nr}, {msi_row2}:{msi_nr2})   {type_1} {type_2}"
     return None
 
 
