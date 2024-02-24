@@ -1423,7 +1423,7 @@ class MSINetwerk:
                 return section_id
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
-                           shift: int = 0, current_distance: float = 0, annotation_prev: list = []) -> list | dict:
+                           shift: int = 0, current_distance: float = 0, annotation: list = None) -> list | dict:
         """
         This is recursive function, meaning that it calls itself. The function requires
         variables to keep track of where a branch of the recursive search is. These have
@@ -1446,14 +1446,15 @@ class MSINetwerk:
             In case multiple are found, their dictionaries are placed in a list. This
             should be handled outside the function.
         """
+        if annotation is None:
+            annotation = []
+
         current_section = self.roadmodel.sections[current_section_id]
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
         current_distance += current_section["Pos_eigs"]["Geometrie"].length
         print(f"Current depth: {current_distance}")
-
-        annotation = annotation_prev + self.get_annotation(current_section)
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
@@ -1470,6 +1471,9 @@ class MSINetwerk:
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
             return {None: (shift, annotation)}
+
+        # Annotation should be updated before recursion, but after the base cases.
+        annotation = annotation + self.get_annotation(current_section)
 
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
