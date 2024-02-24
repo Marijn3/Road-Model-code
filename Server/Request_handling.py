@@ -117,7 +117,7 @@ def main(request):
 
     write_json_file(constraints_list_file, constraints_list)
 
-    print(json.dumps(create_rsu_based_result(model, msi_data)))
+    print("MSI images:", json.dumps(create_rsu_based_result(model, msi_data)))
 
     svg, msi_data = postprocess(data_set, model, msi_data)
 
@@ -190,7 +190,7 @@ def request_light(request):
 
 
 def create_rsu_based_result(model, msi_data):
-    # TODO: Als het goed is, komen hier de beelden uit.
+    # TODO: Als het goed is, komen hier de beelden uit. Die kan je gebruiken om aan eigen svg te linken.
     out_legends = {}
     for (key, value) in msi_data.items():
         msi = int(key[-2]) - 1
