@@ -392,9 +392,7 @@ class WegModel:
                 "Km_bereik": [],
                 "Geometrie": None
             },
-            "Obj_eigs": {
-                "Maximumsnelheid": None
-            },
+            "Obj_eigs": {},
             "Verw_eigs": {}
         }
 
@@ -492,6 +490,9 @@ class WegModel:
         while True:
 
             if not get_overlap(new_section_geom, other_section_geom):
+                if not overlap_sections:
+                    break
+
                 overlap_section = overlap_sections.pop(0)
 
                 other_section_index = overlap_section["Index"]
@@ -1279,7 +1280,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         option is returned, based on the directional order of geom1.
     """
     assert not equals_exact(geom1, geom2, tolerance=GRID_SIZE), f"Geometriën zijn exact aan elkaar gelijk: {geom1}"
-    diff = difference(geom1, geom2, grid_size=GRID_SIZE)
+    diff = difference(geom1, geom2, grid_size=10*GRID_SIZE)
 
     if isinstance(diff, LineString) and not diff.is_empty:
         return diff
