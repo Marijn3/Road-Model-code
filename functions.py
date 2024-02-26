@@ -1278,6 +1278,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         provided sections. If there are two options, the first remainder
         option is returned, based on the directional order of geom1.
     """
+    assert not equals_exact(geom1, geom2, tolerance=GRID_SIZE), f"Geometriën zijn exact aan elkaar gelijk: {geom1}"
     diff = difference(geom1, geom2, grid_size=GRID_SIZE)
 
     if isinstance(diff, LineString) and not diff.is_empty:
@@ -1289,7 +1290,8 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         # Return the first geometry (directional order of geom1 is maintained)
         return diffs[0]
     else:
-        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie tussen {geom1} en {geom2}:\n{diff}")
+        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+                        f"{geom1} en \n{geom2}:\n")
 
 
 class MSIRow:
