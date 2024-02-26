@@ -870,7 +870,6 @@ class WegModel:
             if get_overlap(new_section["Pos_eigs"]["Geometrie"], base["Pos_eigs"]["Geometrie"]):
                 overlapping_base.append({"Index": base_index, "Section_info": base})
 
-        # if overlapping_base:
         #     # For the rest of the implementation, sorting in driving direction is assumed.
         #     # Thus, sections on the left side should be ordered from high to low ranges.
         #     travel_direction = overlapping_sections[0]["Section_info"]["Rijrichting"]
@@ -879,7 +878,9 @@ class WegModel:
         #                                   key=lambda x: max(x["Section_info"]["Km_bereik"]),
         #                                   reverse=should_reverse)
         # Return just one of them (works fine for now. TODO: make better?)
-        return overlapping_base[0]
+        if overlapping_base:
+            return overlapping_base[0]
+        return None
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
@@ -1026,6 +1027,8 @@ class WegModel:
                                  section_info["Pos_eigs"]["Km_bereik"][0] == section["Pos_eigs"]["Km_bereik"][1]]
             if len(connected) > 1:
                 raise AssertionError("Meer dan één sectie lijkt kandidaat voor de hoofdbaan.")
+            if len(connected) == 0:
+                return None, None
             return connected[0], None
 
         # If one of the other sections is puntstuk, act accordingly.
@@ -1286,7 +1289,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         # Return the first geometry (directional order of geom1 is maintained)
         return diffs[0]
     else:
-        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie: {diff}")
+        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie tussen {geom1} en {geom2}:\n{diff}")
 
 
 class MSIRow:
@@ -1454,7 +1457,7 @@ class MSINetwerk:
                 original road section so far.
             current_distance (float): Distance travelled through model so far. This is
                 used to cut off search after passing a threshold.
-            annotation_prev (list): Annotation so far.
+            annotation (list): Annotation so far.
         Returns:
             (List of) dictionaries, structured as: {MSIRow object: (shift, annotation)}.
             In case only one MSI row is found, the dictionary is returned directly.
@@ -1463,6 +1466,9 @@ class MSINetwerk:
         """
         if annotation is None:
             annotation = []
+
+        if current_section_id is None:
+            return {None: (shift, annotation)}
 
         current_section = self.roadmodel.sections[current_section_id]
         other_points_on_section, msis_on_section = (
@@ -1540,7 +1546,8 @@ class MSINetwerk:
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]["Obj_eigs"])
                     shift = shift + n_lanes_other
 
-            annotation = annotation + self.get_annotation(current_section, next_section_id)
+            if next_section_id:
+                annotation = annotation + self.get_annotation(current_section, next_section_id)
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
