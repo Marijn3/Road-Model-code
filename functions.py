@@ -32,7 +32,7 @@ class DataFrameLader:
         "data/Maximum snelheid/max_snelheden.dbf",
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn-edit.dbf",
     ]
 
     def __init__(self, location: str = None) -> None:
@@ -1472,9 +1472,6 @@ class MSINetwerk:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
             return {None: (shift, annotation)}
 
-        # TODO: Annotation should be updated when the new section is known.
-        annotation = annotation + self.get_annotation(current_section)
-
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
             print(f"No other points on {current_section_id}.")
@@ -1496,7 +1493,9 @@ class MSINetwerk:
                 return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section.
-                print(f"Looking for MSI row in the next section, {connecting_section_ids[0]}")
+                next_section_id = connecting_section_ids[0]
+                print(f"Looking for MSI row in the next section, {next_section_id}")
+                annotation = annotation + self.get_annotation(current_section, next_section_id)
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
@@ -1526,6 +1525,8 @@ class MSINetwerk:
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]["Obj_eigs"])
                     shift = shift + n_lanes_other
 
+            annotation = annotation + self.get_annotation(current_section, next_section_id)
+
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
 
@@ -1533,24 +1534,29 @@ class MSINetwerk:
                                            shift, current_distance, annotation)
 
         if upstream_split:
-            section_continuation = current_section["Verw_eigs"]["Sectie_stroomopwaarts"]
-            section_diversion = current_section["Verw_eigs"]["Sectie_afbuigend_stroomopwaarts"]
-            print(f"The *vergence point is an upstream split into {section_continuation} and {section_diversion}")
+            cont_section_id = current_section["Verw_eigs"]["Sectie_stroomopwaarts"]
+            div_section_id = current_section["Verw_eigs"]["Sectie_afbuigend_stroomopwaarts"]
+            print(f"The *vergence point is an upstream split into {cont_section_id} and {div_section_id}")
         else:
-            section_continuation = current_section["Verw_eigs"]["Sectie_stroomafwaarts"]
-            section_diversion = current_section["Verw_eigs"]["Sectie_afbuigend_stroomafwaarts"]
-            print(f"The *vergence point is a downstream split into {section_continuation} and {section_diversion}")
+            cont_section_id = current_section["Verw_eigs"]["Sectie_stroomafwaarts"]
+            div_section_id = current_section["Verw_eigs"]["Sectie_afbuigend_stroomafwaarts"]
+            print(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
 
-        shift_div, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[section_continuation]["Obj_eigs"])
+        shift_div, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[cont_section_id]["Obj_eigs"])
 
         # Store negative value in this direction.
-        print(f"Marking {section_diversion} with -{shift_div}")
+        print(f"Marking {div_section_id} with -{shift_div}")
+
+        annotation_cont = annotation + self.get_annotation(current_section, cont_section_id)
+        annotation_div = annotation + self.get_annotation(current_section, div_section_id)
 
         # Make it do the recursive function twice. Then return both options as a list.
-        option_continuation = self.find_msi_recursive(section_continuation, other_point["Pos_eigs"]["Km"], downstream, travel_direction,
-                                                      shift, current_distance, annotation)
-        option_diversion = self.find_msi_recursive(section_diversion, other_point["Pos_eigs"]["Km"], downstream, travel_direction,
-                                                   shift - shift_div, current_distance, annotation)
+        option_continuation = self.find_msi_recursive(cont_section_id, other_point["Pos_eigs"]["Km"],
+                                                      downstream, travel_direction,
+                                                      shift, current_distance, annotation_cont)
+        option_diversion = self.find_msi_recursive(div_section_id, other_point["Pos_eigs"]["Km"],
+                                                   downstream, travel_direction,
+                                                   shift - shift_div, current_distance, annotation_div)
         return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
@@ -1568,12 +1574,24 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    @staticmethod
-    def get_annotation(current_section: dict) -> list:
+    def get_annotation(self, current_section: dict, next_section_id: int) -> list:
+        next_section = self.roadmodel.sections[next_section_id]
+
+        # Assumes that neither of these situations happens in the same section transition.
+
         for key, value in current_section["Obj_eigs"].items():
-            if value in ["Invoegstrook", "Uitrijstrook"] or key in ["Special"]:
-                print(f"Encountered a special section: {key}, {value}.")
+            if value == "Invoegstrook" and "Invoegstrook" not in next_section["Obj_eigs"].values():
+                print(f"Encountered end of entry lane: {key}, {value}.")
                 return [(key, value)]
+            if key == "Special":  # and current_section["Obj_eigs"]["Special"] not in next_section["Obj_eigs"].values():
+                print(f"Encountered special: {key}, {value}.")
+                return [(key, value)]
+
+        for key, value in next_section["Obj_eigs"].items():
+            if value == "Uitrijstrook" and "Uitrijstrook" not in current_section["Obj_eigs"].values():
+                print(f"Encountered start of exit lane: {key}, {value}.")
+                return [(key, value)]
+
         return []
 
     def get_msi_row_at(self, km: float, hectoletter: str) -> MSIRow | None:
