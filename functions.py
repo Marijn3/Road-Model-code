@@ -123,7 +123,12 @@ class DataFrameLader:
             line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
 
             common_points = [point for point in line1_points if point in line2_points]
-            assert len(common_points) == 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
+            if len(common_points) == 0:
+                print(f"[WAARSCHUWING:] MultiLineString zonder gemeen punt wordt overgeslagen: {line1} en {line2}")
+                return geom
+
+            assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
+
             common_point = common_points[0]
             index_line1 = line1_points.index(common_point)
             index_line2 = line2_points.index(common_point)
@@ -147,9 +152,19 @@ class DataFrameLader:
         Args:
             name (str): The name of the GeoDataFrame.
         """
-        # Ensure all MultiLineStrings are converted to LineStrings.
+        s1 = len(self.data[name])
+        # Try to convert any MultiLineStrings to LineStrings.
         self.data[name]["geometry"] = self.data[name]["geometry"].apply(lambda geom: self.convert_to_linestring(geom)
                                                                         if isinstance(geom, MultiLineString) else geom)
+
+        # Filter all entries where the geometry column still contains a MultiLineString
+        is_linestring_or_point = self.data[name]["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))
+        self.data[name] = self.data[name][is_linestring_or_point]
+
+        s2 = len(self.data[name])
+
+        if s1 - s2 > 0:
+            print(f"[LOG:] Aantal registraties verwijderd: {s1 - s2}")
 
         # These column variable types should be changed.
         self.data[name]["WEGNUMMER"] = pd.to_numeric(self.data[name]["WEGNUMMER"], errors="coerce").astype("Int64")
