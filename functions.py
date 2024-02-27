@@ -123,7 +123,12 @@ class DataFrameLader:
             line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
 
             common_points = [point for point in line1_points if point in line2_points]
-            assert len(common_points) == 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
+            if len(common_points) == 0:
+                print(f"[WAARSCHUWING:] MultiLineString zonder gemeen punt wordt overgeslagen: {line1} en {line2}")
+                return geom
+
+            assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
+
             common_point = common_points[0]
             index_line1 = line1_points.index(common_point)
             index_line2 = line2_points.index(common_point)
@@ -147,9 +152,19 @@ class DataFrameLader:
         Args:
             name (str): The name of the GeoDataFrame.
         """
-        # Ensure all MultiLineStrings are converted to LineStrings.
+        s1 = len(self.data[name])
+        # Try to convert any MultiLineStrings to LineStrings.
         self.data[name]["geometry"] = self.data[name]["geometry"].apply(lambda geom: self.convert_to_linestring(geom)
                                                                         if isinstance(geom, MultiLineString) else geom)
+
+        # Filter all entries where the geometry column still contains a MultiLineString
+        is_linestring_or_point = self.data[name]["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))
+        self.data[name] = self.data[name][is_linestring_or_point]
+
+        s2 = len(self.data[name])
+
+        if s1 - s2 > 0:
+            print(f"[LOG:] Aantal registraties verwijderd: {s1 - s2}")
 
         # These column variable types should be changed.
         self.data[name]["WEGNUMMER"] = pd.to_numeric(self.data[name]["WEGNUMMER"], errors="coerce").astype("Int64")
@@ -377,9 +392,7 @@ class WegModel:
                 "Km_bereik": [],
                 "Geometrie": None
             },
-            "Obj_eigs": {
-                "Maximumsnelheid": None
-            },
+            "Obj_eigs": {},
             "Verw_eigs": {}
         }
 
@@ -477,6 +490,9 @@ class WegModel:
         while True:
 
             if not get_overlap(new_section_geom, other_section_geom):
+                if not overlap_sections:
+                    break
+
                 overlap_section = overlap_sections.pop(0)
 
                 other_section_index = overlap_section["Index"]
@@ -855,7 +871,6 @@ class WegModel:
             if get_overlap(new_section["Pos_eigs"]["Geometrie"], base["Pos_eigs"]["Geometrie"]):
                 overlapping_base.append({"Index": base_index, "Section_info": base})
 
-        # if overlapping_base:
         #     # For the rest of the implementation, sorting in driving direction is assumed.
         #     # Thus, sections on the left side should be ordered from high to low ranges.
         #     travel_direction = overlapping_sections[0]["Section_info"]["Rijrichting"]
@@ -864,7 +879,9 @@ class WegModel:
         #                                   key=lambda x: max(x["Section_info"]["Km_bereik"]),
         #                                   reverse=should_reverse)
         # Return just one of them (works fine for now. TODO: make better?)
-        return overlapping_base[0]
+        if overlapping_base:
+            return overlapping_base[0]
+        return None
 
     def __get_overlapping_sections(self, section_a: dict) -> list[dict]:
         """
@@ -1011,6 +1028,8 @@ class WegModel:
                                  section_info["Pos_eigs"]["Km_bereik"][0] == section["Pos_eigs"]["Km_bereik"][1]]
             if len(connected) > 1:
                 raise AssertionError("Meer dan één sectie lijkt kandidaat voor de hoofdbaan.")
+            if len(connected) == 0:
+                return None, None
             return connected[0], None
 
         # If one of the other sections is puntstuk, act accordingly.
@@ -1260,7 +1279,8 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         provided sections. If there are two options, the first remainder
         option is returned, based on the directional order of geom1.
     """
-    diff = difference(geom1, geom2, grid_size=GRID_SIZE)
+    assert not equals_exact(geom1, geom2, tolerance=GRID_SIZE), f"Geometriën zijn exact aan elkaar gelijk: {geom1}"
+    diff = difference(geom1, geom2, grid_size=10*GRID_SIZE)
 
     if isinstance(diff, LineString) and not diff.is_empty:
         return diff
@@ -1271,7 +1291,8 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
         # Return the first geometry (directional order of geom1 is maintained)
         return diffs[0]
     else:
-        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie: {diff}")
+        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+                        f"{geom1} en \n{geom2}:\n")
 
 
 class MSIRow:
@@ -1439,7 +1460,7 @@ class MSINetwerk:
                 original road section so far.
             current_distance (float): Distance travelled through model so far. This is
                 used to cut off search after passing a threshold.
-            annotation_prev (list): Annotation so far.
+            annotation (list): Annotation so far.
         Returns:
             (List of) dictionaries, structured as: {MSIRow object: (shift, annotation)}.
             In case only one MSI row is found, the dictionary is returned directly.
@@ -1448,6 +1469,9 @@ class MSINetwerk:
         """
         if annotation is None:
             annotation = []
+
+        if current_section_id is None:
+            return {None: (shift, annotation)}
 
         current_section = self.roadmodel.sections[current_section_id]
         other_points_on_section, msis_on_section = (
@@ -1525,7 +1549,8 @@ class MSINetwerk:
                     n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]["Obj_eigs"])
                     shift = shift + n_lanes_other
 
-            annotation = annotation + self.get_annotation(current_section, next_section_id)
+            if next_section_id:
+                annotation = annotation + self.get_annotation(current_section, next_section_id)
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
