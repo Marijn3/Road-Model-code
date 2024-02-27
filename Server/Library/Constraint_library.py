@@ -679,13 +679,14 @@ def add_legend_request_constraint(model, msi, legend, name):
 
 
 def add_v_vrij50_constraints(model, request_name, value, constraints_list):
-    for msi in value:
-        c = MsiVariables(msi, model)
-        rsu = msi.split('[')[1].split(',')[0]
-        VVrij_constr = model.getConstrByName(f"VVrij_ROW_[{rsu}]_no_request")
-        model.remove(VVrij_constr)
-        model.addConstr(c.vvrij_opa == 1, name=f"{request_name}_{msi}_v_vrij")
-        constraints_list.append(f"{request_name}_{msi}_v_vrij")
+    for msi_name in value:
+        c = MsiVariables(msi_name, model)
+        road, km, msi_nr = msi_name.split(":")
+        msi_row = f"{road}:{km}"
+        v_vrij_constr = model.getConstrByName(f"VVrij_ROW_[{msi_row}]_no_request")
+        model.remove(v_vrij_constr)
+        model.addConstr(c.vvrij_opa == 1, name=f"{request_name}_{msi_name}_v_vrij")
+        constraints_list.append(f"{request_name}_{msi_name}_v_vrij")
 
 
 def add_dyn_v_constraints(model, request_name, value, constraints_list, json_file):

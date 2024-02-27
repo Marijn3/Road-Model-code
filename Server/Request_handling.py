@@ -68,10 +68,11 @@ def main(request):
                 aid_var = model.getVarByName(f"aid_trafficstream[{T}]")
                 model.addConstr(aid_var == 0, name=f"AID_TS_[{T}]_no_request")
             if all(word in i for word in ['v_vrij']):
-                RSU = i.split('[')[1].split(',')[0]
-                vvrij_var = model.getVarByName(f"vvrij_opa[{RSU}]")
-                if model.getConstrByName(f"VVrij_ROW_[{RSU}]_no_request") is None:
-                    model.addConstr(vvrij_var == 0, name=f"VVrij_ROW_[{RSU}]_no_request")
+                road, km, msi_nr = i.split(":")
+                msi_row = f"{road}:{km}"
+                vvrij_var = model.getVarByName(f"vvrij_opa[{msi_row}]")
+                if model.getConstrByName(f"VVrij_ROW_[{msi_row}]_no_request") is None:
+                    model.addConstr(vvrij_var == 0, name=f"VVrij_ROW_[{msi_row}]_no_request")
                     model.update()
             if '_o[' in i:
                 MSI = i.split('[')[1].split(']')[0]

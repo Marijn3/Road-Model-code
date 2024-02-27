@@ -118,15 +118,18 @@ def initRSUData(RSU, rsu_data, road_layout):
     u_list = set()
     for MSI in road_layout[RSU]["MSI"]:
         d = road_layout[RSU]["MSI"][MSI]["Downstream"]["Primary"]
-        if d: d_list.add(d.split(",")[0].replace("[",""))
+        if d:
+            d_list.add(d)
         u = road_layout[RSU]["MSI"][MSI]["Upstream"]["Primary"]
-        if u: u_list.add(u.split(",")[0].replace("[",""))
+        if u:
+            u_list.add(u)
 
     rsu_data[f"{RSU}"] = {
-        "rsu_d" : list(d_list),
-        "rsu_u" : list(u_list),
+        "rsu_d": list(d_list),
+        "rsu_u": list(u_list),
     }
     return rsu_data
+
 
 def initTSData(msi_data):
     ts_data = {}
@@ -171,9 +174,6 @@ def initTSData(msi_data):
             }
 
     return ts_data
-
-
-
 
 
 def initMSIData(RSU, MSI, model, road_layout):
