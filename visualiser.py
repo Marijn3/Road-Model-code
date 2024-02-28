@@ -352,8 +352,9 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
     for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
         msi_name = make_name(point_data, nr)
         displacement = LANE_WIDTH * (nr - 1) - point_data["Verw_eigs"]["Aantal_hoofdstroken"] * LANE_WIDTH / 2
+        box_pos = (coords[0] + displacement + play, coords[1] - box_size / 2)
         square = svgwrite.shapes.Rect(id=msi_name,
-                                      insert=(coords[0] + displacement + play, coords[1] - box_size / 2),
+                                      insert=box_pos,
                                       size=(box_size, box_size),
                                       fill="#1e1b17", stroke="black", stroke_width=0.3,
                                       onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
@@ -361,12 +362,31 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
+        box_center = (coords[0] + displacement + play + box_size / 2, coords[1])
+
+        redring = svgwrite.shapes.Circle(
+            id='redring',
+            center=box_center,
+            r=box_size * 0.45,
+            fill="none", stroke="#990000", stroke_width=0.2)
+        group_msi_row.add(redring)
+
+        cross1 = svgwrite.shapes.Rect(
+            id='cross',
+            insert=box_pos,
+            size=(box_size, box_size*0.1),
+            transform=f"translate({box_size*0.16}, {-box_size*0.05+0.3*0.5})",
+            fill="#990000", stroke="none")
+        # cross1.rotate(45, center=box_pos)
+        group_msi_row.add(cross1)
+
+
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
                               fill="white", font_family="Arial", font_size=3)
 
     group_msi_row.add(text)
-    group_msi_row.rotate(rotate_angle, center=coords)
+    # group_msi_row.rotate(rotate_angle, center=coords)
     svg_dwg.add(group_msi_row)
 
 
@@ -442,7 +462,7 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="Server/Data/road_visualization.svg", size=(1000, 1000 * RATIO))
+dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO))
 
 # Background
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
@@ -458,9 +478,23 @@ points = wegmodel.get_points_info()
 for point in points:
     svg_add_point(point, dwg)
 
+# MSI images
+# for element_id in element_by_id.keys():
+#     element, rotation, origin = element_by_id.get(element_id)
+#     pos = get_center_coords(element, rotation, origin)
+#     dwg.add(svgwrite.shapes.Rect(insert=(0, 0), size=(2, 2),
+#                                  transform=f"rotate({rotation}), translate{pos}",
+#                                  fill="#660000"))
+
+    # for row in netwerk.MSIrows:
+    #     for msi in row.MSIs.values():
+    #         if msi.name == element_id:
+                # if msi.properties["State"]:
+
+
 # MSI relations
-print("MSI-relaties visualiseren...")
-draw_msi_relations(dwg)
+# print("MSI-relaties visualiseren...")
+# draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
