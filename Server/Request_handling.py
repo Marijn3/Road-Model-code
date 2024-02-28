@@ -117,9 +117,11 @@ def main(request):
 
     write_json_file(constraints_list_file, constraints_list)
 
-    print("MSI images:", json.dumps(create_rsu_based_result(model, msi_data)))
+    print("MSI images by RSU:", json.dumps(create_rsu_based_result(model, msi_data)))
 
     svg, msi_data = postprocess(data_set, model, msi_data)
+
+    print("By MSI name:", {key: value['State'] for key, value in msi_data.items() if value['State'][0] != 'Blank'})
 
     end_time = time.time()
 

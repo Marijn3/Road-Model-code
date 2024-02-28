@@ -57,7 +57,7 @@ def transform_name(name: str) -> list | str | None:
         return [transform_name(n) for n in name]
 
     road, km, msi_nr = name.split(":")
-    return f"[ROW_{road[:-1]}_{road[-1]}_{km},{msi_nr}]"
+    return f"[RSU_{road[:-1]}_{road[-1]}_{km},{msi_nr}]"
 
 
 def transform_row_name(name: str) -> list | str | None:
@@ -69,7 +69,7 @@ def transform_row_name(name: str) -> list | str | None:
         Name in the form used by JvM.
     """
     road, km = name.split(":")
-    return f"ROW_{road[:-1]}_{road[-1]}_{km}"
+    return f"RSU_{road[:-1]}_{road[-1]}_{km}"
 
 
 def make_ILP_input(network: MSINetwerk) -> dict:
