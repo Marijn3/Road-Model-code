@@ -371,6 +371,12 @@ def createSVG_test(model, json_data):
     return svg, json_data
 
 
+def createSVG_roadmodel(model, json_data):
+    with open("../Data/WEGGEG/road_visualization.svg", "r") as file:
+        svg = file.read()
+    return svg, json_data
+
+
 def createSVG_A16_A58(model, json_data):
     results, json_data = getMyVars(model, json_data)
 
