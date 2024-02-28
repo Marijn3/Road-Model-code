@@ -367,44 +367,39 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         box_center = (coords[0] + displacement + play + box_size / 2, coords[1])
         clearance = box_size*0.2
 
+        group_red_ring = svgwrite.container.Group(id="red-ring")
         redring = svgwrite.shapes.Circle(
-            id='redring',
             center=box_center,
             r=box_size * 0.45,
             fill="none", stroke="#990000", stroke_width=0.2)
+        group_red_ring.add(redring)
 
-        group_red_cross = svgwrite.container.Group()
+        group_red_cross = svgwrite.container.Group(id="red-cross")
         cross1 = svgwrite.shapes.Line(
-            id='cross1',
             start=(box_pos[0] + clearance, box_pos[1] + clearance),
             end=(box_pos[0] + box_size - clearance, box_pos[1] + box_size - clearance),
             stroke="#990000", stroke_width=0.2)
         group_red_cross.add(cross1)
         cross2 = svgwrite.shapes.Line(
-            id='cross2',
             start=(box_pos[0] + box_size - clearance, box_pos[1] + clearance),
             end=(box_pos[0] + clearance, box_pos[1] + box_size - clearance),
             stroke="#990000", stroke_width=0.2)
         group_red_cross.add(cross2)
 
-        group_eor = svgwrite.container.Group()
+        group_eor = svgwrite.container.Group(id="end-of-restrictions")
         ring = svgwrite.shapes.Circle(
-            id='ring',
             center=box_center,
             r=box_size * 0.45,
             fill="none", stroke="#FFFFFF", stroke_width=0.2)
         sideline1 = svgwrite.shapes.Line(
-            id='line',
             start=(box_pos[0] + box_size - clearance - 0.3, box_pos[1] + clearance - 0.3),
             end=(box_pos[0] + clearance - 0.3, box_pos[1] + box_size - clearance - 0.3),
             stroke="#FFFFFF", stroke_width=0.2)
         sideline2 = svgwrite.shapes.Line(
-            id='line',
             start=(box_pos[0] + box_size - clearance, box_pos[1] + clearance),
             end=(box_pos[0] + clearance, box_pos[1] + box_size - clearance),
             stroke="#FFFFFF", stroke_width=0.2)
         sideline3 = svgwrite.shapes.Line(
-            id='line',
             start=(box_pos[0] + box_size - clearance + 0.3, box_pos[1] + clearance + 0.3),
             end=(box_pos[0] + clearance + 0.3, box_pos[1] + box_size - clearance + 0.3),
             stroke="#FFFFFF", stroke_width=0.2)
@@ -413,7 +408,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         group_eor.add(sideline2)
         group_eor.add(sideline3)
 
-        group_msi_row.add(redring)
+        group_msi_row.add(group_red_ring)
         group_msi_row.add(group_red_cross)
         group_msi_row.add(group_eor)
 
@@ -514,19 +509,12 @@ points = wegmodel.get_points_info()
 for point in points:
     svg_add_point(point, dwg)
 
-# MSI images
-# for element_id in element_by_id.keys():
-#     element, rotation, origin = element_by_id.get(element_id)
-#     pos = get_center_coords(element, rotation, origin)
-#     dwg.add(svgwrite.shapes.Rect(insert=(0, 0), size=(2, 2),
-#                                  transform=f"rotate({rotation}), translate{pos}",
-#                                  fill="#660000"))
-
-    # for row in netwerk.MSIrows:
-    #     for msi in row.MSIs.values():
-    #         if msi.name == element_id:
-                # if msi.properties["State"]:
-
+# Make images transparent/appear
+for element in dwg.elements:
+    print(element)
+    if "id" in element.keys():
+        if element["id"] == "end-of-restrictions":
+            element["opacity"] = 0.1
 
 # MSI relations
 # print("MSI-relaties visualiseren...")
