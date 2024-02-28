@@ -83,10 +83,15 @@ def make_ILP_input(network: MSINetwerk) -> dict:
             road_dict[row_name]["MSI"][msi.lane_number] = deepcopy(msi_dict)
             road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Primary"] = transform_name(msi.properties["d"])
             road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Secondary"] = transform_name(msi.properties["ds"])
+            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Taper"] = transform_name(msi.properties["dt"])
+            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Broadening"] = transform_name(msi.properties["db"])
+            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Narrowing"] = transform_name(msi.properties["dn"])
 
             road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Primary"] = transform_name(msi.properties["u"])
             road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Secondary"] = transform_name(msi.properties["us"])
-            # More to be added as MSI data expands.
+            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Taper"] = transform_name(msi.properties["ut"])
+            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Broadening"] = transform_name(msi.properties["ub"])
+            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Narrowing"] = transform_name(msi.properties["un"])
             
             road_dict[row_name]["MSI"][msi.lane_number]["Rush_hour_lane"] = msi.properties["RHL"]
             road_dict[row_name]["MSI"][msi.lane_number]["Exit-Entry"] = msi.properties["Exit_Entry"]
