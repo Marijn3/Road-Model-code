@@ -11,4 +11,4 @@ MSIs = MSINetwerk(wegmodel)
 
 # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs)
-generate_file(ilp_input, "output_data.json")
+generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")

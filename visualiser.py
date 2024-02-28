@@ -442,7 +442,7 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="roadvis.svg", size=(1000, 1000 * RATIO))
+dwg = svgwrite.Drawing(filename="Server/Data/road_visualization.svg", size=(1000, 1000 * RATIO))
 
 # Background
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
