@@ -353,40 +353,76 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         msi_name = make_name(point_data, nr)
         displacement = LANE_WIDTH * (nr - 1) - point_data["Verw_eigs"]["Aantal_hoofdstroken"] * LANE_WIDTH / 2
         box_pos = (coords[0] + displacement + play, coords[1] - box_size / 2)
+        stroke = 0.3
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=box_pos,
                                       size=(box_size, box_size),
-                                      fill="#1e1b17", stroke="black", stroke_width=0.3,
+                                      fill="#1e1b17", stroke="black", stroke_width=stroke,
                                       onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                                       onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
+        # Extra elements
         box_center = (coords[0] + displacement + play + box_size / 2, coords[1])
+        clearance = box_size*0.2
 
         redring = svgwrite.shapes.Circle(
             id='redring',
             center=box_center,
             r=box_size * 0.45,
             fill="none", stroke="#990000", stroke_width=0.2)
+
+        group_red_cross = svgwrite.container.Group()
+        cross1 = svgwrite.shapes.Line(
+            id='cross1',
+            start=(box_pos[0] + clearance, box_pos[1] + clearance),
+            end=(box_pos[0] + box_size - clearance, box_pos[1] + box_size - clearance),
+            stroke="#990000", stroke_width=0.2)
+        group_red_cross.add(cross1)
+        cross2 = svgwrite.shapes.Line(
+            id='cross2',
+            start=(box_pos[0] + box_size - clearance, box_pos[1] + clearance),
+            end=(box_pos[0] + clearance, box_pos[1] + box_size - clearance),
+            stroke="#990000", stroke_width=0.2)
+        group_red_cross.add(cross2)
+
+        group_eor = svgwrite.container.Group()
+        ring = svgwrite.shapes.Circle(
+            id='ring',
+            center=box_center,
+            r=box_size * 0.45,
+            fill="none", stroke="#FFFFFF", stroke_width=0.2)
+        sideline1 = svgwrite.shapes.Line(
+            id='line',
+            start=(box_pos[0] + box_size - clearance - 0.3, box_pos[1] + clearance - 0.3),
+            end=(box_pos[0] + clearance - 0.3, box_pos[1] + box_size - clearance - 0.3),
+            stroke="#FFFFFF", stroke_width=0.2)
+        sideline2 = svgwrite.shapes.Line(
+            id='line',
+            start=(box_pos[0] + box_size - clearance, box_pos[1] + clearance),
+            end=(box_pos[0] + clearance, box_pos[1] + box_size - clearance),
+            stroke="#FFFFFF", stroke_width=0.2)
+        sideline3 = svgwrite.shapes.Line(
+            id='line',
+            start=(box_pos[0] + box_size - clearance + 0.3, box_pos[1] + clearance + 0.3),
+            end=(box_pos[0] + clearance + 0.3, box_pos[1] + box_size - clearance + 0.3),
+            stroke="#FFFFFF", stroke_width=0.2)
+        group_eor.add(ring)
+        group_eor.add(sideline1)
+        group_eor.add(sideline2)
+        group_eor.add(sideline3)
+
         group_msi_row.add(redring)
-
-        cross1 = svgwrite.shapes.Rect(
-            id='cross',
-            insert=box_pos,
-            size=(box_size, box_size*0.1),
-            transform=f"translate({box_size*0.16}, {-box_size*0.05+0.3*0.5})",
-            fill="#990000", stroke="none")
-        # cross1.rotate(45, center=box_pos)
-        group_msi_row.add(cross1)
-
+        group_msi_row.add(group_red_cross)
+        group_msi_row.add(group_eor)
 
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
                               insert=(coords[0] + VISUAL_PLAY + info_offset, coords[1] + 1.1),
                               fill="white", font_family="Arial", font_size=3)
 
     group_msi_row.add(text)
-    # group_msi_row.rotate(rotate_angle, center=coords)
+    group_msi_row.rotate(rotate_angle, center=coords)
     svg_dwg.add(group_msi_row)
 
 
