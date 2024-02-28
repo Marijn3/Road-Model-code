@@ -375,6 +375,8 @@ def createSVG_roadmodel(model, json_data):
     results, json_data = getMyVars(model, json_data)
     with open("Server/Data/WEGGEG/road_visualization.svg", "r") as file:
         svg = file.read()
+    # TODO: Adjust svg based on json_data info!
+    print("By MSI name:", {key: value['State'] for key, value in json_data.items() if value['State'][0] != 'Blank'})
     return svg, json_data
 
 

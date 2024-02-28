@@ -49,6 +49,8 @@ def transform_name(name: str) -> list | str | None:
         name (str): MTM form of name.
     Returns:
         Name in the form used by JvM.
+    Example:
+        transform_name("A2R:119.204:2") = RSU_A2_R_119.204,2
     """
     if name is None:
         return None

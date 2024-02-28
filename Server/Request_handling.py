@@ -121,7 +121,7 @@ def main(request):
 
     svg, msi_data = postprocess(data_set, model, msi_data)
 
-    print("By MSI name:", {key: value['State'] for key, value in msi_data.items() if value['State'][0] != 'Blank'})
+    # print("By MSI name:", {key: value['State'] for key, value in msi_data.items() if value['State'][0] != 'Blank'})
 
     end_time = time.time()
 
