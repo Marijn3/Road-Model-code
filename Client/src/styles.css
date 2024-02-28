@@ -1,0 +1,376 @@
+#svg5 {
+  width: 100%;
+  height: 100%;
+  border:1px solid black;
+}
+
+#svg_div {
+  /* background-color: #006600; */
+  margin-top: 28px;
+  height: 800px
+}
+
+h1 {
+  font-size: 16px;
+}
+
+body {  
+  min-width: 1500px;
+  min-height: 900px;
+  font-family: Arial, Helvetica, sans-serif; 
+}
+
+#info-view {
+  vertical-align: top;
+  display: inline-block;
+  width: 600px;
+  height: 850px;
+  /* border: 1px solid green; */
+}
+
+#map-view{
+  display: inline-block;
+  width: 65%;
+  height: 850px;
+  /* border: 1px solid red; */
+}
+
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+}
+
+.tab button:hover {
+  background-color: #ddd;
+}
+
+.tab button.active {
+  background-color: #ccc;
+}
+
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  height:790px;
+  border-top: none;
+}
+
+.overflow {
+  overflow-y: scroll;
+  height: 768px;
+  border: inherit;
+}
+
+table {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid #ddd
+}
+
+thead {
+  border-bottom: 1px solid #ddd;
+  background-color: #ddd;
+}
+tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+thead {
+  font-weight: bold;
+}
+
+td[rowspan] {
+  vertical-align: top;
+  text-align: left;
+}
+
+.searchbar_dataset {
+  width: 400px
+}
+
+.searchbar_MSI {
+  width: 400px;
+}
+
+.req_list_searchbar {
+  width: 400px
+}
+
+.MSI_link{
+  background: none;
+  text-decoration: underline;
+  border: none;
+  cursor: pointer;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* button styling */
+#button_remove_request {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  margin-top: 12px;
+  padding: 0px 0px;
+  height: 46px;
+  width: 46px;
+  font-size: 44px;
+  transition: 0.3s;
+  border: 1px solid black;
+  background-color: #eee;
+}
+
+#button_remove_request:disabled{
+  opacity:50;
+  cursor:default;
+}
+#button_remove_request:hover:not(#button_remove_request:disabled){
+  background-color: #ddd;
+}
+
+#map-view button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0px 0px;
+  height: 46px;
+  width: 46px;
+  font-size: 46px;
+  transition: 0.3s;
+  border: 1px solid black;
+  background-color: #eee;
+  border-right: none;
+  border-bottom: none;
+}
+
+#map-view button:hover {
+  background-color: #ddd;
+}
+
+
+.material-icons button::after{
+  position: absolute;
+  top:0;
+  left: 0;
+  display: block;
+}
+
+/* Checkbox styling */
+
+.container {
+  display: inline-block;
+  position:relative;
+  top: -14.5px;
+  padding: 0px 20px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+}
+
+/* Hide the browser's default checkbox */
+.container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0px;
+  width: 0px;
+}
+
+/* Create a custom checkbox */
+.checkbox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 45px;
+  width: 45px;
+  border: 1px solid black;
+  
+  border-bottom: none;
+  background-color: #eee;
+}
+
+/* On mouse-over, add a grey background color */
+.container:hover input ~ .checkbox{
+  background-color: #ddd;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.show-names::after{
+  content: "visibility_off";
+  position: absolute;
+  display: block;
+}
+
+/* Show the checkmark when checked */
+.container input:checked ~ .show-names::after {
+  content: "visibility_on";
+  position: absolute;
+  display: block;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.enable-zoom::after{
+  content: "search_off";
+  position: absolute;
+  display: block;
+}
+
+/* Show the checkmark when checked */
+.container input:checked ~ .enable-zoom::after {
+  content: "search";
+  position: absolute;
+  display: block;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.enable-pan::after{
+  content: "do_not_touch";
+  position: absolute;
+  display: block;
+}
+
+/* Show the checkmark when checked */
+.container input:checked ~ .enable-pan::after {
+  content: "pan_tool";
+  position: absolute;
+  display: block;
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+.material-icons.checkbox { font-size: 44px; }
+
+#MSI_list_no_req {
+  width: fit-content;
+}
+
+.list_input{
+  height: 20px;
+  width:80%
+}
+
+.list_wrapper_1 ul {
+  /* Remove default list styling */
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  width: fit-content;
+  min-height: 50px;
+  max-height: 200px;
+  overflow-y:scroll
+}
+
+.req_add_button {
+  border: 1px solid #ddd; /* Add a border to all links */
+  margin-top: -1px; /* Prevent double borders */
+  background-color: #f6f6f6; /* Grey background color */
+  padding: 6px; /* Add some padding */
+  width:100%;
+  text-decoration: none; /* Remove default text underline */
+  color: black; /* Add a black text color */
+  display: block; /* Make it into a block element to fill the whole list */
+}
+
+.list_wrapper{
+  padding:12px;
+  display:table;
+  border: 1px solid #000;
+  margin-bottom: -1px;
+  width: 529px;
+}
+
+.list_wrapper_1{
+  display:inline-block;
+}
+.list_wrapper_2{
+  float: right;
+}
+
+.list_wrapper_2 ul
+ {
+  /* Remove default list styling */
+  list-style-type: none;
+  padding: 0;
+  margin-top: 0;
+  width: fit-content;
+  min-width: 100px;
+  min-height: 50px;
+  max-height: 200px;
+  overflow-y:scroll;
+  border: 1px solid #ddd;
+}
+
+
+
+.list_wrapper_2 li {
+  border: 1px solid #ddd; /* Add a border to all links */
+  margin-top: -1px; /* Prevent double borders */
+  background-color: #f6f6f6; /* Grey background color */
+  padding: 6px; /* Add some padding */
+  text-decoration: none; /* Remove default text underline */
+  color: black; /* Add a black text color */
+  display: block; /* Make it into a block element to fill the whole list */
+}
+
+.list_wrapper_2.extra{
+  margin-top:20px;
+}
+
+h5{
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  display: block;
+}
+
+.name_input input{
+  width: 100%;
+}
+
+#req_header {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #ccc;
+}

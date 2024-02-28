@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-file-upload/10.32.0/js/vendor/jquery.ui.widget.min.js" integrity="sha512-NeYVh/f0QNYEXfL1DUcy6eTjw4A2Xv2yvRYKu80eJrQG1cFIGg21HpMlv74C2za2aVOOvWdY7Wn75iobsZJkwg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="../node_modules/blueimp-file-upload/js/jquery.fileupload.js"></script>
+
+  </head>
+
+  <body>
+    <h1>Demo for model viewing client</h1>
+
+    <div id="map-view">
+      <button class="material-icons map_view_button" id="reset">home</button>
+      <button class="material-icons map_view_button" id="zoom-in">zoom_in</button>
+      <button class="material-icons map_view_button" id="zoom-out">zoom_out</button>
+      <label class="container">
+        <input type="checkbox" class="material-icons checkbox" id="show-names"></input>
+        <span class="material-icons checkbox show-names"></span>
+      </label>
+
+    <div id="svg_div">
+      
+    </div>
+    </div>
+
+    <div id="info-view">
+      <!-- tab links -->
+      <div class="tab">
+        <button class="tablinks" data-tabId="MSI_info">MSI info</button>
+        <button class="tablinks" data-tabId="Req_list" id="Req_list_button">Request list</button>
+        <button class="tablinks" data-tabId="Req_add" id="Req_add_button">Add request</button>
+      </div>
+
+      <!-- tab content -->
+      <div id="MSI_info" class="tabcontent overflow">
+        <select class="searchbar_MSI" id="searchbar_MSI" name="state"></select>
+        <div id="MSI_info_table" ></div>
+      </div>
+
+      <div id="Req_list" class="tabcontent overflow">
+
+        <select class="req_list_searchbar" id="req_list_searchbar" name="state"></select>
+        <div id="req_constr_table" ></div>
+        <button class="material-icons" id="button_remove_request" value="-1" disabled>delete</button>
+      </div>
+      
+      <div id="Req_add" class="tabcontent">
+
+        <div id="req_header">
+          <button type="button" id="place_req_button" onclick="handleSendRequest()">Send request</button>
+          <button type="button" id="clear_req_button" onclick="clearRequestAdditionList()">Clear request</button>
+        </div>
+
+        <div id="req_content" class="overflow">
+          <div class="list_wrapper name_input">
+            <h5>request name</h5>
+            <input type="text" id="request_name_user_input" placeholder="Enter request name.."></input>
+          </div>
+          
+          <div class="list_wrapper">
+            <h5>Legend requests</h5>
+            <div id="MSI_list_no_req" class="list_wrapper_1">
+              <input class="list_input" type="text" id="MSI_list_UL_input" onkeyup="list_UL_search('MSI_list_UL_input','MSI_list_UL')" placeholder="Search for MSI..">
+              <ul id="MSI_list_UL"></ul>
+            </div>
+            <div id="MSI_list_req" class="list_wrapper_2 extra">
+              <ul id="MSI_list_req_UL" class="req_ul "></ul>
+            </div>
+          </div>
+
+          <div class="list_wrapper">
+            <h5>Speed next to cross</h5>
+            <input id="V-Vrij_check" type="checkbox">V-Vrij 50</input>
+          </div>
+
+          
+          <div class="list_wrapper">
+            <h5>Dynamic speed limit road</h5>
+            <div id="DYNV_list_no_req" class="list_wrapper_1">
+              <input class="list_input" type="text" id="DYNV_list_UL_input" onkeyup="list_UL_search('DYNV_list_UL_input','DYNV_list_UL')" placeholder="Search for RSU..">
+              <ul id="DYNV_list_UL"></ul>
+            </div>
+            <div id="DYNV_list_req" class="list_wrapper_2">
+              <a>Max speed: </a><select name="DYNV" id="DYNV_selector">
+                <option value="100">100</option>
+                <option value="90">90</option>
+                <option value="80">80</option>
+                <option value="70">70</option>
+                <option value="50">50</option>
+              </select>
+              <ul id="DYNV_list_req_UL" class="req_ul"></ul>
+            </div>
+          </div>
+
+          <div class="list_wrapper">
+            <h5>Rush hour lanes</h5>
+            <div id="RHL_list_no_req" class="list_wrapper_1">
+              <input class="list_input" type="text" id="RHL_list_UL_input" onkeyup="list_UL_search('RHL_list_UL_input','RHL_list_UL')" placeholder="Search for RHL section..">
+              <ul id="RHL_list_UL" >
+
+              </ul>
+
+            </div>
+            <div id="RHL_list_req" class="list_wrapper_2">
+              <a>New state: </a><select name="RHL" id="RHL_selector">
+                <option value="open">open</option>
+                <option value="closing">closing</option>
+                <option value="closed">closed</option>
+              </select>
+              <ul id="RHL_list_req_UL" class="req_ul">
+
+              </ul>
+            </div>
+          </div>
+
+          <div class="list_wrapper">
+            <h5>Automatic incident detection</h5>
+            <div id="AID_list_no_req" class="list_wrapper_1">
+              <input class="list_input" type="text" id="AID_list_UL_input" onkeyup="list_UL_search('AID_list_UL_input','AID_list_UL')" placeholder="Search for TS..">
+              <ul id="AID_list_UL" >
+
+              </ul>
+
+            </div>
+            <div id="AID_list_req" class="list_wrapper_2">
+              <a>Speed: </a><select name="AID" id="AID_selector">
+                <option value="50">50</option>
+                <option value="70">70</option>
+              </select>
+              <ul id="AID_list_req_UL" class="req_ul">
+
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="../node_modules/svg-pan-zoom/dist/svg-pan-zoom.js"></script>
+    <script src="myCode.js"></script>
+  </body>
+
+</html>
