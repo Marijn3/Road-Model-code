@@ -1127,47 +1127,22 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    def get_section_info_at(self, km: float, side: str) -> list[dict]:
+    def get_section_info_at(self, km: float, side: str, hectoletter: str = "") -> dict:
         """
-        Finds the full properties of a road section at a specific km and travel_direction.
+        Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
             km (float): Kilometer point to retrieve the road section properties for.
             side (str): Side of the road to retrieve the road section properties for.
+            hectoletter (str): Letter that gives further specification for connecting roads.
         Returns:
-            list[dict]: Attributes of the road section(s) at the specified kilometer point.
+            dict: Attributes of the road section at the specified kilometer point and hectoletter.
         """
-        section_info = []
         for section in self.sections.values():
-            in_selection = (section["Pos_eigs"]["Rijrichting"] == side and
-                            min(section["Pos_eigs"]["Km_bereik"]) <= km <= max(section["Pos_eigs"]["Km_bereik"]))
-            if in_selection:
-                section_info.append(section)
-        return section_info
-
-    def print_props(self, km: float, travel_direction: str) -> dict | list[dict]:
-        """
-        Prints the properties of a road section at a specific km and travel_direction.
-        Args:
-            km (float): Kilometer point to retrieve the road section properties for.
-            travel_direction (str): Side of the road to retrieve the road section properties for.
-        Prints:
-            Road section(s) properties.
-        Returns:
-            list[dict]: Attributes of the (first) road section at the specified kilometer point.
-        """
-        section_info = self.get_section_info_at(km, travel_direction)
-        if len(section_info) > 1:
-            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km:")
-            for index, section in enumerate(section_info):
-                print(f"    {index}) {section['Obj_eigs']}")
-            print("")
-            return section_info
-        elif len(section_info) == 1:
-            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km: {section_info[0]['Obj_eigs']}\n")
-            return section_info[0]["Obj_eigs"]
-        else:
-            print(f"Geen secties gevonden met rijrichting {travel_direction} en {km} km.\n")
-            return section_info
+            if (section["Pos_eigs"]["Rijrichting"] == side and
+                    min(section["Pos_eigs"]["Km_bereik"]) <= km <= max(section["Pos_eigs"]["Km_bereik"]) and
+                    section["Pos_eigs"]["Hectoletter"] == hectoletter):
+                return section
+        return {}
 
     def get_sections_at_point(self, point: Point) -> dict[int: dict]:
         """
