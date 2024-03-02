@@ -1675,13 +1675,13 @@ class MSILegends:
 
 
 class MSI(MSILegends):
-    def __init__(self, parent_msi_row: MSIRow, lane_number: int):
+    def __init__(self, parent_msi_row: MSIRow, lane_nr: int):
         self.row = parent_msi_row
 
         # Store all that is unique to the MSI
-        self.lane_number = lane_number
+        self.lane_nr = lane_nr
         self.displayoptions = self.displayset_all
-        self.name = f"{self.row.name}:{str(lane_number)}"
+        self.name = f"{self.row.name}:{str(self.lane_nr)}"
 
         self.properties = {
             "c": None,  # Current MSI (center)
@@ -1699,8 +1699,9 @@ class MSI(MSILegends):
             "un": None,  # MSI upstream Rijstrookbeëindiging
 
             "STAT_V": None,  # Static maximum speed
-            "C_X": None,  # True if continue-X relation
+            "DYN_V": None,  # Static maximum speed
             "C_V": None,  # True if continue-V relation
+            "C_X": None,  # True if continue-X relation
 
             "N_row": None,  # [~] Number of MSIs in row.
             "N_TS": None,  # Number of MSIs in traffic stream.
@@ -1776,38 +1777,38 @@ class MSI(MSILegends):
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
-        if self.row.local_road_properties[self.lane_number] in ["Spitsstrook", "Plusstrook"]:
+        if self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]:
             self.properties["RHL"] = True  # TODO: Replace with RHL section name?? See report Jeroen 2 p67.
 
-        if (self.row.local_road_properties[self.lane_number] in ["Spitsstrook", "Plusstrook"] and
-                self.row.n_lanes > self.lane_number > 1):
+        if (self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
+                self.row.n_lanes > self.lane_nr > 1):
             self.properties["Exit_Entry"] = True
 
         if ("Spitsstrook" in self.row.local_road_properties.values() or
                 "Plusstrook" in self.row.local_road_properties.values()):
             self.properties["RHL_neighbor"] = True
 
-        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == "Vluchtstrook":
+        if self.lane_nr < self.row.n_lanes and self.row.local_road_properties[self.lane_nr + 1] == "Vluchtstrook":
             self.properties["Hard_shoulder_right"] = True
-        if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == "Vluchtstrook":
+        if self.lane_nr > 1 and self.row.local_road_properties[self.lane_nr - 1] == "Vluchtstrook":
             self.properties["Hard_shoulder_left"] = True
 
     def determine_relations(self):
         # Center and neighbors
         self.properties["c"] = self.name
-        if self.lane_number + 1 in self.row.MSIs.keys():
-            self.properties["r"] = self.row.MSIs[self.lane_number + 1].name
-        if self.lane_number - 1 in self.row.MSIs.keys():
-            self.properties["l"] = self.row.MSIs[self.lane_number - 1].name
+        if self.lane_nr + 1 in self.row.MSIs.keys():
+            self.properties["r"] = self.row.MSIs[self.lane_nr + 1].name
+        if self.lane_nr - 1 in self.row.MSIs.keys():
+            self.properties["l"] = self.row.MSIs[self.lane_nr - 1].name
 
         # Downstream relations
         for downstream_row, desc in self.row.downstream.items():
             shift, annotation = desc
 
             # Primary
-            if self.lane_number + shift in downstream_row.MSIs.keys():
-                self.properties["d"] = downstream_row.MSIs[self.lane_number + shift].name
-                downstream_row.MSIs[self.lane_number + shift].properties["u"] = self.name
+            if self.lane_nr + shift in downstream_row.MSIs.keys():
+                self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
+                downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
                 assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
@@ -1816,13 +1817,13 @@ class MSI(MSILegends):
                     lane_type, lane_nr = lane_type
                 print("Lane_info extracted:", lane_nr, lane_type)
 
-                if lane_type == "Invoegstrook" and lane_nr == self.lane_number + shift:
-                    msi_number = self.lane_number + shift - 1
+                if lane_type == "Invoegstrook" and lane_nr == self.lane_nr + shift:
+                    msi_number = self.lane_nr + shift - 1
                     if msi_number in downstream_row.MSIs.keys():
                         self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
 
-                if lane_type == "Uitrijstrook" and lane_nr == self.lane_number + shift + 1:
-                    msi_number = self.lane_number + shift + 1
+                if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + shift + 1:
+                    msi_number = self.lane_nr + shift + 1
                     if msi_number in downstream_row.MSIs.keys():
                         self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
 
@@ -1831,8 +1832,8 @@ class MSI(MSILegends):
             shift, annotation = desc
 
             # Primary
-            if self.lane_number + shift in upstream_row.MSIs.keys():
-                self.properties["u"] = upstream_row.MSIs[self.lane_number + shift].name
+            if self.lane_nr + shift in upstream_row.MSIs.keys():
+                self.properties["u"] = upstream_row.MSIs[self.lane_nr + shift].name
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if not self.properties["u"] and self.row.upstream:

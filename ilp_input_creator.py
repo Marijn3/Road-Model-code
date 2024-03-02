@@ -36,7 +36,7 @@ msi_row_dict = {
     "Dyn-V": None,
     "hard_shoulder": {
         "left": None,
-        "right": True
+        "right": None
     }
 }
 
@@ -80,30 +80,33 @@ def make_ILP_input(network: MSINetwerk) -> dict:
         row_name = transform_row_name(row.name)
         road_dict[row_name] = deepcopy(msi_row_dict)
         for i_msi, msi in row.MSIs.items():
-            road_dict[row_name]["MSI"][msi.lane_number] = deepcopy(msi_dict)
-            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Primary"] = transform_name(msi.properties["d"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Secondary"] = transform_name(msi.properties["ds"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Taper"] = transform_name(msi.properties["dt"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Broadening"] = transform_name(msi.properties["db"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Downstream"]["Narrowing"] = transform_name(msi.properties["dn"])
+            road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
+            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Primary"] = transform_name(msi.properties["d"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Secondary"] = transform_name(msi.properties["ds"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Taper"] = transform_name(msi.properties["dt"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Broadening"] = transform_name(msi.properties["db"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Narrowing"] = transform_name(msi.properties["dn"])
 
-            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Primary"] = transform_name(msi.properties["u"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Secondary"] = transform_name(msi.properties["us"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Taper"] = transform_name(msi.properties["ut"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Broadening"] = transform_name(msi.properties["ub"])
-            road_dict[row_name]["MSI"][msi.lane_number]["Upstream"]["Narrowing"] = transform_name(msi.properties["un"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Primary"] = transform_name(msi.properties["u"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Secondary"] = transform_name(msi.properties["us"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Taper"] = transform_name(msi.properties["ut"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Broadening"] = transform_name(msi.properties["ub"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Narrowing"] = transform_name(msi.properties["un"])
             
-            road_dict[row_name]["MSI"][msi.lane_number]["Rush_hour_lane"] = msi.properties["RHL"]
-            road_dict[row_name]["MSI"][msi.lane_number]["Exit-Entry"] = msi.properties["Exit_Entry"]
+            road_dict[row_name]["MSI"][msi.lane_nr]["Rush_hour_lane"] = msi.properties["RHL"]
+            road_dict[row_name]["MSI"][msi.lane_nr]["Exit-Entry"] = msi.properties["Exit_Entry"]
 
-            road_dict[row_name]["MSI"][msi.lane_number]["TrafficStream"] = str(msi.properties["TS_num"])
-            road_dict[row_name]["MSI"][msi.lane_number]["TrafficStream_Influence"]["Left"] = msi.properties["DIF_V_left"]
-            road_dict[row_name]["MSI"][msi.lane_number]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
-            road_dict[row_name]["MSI"][msi.lane_number]["Carriageway"] = str(msi.properties["CW_num"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = str(msi.properties["TS_num"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Left"] = msi.properties["DIF_V_left"]
+            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
+            road_dict[row_name]["MSI"][msi.lane_nr]["Carriageway"] = str(msi.properties["CW_num"])
 
         road_dict[row_name]["Continue-V"] = msi.properties["C_V"]
         road_dict[row_name]["Continue-X"] = msi.properties["C_X"]
         road_dict[row_name]["Stat-V"] = msi.properties["STAT_V"]
+        road_dict[row_name]["Dyn-V"] = msi.properties["DYN_V"]
+        road_dict[row_name]["hard_shoulder"]["left"] = msi.properties["Hard_shoulder_left"]
+        road_dict[row_name]["hard_shoulder"]["right"] = msi.properties["Hard_shoulder_right"]
 
     return road_dict
 
