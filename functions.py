@@ -109,7 +109,7 @@ class DataFrameLader:
         return folder_name
 
     @staticmethod
-    def convert_to_linestring(geom: MultiLineString) -> LineString:
+    def convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
         merged = line_merge(geom)
         if isinstance(merged, LineString):
             return merged
@@ -193,15 +193,13 @@ class DataFrameLader:
         if name == "Rijstroken":
             self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
-            mapping_function = lambda row: lane_mapping_h.get(row["OMSCHR"], "Unknown") \
-                if row["KANTCODE"] == "H" \
-                else lane_mapping_t.get(row["OMSCHR"], "Unknown")
+            mapping_function = lambda row: lane_mapping_h[row["OMSCHR"]] if row["KANTCODE"] == "H" \
+                                      else lane_mapping_t[row["OMSCHR"]]
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
         if name == "Mengstroken":
-            mapping_function = lambda row: lane_mapping_h.get(row["AANT_MSK"], "Unknown") \
-                if row["KANTCODE"] == "H" \
-                else lane_mapping_t.get(row["AANT_MSK"], "Unknown")
+            mapping_function = lambda row: lane_mapping_h[row["AANT_MSK"]] if row["KANTCODE"] == "H" \
+                                      else lane_mapping_t[row["AANT_MSK"]]
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
         if name == "Kantstroken":
@@ -226,10 +224,10 @@ class DataFrameLader:
         }
 
         if name == "Convergenties":
-            self.data[name]["Type"] = self.data[name]["TYPE_CONV"].apply(lambda entry: vergence_mapping.get(entry, "Unknown"))
+            self.data[name]["Type"] = self.data[name]["TYPE_CONV"].apply(lambda entry: vergence_mapping[entry])
 
         if name == "Divergenties":
-            self.data[name]["Type"] = self.data[name]["TYPE_DIV"].apply(lambda entry: vergence_mapping.get(entry, "Unknown"))
+            self.data[name]["Type"] = self.data[name]["TYPE_DIV"].apply(lambda entry: vergence_mapping[entry])
 
         if "stroken" in name:
             # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
@@ -1022,10 +1020,11 @@ class WegModel:
 
         stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
 
-        # If puntstuk itself, return section with same hectoletter. If all hectoletters are the same, use the km registration.
+        # If puntstuk itself, return section with same hectoletter.
         if "Puntstuk" in section_info["Obj_eigs"].values():
             connected = [index for index, section in stream_sections.items() if
                          section_info["Pos_eigs"]["Hectoletter"] == section["Pos_eigs"]["Hectoletter"]]
+            # If all hectoletters are the same, use the km registration.
             if len(connected) > 1:
                 if section_info["Pos_eigs"]["Rijrichting"] == "L":
                     connected = [index for index, section in stream_sections.items() if
