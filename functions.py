@@ -857,7 +857,7 @@ class WegModel:
             index (int): Index of section to print info for.
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
-        print(f"[LOG:] Sectie {index} {wording.get(changed)}\t"
+        print(f"[LOG:] Sectie {index} {wording[changed]}\t"
               f"[{self.sections[index]['Pos_eigs']['Km_bereik'][0]:<7.3f}, {self.sections[index]['Pos_eigs']['Km_bereik'][1]:<7.3f}] km \t"
               f"{self.sections[index]['Pos_eigs']['Wegnummer']}\t"
               f"{self.sections[index]['Pos_eigs']['Rijrichting']}\t"
@@ -939,8 +939,8 @@ class WegModel:
                 "Sectie_stroomafwaarts": None,
                 "Sectie_afbuigend_stroomopwaarts": None,
                 "Sectie_afbuigend_stroomafwaarts": None,
-                "Start_kenmerk": None,
-                "Einde_kenmerk": None,
+                "Start_kenmerk": {},
+                "Einde_kenmerk": {},
             }
             skip_start_check = False
             skip_end_check = False
@@ -1519,7 +1519,7 @@ class MSINetwerk:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 print(f"Looking for MSI row in the next section, {next_section_id}")
-                annotation = annotation + self.get_annotation(current_section, next_section_id)
+                annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
@@ -1550,7 +1550,7 @@ class MSINetwerk:
                     shift = shift + n_lanes_other
 
             if next_section_id:
-                annotation = annotation + self.get_annotation(current_section, next_section_id)
+                annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
@@ -1572,16 +1572,16 @@ class MSINetwerk:
         # Store negative value in this direction.
         print(f"Marking {div_section_id} with -{shift_div}")
 
-        annotation_cont = annotation + self.get_annotation(current_section, cont_section_id)
-        annotation_div = annotation + self.get_annotation(current_section, div_section_id)
+        # Annotation at a split remains unchanged by definition.
+        # The properties of the main road are all assumed to be included in the sum of the off-splitting roads.
 
         # Make it do the recursive function twice. Then return both options as a list.
         option_continuation = self.find_msi_recursive(cont_section_id, other_point["Pos_eigs"]["Km"],
                                                       downstream, travel_direction,
-                                                      shift, current_distance, annotation_cont)
+                                                      shift, current_distance, annotation)
         option_diversion = self.find_msi_recursive(div_section_id, other_point["Pos_eigs"]["Km"],
                                                    downstream, travel_direction,
-                                                   shift - shift_div, current_distance, annotation_div)
+                                                   shift - shift_div, current_distance, annotation)
         return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
@@ -1599,23 +1599,29 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def get_annotation(self, current_section: dict, next_section_id: int) -> list:
-        next_section = self.roadmodel.sections[next_section_id]
+    def get_annotation(self, section_verw_eigs: dict) -> list:
+        """
+        Determines the annotation to be added to the current recursive
+        search based on processing properties of the current section.
+        The function assumes that special situations do not occur
+        multiples times in the same section transition.
+        Args:
+            section_verw_eigs (dict):
+        Returns:
+            Appendable list of a tuple, indicating the lane number and
+            the annotation - the type of special case encountered.
+        """
+        if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
+            return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items() if
+                    lane_type == "Invoegstrook"]
 
-        # Assumes that neither of these situations happens in the same section transition.
+        if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
+            return [(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items() if
+                    key == "Special"]
 
-        for key, value in current_section["Obj_eigs"].items():
-            if value == "Invoegstrook" and "Invoegstrook" not in next_section["Obj_eigs"].values():
-                print(f"Encountered end of entry lane: {key}, {value}.")
-                return [(key, value)]
-            if key == "Special":  # and current_section["Obj_eigs"]["Special"] not in next_section["Obj_eigs"].values():
-                print(f"Encountered special: {key}, {value}.")
-                return [(key, value)]
-
-        for key, value in next_section["Obj_eigs"].items():
-            if value == "Uitrijstrook" and "Uitrijstrook" not in current_section["Obj_eigs"].values():
-                print(f"Encountered start of exit lane: {key}, {value}.")
-                return [(key, value)]
+        if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
+            return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items() if
+                    lane_type == "Uitrijstrook"]
 
         return []
 
