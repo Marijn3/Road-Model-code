@@ -1606,7 +1606,8 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def get_annotation(self, section_verw_eigs: dict) -> list:
+    @staticmethod
+    def get_annotation(section_verw_eigs: dict) -> list:
         """
         Determines the annotation to be added to the current recursive
         search based on processing properties of the current section.
@@ -1766,15 +1767,14 @@ class MSI(MSILegends):
         self.properties["N_row"] = self.row.n_msis
 
         cw_number = None
-        border_left = False
-        border_right = False
-        for index, names in self.row.cw.items():
-            if self.name in names:
+        at_border_left = False
+        at_border_right = False
+
+        for index, msi_names in self.row.cw.items():
+            if self.name in msi_names:
                 cw_number = index
-                if self.name == names[0]:
-                    border_left = True
-                if self.name == names[-1]:
-                    border_right = True
+                at_border_left = self.name == msi_names[0]
+                at_border_right = self.name == msi_names[-1]
                 break
 
         if cw_number:
@@ -1794,8 +1794,8 @@ class MSI(MSILegends):
 
             # Safest assumption: 0 for both directions.
             # Influence levels are only filled in when the MSI borders a different traffic stream.
-            self.properties["DIF_V_right"] = 0 if border_right and cw_number + 1 in self.row.cw.keys() else None
-            self.properties["DIF_V_left"] = 0 if border_left and cw_number - 1 in self.row.cw.keys() else None
+            self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
+            self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
