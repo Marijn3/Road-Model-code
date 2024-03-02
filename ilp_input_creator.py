@@ -22,8 +22,8 @@ msi_dict = {
     "Exit-Entry": False,
     "TrafficStream": "1",
     "TrafficStream_Influence": {
-    "Left": None,
-    "Right": None
+        "Left": None,
+        "Right": None
     },
     "Carriageway": "1"
 }
@@ -50,7 +50,7 @@ def transform_name(name: str) -> list | str | None:
     Returns:
         Name in the form used by JvM.
     Example:
-        transform_name("A2R:119.204:2") = RSU_A2_R_119.204,2
+        transform_name("A2R:119.204:2") = [RSU_A2_R_119.204,2]
     """
     if name is None:
         return None
@@ -66,19 +66,30 @@ def transform_row_name(name: str) -> list | str | None:
     """
     Transform an MTM row name to a row name used as input for the ILP problem.
     Args:
-        name (str): MTM form of name.
+        name (str): MTM form of row name.
     Returns:
-        Name in the form used by JvM.
+        Row name in the form used by JvM.
+    Example:
+        transform_name("A2R:119.204") = RSU_A2_R_119.204
     """
     road, km = name.split(":")
     return f"RSU_{road[:-1]}_{road[-1]}_{km}"
 
 
 def make_ILP_input(network: MSINetwerk) -> dict:
+    """
+    Generates ILP input file dictionary based on framework provided by JvM.
+    Args:
+        network (MSINetwerk): A network of MSIs with all required properties.
+    Returns:
+        dictionary with required elements. Unspecified elements will contain None.
+    """
     road_dict = {}
+
     for i_row, row in enumerate(network.MSIrows):
         row_name = transform_row_name(row.name)
         road_dict[row_name] = deepcopy(msi_row_dict)
+
         for i_msi, msi in row.MSIs.items():
             road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
             road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Primary"] = transform_name(msi.properties["d"])
