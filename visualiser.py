@@ -9,9 +9,18 @@ netwerk = MSINetwerk(wegmodel)
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20
-TEXT_SIZE = MSIBOX_SIZE*0.8
-VISUAL_PLAY = MSIBOX_SIZE*0.2
-STROKE = MSIBOX_SIZE*0.05
+DISPLAY_ONROAD = False
+
+if DISPLAY_ONROAD:
+    MSIBOX_SIZE = LANE_WIDTH*0.8
+    TEXT_SIZE = MSIBOX_SIZE*0.8
+    VISUAL_PLAY = MSIBOX_SIZE*0.2
+    STROKE = MSIBOX_SIZE*0.1
+else:
+    TEXT_SIZE = MSIBOX_SIZE*0.8
+    VISUAL_PLAY = MSIBOX_SIZE*0.2
+    STROKE = MSIBOX_SIZE*0.05
+
 C_TRANSPARENT = "#6D876D"
 C_HIGHLIGHT = "brown"
 C_ASPHALT = "grey"
@@ -316,8 +325,10 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
     rotate_angle = 90 - point_data["Verw_eigs"]["Lokale_hoek"]
 
     if point_data["Obj_eigs"]["Type"] == "Signalering":
-        display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
-        # display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        if DISPLAY_ONROAD:
+            display_MSI_onroad(point_data, coords, info_offset, rotate_angle, svg_dwg)
+        else:
+            display_MSI_roadside(point_data, coords, info_offset, rotate_angle, svg_dwg)
     else:
         display_vergence(point_data, coords, info_offset, rotate_angle, svg_dwg)
 
@@ -398,17 +409,16 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
 
 def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    box_size = LANE_WIDTH*0.8
-    play = (LANE_WIDTH - box_size)/2
+    play = (LANE_WIDTH - MSIBOX_SIZE)/2
 
     for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
         msi_name = make_name(point_data, nr)
         displacement = LANE_WIDTH * (nr - 1) - point_data["Verw_eigs"]["Aantal_hoofdstroken"] * LANE_WIDTH / 2
-        box_pos = (coords[0] + displacement + play, coords[1] - box_size / 2)
+        box_pos = (coords[0] + displacement + play, coords[1] - MSIBOX_SIZE / 2)
         stroke = 0.3
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=box_pos,
-                                      size=(box_size, box_size),
+                                      size=(MSIBOX_SIZE, MSIBOX_SIZE),
                                       fill="#1e1b17", stroke="black", stroke_width=stroke,
                                       onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                                       onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
@@ -416,44 +426,44 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         element_by_id[msi_name] = square, rotate_angle, coords
 
         # Extra elements
-        box_center = (coords[0] + displacement + play + box_size / 2, coords[1])
-        clearance = box_size*0.2
+        box_center = (coords[0] + displacement + play + MSIBOX_SIZE / 2, coords[1])
+        clearance = MSIBOX_SIZE*0.2
 
         group_red_ring = svgwrite.container.Group(id="red-ring")
         redring = svgwrite.shapes.Circle(
             center=box_center,
-            r=box_size * 0.45,
+            r=MSIBOX_SIZE * 0.45,
             fill="none", stroke="#990000", stroke_width=0.2)
         group_red_ring.add(redring)
 
         group_red_cross = svgwrite.container.Group(id="red-cross")
         cross1 = svgwrite.shapes.Line(
             start=(box_pos[0] + clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + box_size - clearance, box_pos[1] + box_size - clearance),
+            end=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + MSIBOX_SIZE - clearance),
             stroke="#990000", stroke_width=0.2)
         group_red_cross.add(cross1)
         cross2 = svgwrite.shapes.Line(
-            start=(box_pos[0] + box_size - clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + clearance, box_pos[1] + box_size - clearance),
+            start=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + clearance),
+            end=(box_pos[0] + clearance, box_pos[1] + MSIBOX_SIZE - clearance),
             stroke="#990000", stroke_width=0.2)
         group_red_cross.add(cross2)
 
         group_eor = svgwrite.container.Group(id="end-of-restrictions")
         ring = svgwrite.shapes.Circle(
             center=box_center,
-            r=box_size * 0.45,
+            r=MSIBOX_SIZE * 0.45,
             fill="none", stroke="#FFFFFF", stroke_width=0.2)
         sideline1 = svgwrite.shapes.Line(
-            start=(box_pos[0] + box_size - clearance - 0.3, box_pos[1] + clearance - 0.3),
-            end=(box_pos[0] + clearance - 0.3, box_pos[1] + box_size - clearance - 0.3),
+            start=(box_pos[0] + MSIBOX_SIZE - clearance - 0.3, box_pos[1] + clearance - 0.3),
+            end=(box_pos[0] + clearance - 0.3, box_pos[1] + MSIBOX_SIZE - clearance - 0.3),
             stroke="#FFFFFF", stroke_width=0.2)
         sideline2 = svgwrite.shapes.Line(
-            start=(box_pos[0] + box_size - clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + clearance, box_pos[1] + box_size - clearance),
+            start=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + clearance),
+            end=(box_pos[0] + clearance, box_pos[1] + MSIBOX_SIZE - clearance),
             stroke="#FFFFFF", stroke_width=0.2)
         sideline3 = svgwrite.shapes.Line(
-            start=(box_pos[0] + box_size - clearance + 0.3, box_pos[1] + clearance + 0.3),
-            end=(box_pos[0] + clearance + 0.3, box_pos[1] + box_size - clearance + 0.3),
+            start=(box_pos[0] + MSIBOX_SIZE - clearance + 0.3, box_pos[1] + clearance + 0.3),
+            end=(box_pos[0] + clearance + 0.3, box_pos[1] + MSIBOX_SIZE - clearance + 0.3),
             stroke="#FFFFFF", stroke_width=0.2)
         group_eor.add(ring)
         group_eor.add(sideline1)
@@ -466,7 +476,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
                               insert=(coords[0] + 1 + info_offset, coords[1]),
-                              fill="white", font_family="Arial", dominant_baseline="central", font_size=max(4, box_size*0.8))
+                              fill="white", font_family="Arial", dominant_baseline="central", font_size=max(4, MSIBOX_SIZE*0.8))
 
     group_msi_row.add(text)
     group_msi_row.rotate(rotate_angle, center=coords)
@@ -505,15 +515,15 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
 
 
 def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=0.4))
-    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="cyan"))
-    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="cyan"))
+    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=STROKE*2))
+    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill="cyan"))
+    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill="cyan"))
 
 
 def draw_secondary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=0.4))
-    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=0.75, fill="magenta"))
-    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=0.75, fill="magenta"))
+    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=STROKE*2))
+    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill="magenta"))
+    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill="magenta"))
 
 
 def get_center_coords(element, angle_degrees, origin):
@@ -562,8 +572,8 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-# print("MSI-relaties visualiseren...")
-# draw_msi_relations(dwg)
+print("MSI-relaties visualiseren...")
+draw_msi_relations(dwg)
 
 # id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2__A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
 # for msi_id, image in id_to_image.items():
