@@ -857,7 +857,7 @@ class WegModel:
             index (int): Index of section to print info for.
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
-        print(f"[LOG:] Sectie {index} {wording.get(changed)}\t"
+        print(f"[LOG:] Sectie {index} {wording[changed]}\t"
               f"[{self.sections[index]['Pos_eigs']['Km_bereik'][0]:<7.3f}, {self.sections[index]['Pos_eigs']['Km_bereik'][1]:<7.3f}] km \t"
               f"{self.sections[index]['Pos_eigs']['Wegnummer']}\t"
               f"{self.sections[index]['Pos_eigs']['Rijrichting']}\t"
@@ -939,8 +939,8 @@ class WegModel:
                 "Sectie_stroomafwaarts": None,
                 "Sectie_afbuigend_stroomopwaarts": None,
                 "Sectie_afbuigend_stroomafwaarts": None,
-                "Start_kenmerk": None,
-                "Einde_kenmerk": None,
+                "Start_kenmerk": {},
+                "Einde_kenmerk": {},
             }
             skip_start_check = False
             skip_end_check = False
@@ -1519,7 +1519,7 @@ class MSINetwerk:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 print(f"Looking for MSI row in the next section, {next_section_id}")
-                annotation = annotation + self.get_annotation(current_section, next_section_id)
+                annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
@@ -1550,7 +1550,7 @@ class MSINetwerk:
                     shift = shift + n_lanes_other
 
             if next_section_id:
-                annotation = annotation + self.get_annotation(current_section, next_section_id)
+                annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
@@ -1572,16 +1572,16 @@ class MSINetwerk:
         # Store negative value in this direction.
         print(f"Marking {div_section_id} with -{shift_div}")
 
-        annotation_cont = annotation + self.get_annotation(current_section, cont_section_id)
-        annotation_div = annotation + self.get_annotation(current_section, div_section_id)
+        # Annotation at a split remains unchanged by definition.
+        # The properties of the main road are all assumed to be included in the sum of the off-splitting roads.
 
         # Make it do the recursive function twice. Then return both options as a list.
         option_continuation = self.find_msi_recursive(cont_section_id, other_point["Pos_eigs"]["Km"],
                                                       downstream, travel_direction,
-                                                      shift, current_distance, annotation_cont)
+                                                      shift, current_distance, annotation)
         option_diversion = self.find_msi_recursive(div_section_id, other_point["Pos_eigs"]["Km"],
                                                    downstream, travel_direction,
-                                                   shift - shift_div, current_distance, annotation_div)
+                                                   shift - shift_div, current_distance, annotation)
         return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float, travel_direction: str, downstream: bool):
@@ -1599,23 +1599,29 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def get_annotation(self, current_section: dict, next_section_id: int) -> list:
-        next_section = self.roadmodel.sections[next_section_id]
+    def get_annotation(self, section_verw_eigs: dict) -> list:
+        """
+        Determines the annotation to be added to the current recursive
+        search based on processing properties of the current section.
+        The function assumes that special situations do not occur
+        multiples times in the same section transition.
+        Args:
+            section_verw_eigs (dict):
+        Returns:
+            Appendable list of a tuple, indicating the lane number and
+            the annotation - the type of special case encountered.
+        """
+        if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
+            return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items() if
+                    lane_type == "Invoegstrook"]
 
-        # Assumes that neither of these situations happens in the same section transition.
+        if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
+            return [(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items() if
+                    key == "Special"]
 
-        for key, value in current_section["Obj_eigs"].items():
-            if value == "Invoegstrook" and "Invoegstrook" not in next_section["Obj_eigs"].values():
-                print(f"Encountered end of entry lane: {key}, {value}.")
-                return [(key, value)]
-            if key == "Special":  # and current_section["Obj_eigs"]["Special"] not in next_section["Obj_eigs"].values():
-                print(f"Encountered special: {key}, {value}.")
-                return [(key, value)]
-
-        for key, value in next_section["Obj_eigs"].items():
-            if value == "Uitrijstrook" and "Uitrijstrook" not in current_section["Obj_eigs"].values():
-                print(f"Encountered start of exit lane: {key}, {value}.")
-                return [(key, value)]
+        if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
+            return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items() if
+                    lane_type == "Uitrijstrook"]
 
         return []
 
@@ -1675,13 +1681,13 @@ class MSILegends:
 
 
 class MSI(MSILegends):
-    def __init__(self, parent_msi_row: MSIRow, lane_number: int):
+    def __init__(self, parent_msi_row: MSIRow, lane_nr: int):
         self.row = parent_msi_row
 
         # Store all that is unique to the MSI
-        self.lane_number = lane_number
+        self.lane_nr = lane_nr
         self.displayoptions = self.displayset_all
-        self.name = f"{self.row.name}:{str(lane_number)}"
+        self.name = f"{self.row.name}:{str(self.lane_nr)}"
 
         self.properties = {
             "c": None,  # Current MSI (center)
@@ -1699,8 +1705,9 @@ class MSI(MSILegends):
             "un": None,  # MSI upstream Rijstrookbeëindiging
 
             "STAT_V": None,  # Static maximum speed
-            "C_X": None,  # True if continue-X relation
+            "DYN_V": None,  # Static maximum speed
             "C_V": None,  # True if continue-V relation
+            "C_X": None,  # True if continue-X relation
 
             "N_row": None,  # [~] Number of MSIs in row.
             "N_TS": None,  # Number of MSIs in traffic stream.
@@ -1776,38 +1783,38 @@ class MSI(MSILegends):
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
-        if self.row.local_road_properties[self.lane_number] in ["Spitsstrook", "Plusstrook"]:
+        if self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]:
             self.properties["RHL"] = True  # TODO: Replace with RHL section name?? See report Jeroen 2 p67.
 
-        if (self.row.local_road_properties[self.lane_number] in ["Spitsstrook", "Plusstrook"] and
-                self.row.n_lanes > self.lane_number > 1):
+        if (self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
+                self.row.n_lanes > self.lane_nr > 1):
             self.properties["Exit_Entry"] = True
 
         if ("Spitsstrook" in self.row.local_road_properties.values() or
                 "Plusstrook" in self.row.local_road_properties.values()):
             self.properties["RHL_neighbor"] = True
 
-        if self.lane_number < self.row.n_lanes and self.row.local_road_properties[self.lane_number + 1] == "Vluchtstrook":
+        if self.lane_nr < self.row.n_lanes and self.row.local_road_properties[self.lane_nr + 1] == "Vluchtstrook":
             self.properties["Hard_shoulder_right"] = True
-        if self.lane_number > 1 and self.row.local_road_properties[self.lane_number - 1] == "Vluchtstrook":
+        if self.lane_nr > 1 and self.row.local_road_properties[self.lane_nr - 1] == "Vluchtstrook":
             self.properties["Hard_shoulder_left"] = True
 
     def determine_relations(self):
         # Center and neighbors
         self.properties["c"] = self.name
-        if self.lane_number + 1 in self.row.MSIs.keys():
-            self.properties["r"] = self.row.MSIs[self.lane_number + 1].name
-        if self.lane_number - 1 in self.row.MSIs.keys():
-            self.properties["l"] = self.row.MSIs[self.lane_number - 1].name
+        if self.lane_nr + 1 in self.row.MSIs.keys():
+            self.properties["r"] = self.row.MSIs[self.lane_nr + 1].name
+        if self.lane_nr - 1 in self.row.MSIs.keys():
+            self.properties["l"] = self.row.MSIs[self.lane_nr - 1].name
 
         # Downstream relations
         for downstream_row, desc in self.row.downstream.items():
             shift, annotation = desc
 
             # Primary
-            if self.lane_number + shift in downstream_row.MSIs.keys():
-                self.properties["d"] = downstream_row.MSIs[self.lane_number + shift].name
-                downstream_row.MSIs[self.lane_number + shift].properties["u"] = self.name
+            if self.lane_nr + shift in downstream_row.MSIs.keys():
+                self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
+                downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
                 assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
@@ -1816,13 +1823,13 @@ class MSI(MSILegends):
                     lane_type, lane_nr = lane_type
                 print("Lane_info extracted:", lane_nr, lane_type)
 
-                if lane_type == "Invoegstrook" and lane_nr == self.lane_number + shift:
-                    msi_number = self.lane_number + shift - 1
+                if lane_type == "Invoegstrook" and lane_nr == self.lane_nr + shift:
+                    msi_number = self.lane_nr + shift - 1
                     if msi_number in downstream_row.MSIs.keys():
                         self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
 
-                if lane_type == "Uitrijstrook" and lane_nr == self.lane_number + shift + 1:
-                    msi_number = self.lane_number + shift + 1
+                if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + shift + 1:
+                    msi_number = self.lane_nr + shift + 1
                     if msi_number in downstream_row.MSIs.keys():
                         self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
 
@@ -1831,8 +1838,8 @@ class MSI(MSILegends):
             shift, annotation = desc
 
             # Primary
-            if self.lane_number + shift in upstream_row.MSIs.keys():
-                self.properties["u"] = upstream_row.MSIs[self.lane_number + shift].name
+            if self.lane_nr + shift in upstream_row.MSIs.keys():
+                self.properties["u"] = upstream_row.MSIs[self.lane_nr + shift].name
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if not self.properties["u"] and self.row.upstream:
