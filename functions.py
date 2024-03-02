@@ -427,6 +427,8 @@ class WegModel:
             # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
             lane_number = row["VNRWOL"]
             section_info["Obj_eigs"][lane_number] = row["OMSCHR"]
+            if row["MAX_SNELH"]:
+                section_info["Obj_eigs"]["Maximumsnelheid_Open_Spitsstrook"] = row["MAX_SNELH"]
 
         elif name == "Mengstroken":
             first_lane_number = row["VNRWOL"]
@@ -1742,6 +1744,9 @@ class MSI(MSILegends):
 
     def determine_properties(self):
         self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
+        if self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]:
+            self.properties["DYN_V"] = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
+
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSU’s.
         self.properties["C_X"] = False
