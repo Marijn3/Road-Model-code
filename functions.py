@@ -214,7 +214,7 @@ class DataFrameLader:
             is_kp = self.data[name]["CODE"] == "KP"
             self.data[name] = self.data[name][is_kp]
 
-        # Some registrations don"t have BEGINKM. These can be ignored.
+        # Some registrations don't have BEGINKM. These can be ignored.
         if name == "Wegvakken":
             self.data[name] = self.data[name].dropna(subset=["BEGINKM"])
 
@@ -443,7 +443,12 @@ class WegModel:
                 section_info["Obj_eigs"]["Special"] = special
 
         elif name == "Maximum snelheid":
-            section_info["Obj_eigs"]["Maximumsnelheid"] = row["OMSCHR"]
+            if math.isnan(row["BEGINTIJD"]) or row["BEGINTIJD"] == 19:
+                section_info["Obj_eigs"]["Maximumsnelheid"] = row["OMSCHR"]
+            elif row["BEGINTIJD"] == 6:
+                section_info["Obj_eigs"]["Maximumsnelheid_Beperkt_Overdag"] = row["OMSCHR"]
+            else:
+                raise Exception(f"Deze begintijd is niet in het model verwerkt: {row['BEGINTIJD']}")
 
         return section_info
 
@@ -1744,8 +1749,14 @@ class MSI(MSILegends):
 
     def determine_properties(self):
         self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
-        if self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]:
-            self.properties["DYN_V"] = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
+        # Add DYN_V if it is applied and it is smaller than STAT_V
+        dyn_v1, dyn_v2 = None, None
+        if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
+            dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
+        if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
+            dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
+        if dyn_v1 or dyn_v2:
+            self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSU’s.
@@ -1789,7 +1800,7 @@ class MSI(MSILegends):
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
         if self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]:
-            self.properties["RHL"] = True  # TODO: Replace with RHL section name?? See report Jeroen 2 p67.
+            self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report Jeroen 2 p67.
 
         if (self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
                 self.row.n_lanes > self.lane_nr > 1):
