@@ -9,7 +9,7 @@ netwerk = MSINetwerk(wegmodel)
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20
-DISPLAY_ONROAD = False
+DISPLAY_ONROAD = True
 
 if DISPLAY_ONROAD:
     MSIBOX_SIZE = LANE_WIDTH*0.8

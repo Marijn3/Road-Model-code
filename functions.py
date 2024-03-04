@@ -7,7 +7,7 @@ import math
 
 GRID_SIZE = 0.00001
 MSI_RELATION_MAX_SEARCH_DISTANCE = 2000  # [m] - Richtlijn zegt max 1200 m tussen portalen.
-DISTANCE_TOLERANCE = 0.5  # [m] Distance tolerance for overlap checking
+DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
 
 
 class DataFrameLader:
@@ -32,7 +32,7 @@ class DataFrameLader:
         "data/Maximum snelheid/max_snelheden.dbf",
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn-edit.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
     def __init__(self, location: str = None) -> None:
@@ -1730,8 +1730,12 @@ class MSI(MSILegends):
             dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
         if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
             dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
-        if dyn_v1 or dyn_v2:
+        if dyn_v1 and dyn_v2:
             self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
+        elif dyn_v1:
+            self.properties["DYN_V"] = dyn_v1
+        elif dyn_v2:
+            self.properties["DYN_V"] = dyn_v2
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSU’s.
