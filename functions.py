@@ -956,9 +956,13 @@ class WegModel:
             for point_info in self.get_points_info("*vergentie"):
                 if point_info["Pos_eigs"]["Geometrie"].dwithin(start_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_start"] = True
+                    self.sections[section_index]["Verw_eigs"]["Start_kenmerk"] = {
+                        key: value for key, value in section_info["Obj_eigs"] if value in ["Invoegstrook", "Samenvoeging"]}
                     skip_start_check = True
                 if point_info["Pos_eigs"]["Geometrie"].dwithin(end_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_einde"] = True
+                    self.sections[section_index]["Verw_eigs"]["Einde_kenmerk"] = {
+                        key: value for key, value in section_info["Obj_eigs"] if value in ["Uitrijstrook", "Splitsing"]}
                     skip_end_check = True
 
             start_sections = self.get_sections_at_point(start_point)
@@ -1592,7 +1596,6 @@ class MSINetwerk:
             Appendable list of a tuple, indicating the lane number and
             the annotation - the type of special case encountered.
         """
-        print(section_verw_eigs)
         if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
             return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items() if
                     lane_type == "Invoegstrook"]
@@ -1852,13 +1855,19 @@ class MSI(MSILegends):
                     if msi_number in d_row.MSIs.keys():
                         self.make_secondary_connection(d_row.MSIs[msi_number], self)
 
-        # Upstream relations
-        for u_row, desc in self.row.upstream.items():
-            shift, annotation = desc
+        # Remaining upstream primary relations
+        if not self.properties["u"]:
+            for u_row, desc in self.row.upstream.items():
+                shift, annotation = desc
+                if not annotation and self.lane_nr + shift in u_row.MSIs.keys():
+                    self.properties["u"] = u_row.MSIs[self.lane_nr + shift].name
 
-            # # Primary
-            # if self.lane_nr + shift in u_row.MSIs.keys():
-            #     self.properties["u"] = u_row.MSIs[self.lane_nr + shift].name
+                if annotation:
+                    assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
+                    lane_nr, lane_type = annotation[0]
+                    if lane_nr == "Special":
+                        lane_type, lane_nr = lane_type
+                    print("Lane_info extracted:", lane_nr, lane_type)
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if not self.properties["u"] and self.row.upstream:
@@ -1873,7 +1882,7 @@ class MSI(MSILegends):
     @staticmethod
     def make_secondary_connection(row1, row2):
         """
-        First entry is the row that should have an upstream secondary relation.
+        First entry is the row that should have an upstream secondary relation to the second entry.
         """
         row1.properties["us"] = row2.name
         if not row2.properties["ds"]:
