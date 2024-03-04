@@ -1060,8 +1060,7 @@ class WegModel:
     @staticmethod
     def get_dif_props(section_props: dict, other_props):
         return {lane_nr: lane_type for lane_nr, lane_type in section_props.items()
-                if isinstance(lane_nr, int) and (lane_nr not in other_props) or (
-                lane_nr in other_props and other_props[lane_nr] != lane_type)}
+                if (lane_nr not in other_props) or (lane_nr in other_props and other_props[lane_nr] != lane_type)}
 
     def get_points_info(self, specifier: str = None) -> list[dict]:
         """
@@ -1593,6 +1592,7 @@ class MSINetwerk:
             Appendable list of a tuple, indicating the lane number and
             the annotation - the type of special case encountered.
         """
+        print(section_verw_eigs)
         if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
             return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items() if
                     lane_type == "Invoegstrook"]
@@ -1678,13 +1678,13 @@ class MSI(MSILegends):
             "d": None,  # MSI downstream
             "ds": None,  # MSI downstream secondary
             "dt": None,  # MSI downstream taper
-            "db": None,  # MSI downstream ExtraRijstrook
-            "dn": None,  # MSI downstream Rijstrookbeëindiging
+            "db": None,  # MSI downstream broadening (extra rijstrook)
+            "dn": None,  # MSI downstream narrowing (rijstrookbeëindiging)
             "u": None,  # MSI upstream
             "us": None,  # MSI upstream secondary
             "ut": None,  # MSI upstream taper
-            "ub": None,  # MSI upstream ExtraRijstrook
-            "un": None,  # MSI upstream Rijstrookbeëindiging
+            "ub": None,  # MSI upstream broadening (extra rijstrook)
+            "un": None,  # MSI upstream narrowing (rijstrookbeëindiging)
 
             "STAT_V": None,  # Static maximum speed
             "DYN_V": None,  # Static maximum speed
@@ -1805,10 +1805,11 @@ class MSI(MSILegends):
         for downstream_row, desc in self.row.downstream.items():
             shift, annotation = desc
 
-            # Primary
-            if self.lane_nr + shift in downstream_row.MSIs.keys():
-                self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
-                downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
+            # Basic primary
+            if not annotation:
+                if self.lane_nr + shift in downstream_row.MSIs.keys():
+                    self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
+                    downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
                 assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
@@ -1817,6 +1818,31 @@ class MSI(MSILegends):
                     lane_type, lane_nr = lane_type
                 print("Lane_info extracted:", lane_nr, lane_type)
 
+                # Basic primary (2)
+                if lane_type not in ["ExtraRijstrook", "Rijstrookbeëindiging"]:
+                    if self.lane_nr + shift in downstream_row.MSIs.keys():
+                        self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
+                        downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
+                else:
+                    # Adjusted primary for change in leftmost lane
+                    if lane_type in ["ExtraRijstrook"] and lane_nr == 1 and self.lane_nr + shift + 1 in downstream_row.MSIs.keys():
+                        self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift + 1].name
+                        downstream_row.MSIs[self.lane_nr + shift + 1].properties["u"] = self.name
+                    # Adjusted primary for change in leftmost lane
+                    if lane_type in ["Rijstrookbeëindiging"] and lane_nr == 1 and self.lane_nr + shift - 1 in downstream_row.MSIs.keys():
+                        self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift - 1].name
+                        downstream_row.MSIs[self.lane_nr + shift - 1].properties["u"] = self.name
+
+                # Broadening
+                if lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in downstream_row.MSIs.keys():
+                    self.properties["db"] = downstream_row.MSIs[self.lane_nr + shift].name
+                    downstream_row.MSIs[self.lane_nr + shift].properties["ub"] = self.name
+                # Narrowing
+                if lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in downstream_row.MSIs.keys():
+                    self.properties["dn"] = downstream_row.MSIs[self.lane_nr + shift].name
+                    downstream_row.MSIs[self.lane_nr + shift].properties["un"] = self.name
+
+                # Secondary
                 if lane_type == "Invoegstrook" and lane_nr == self.lane_nr + shift:
                     msi_number = self.lane_nr + shift - 1
                     if msi_number in downstream_row.MSIs.keys():

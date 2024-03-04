@@ -512,6 +512,14 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
                             end_element, end_rotation, end_origin = element_by_id[end_id]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
                             draw_secondary(start_pos, end_pos, svg_dwg)
+                    if msi.properties["db"]:
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["db"]]
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_broadening(start_pos, end_pos, svg_dwg)
+                    if msi.properties["dn"]:
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["dn"]]
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        # draw_narrowing(start_pos, end_pos, svg_dwg)
 
 
 def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
@@ -524,6 +532,12 @@ def draw_secondary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
     svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=STROKE*2))
     svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill="magenta"))
     svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill="magenta"))
+
+
+def draw_broadening(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
+    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="orange", stroke_width=STROKE*2))
+    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill="orange"))
+    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill="orange"))
 
 
 def get_center_coords(element, angle_degrees, origin):
