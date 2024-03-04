@@ -6,7 +6,7 @@ from copy import deepcopy
 import math
 
 GRID_SIZE = 0.00001
-MSI_RELATION_MAX_SEARCH_DISTANCE = 2000  # [m] - Richtlijn zegt max 1200 m tussen portalen.
+MSI_RELATION_MAX_SEARCH_DISTANCE = 3500  # [m] - Richtlijn zegt max 1200 m tussen portalen. Dit wordt overschreden.
 DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
 
 
@@ -110,6 +110,7 @@ class DataFrameLader:
 
     @staticmethod
     def convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
+        # TODO 26: Fix for verbindingsbogen.
         merged = line_merge(geom)
         if isinstance(merged, LineString):
             return merged
@@ -957,12 +958,12 @@ class WegModel:
                 if point_info["Pos_eigs"]["Geometrie"].dwithin(start_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_start"] = True
                     self.sections[section_index]["Verw_eigs"]["Start_kenmerk"] = {
-                        key: value for key, value in section_info["Obj_eigs"] if value in ["Invoegstrook", "Samenvoeging"]}
+                        key: value for key, value in section_info["Obj_eigs"].items() if value in ["Invoegstrook", "Samenvoeging"]}
                     skip_start_check = True
                 if point_info["Pos_eigs"]["Geometrie"].dwithin(end_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_einde"] = True
                     self.sections[section_index]["Verw_eigs"]["Einde_kenmerk"] = {
-                        key: value for key, value in section_info["Obj_eigs"] if value in ["Uitrijstrook", "Splitsing"]}
+                        key: value for key, value in section_info["Obj_eigs"].items() if value in ["Uitrijstrook", "Splitsing"]}
                     skip_end_check = True
 
             start_sections = self.get_sections_at_point(start_point)
@@ -1461,9 +1462,6 @@ class MSINetwerk:
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
-        current_distance += current_section["Pos_eigs"]["Geometrie"].length
-        print(f"Current depth: {current_distance}")
-
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
@@ -1476,6 +1474,8 @@ class MSINetwerk:
             return {self.get_msi_row_at(nearest_msi["Pos_eigs"]["Km"], nearest_msi["Pos_eigs"]["Hectoletter"]): (shift, annotation)}
 
         # Base case 3: Maximum depth reached.
+        current_distance += current_section["Pos_eigs"]["Geometrie"].length
+        print(f"Current depth: {current_distance}")
         if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
             return {None: (shift, annotation)}
@@ -1844,7 +1844,7 @@ class MSI(MSILegends):
                     self.properties["dn"] = d_row.MSIs[self.lane_nr + shift].name
                     d_row.MSIs[self.lane_nr + shift].properties["un"] = self.name
 
-                # Secondary
+                # Secondary (TODO 32: shift is being added at the wrong moment.)
                 if lane_type == "Invoegstrook" and lane_nr == self.lane_nr + shift:
                     msi_number = self.lane_nr + shift - 1
                     if msi_number in d_row.MSIs.keys():
@@ -1862,15 +1862,9 @@ class MSI(MSILegends):
                 if not annotation and self.lane_nr + shift in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[self.lane_nr + shift].name
 
-                if annotation:
-                    assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
-                    lane_nr, lane_type = annotation[0]
-                    if lane_nr == "Special":
-                        lane_type, lane_nr = lane_type
-                    print("Lane_info extracted:", lane_nr, lane_type)
-
         # MSIs that do not have any upstream relation, get a secondary relation
-        if not self.properties["u"] and self.row.upstream:
+        if (self.row.upstream and not self.properties["u"] and not self.properties["us"]
+                and not self.properties["ub"] and not self.properties["un"] and not self.properties["ut"]):
             print(f"[LOG:] {self.name} Could use a secondary upstream relation.")
 
             if True:
