@@ -1802,14 +1802,13 @@ class MSI(MSILegends):
             self.properties["l"] = self.row.MSIs[self.lane_nr - 1].name
 
         # Downstream relations
-        for downstream_row, desc in self.row.downstream.items():
+        for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
 
             # Basic primary
-            if not annotation:
-                if self.lane_nr + shift in downstream_row.MSIs.keys():
-                    self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
-                    downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
+            if not annotation and self.lane_nr + shift in d_row.MSIs.keys():
+                    self.properties["d"] = d_row.MSIs[self.lane_nr + shift].name
+                    d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
                 assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
@@ -1820,46 +1819,46 @@ class MSI(MSILegends):
 
                 # Basic primary (2)
                 if lane_type not in ["ExtraRijstrook", "Rijstrookbeëindiging"]:
-                    if self.lane_nr + shift in downstream_row.MSIs.keys():
-                        self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift].name
-                        downstream_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
+                    if self.lane_nr + shift in d_row.MSIs.keys():
+                        self.properties["d"] = d_row.MSIs[self.lane_nr + shift].name
+                        d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
                 else:
                     # Adjusted primary for change in leftmost lane
-                    if lane_type in ["ExtraRijstrook"] and lane_nr == 1 and self.lane_nr + shift + 1 in downstream_row.MSIs.keys():
-                        self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift + 1].name
-                        downstream_row.MSIs[self.lane_nr + shift + 1].properties["u"] = self.name
+                    if lane_type in ["ExtraRijstrook"] and lane_nr == 1 and self.lane_nr + shift + 1 in d_row.MSIs.keys():
+                        self.properties["d"] = d_row.MSIs[self.lane_nr + shift + 1].name
+                        d_row.MSIs[self.lane_nr + shift + 1].properties["u"] = self.name
                     # Adjusted primary for change in leftmost lane
-                    if lane_type in ["Rijstrookbeëindiging"] and lane_nr == 1 and self.lane_nr + shift - 1 in downstream_row.MSIs.keys():
-                        self.properties["d"] = downstream_row.MSIs[self.lane_nr + shift - 1].name
-                        downstream_row.MSIs[self.lane_nr + shift - 1].properties["u"] = self.name
+                    if lane_type in ["Rijstrookbeëindiging"] and lane_nr == 1 and self.lane_nr + shift - 1 in d_row.MSIs.keys():
+                        self.properties["d"] = d_row.MSIs[self.lane_nr + shift - 1].name
+                        d_row.MSIs[self.lane_nr + shift - 1].properties["u"] = self.name
 
                 # Broadening
-                if lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in downstream_row.MSIs.keys():
-                    self.properties["db"] = downstream_row.MSIs[self.lane_nr + shift].name
-                    downstream_row.MSIs[self.lane_nr + shift].properties["ub"] = self.name
+                if lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in d_row.MSIs.keys():
+                    self.properties["db"] = d_row.MSIs[self.lane_nr + shift].name
+                    d_row.MSIs[self.lane_nr + shift].properties["ub"] = self.name
                 # Narrowing
-                if lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in downstream_row.MSIs.keys():
-                    self.properties["dn"] = downstream_row.MSIs[self.lane_nr + shift].name
-                    downstream_row.MSIs[self.lane_nr + shift].properties["un"] = self.name
+                if lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in d_row.MSIs.keys():
+                    self.properties["dn"] = d_row.MSIs[self.lane_nr + shift].name
+                    d_row.MSIs[self.lane_nr + shift].properties["un"] = self.name
 
                 # Secondary
                 if lane_type == "Invoegstrook" and lane_nr == self.lane_nr + shift:
                     msi_number = self.lane_nr + shift - 1
-                    if msi_number in downstream_row.MSIs.keys():
-                        self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
+                    if msi_number in d_row.MSIs.keys():
+                        self.make_secondary_connection(d_row.MSIs[msi_number], self)
 
                 if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + shift + 1:
                     msi_number = self.lane_nr + shift + 1
-                    if msi_number in downstream_row.MSIs.keys():
-                        self.make_secondary_connection(downstream_row.MSIs[msi_number], self)
+                    if msi_number in d_row.MSIs.keys():
+                        self.make_secondary_connection(d_row.MSIs[msi_number], self)
 
         # Upstream relations
-        for upstream_row, desc in self.row.upstream.items():
+        for u_row, desc in self.row.upstream.items():
             shift, annotation = desc
 
-            # Primary
-            if self.lane_nr + shift in upstream_row.MSIs.keys():
-                self.properties["u"] = upstream_row.MSIs[self.lane_nr + shift].name
+            # # Primary
+            # if self.lane_nr + shift in u_row.MSIs.keys():
+            #     self.properties["u"] = u_row.MSIs[self.lane_nr + shift].name
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if not self.properties["u"] and self.row.upstream:
@@ -1867,9 +1866,9 @@ class MSI(MSILegends):
 
             if True:
                 print("Applying relation!")
-                for upstream_row, desc in self.row.upstream.items():
-                    highest_msi_number = max([msi_nr for msi_nr in upstream_row.MSIs.keys()])
-                    self.make_secondary_connection(self, upstream_row.MSIs[highest_msi_number])
+                for u_row, desc in self.row.upstream.items():
+                    highest_msi_number = max([msi_nr for msi_nr in u_row.MSIs.keys()])
+                    self.make_secondary_connection(self, u_row.MSIs[highest_msi_number])
 
     @staticmethod
     def make_secondary_connection(row1, row2):
