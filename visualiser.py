@@ -9,7 +9,7 @@ netwerk = MSINetwerk(wegmodel)
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20
-DISPLAY_ONROAD = False
+DISPLAY_ONROAD = True
 
 if DISPLAY_ONROAD:
     MSIBOX_SIZE = LANE_WIDTH*0.8
@@ -498,18 +498,18 @@ def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate
 def draw_msi_relations(svg_dwg: svgwrite.Drawing):
     # Draw primary relations
     for element_id in element_by_id.keys():
-        start_element, start_rotation, start_origin = element_by_id.get(element_id)
+        start_element, start_rotation, start_origin = element_by_id[element_id]
         start_pos = get_center_coords(start_element, start_rotation, start_origin)
         for row in netwerk.MSIrows:
             for msi in row.MSIs.values():
                 if msi.name == element_id:
                     if msi.properties["d"]:
-                        end_element, end_rotation, end_origin = element_by_id.get(msi.properties["d"])
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["d"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
                         draw_primary(start_pos, end_pos, svg_dwg)
                     if msi.properties["ds"]:
                         for end_id in msi.properties["ds"]:
-                            end_element, end_rotation, end_origin = element_by_id.get(end_id)
+                            end_element, end_rotation, end_origin = element_by_id[end_id]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
                             draw_secondary(start_pos, end_pos, svg_dwg)
 
@@ -577,7 +577,7 @@ draw_msi_relations(dwg)
 
 # id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2__A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
 # for msi_id, image in id_to_image.items():
-#     element_by_id.get(msi_id)
+#     element_by_id[msi_id]
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)

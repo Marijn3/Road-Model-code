@@ -7,7 +7,7 @@ import math
 
 GRID_SIZE = 0.00001
 MSI_RELATION_MAX_SEARCH_DISTANCE = 2000  # [m] - Richtlijn zegt max 1200 m tussen portalen.
-DISTANCE_TOLERANCE = 0.5  # [m] Distance tolerance for overlap checking
+DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
 
 
 class DataFrameLader:
@@ -32,7 +32,7 @@ class DataFrameLader:
         "data/Maximum snelheid/max_snelheden.dbf",
         "data/Convergenties/convergenties.dbf",
         "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn-edit.dbf",
+        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
     def __init__(self, location: str = None) -> None:
@@ -109,7 +109,7 @@ class DataFrameLader:
         return folder_name
 
     @staticmethod
-    def convert_to_linestring(geom: MultiLineString) -> LineString:
+    def convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
         merged = line_merge(geom)
         if isinstance(merged, LineString):
             return merged
@@ -193,15 +193,13 @@ class DataFrameLader:
         if name == "Rijstroken":
             self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
-            mapping_function = lambda row: lane_mapping_h.get(row["OMSCHR"], "Unknown") \
-                if row["KANTCODE"] == "H" \
-                else lane_mapping_t.get(row["OMSCHR"], "Unknown")
+            mapping_function = lambda row: lane_mapping_h[row["OMSCHR"]] if row["KANTCODE"] == "H" \
+                                      else lane_mapping_t[row["OMSCHR"]]
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
         if name == "Mengstroken":
-            mapping_function = lambda row: lane_mapping_h.get(row["AANT_MSK"], "Unknown") \
-                if row["KANTCODE"] == "H" \
-                else lane_mapping_t.get(row["AANT_MSK"], "Unknown")
+            mapping_function = lambda row: lane_mapping_h[row["AANT_MSK"]] if row["KANTCODE"] == "H" \
+                                      else lane_mapping_t[row["AANT_MSK"]]
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
         if name == "Kantstroken":
@@ -226,10 +224,10 @@ class DataFrameLader:
         }
 
         if name == "Convergenties":
-            self.data[name]["Type"] = self.data[name]["TYPE_CONV"].apply(lambda entry: vergence_mapping.get(entry, "Unknown"))
+            self.data[name]["Type"] = self.data[name]["TYPE_CONV"].apply(lambda entry: vergence_mapping[entry])
 
         if name == "Divergenties":
-            self.data[name]["Type"] = self.data[name]["TYPE_DIV"].apply(lambda entry: vergence_mapping.get(entry, "Unknown"))
+            self.data[name]["Type"] = self.data[name]["TYPE_DIV"].apply(lambda entry: vergence_mapping[entry])
 
         if "stroken" in name:
             # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
@@ -1022,10 +1020,11 @@ class WegModel:
 
         stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
 
-        # If puntstuk itself, return section with same hectoletter. If all hectoletters are the same, use the km registration.
+        # If puntstuk itself, return section with same hectoletter.
         if "Puntstuk" in section_info["Obj_eigs"].values():
             connected = [index for index, section in stream_sections.items() if
                          section_info["Pos_eigs"]["Hectoletter"] == section["Pos_eigs"]["Hectoletter"]]
+            # If all hectoletters are the same, use the km registration.
             if len(connected) > 1:
                 if section_info["Pos_eigs"]["Rijrichting"] == "L":
                     connected = [index for index, section in stream_sections.items() if
@@ -1127,47 +1126,22 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    def get_section_info_at(self, km: float, side: str) -> list[dict]:
+    def get_section_info_at(self, km: float, side: str, hectoletter: str = "") -> dict:
         """
-        Finds the full properties of a road section at a specific km and travel_direction.
+        Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
             km (float): Kilometer point to retrieve the road section properties for.
             side (str): Side of the road to retrieve the road section properties for.
+            hectoletter (str): Letter that gives further specification for connecting roads.
         Returns:
-            list[dict]: Attributes of the road section(s) at the specified kilometer point.
+            dict: Attributes of the road section at the specified kilometer point and hectoletter.
         """
-        section_info = []
         for section in self.sections.values():
-            in_selection = (section["Pos_eigs"]["Rijrichting"] == side and
-                            min(section["Pos_eigs"]["Km_bereik"]) <= km <= max(section["Pos_eigs"]["Km_bereik"]))
-            if in_selection:
-                section_info.append(section)
-        return section_info
-
-    def print_props(self, km: float, travel_direction: str) -> dict | list[dict]:
-        """
-        Prints the properties of a road section at a specific km and travel_direction.
-        Args:
-            km (float): Kilometer point to retrieve the road section properties for.
-            travel_direction (str): Side of the road to retrieve the road section properties for.
-        Prints:
-            Road section(s) properties.
-        Returns:
-            list[dict]: Attributes of the (first) road section at the specified kilometer point.
-        """
-        section_info = self.get_section_info_at(km, travel_direction)
-        if len(section_info) > 1:
-            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km:")
-            for index, section in enumerate(section_info):
-                print(f"    {index}) {section['Obj_eigs']}")
-            print("")
-            return section_info
-        elif len(section_info) == 1:
-            print(f"Eigenschappen in rijrichting {travel_direction}, op {km} km: {section_info[0]['Obj_eigs']}\n")
-            return section_info[0]["Obj_eigs"]
-        else:
-            print(f"Geen secties gevonden met rijrichting {travel_direction} en {km} km.\n")
-            return section_info
+            if (section["Pos_eigs"]["Rijrichting"] == side and
+                    min(section["Pos_eigs"]["Km_bereik"]) <= km <= max(section["Pos_eigs"]["Km_bereik"]) and
+                    section["Pos_eigs"]["Hectoletter"] == hectoletter):
+                return section
+        return {}
 
     def get_sections_at_point(self, point: Point) -> dict[int: dict]:
         """
@@ -1756,8 +1730,12 @@ class MSI(MSILegends):
             dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
         if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
             dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
-        if dyn_v1 or dyn_v2:
+        if dyn_v1 and dyn_v2:
             self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
+        elif dyn_v1:
+            self.properties["DYN_V"] = dyn_v1
+        elif dyn_v2:
+            self.properties["DYN_V"] = dyn_v2
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSU’s.

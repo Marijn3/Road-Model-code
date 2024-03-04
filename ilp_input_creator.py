@@ -1,5 +1,5 @@
 import json
-from functions import *
+from safety import *
 
 
 msi_dict = {
