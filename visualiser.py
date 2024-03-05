@@ -488,6 +488,10 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
                             end_element, end_rotation, end_origin = element_by_id[end_id]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
                             draw_msi_relation("s", start_pos, end_pos, svg_dwg)
+                    if msi.properties["dt"]:
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["dt"]]
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_msi_relation("t", start_pos, end_pos, svg_dwg)
                     if msi.properties["db"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["db"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
