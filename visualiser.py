@@ -516,13 +516,13 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
     group_red_ring = group_msi_row.add(svg_dwg.g(id="red-ring", opacity=1))
     group_red_ring.add(svgwrite.shapes.Circle(
         center=center_coords,
-        r=box_size * 0.45,
+        r=box_size * 0.40,
         fill="none", stroke="#990000", stroke_width=STROKE))
 
     group_speed = group_msi_row.add(svg_dwg.g(id="speed", opacity=1))
     group_speed.add(svgwrite.text.Text(
-        "90", insert=center_coords, text_anchor="middle", dominant_baseline="central",
-        fill="white", font_family="Courier New", font_size=box_size*0.6))
+        "50", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="central"))
 
 
 def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
