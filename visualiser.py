@@ -4,8 +4,7 @@ import math
 
 dfl = DataFrameLader("Vught")
 wegmodel = WegModel(dfl)
-# netwerk = MSINetwerk(wegmodel)
-netwerk = 0
+netwerk = MSINetwerk(wegmodel)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -361,7 +360,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
 
         # Extra elements
         box_center = (coords[0] + displacement + MSIBOX_SIZE / 2, coords[1])
-        draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
+        # draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
 
     group_text = svgwrite.container.Group(id="text")
     text_coords = (coords[0] + displacement + MSIBOX_SIZE * 1.3, coords[1])
@@ -398,7 +397,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
         # Extra elements
         box_center = (coords[0] + displacement + play + MSIBOX_SIZE / 2, coords[1])
-        draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
+        # draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
 
     group_text = svgwrite.container.Group(id="text")
     text_coords = (coords[0] + 2 + displacement + MSIBOX_SIZE, coords[1])
@@ -492,7 +491,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE))
 
-    group_flashers = group_msi_row.add(svg_dwg.g(id="flashers", opacity=1))
+    group_flashers = group_msi_row.add(svg_dwg.g(id="flashers", opacity=0))
     group_flashers.add(svgwrite.shapes.Circle(
         center=(box_west + clearance/2, box_north + clearance/2),
         r=clearance/4, fill="yellow"))  # top-left
@@ -513,13 +512,13 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         circle.add(svg_dwg.animate("fill", attributeType="XML", from_="white", to="yellow",
                                    id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
 
-    group_red_ring = group_msi_row.add(svg_dwg.g(id="red-ring", opacity=1))
+    group_red_ring = group_msi_row.add(svg_dwg.g(id="red-ring", opacity=0))
     group_red_ring.add(svgwrite.shapes.Circle(
         center=center_coords,
         r=box_size * 0.40,
         fill="none", stroke="#990000", stroke_width=STROKE))
 
-    group_speed = group_msi_row.add(svg_dwg.g(id="speed", opacity=1))
+    group_speed = group_msi_row.add(svg_dwg.g(id="speed", opacity=0))
     group_speed.add(svgwrite.text.Text(
         "50", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
         text_anchor="middle", dominant_baseline="central"))
@@ -620,8 +619,8 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-# print("MSI-relaties visualiseren...")
-# draw_msi_relations(dwg)
+print("MSI-relaties visualiseren...")
+draw_msi_relations(dwg)
 
 # id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2__A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
 # for msi_id, image in id_to_image.items():
