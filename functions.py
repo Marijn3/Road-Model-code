@@ -1810,8 +1810,8 @@ class MSI(MSILegends):
 
             # Basic primary
             if not annotation and self.lane_nr + shift in d_row.MSIs.keys():
-                    self.properties["d"] = d_row.MSIs[self.lane_nr + shift].name
-                    d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
+                self.properties["d"] = d_row.MSIs[self.lane_nr + shift].name
+                d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
                 assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
@@ -1836,21 +1836,23 @@ class MSI(MSILegends):
                         d_row.MSIs[self.lane_nr + shift - 1].properties["u"] = self.name
 
                 # Broadening
-                if lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in d_row.MSIs.keys():
+                if (lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr
+                        and self.lane_nr + shift in d_row.MSIs.keys()):
                     self.properties["db"] = d_row.MSIs[self.lane_nr + shift].name
                     d_row.MSIs[self.lane_nr + shift].properties["ub"] = self.name
                 # Narrowing
-                if lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr + shift and self.lane_nr + shift in d_row.MSIs.keys():
+                if (lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr
+                        and self.lane_nr + shift in d_row.MSIs.keys()):
                     self.properties["dn"] = d_row.MSIs[self.lane_nr + shift].name
                     d_row.MSIs[self.lane_nr + shift].properties["un"] = self.name
 
-                # Secondary (TODO 32: shift is being added at the wrong moment.)
-                if lane_type == "Invoegstrook" and lane_nr == self.lane_nr + shift:
+                # Secondary
+                if lane_type == "Invoegstrook" and lane_nr == self.lane_nr:
                     msi_number = self.lane_nr + shift - 1
                     if msi_number in d_row.MSIs.keys():
                         self.make_secondary_connection(d_row.MSIs[msi_number], self)
 
-                if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + shift + 1:
+                if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + 1:
                     msi_number = self.lane_nr + shift + 1
                     if msi_number in d_row.MSIs.keys():
                         self.make_secondary_connection(d_row.MSIs[msi_number], self)
