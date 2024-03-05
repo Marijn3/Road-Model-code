@@ -407,6 +407,11 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
 
 def draw_all_legends(group_msi_row, box_coords, center_coords, box_size):
+    box_west = box_coords[0]
+    box_north = box_coords[1]
+    box_east = box_west + box_size
+    box_south = box_north + box_size
+
     clearance = box_size*0.2
     group_red_ring = svgwrite.container.Group(id="red-ring")
     redring = svgwrite.shapes.Circle(
@@ -417,13 +422,13 @@ def draw_all_legends(group_msi_row, box_coords, center_coords, box_size):
 
     group_red_cross = svgwrite.container.Group(id="red-cross")
     cross1 = svgwrite.shapes.Line(
-        start=(box_coords[0] + clearance, box_coords[1] + clearance),
-        end=(box_coords[0] + box_size - clearance, box_coords[1] + box_size - clearance),
+        start=(box_west + clearance, box_north + clearance),
+        end=(box_east - clearance, box_south - clearance),
         stroke="#990000", stroke_width=STROKE)
     group_red_cross.add(cross1)
     cross2 = svgwrite.shapes.Line(
-        start=(box_coords[0] + box_size - clearance, box_coords[1] + clearance),
-        end=(box_coords[0] + clearance, box_coords[1] + box_size - clearance),
+        start=(box_east - clearance, box_north + clearance),
+        end=(box_west + clearance, box_south - clearance),
         stroke="#990000", stroke_width=STROKE)
     group_red_cross.add(cross2)
 
@@ -433,16 +438,16 @@ def draw_all_legends(group_msi_row, box_coords, center_coords, box_size):
         r=box_size * 0.45,
         fill="none", stroke="#FFFFFF", stroke_width=STROKE)
     sideline1 = svgwrite.shapes.Line(
-        start=(box_coords[0] + box_size - clearance - STROKE * 1.5, box_coords[1] + clearance - STROKE * 1.5),
-        end=(box_coords[0] + clearance - STROKE * 1.5, box_coords[1] + box_size - clearance - STROKE * 1.5),
+        start=(box_east - clearance - STROKE * 1.5, box_north + clearance - STROKE * 1.5),
+        end=(box_west + clearance - STROKE * 1.5, box_south - clearance - STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE)
     sideline2 = svgwrite.shapes.Line(
-        start=(box_coords[0] + box_size - clearance, box_coords[1] + clearance),
-        end=(box_coords[0] + clearance, box_coords[1] + box_size - clearance),
+        start=(box_east - clearance, box_north + clearance),
+        end=(box_west + clearance, box_south - clearance),
         stroke="#FFFFFF", stroke_width=STROKE)
     sideline3 = svgwrite.shapes.Line(
-        start=(box_coords[0] + box_size - clearance + STROKE * 1.5, box_coords[1] + clearance + STROKE * 1.5),
-        end=(box_coords[0] + clearance + STROKE * 1.5, box_coords[1] + box_size - clearance + STROKE * 1.5),
+        start=(box_east - clearance + STROKE * 1.5, box_north + clearance + STROKE * 1.5),
+        end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE)
     group_eor.add(ring)
     group_eor.add(sideline1)
