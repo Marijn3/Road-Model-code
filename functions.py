@@ -1556,8 +1556,7 @@ class MSINetwerk:
         # Store negative value in this direction.
         print(f"Marking {div_section_id} with -{shift_div}")
 
-        # Annotation at a split remains unchanged by definition.
-        # The properties of the main road are all assumed to be included in the sum of the off-splitting roads.
+        annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
 
         # Make it do the recursive function twice. Then return both options as a list.
         option_continuation = self.find_msi_recursive(cont_section_id, other_point["Pos_eigs"]["Km"],
@@ -1814,11 +1813,13 @@ class MSI(MSILegends):
                 d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
-                assert len(annotation) == 1, f"Length of annotation not supported: {annotation}"
-                lane_nr, lane_type = annotation[0]
-                if lane_nr == "Special":
-                    lane_type, lane_nr = lane_type
-                print("Lane_info extracted:", lane_nr, lane_type)
+                # TODO: Make it work for multiple annotations,
+                #  such as [(3, 'Uitrijstrook'), ('Special', ('ExtraRijstrook', 1))]
+                for anno in annotation:
+                    lane_nr, lane_type = anno
+                    if lane_nr == "Special":
+                        lane_type, lane_nr = lane_type
+                    print("Lane_info extracted:", lane_nr, lane_type)
 
                 # Basic primary (2)
                 if lane_type not in ["ExtraRijstrook", "Rijstrookbeëindiging"]:
