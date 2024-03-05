@@ -506,7 +506,14 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         center=(box_east - clearance/2, box_south - clearance/2),
         r=clearance/4, fill="white"))  # bottom-right
 
-    group_red_ring = dwg.g(id="red-ring")
+    for circle in group_flashers.elements[:2]:
+        circle.add(svg_dwg.animate("fill", attributeType="XML", from_="yellow", to="white",
+                                   id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
+    for circle in group_flashers.elements[-2:]:
+        circle.add(svg_dwg.animate("fill", attributeType="XML", from_="white", to="yellow",
+                                   id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
+
+    group_red_ring = group_msi_row.add(svg_dwg.g(id="red-ring", opacity=0))
     group_red_ring.add(svgwrite.shapes.Circle(
         center=center_coords,
         r=box_size * 0.45,
@@ -591,7 +598,7 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO))
+dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO), profile="full")
 
 # Background
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
