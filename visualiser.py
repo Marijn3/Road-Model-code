@@ -492,17 +492,32 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE))
 
-    group_red_ring = svgwrite.container.Group(id="red-ring")
+    group_flashers = dwg.g(id="flashers")
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_west + clearance/2, box_north + clearance/2),
+        r=clearance/4, fill="yellow"))  # top-left
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_east - clearance/2, box_north + clearance/2),
+        r=clearance/4, fill="yellow"))  # top-right
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_west + clearance/2, box_south - clearance/2),
+        r=clearance/4, fill="white"))  # bottom-left
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_east - clearance/2, box_south - clearance/2),
+        r=clearance/4, fill="white"))  # bottom-right
+
+    group_red_ring = dwg.g(id="red-ring")
     group_red_ring.add(svgwrite.shapes.Circle(
         center=center_coords,
         r=box_size * 0.45,
         fill="none", stroke="#990000", stroke_width=STROKE))
 
     # group_msi_row.add(group_red_cross)
-    group_msi_row.add(group_green_arrow)
-    # group_msi_row.add(group_left_arrow)
+    # group_msi_row.add(group_green_arrow)
+    group_msi_row.add(group_left_arrow)
     # group_msi_row.add(group_right_arrow)
     # group_msi_row.add(group_eor)
+    group_msi_row.add(group_flashers)
     # group_msi_row.add(group_red_ring)
 
 
