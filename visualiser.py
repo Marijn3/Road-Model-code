@@ -438,6 +438,34 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance, box_south - clearance),
         stroke="#990000", stroke_width=STROKE))
 
+    group_left_arrow = svgwrite.container.Group(id="left-arrow")
+    group_left_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + clearance - STROKE/2, box_south - clearance),
+        end=(box_east - clearance*1.75, box_south - clearance),
+        stroke="#FFFFFF", stroke_width=STROKE))  # _
+    group_left_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + clearance, box_south - clearance + STROKE/2),
+        end=(box_west + clearance, box_north + clearance*1.75),
+        stroke="#FFFFFF", stroke_width=STROKE))  # |
+    group_left_arrow.add(svgwrite.shapes.Line(
+        start=(box_east - clearance, box_north + clearance),
+        end=(box_west + clearance*1.5, box_south - clearance*1.5),
+        stroke="#FFFFFF", stroke_width=STROKE))  # /
+
+    group_right_arrow = svgwrite.container.Group(id="right-arrow")
+    group_right_arrow.add(svgwrite.shapes.Line(
+        start=(box_east - clearance + STROKE/2, box_south - clearance),
+        end=(box_west + clearance*1.75, box_south - clearance),
+        stroke="#FFFFFF", stroke_width=STROKE))  # _
+    group_right_arrow.add(svgwrite.shapes.Line(
+        start=(box_east - clearance, box_south - clearance + STROKE/2),
+        end=(box_east - clearance, box_north + clearance*1.75),
+        stroke="#FFFFFF", stroke_width=STROKE))  # |
+    group_right_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + clearance, box_north + clearance),
+        end=(box_east - clearance*1.5, box_south - clearance*1.5),
+        stroke="#FFFFFF", stroke_width=STROKE))  # \
+
     group_eor = svgwrite.container.Group(id="end-of-restrictions")
     group_eor.add(svgwrite.shapes.Circle(
         center=center_coords,
@@ -456,9 +484,11 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE))
 
-    group_msi_row.add(group_red_ring)
-    group_msi_row.add(group_red_cross)
-    group_msi_row.add(group_eor)
+    # group_msi_row.add(group_red_ring)
+    # group_msi_row.add(group_red_cross)
+    # group_msi_row.add(group_left_arrow)
+    group_msi_row.add(group_right_arrow)
+    # group_msi_row.add(group_eor)
 
 
 def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
