@@ -958,12 +958,12 @@ class WegModel:
                 if point_info["Pos_eigs"]["Geometrie"].dwithin(start_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_start"] = True
                     self.sections[section_index]["Verw_eigs"]["Start_kenmerk"] = {
-                        key: value for key, value in section_info["Obj_eigs"].items() if value in ["Invoegstrook", "Samenvoeging"]}
+                        key: value for key, value in section_info["Obj_eigs"].items() if value in ["Invoegstrook", "Samenvoeging", "Weefstrook"]}
                     skip_start_check = True
                 if point_info["Pos_eigs"]["Geometrie"].dwithin(end_point, DISTANCE_TOLERANCE):
                     self.sections[section_index]["Verw_eigs"]["*vergentiepunt_einde"] = True
                     self.sections[section_index]["Verw_eigs"]["Einde_kenmerk"] = {
-                        key: value for key, value in section_info["Obj_eigs"].items() if value in ["Uitrijstrook", "Splitsing"]}
+                        key: value for key, value in section_info["Obj_eigs"].items() if value in ["Uitrijstrook", "Splitsing", "Weefstrook"]}
                     skip_end_check = True
 
             start_sections = self.get_sections_at_point(start_point)
@@ -1587,27 +1587,35 @@ class MSINetwerk:
         """
         Determines the annotation to be added to the current recursive
         search based on processing properties of the current section.
-        The function assumes that special situations do not occur
-        multiples times in the same section transition.
         Args:
             section_verw_eigs (dict):
         Returns:
             Appendable list of a tuple, indicating the lane number and
             the annotation - the type of special case encountered.
         """
+        annotation = []
+
         if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
-            return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items() if
-                    lane_type == "Invoegstrook"]
+            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items()
+                               if lane_type == "Invoegstrook"])
 
         if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
-            return [(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items() if
-                    key == "Special"]
+            annotation.extend([(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items()
+                               if key == "Special"])
 
         if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
-            return [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items() if
-                    lane_type == "Uitrijstrook"]
+            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
+                               if lane_type == "Uitrijstrook"])
 
-        return []
+        if "Samenvoeging" in section_verw_eigs["Start_kenmerk"].values():
+            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
+                               if lane_type == "Samenvoeging"])
+
+        if "Weefstrook" in section_verw_eigs["Start_kenmerk"].values():
+            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
+                               if lane_type == "Weefstrook"])
+
+        return annotation
 
     def get_msi_row_at(self, km: float, hectoletter: str) -> MSIRow | None:
         """
@@ -1813,6 +1821,7 @@ class MSI(MSILegends):
                 d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
 
             if annotation:
+                print(annotation)
                 # TODO: Make it work for multiple annotations,
                 #  such as [(3, 'Uitrijstrook'), ('Special', ('ExtraRijstrook', 1))]
                 for anno in annotation:
