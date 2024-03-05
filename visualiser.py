@@ -343,7 +343,7 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
 
 def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    hecto_offset = 0 if not point_data["Pos_eigs"]["Hectoletter"] else LANE_WIDTH*25
+    hecto_offset = LANE_WIDTH*25 if point_data["Pos_eigs"]["Hectoletter"] in ["n", "m", "a", "b", "c", "d"] else 0
 
     for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
         msi_name = make_name(point_data, nr)
