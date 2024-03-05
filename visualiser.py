@@ -401,7 +401,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
         draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE)
 
     group_text = svgwrite.container.Group(id="text")
-    text_coords = (coords[0] + 1.0 + info_offset, coords[1])
+    text_coords = (coords[0] + 2 + displacement + MSIBOX_SIZE, coords[1])
     anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
                               insert=text_coords,
