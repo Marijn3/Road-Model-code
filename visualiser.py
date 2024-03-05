@@ -4,13 +4,13 @@ import math
 
 dfl = DataFrameLader("Vught")
 wegmodel = WegModel(dfl)
-netwerk = MSINetwerk(wegmodel)
-# netwerk = 0
+# netwerk = MSINetwerk(wegmodel)
+netwerk = 0
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20
-DISPLAY_ONROAD = True
+DISPLAY_ONROAD = False
 
 if DISPLAY_ONROAD:
     MSIBOX_SIZE = LANE_WIDTH*0.8
@@ -344,7 +344,7 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
 
 def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    hecto_offset = 0 if not point_data["Pos_eigs"]["Hectoletter"] else LANE_WIDTH*20
+    hecto_offset = 0 if not point_data["Pos_eigs"]["Hectoletter"] else LANE_WIDTH*25
 
     for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
         msi_name = make_name(point_data, nr)
@@ -420,48 +420,41 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
     box_north = box_coords[1]
     box_east = box_west + box_size
     box_south = box_north + box_size
-
     clearance = box_size*0.2
+
     group_red_ring = svgwrite.container.Group(id="red-ring")
-    redring = svgwrite.shapes.Circle(
+    group_red_ring.add(svgwrite.shapes.Circle(
         center=center_coords,
         r=box_size * 0.45,
-        fill="none", stroke="#990000", stroke_width=STROKE)
-    group_red_ring.add(redring)
+        fill="none", stroke="#990000", stroke_width=STROKE))
 
     group_red_cross = svgwrite.container.Group(id="red-cross")
-    cross1 = svgwrite.shapes.Line(
+    group_red_cross.add(svgwrite.shapes.Line(
         start=(box_west + clearance, box_north + clearance),
         end=(box_east - clearance, box_south - clearance),
-        stroke="#990000", stroke_width=STROKE)
-    group_red_cross.add(cross1)
-    cross2 = svgwrite.shapes.Line(
+        stroke="#990000", stroke_width=STROKE))
+    group_red_cross.add(svgwrite.shapes.Line(
         start=(box_east - clearance, box_north + clearance),
         end=(box_west + clearance, box_south - clearance),
-        stroke="#990000", stroke_width=STROKE)
-    group_red_cross.add(cross2)
+        stroke="#990000", stroke_width=STROKE))
 
     group_eor = svgwrite.container.Group(id="end-of-restrictions")
-    ring = svgwrite.shapes.Circle(
+    group_eor.add(svgwrite.shapes.Circle(
         center=center_coords,
         r=box_size * 0.45,
-        fill="none", stroke="#FFFFFF", stroke_width=STROKE)
-    sideline1 = svgwrite.shapes.Line(
+        fill="none", stroke="#FFFFFF", stroke_width=STROKE))
+    group_eor.add(svgwrite.shapes.Line(
         start=(box_east - clearance - STROKE * 1.5, box_north + clearance - STROKE * 1.5),
         end=(box_west + clearance - STROKE * 1.5, box_south - clearance - STROKE * 1.5),
-        stroke="#FFFFFF", stroke_width=STROKE)
-    sideline2 = svgwrite.shapes.Line(
+        stroke="#FFFFFF", stroke_width=STROKE))
+    group_eor.add(svgwrite.shapes.Line(
         start=(box_east - clearance, box_north + clearance),
         end=(box_west + clearance, box_south - clearance),
-        stroke="#FFFFFF", stroke_width=STROKE)
-    sideline3 = svgwrite.shapes.Line(
+        stroke="#FFFFFF", stroke_width=STROKE))
+    group_eor.add(svgwrite.shapes.Line(
         start=(box_east - clearance + STROKE * 1.5, box_north + clearance + STROKE * 1.5),
         end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
-        stroke="#FFFFFF", stroke_width=STROKE)
-    group_eor.add(ring)
-    group_eor.add(sideline1)
-    group_eor.add(sideline2)
-    group_eor.add(sideline3)
+        stroke="#FFFFFF", stroke_width=STROKE))
 
     group_msi_row.add(group_red_ring)
     group_msi_row.add(group_red_cross)
@@ -563,8 +556,8 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-print("MSI-relaties visualiseren...")
-draw_msi_relations(dwg)
+# print("MSI-relaties visualiseren...")
+# draw_msi_relations(dwg)
 
 # id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2__A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
 # for msi_id, image in id_to_image.items():
