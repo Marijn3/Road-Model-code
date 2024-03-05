@@ -9,15 +9,15 @@ netwerk = MSINetwerk(wegmodel)
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20
-DISPLAY_ONROAD = True
+DISPLAY_ONROAD = False
 
 if DISPLAY_ONROAD:
     MSIBOX_SIZE = LANE_WIDTH*0.8
     TEXT_SIZE = MSIBOX_SIZE*0.8
     VISUAL_PLAY = MSIBOX_SIZE*0.2
-    STROKE = MSIBOX_SIZE*0.1
+    STROKE = MSIBOX_SIZE*0.07
 else:
-    TEXT_SIZE = MSIBOX_SIZE*0.8
+    TEXT_SIZE = MSIBOX_SIZE*0.6
     VISUAL_PLAY = MSIBOX_SIZE*0.2
     STROKE = MSIBOX_SIZE*0.05
 
@@ -343,10 +343,11 @@ def svg_add_point(point_data: dict, svg_dwg: svgwrite.Drawing):
 
 def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
+    hecto_offset = 0 if not point_data["Pos_eigs"]["Hectoletter"] else LANE_WIDTH*25
 
     for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
         msi_name = make_name(point_data, nr)
-        displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE)
+        displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE) + hecto_offset
         box_pos = (coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2)
         square = svgwrite.shapes.Rect(id=msi_name,
                                       insert=box_pos,
@@ -359,58 +360,19 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
 
         # Extra elements
         box_center = (coords[0] + displacement + MSIBOX_SIZE / 2, coords[1])
-        clearance = MSIBOX_SIZE*0.2
+        # draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
 
-        group_red_ring = svgwrite.container.Group(id="red-ring")
-        redring = svgwrite.shapes.Circle(
-            center=box_center,
-            r=MSIBOX_SIZE * 0.45,
-            fill="none", stroke="#990000", stroke_width=STROKE)
-        group_red_ring.add(redring)
-
-        group_red_cross = svgwrite.container.Group(id="red-cross")
-        cross1 = svgwrite.shapes.Line(
-            start=(box_pos[0] + clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + MSIBOX_SIZE - clearance),
-            stroke="#990000", stroke_width=STROKE)
-        group_red_cross.add(cross1)
-        cross2 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + clearance, box_pos[1] + MSIBOX_SIZE - clearance),
-            stroke="#990000", stroke_width=STROKE)
-        group_red_cross.add(cross2)
-
-        group_eor = svgwrite.container.Group(id="end-of-restrictions")
-        ring = svgwrite.shapes.Circle(
-            center=box_center,
-            r=MSIBOX_SIZE * 0.45,
-            fill="none", stroke="#FFFFFF", stroke_width=STROKE)
-        sideline1 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance - STROKE*1.5, box_pos[1] + clearance - STROKE*1.5),
-            end=(box_pos[0] + clearance - STROKE*1.5, box_pos[1] + MSIBOX_SIZE - clearance - STROKE*1.5),
-            stroke="#FFFFFF", stroke_width=STROKE)
-        sideline2 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + clearance, box_pos[1] + MSIBOX_SIZE - clearance),
-            stroke="#FFFFFF", stroke_width=STROKE)
-        sideline3 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance + STROKE*1.5, box_pos[1] + clearance + STROKE*1.5),
-            end=(box_pos[0] + clearance + STROKE*1.5, box_pos[1] + MSIBOX_SIZE - clearance + STROKE*1.5),
-            stroke="#FFFFFF", stroke_width=STROKE)
-        group_eor.add(ring)
-        group_eor.add(sideline1)
-        group_eor.add(sideline2)
-        group_eor.add(sideline3)
-
-        group_msi_row.add(group_red_ring)
-        group_msi_row.add(group_red_cross)
-        group_msi_row.add(group_eor)
-
+    group_text = svgwrite.container.Group(id="text")
+    text_coords = (coords[0] + displacement + MSIBOX_SIZE * 1.3, coords[1])
+    anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
-                              insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1]),
-                              fill="white", font_family="Arial", dominant_baseline="central", font_size=TEXT_SIZE)
+                              insert=text_coords,
+                              fill="white", font_family="Arial", dominant_baseline="central",
+                              text_anchor=anchorpoint, font_size=TEXT_SIZE)
+    group_text.add(text)
+    group_text.rotate(-rotate_angle, center=text_coords)
 
-    group_msi_row.add(text)
+    group_msi_row.add(group_text)
     group_msi_row.rotate(rotate_angle, center=coords)
     svg_dwg.add(group_msi_row)
 
@@ -435,60 +397,131 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
         # Extra elements
         box_center = (coords[0] + displacement + play + MSIBOX_SIZE / 2, coords[1])
-        clearance = MSIBOX_SIZE*0.2
+        # draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
 
-        group_red_ring = svgwrite.container.Group(id="red-ring")
-        redring = svgwrite.shapes.Circle(
-            center=box_center,
-            r=MSIBOX_SIZE * 0.45,
-            fill="none", stroke="#990000", stroke_width=0.2)
-        group_red_ring.add(redring)
-
-        group_red_cross = svgwrite.container.Group(id="red-cross")
-        cross1 = svgwrite.shapes.Line(
-            start=(box_pos[0] + clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + MSIBOX_SIZE - clearance),
-            stroke="#990000", stroke_width=0.2)
-        group_red_cross.add(cross1)
-        cross2 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + clearance, box_pos[1] + MSIBOX_SIZE - clearance),
-            stroke="#990000", stroke_width=0.2)
-        group_red_cross.add(cross2)
-
-        group_eor = svgwrite.container.Group(id="end-of-restrictions")
-        ring = svgwrite.shapes.Circle(
-            center=box_center,
-            r=MSIBOX_SIZE * 0.45,
-            fill="none", stroke="#FFFFFF", stroke_width=0.2)
-        sideline1 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance - 0.3, box_pos[1] + clearance - 0.3),
-            end=(box_pos[0] + clearance - 0.3, box_pos[1] + MSIBOX_SIZE - clearance - 0.3),
-            stroke="#FFFFFF", stroke_width=0.2)
-        sideline2 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance, box_pos[1] + clearance),
-            end=(box_pos[0] + clearance, box_pos[1] + MSIBOX_SIZE - clearance),
-            stroke="#FFFFFF", stroke_width=0.2)
-        sideline3 = svgwrite.shapes.Line(
-            start=(box_pos[0] + MSIBOX_SIZE - clearance + 0.3, box_pos[1] + clearance + 0.3),
-            end=(box_pos[0] + clearance + 0.3, box_pos[1] + MSIBOX_SIZE - clearance + 0.3),
-            stroke="#FFFFFF", stroke_width=0.2)
-        group_eor.add(ring)
-        group_eor.add(sideline1)
-        group_eor.add(sideline2)
-        group_eor.add(sideline3)
-
-        group_msi_row.add(group_red_ring)
-        group_msi_row.add(group_red_cross)
-        group_msi_row.add(group_eor)
-
+    group_text = svgwrite.container.Group(id="text")
+    text_coords = (coords[0] + 2 + displacement + MSIBOX_SIZE, coords[1])
+    anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
-                              insert=(coords[0] + 1 + info_offset, coords[1]),
-                              fill="white", font_family="Arial", dominant_baseline="central", font_size=max(4, MSIBOX_SIZE*0.8))
+                              insert=text_coords,
+                              fill="white", font_family="Arial", dominant_baseline="central",
+                              text_anchor=anchorpoint, font_size=max(4.0, MSIBOX_SIZE*0.8))
+    group_text.add(text)
+    group_text.rotate(-rotate_angle, center=text_coords)
 
-    group_msi_row.add(text)
+    group_msi_row.add(group_text)
     group_msi_row.rotate(rotate_angle, center=coords)
     svg_dwg.add(group_msi_row)
+
+
+def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple, center_coords: tuple, box_size: float, svg_dwg: svgwrite.Drawing):
+    box_west = box_coords[0]
+    box_north = box_coords[1]
+    box_east = box_west + box_size
+    box_south = box_north + box_size
+    clearance = box_size*0.2
+
+    group_red_cross = group_msi_row.add(svg_dwg.g(id="red-cross", opacity=0))
+    group_red_cross.add(svgwrite.shapes.Line(
+        start=(box_west + clearance, box_north + clearance),
+        end=(box_east - clearance, box_south - clearance),
+        stroke="#990000", stroke_width=STROKE))  # \
+    group_red_cross.add(svgwrite.shapes.Line(
+        start=(box_east - clearance, box_north + clearance),
+        end=(box_west + clearance, box_south - clearance),
+        stroke="#990000", stroke_width=STROKE))  # /
+
+    group_green_arrow = group_msi_row.add(svg_dwg.g(id="green-arrow", opacity=0))
+    group_green_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + box_size/2, box_north + clearance/2),
+        end=(box_west + box_size/2, box_south - clearance*1.5),
+        stroke="#009900", stroke_width=STROKE))  # |
+    group_green_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + box_size/2 + math.sqrt(STROKE/2)/2, box_south - clearance/2),
+        end=(box_west + clearance + math.sqrt(STROKE/2)/2, box_south - box_size/2 + clearance/2),
+        stroke="#009900", stroke_width=STROKE))  # \
+    group_green_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + box_size/2 - math.sqrt(STROKE/2)/2, box_south - clearance/2),
+        end=(box_east - clearance - math.sqrt(STROKE/2)/2, box_south - box_size/2 + clearance/2),
+        stroke="#009900", stroke_width=STROKE))  # /
+
+    group_left_arrow = group_msi_row.add(svg_dwg.g(id="left-arrow", opacity=0))
+    group_left_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + clearance - STROKE/2, box_south - clearance),
+        end=(box_east - clearance*1.75, box_south - clearance),
+        stroke="#FFFFFF", stroke_width=STROKE))  # _
+    group_left_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + clearance, box_south - clearance + STROKE/2),
+        end=(box_west + clearance, box_north + clearance*1.75),
+        stroke="#FFFFFF", stroke_width=STROKE))  # |
+    group_left_arrow.add(svgwrite.shapes.Line(
+        start=(box_east - clearance, box_north + clearance),
+        end=(box_west + clearance*1.5, box_south - clearance*1.5),
+        stroke="#FFFFFF", stroke_width=STROKE))  # /
+
+    group_right_arrow = group_msi_row.add(svg_dwg.g(id="right-arrow", opacity=0))
+    group_right_arrow.add(svgwrite.shapes.Line(
+        start=(box_east - clearance + STROKE/2, box_south - clearance),
+        end=(box_west + clearance*1.75, box_south - clearance),
+        stroke="#FFFFFF", stroke_width=STROKE))  # _
+    group_right_arrow.add(svgwrite.shapes.Line(
+        start=(box_east - clearance, box_south - clearance + STROKE/2),
+        end=(box_east - clearance, box_north + clearance*1.75),
+        stroke="#FFFFFF", stroke_width=STROKE))  # |
+    group_right_arrow.add(svgwrite.shapes.Line(
+        start=(box_west + clearance, box_north + clearance),
+        end=(box_east - clearance*1.5, box_south - clearance*1.5),
+        stroke="#FFFFFF", stroke_width=STROKE))  # \
+
+    group_eor = group_msi_row.add(svg_dwg.g(id="end-of-restrictions", opacity=0))
+    group_eor.add(svgwrite.shapes.Circle(
+        center=center_coords,
+        r=box_size * 0.45,
+        fill="none", stroke="#FFFFFF", stroke_width=STROKE))
+    group_eor.add(svgwrite.shapes.Line(
+        start=(box_east - clearance - STROKE * 1.5, box_north + clearance - STROKE * 1.5),
+        end=(box_west + clearance - STROKE * 1.5, box_south - clearance - STROKE * 1.5),
+        stroke="#FFFFFF", stroke_width=STROKE))
+    group_eor.add(svgwrite.shapes.Line(
+        start=(box_east - clearance, box_north + clearance),
+        end=(box_west + clearance, box_south - clearance),
+        stroke="#FFFFFF", stroke_width=STROKE))
+    group_eor.add(svgwrite.shapes.Line(
+        start=(box_east - clearance + STROKE * 1.5, box_north + clearance + STROKE * 1.5),
+        end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
+        stroke="#FFFFFF", stroke_width=STROKE))
+
+    group_flashers = group_msi_row.add(svg_dwg.g(id="flashers", opacity=0))
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_west + clearance/2, box_north + clearance/2),
+        r=clearance/4, fill="yellow"))  # top-left
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_east - clearance/2, box_north + clearance/2),
+        r=clearance/4, fill="yellow"))  # top-right
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_west + clearance/2, box_south - clearance/2),
+        r=clearance/4, fill="white"))  # bottom-left
+    group_flashers.add(svgwrite.shapes.Circle(
+        center=(box_east - clearance/2, box_south - clearance/2),
+        r=clearance/4, fill="white"))  # bottom-right
+
+    for circle in group_flashers.elements[:2]:
+        circle.add(svg_dwg.animate("fill", attributeType="XML", from_="yellow", to="white",
+                                   id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
+    for circle in group_flashers.elements[-2:]:
+        circle.add(svg_dwg.animate("fill", attributeType="XML", from_="white", to="yellow",
+                                   id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
+
+    group_red_ring = group_msi_row.add(svg_dwg.g(id="red-ring", opacity=0))
+    group_red_ring.add(svgwrite.shapes.Circle(
+        center=center_coords,
+        r=box_size * 0.40,
+        fill="none", stroke="#990000", stroke_width=STROKE))
+
+    group_speed = group_msi_row.add(svg_dwg.g(id="speed", opacity=0))
+    group_speed.add(svgwrite.text.Text(
+        "50", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="central"))
 
 
 def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
@@ -520,6 +553,10 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
                             end_element, end_rotation, end_origin = element_by_id[end_id]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
                             draw_msi_relation("s", start_pos, end_pos, svg_dwg)
+                    if msi.properties["dt"]:
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["dt"]]
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_msi_relation("t", start_pos, end_pos, svg_dwg)
                     if msi.properties["db"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["db"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
@@ -565,7 +602,7 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO))
+dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO), profile="full")
 
 # Background
 dwg.add(svgwrite.shapes.Rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
