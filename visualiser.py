@@ -361,7 +361,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
 
         # Extra elements
         box_center = (coords[0] + displacement + MSIBOX_SIZE / 2, coords[1])
-        draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE)
+        draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
 
     group_text = svgwrite.container.Group(id="text")
     text_coords = (coords[0] + displacement + MSIBOX_SIZE * 1.3, coords[1])
@@ -398,7 +398,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
         # Extra elements
         box_center = (coords[0] + displacement + play + MSIBOX_SIZE / 2, coords[1])
-        draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE)
+        draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE, svg_dwg)
 
     group_text = svgwrite.container.Group(id="text")
     text_coords = (coords[0] + 2 + displacement + MSIBOX_SIZE, coords[1])
@@ -415,14 +415,14 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
     svg_dwg.add(group_msi_row)
 
 
-def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple, center_coords: tuple, box_size: float):
+def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple, center_coords: tuple, box_size: float, svg_dwg: svgwrite.Drawing):
     box_west = box_coords[0]
     box_north = box_coords[1]
     box_east = box_west + box_size
     box_south = box_north + box_size
     clearance = box_size*0.2
 
-    group_red_cross = svgwrite.container.Group(id="red-cross")
+    group_red_cross = group_msi_row.add(svg_dwg.g(id="red-cross", opacity=0))
     group_red_cross.add(svgwrite.shapes.Line(
         start=(box_west + clearance, box_north + clearance),
         end=(box_east - clearance, box_south - clearance),
@@ -432,7 +432,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance, box_south - clearance),
         stroke="#990000", stroke_width=STROKE))  # /
 
-    group_green_arrow = svgwrite.container.Group(id="green-arrow")
+    group_green_arrow = group_msi_row.add(svg_dwg.g(id="green-arrow", opacity=0))
     group_green_arrow.add(svgwrite.shapes.Line(
         start=(box_west + box_size/2, box_north + clearance/2),
         end=(box_west + box_size/2, box_south - clearance*1.5),
@@ -446,7 +446,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_east - clearance - math.sqrt(STROKE/2)/2, box_south - box_size/2 + clearance/2),
         stroke="#009900", stroke_width=STROKE))  # /
 
-    group_left_arrow = svgwrite.container.Group(id="left-arrow")
+    group_left_arrow = group_msi_row.add(svg_dwg.g(id="left-arrow", opacity=0))
     group_left_arrow.add(svgwrite.shapes.Line(
         start=(box_west + clearance - STROKE/2, box_south - clearance),
         end=(box_east - clearance*1.75, box_south - clearance),
@@ -460,7 +460,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance*1.5, box_south - clearance*1.5),
         stroke="#FFFFFF", stroke_width=STROKE))  # /
 
-    group_right_arrow = svgwrite.container.Group(id="right-arrow")
+    group_right_arrow = group_msi_row.add(svg_dwg.g(id="right-arrow", opacity=0))
     group_right_arrow.add(svgwrite.shapes.Line(
         start=(box_east - clearance + STROKE/2, box_south - clearance),
         end=(box_west + clearance*1.75, box_south - clearance),
@@ -474,7 +474,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_east - clearance*1.5, box_south - clearance*1.5),
         stroke="#FFFFFF", stroke_width=STROKE))  # \
 
-    group_eor = svgwrite.container.Group(id="end-of-restrictions")
+    group_eor = group_msi_row.add(svg_dwg.g(id="end-of-restrictions", opacity=0))
     group_eor.add(svgwrite.shapes.Circle(
         center=center_coords,
         r=box_size * 0.45,
@@ -492,7 +492,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE))
 
-    group_flashers = dwg.g(id="flashers")
+    group_flashers = group_msi_row.add(svg_dwg.g(id="flashers", opacity=1))
     group_flashers.add(svgwrite.shapes.Circle(
         center=(box_west + clearance/2, box_north + clearance/2),
         r=clearance/4, fill="yellow"))  # top-left
@@ -511,14 +511,6 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         center=center_coords,
         r=box_size * 0.45,
         fill="none", stroke="#990000", stroke_width=STROKE))
-
-    # group_msi_row.add(group_red_cross)
-    # group_msi_row.add(group_green_arrow)
-    group_msi_row.add(group_left_arrow)
-    # group_msi_row.add(group_right_arrow)
-    # group_msi_row.add(group_eor)
-    group_msi_row.add(group_flashers)
-    # group_msi_row.add(group_red_ring)
 
 
 def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, svg_dwg: svgwrite.Drawing):
