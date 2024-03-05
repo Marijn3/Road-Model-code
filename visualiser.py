@@ -32,6 +32,14 @@ VIEWBOX_WIDTH = abs(TOP_LEFT_X - BOTTOM_RIGHT_X)
 VIEWBOX_HEIGHT = abs(TOP_LEFT_Y - BOTTOM_RIGHT_Y)
 RATIO = VIEWBOX_HEIGHT / VIEWBOX_WIDTH
 
+COLORMAP = {
+    "p": "cyan",     # Primary
+    "s": "magenta",  # Secondary
+    "t": "red",      # Taper
+    "b": "orange",   # Broadening
+    "n": "yellow",   # Narrowing
+}
+
 # Dictionary to store squares by ID
 element_by_id = {}
 
@@ -506,24 +514,26 @@ def draw_msi_relations(svg_dwg: svgwrite.Drawing):
                     if msi.properties["d"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["d"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        draw_primary(start_pos, end_pos, svg_dwg)
+                        draw_msi_relation("p", start_pos, end_pos, svg_dwg)
                     if msi.properties["ds"]:
                         for end_id in msi.properties["ds"]:
                             end_element, end_rotation, end_origin = element_by_id[end_id]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                            draw_secondary(start_pos, end_pos, svg_dwg)
+                            draw_msi_relation("s", start_pos, end_pos, svg_dwg)
+                    if msi.properties["db"]:
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["db"]]
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_msi_relation("b", start_pos, end_pos, svg_dwg)
+                    if msi.properties["dn"]:
+                        end_element, end_rotation, end_origin = element_by_id[msi.properties["dn"]]
+                        end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                        draw_msi_relation("n", start_pos, end_pos, svg_dwg)
 
 
-def draw_primary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="cyan", stroke_width=STROKE*2))
-    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill="cyan"))
-    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill="cyan"))
-
-
-def draw_secondary(start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
-    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke="magenta", stroke_width=STROKE*2))
-    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill="magenta"))
-    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill="magenta"))
+def draw_msi_relation(rel_type: str, start_pos: tuple, end_pos: tuple, svg_dwg: svgwrite.Drawing):
+    svg_dwg.add(svgwrite.shapes.Line(start=start_pos, end=end_pos, stroke=COLORMAP[rel_type], stroke_width=STROKE*2))
+    svg_dwg.add(svgwrite.shapes.Circle(center=start_pos, r=STROKE*4, fill=COLORMAP[rel_type]))
+    svg_dwg.add(svgwrite.shapes.Circle(center=end_pos, r=STROKE*4, fill=COLORMAP[rel_type]))
 
 
 def get_center_coords(element, angle_degrees, origin):
