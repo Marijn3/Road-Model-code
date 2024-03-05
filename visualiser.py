@@ -10,7 +10,7 @@ netwerk = MSINetwerk(wegmodel)
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20
-DISPLAY_ONROAD = False
+DISPLAY_ONROAD = True
 
 if DISPLAY_ONROAD:
     MSIBOX_SIZE = LANE_WIDTH*0.8
@@ -18,7 +18,7 @@ if DISPLAY_ONROAD:
     VISUAL_PLAY = MSIBOX_SIZE*0.2
     STROKE = MSIBOX_SIZE*0.07
 else:
-    TEXT_SIZE = MSIBOX_SIZE*0.8
+    TEXT_SIZE = MSIBOX_SIZE*0.6
     VISUAL_PLAY = MSIBOX_SIZE*0.2
     STROKE = MSIBOX_SIZE*0.05
 
@@ -361,15 +361,19 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
 
         # Extra elements
         box_center = (coords[0] + displacement + MSIBOX_SIZE / 2, coords[1])
-
         draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE)
 
+    group_text = svgwrite.container.Group(id="text")
+    text_coords = (coords[0] + displacement + MSIBOX_SIZE * 1.3, coords[1])
+    anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
-                              insert=(coords[0] + displacement + MSIBOX_SIZE * 1.2, coords[1]),
+                              insert=text_coords,
                               fill="white", font_family="Arial", dominant_baseline="central",
-                              font_size=TEXT_SIZE)
+                              text_anchor=anchorpoint, font_size=TEXT_SIZE)
+    group_text.add(text)
+    group_text.rotate(-rotate_angle, center=text_coords)
 
-    group_msi_row.add(text)
+    group_msi_row.add(group_text)
     group_msi_row.rotate(rotate_angle, center=coords)
     svg_dwg.add(group_msi_row)
 
@@ -394,20 +398,24 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
 
         # Extra elements
         box_center = (coords[0] + displacement + play + MSIBOX_SIZE / 2, coords[1])
-
         draw_all_legends(group_msi_row, box_pos, box_center, MSIBOX_SIZE)
 
+    group_text = svgwrite.container.Group(id="text")
+    text_coords = (coords[0] + 1.0 + info_offset, coords[1])
+    anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
-                              insert=(coords[0] + 1 + info_offset, coords[1]),
+                              insert=text_coords,
                               fill="white", font_family="Arial", dominant_baseline="central",
-                              font_size=max(4, MSIBOX_SIZE*0.8))
+                              text_anchor=anchorpoint, font_size=max(4.0, MSIBOX_SIZE*0.8))
+    group_text.add(text)
+    group_text.rotate(-rotate_angle, center=text_coords)
 
-    group_msi_row.add(text)
+    group_msi_row.add(group_text)
     group_msi_row.rotate(rotate_angle, center=coords)
     svg_dwg.add(group_msi_row)
 
 
-def draw_all_legends(group_msi_row, box_coords, center_coords, box_size):
+def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple, center_coords: tuple, box_size: float):
     box_west = box_coords[0]
     box_north = box_coords[1]
     box_east = box_west + box_size
