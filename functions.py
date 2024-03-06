@@ -1503,7 +1503,7 @@ class MSINetwerk:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 print(f"Looking for MSI row in the next section, {next_section_id}")
-                annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
+                shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream)
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
@@ -1534,7 +1534,7 @@ class MSINetwerk:
                     shift = shift + n_lanes_other
 
             if next_section_id:
-                annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
+                shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream)
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
@@ -1557,6 +1557,8 @@ class MSINetwerk:
         print(f"Marking {div_section_id} with -{shift_div}")
 
         annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
+        # I think at this moment that this function would never need to be called since the shift would not change
+        # shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream)
 
         # Make it do the recursive function twice. Then return both options as a list.
         option_continuation = self.find_msi_recursive(cont_section_id, other_point["Pos_eigs"]["Km"],
@@ -1581,6 +1583,20 @@ class MSINetwerk:
                            point["Obj_eigs"]["Type"] == "Signalering"]
 
         return other_points_on_section, msis_on_section
+
+    def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream):
+        new_annotation = self.get_annotation(current_section_verw_eigs)
+        print(new_annotation)
+        if new_annotation:
+            lane_type = new_annotation[0][1][0]
+            if (downstream and lane_type == "ExtraRijstrook"
+                    or not downstream and lane_type == "Rijstrookbeeindiging"):
+                shift = shift + 1
+            elif (downstream and lane_type == "Rijstrookbeëindiging"
+                  or not downstream and lane_type == "ExtraRijstrook"):
+                shift = shift - 1
+            annotation = annotation + new_annotation
+        return shift, annotation
 
     @staticmethod
     def get_annotation(section_verw_eigs: dict) -> list:
@@ -1814,11 +1830,12 @@ class MSI(MSILegends):
         # Downstream relations
         for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
+            projected_lane = self.lane_nr + shift
 
             # Basic primary
-            if not annotation and self.lane_nr + shift in d_row.MSIs.keys():
-                self.properties["d"] = d_row.MSIs[self.lane_nr + shift].name
-                d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
+            if projected_lane in d_row.MSIs.keys():
+                self.properties["d"] = d_row.MSIs[projected_lane].name
+                d_row.MSIs[projected_lane].properties["u"] = self.name
 
             if annotation:
                 print(annotation)
@@ -1830,49 +1847,33 @@ class MSI(MSILegends):
                         lane_type, lane_nr = lane_type
                     print("Lane_info extracted:", lane_nr, lane_type)
 
-                # Basic primary (2)
-                if lane_type not in ["ExtraRijstrook", "Rijstrookbeëindiging"]:
-                    if self.lane_nr + shift in d_row.MSIs.keys():
-                        self.properties["d"] = d_row.MSIs[self.lane_nr + shift].name
-                        d_row.MSIs[self.lane_nr + shift].properties["u"] = self.name
-                else:
-                    # Adjusted primary for change in leftmost lane
-                    if lane_type in ["ExtraRijstrook"] and lane_nr == 1 and self.lane_nr + shift + 1 in d_row.MSIs.keys():
-                        self.properties["d"] = d_row.MSIs[self.lane_nr + shift + 1].name
-                        d_row.MSIs[self.lane_nr + shift + 1].properties["u"] = self.name
-                    # Adjusted primary for change in leftmost lane
-                    if lane_type in ["Rijstrookbeëindiging"] and lane_nr == 1 and self.lane_nr + shift - 1 in d_row.MSIs.keys():
-                        self.properties["d"] = d_row.MSIs[self.lane_nr + shift - 1].name
-                        d_row.MSIs[self.lane_nr + shift - 1].properties["u"] = self.name
-
                 # Broadening
                 if (lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr
-                        and self.lane_nr + shift in d_row.MSIs.keys()):
-                    self.properties["db"] = d_row.MSIs[self.lane_nr + shift].name
-                    d_row.MSIs[self.lane_nr + shift].properties["ub"] = self.name
+                        and projected_lane - 1 in d_row.MSIs.keys()):
+                    self.properties["db"] = d_row.MSIs[projected_lane - 1].name
+                    d_row.MSIs[projected_lane - 1].properties["ub"] = self.name
                 # Narrowing
                 if (lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr
-                        and self.lane_nr + shift in d_row.MSIs.keys()):
-                    self.properties["dn"] = d_row.MSIs[self.lane_nr + shift].name
-                    d_row.MSIs[self.lane_nr + shift].properties["un"] = self.name
+                        and projected_lane + 1 in d_row.MSIs.keys()):
+                    self.properties["dn"] = d_row.MSIs[projected_lane + 1].name
+                    d_row.MSIs[projected_lane + 1].properties["un"] = self.name
 
                 # Secondary
                 if lane_type == "Invoegstrook" and lane_nr == self.lane_nr:
-                    msi_number = self.lane_nr + shift - 1
-                    if msi_number in d_row.MSIs.keys():
-                        self.make_secondary_connection(d_row.MSIs[msi_number], self)
+                    if projected_lane - 1 in d_row.MSIs.keys():
+                        self.make_secondary_connection(d_row.MSIs[projected_lane - 1], self)
 
                 if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + 1:
-                    msi_number = self.lane_nr + shift + 1
-                    if msi_number in d_row.MSIs.keys():
-                        self.make_secondary_connection(d_row.MSIs[msi_number], self)
+                    if projected_lane + 1 in d_row.MSIs.keys():
+                        self.make_secondary_connection(d_row.MSIs[projected_lane + 1], self)
 
         # Remaining upstream primary relations
         if not self.properties["u"]:
             for u_row, desc in self.row.upstream.items():
                 shift, annotation = desc
-                if self.lane_nr + shift in u_row.MSIs.keys():
-                    self.properties["u"] = u_row.MSIs[self.lane_nr + shift].name
+                projected_lane = self.lane_nr + shift
+                if projected_lane in u_row.MSIs.keys():
+                    self.properties["u"] = u_row.MSIs[projected_lane].name
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
