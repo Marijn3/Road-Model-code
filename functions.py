@@ -1871,13 +1871,13 @@ class MSI(MSILegends):
         if not self.properties["u"]:
             for u_row, desc in self.row.upstream.items():
                 shift, annotation = desc
-                if not annotation and self.lane_nr + shift in u_row.MSIs.keys():
+                if self.lane_nr + shift in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[self.lane_nr + shift].name
 
         # MSIs that do not have any upstream relation, get a secondary relation
-        if (self.row.upstream and not self.properties["u"] and not self.properties["us"]
-                and not self.properties["ub"] and not self.properties["un"] and not self.properties["ut"]):
-            print(f"[LOG:] {self.name} Could use a secondary upstream relation.")
+        if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
+                or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
+            print(f"[LOG:] {self.name} Could use a secondary upstream relation: {self.properties}")
 
             if True:
                 print("Applying relation!")
