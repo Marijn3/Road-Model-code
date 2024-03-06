@@ -985,6 +985,8 @@ class WegModel:
                 self.sections[section_index]["Verw_eigs"]["Einde_kenmerk"] = (
                     self.get_dif_props(section_info["Obj_eigs"], self.sections[main_down]["Obj_eigs"]))
 
+            print("Check:", self.sections[section_index]["Verw_eigs"])
+
         for point_index, point_info in self.points.items():
             self.points[point_index]["Verw_eigs"] = {
                 "Sectie_ids": [],
@@ -1353,7 +1355,7 @@ class MSIRow:
             msi.determine_relations()
         # Separate loop to ensure all normal relations are in place before this is called.
         for msi in self.MSIs.values():
-            msi.determine_extra_relations()
+            msi.ensure_upstream_relation()
 
 
 class MSINetwerk:
@@ -1867,6 +1869,15 @@ class MSI(MSILegends):
                     if projected_lane + 1 in d_row.MSIs.keys():
                         self.make_secondary_connection(d_row.MSIs[projected_lane + 1], self)
 
+                # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
+                if lane_type in ["Samenvoeging", "Weefstrook"] and True:
+                    if lane_nr == projected_lane:
+                        if projected_lane - 1 in d_row.MSIs.keys() and projected_lane - 1 in d_row.local_road_properties.keys():
+                            print("check:", d_row.local_road_properties[projected_lane - 1], lane_type)
+                            if d_row.local_road_properties[projected_lane - 1] != lane_type:
+                                self.make_secondary_connection(d_row.MSIs[projected_lane - 1], self)
+
+
         # Remaining upstream primary relations
         if not self.properties["u"]:
             for u_row, desc in self.row.upstream.items():
@@ -1875,9 +1886,7 @@ class MSI(MSILegends):
                 if projected_lane in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[projected_lane].name
 
-    def determine_extra_relations(self):
-        # MSIs that encounter a samenvoeging or weefstrook have a cross relation.
-
+    def ensure_upstream_relation(self):
         # MSIs that do not have any upstream relation, get a secondary relation
         if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
                 or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
