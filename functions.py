@@ -1349,7 +1349,11 @@ class MSIRow:
 
     def fill_msi_properties(self):
         for msi in self.MSIs.values():
-            msi.fill_properties()
+            msi.determine_properties()
+            msi.determine_relations()
+        # Separate loop to ensure all normal relations are in place before this is called.
+        for msi in self.MSIs.values():
+            msi.determine_extra_relations()
 
 
 class MSINetwerk:
@@ -1744,10 +1748,6 @@ class MSI(MSILegends):
             "Hard_shoulder_left": None,  # [V] True if hard shoulder directly to the left.
         }
 
-    def fill_properties(self):
-        self.determine_properties()
-        self.determine_relations()
-
     def determine_properties(self):
         self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
         # Add DYN_V if it is applied and it is smaller than STAT_V
@@ -1874,6 +1874,9 @@ class MSI(MSILegends):
                 projected_lane = self.lane_nr + shift
                 if projected_lane in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[projected_lane].name
+
+    def determine_extra_relations(self):
+        # MSIs that encounter a samenvoeging or weefstrook have a cross relation.
 
         # MSIs that do not have any upstream relation, get a secondary relation
         if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
