@@ -1597,9 +1597,7 @@ class MSINetwerk:
         new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
 
         if new_annotation:
-            print(new_annotation)
             lane_type = next(iter(new_annotation.values()), None)
-            print(lane_type)
             if (downstream and lane_type == "ExtraRijstrook"
                     or not downstream and lane_type == "Rijstrookbeeindiging"):
                 shift = shift + 1
@@ -1855,22 +1853,26 @@ class MSI(MSILegends):
                 # Broadening
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
+                    print(f"Extra case with {self.lane_nr}")
                     self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
                     d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
                 # Narrowing
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
+                    print(f"Eindiging case with {self.lane_nr}")
                     self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
                     d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
 
                 # Secondary
-                if self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook":
-                    if this_lane_projected - 1 in d_row.MSIs.keys():
-                        self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
+                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
+                        and this_lane_projected - 1 in d_row.MSIs.keys()):
+                    print(f"Invoegstrook case with {self.lane_nr}")
+                    self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
-                if self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook":
-                    if this_lane_projected + 1 in d_row.MSIs.keys():
-                        self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
+                if (self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook"
+                        and this_lane_projected + 1 in d_row.MSIs.keys()):
+                    print(f"Uitrijstrook case with {self.lane_nr}")
+                    self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
                 if ("Samenvoeging" in lane_types or "Weefstrook" in lane_types) and True:
@@ -1878,17 +1880,19 @@ class MSI(MSILegends):
                     if annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]:
                         if this_lane_projected - 1 in d_row.MSIs.keys() and this_lane_projected - 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
+                                print(f"Cross case 1 with {self.lane_nr}")
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weefstrook/join lane
                     if annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]:
                         if this_lane_projected + 1 in d_row.MSIs.keys() and this_lane_projected + 1 in d_row.local_road_properties.keys():
                             if self.row.local_road_properties[self.lane_nr] != annotation[this_lane_projected]:
+                                print(f"Cross case 2 with {self.lane_nr}")
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
         # Remaining upstream primary relations
         if not self.properties["u"]:
             for u_row, desc in self.row.upstream.items():
-                shift, _ = desc  # Why annotation not used??
+                shift, _ = desc  # Why is annotation not used here??
                 this_lane_projected = self.lane_nr + shift
                 if this_lane_projected in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[this_lane_projected].name
