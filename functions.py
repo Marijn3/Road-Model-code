@@ -1593,13 +1593,8 @@ class MSINetwerk:
         return other_points_on_section, msis_on_section
 
     def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream,
-                                first_iteration: bool, last_iteration: bool = False):
-        if first_iteration:
-            new_annotation = self.get_annotation_no_start(current_section_verw_eigs)
-        elif last_iteration:
-            new_annotation = self.get_annotation_no_end(current_section_verw_eigs)
-        else:
-            new_annotation = self.get_annotation(current_section_verw_eigs)
+                                is_first_iteration: bool, is_last_iteration: bool = False):
+        new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
 
         if new_annotation:
             lane_type = new_annotation[0][1][0]
@@ -1613,89 +1608,45 @@ class MSINetwerk:
         return shift, annotation
 
     @staticmethod
-    def get_annotation(section_verw_eigs: dict) -> list:
+    def get_annotation(section_verw_eigs: dict, start_skip: bool = False, end_skip: bool = False) -> list:
         """
         Determines the annotation to be added to the current recursive
         search based on processing properties of the current section.
         Args:
-            section_verw_eigs (dict):
+            section_verw_eigs (dict): Processing properties of section
+            start_skip (bool): Indicate whether the start values of the section should be considered.
+            end_skip (bool): Indicate whether the end values of the section should be considered.
         Returns:
             Appendable list of a tuple, indicating the lane number and
             the annotation - the type of special case encountered.
         """
         annotation = []
 
-        if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items()
-                               if lane_type == "Invoegstrook"])
+        if not start_skip:
+            if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
+                annotation.extend(
+                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
+                     if lane_type == "Uitrijstrook"])
 
-        if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
-            annotation.extend([(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items()
-                               if key == "Special"])
+            if "Samenvoeging" in section_verw_eigs["Start_kenmerk"].values():
+                annotation.extend(
+                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
+                     if lane_type == "Samenvoeging"])
 
-        if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                               if lane_type == "Uitrijstrook"])
+            if "Weefstrook" in section_verw_eigs["Start_kenmerk"].values():
+                annotation.extend(
+                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
+                     if lane_type == "Weefstrook"])
 
-        if "Samenvoeging" in section_verw_eigs["Start_kenmerk"].values():
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                               if lane_type == "Samenvoeging"])
+        if not end_skip:
+            if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
+                annotation.extend(
+                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items()
+                     if lane_type == "Invoegstrook"])
 
-        if "Weefstrook" in section_verw_eigs["Start_kenmerk"].values():
-            print("It has happened.")
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                               if lane_type == "Weefstrook"])
-
-        return annotation
-
-    @staticmethod
-    def get_annotation_no_start(section_verw_eigs: dict) -> list:
-        """
-        Determines the annotation to be added to the current recursive
-        search based on only end processing properties of the current section.
-        Args:
-            section_verw_eigs (dict):
-        Returns:
-            Appendable list of a tuple, indicating the lane number and
-            the annotation - the type of special case encountered.
-        """
-        annotation = []
-
-        if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items()
-                               if lane_type == "Invoegstrook"])
-
-        if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
-            annotation.extend([(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items()
-                               if key == "Special"])
-
-        return annotation
-
-    @staticmethod
-    def get_annotation_no_end(section_verw_eigs: dict) -> list:
-        """
-        Determines the annotation to be added to the current recursive
-        search based on only start processing properties of the current section.
-        Args:
-            section_verw_eigs (dict):
-        Returns:
-            Appendable list of a tuple, indicating the lane number and
-            the annotation - the type of special case encountered.
-        """
-        annotation = []
-
-        if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                               if lane_type == "Uitrijstrook"])
-
-        if "Samenvoeging" in section_verw_eigs["Start_kenmerk"].values():
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                               if lane_type == "Samenvoeging"])
-
-        if "Weefstrook" in section_verw_eigs["Start_kenmerk"].values():
-            print("It has happened.")
-            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                               if lane_type == "Weefstrook"])
+            if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
+                annotation.extend([(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items()
+                                   if key == "Special"])
 
         return annotation
 
