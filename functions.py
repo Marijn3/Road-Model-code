@@ -1597,7 +1597,8 @@ class MSINetwerk:
         new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
 
         if new_annotation:
-            lane_type = new_annotation[0][1][0]
+            print(new_annotation)
+            lane_type = new_annotation[0][1]
             if (downstream and lane_type == "ExtraRijstrook"
                     or not downstream and lane_type == "Rijstrookbeeindiging"):
                 shift = shift + 1
@@ -1645,8 +1646,8 @@ class MSINetwerk:
                      if lane_type == "Invoegstrook"])
 
             if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
-                annotation.extend([(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items()
-                                   if key == "Special"])
+                annotation.extend([(value[1], value[0]) for keyword, value in section_verw_eigs["Einde_kenmerk"].items()
+                                   if keyword == "Special"])
 
         return annotation
 
@@ -1855,8 +1856,6 @@ class MSI(MSILegends):
                 #  such as [(3, 'Uitrijstrook'), ('Special', ('ExtraRijstrook', 1))]
                 for anno in annotation:
                     lane_nr, lane_type = anno
-                    if lane_nr == "Special":
-                        lane_type, lane_nr = lane_type
                     print("Lane_info extracted:", lane_nr, lane_type)
 
                 # Broadening
