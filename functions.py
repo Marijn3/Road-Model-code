@@ -1433,7 +1433,7 @@ class MSINetwerk:
                 return section_id
 
     def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
-                           shift: int = 0, current_distance: float = 0, annotation: list = None) -> list | dict:
+                           shift: int = 0, current_distance: float = 0, annotation: dict = None) -> list | dict:
         """
         This is recursive function, meaning that it calls itself. The function requires
         variables to keep track of where a branch of the recursive search is. These have
@@ -1449,7 +1449,7 @@ class MSINetwerk:
                 original road section so far.
             current_distance (float): Distance travelled through model so far. This is
                 used to cut off search after passing a threshold.
-            annotation (list): Annotation so far.
+            annotation (dict): Annotation so far.
         Returns:
             (List of) dictionaries, structured as: {MSIRow object: (shift, annotation)}.
             In case only one MSI row is found, the dictionary is returned directly.
@@ -1459,7 +1459,7 @@ class MSINetwerk:
         first_iteration = False
         if annotation is None:
             first_iteration = True
-            annotation = []
+            annotation = {}
 
         if current_section_id is None:
             return {None: (shift, annotation)}
@@ -1593,23 +1593,24 @@ class MSINetwerk:
         return other_points_on_section, msis_on_section
 
     def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream,
-                                is_first_iteration: bool, is_last_iteration: bool = False):
+                                is_first_iteration: bool, is_last_iteration: bool = False) -> tuple[int, dict]:
         new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
 
         if new_annotation:
             print(new_annotation)
-            lane_type = new_annotation[0][1]
+            lane_type = next(iter(new_annotation.values()), None)
+            print(lane_type)
             if (downstream and lane_type == "ExtraRijstrook"
                     or not downstream and lane_type == "Rijstrookbeeindiging"):
                 shift = shift + 1
             elif (downstream and lane_type == "Rijstrookbeëindiging"
                   or not downstream and lane_type == "ExtraRijstrook"):
                 shift = shift - 1
-            annotation = annotation + new_annotation
+            annotation = annotation.update(new_annotation)
         return shift, annotation
 
     @staticmethod
-    def get_annotation(section_verw_eigs: dict, start_skip: bool = False, end_skip: bool = False) -> list:
+    def get_annotation(section_verw_eigs: dict, start_skip: bool = False, end_skip: bool = False) -> dict:
         """
         Determines the annotation to be added to the current recursive
         search based on processing properties of the current section.
@@ -1618,36 +1619,31 @@ class MSINetwerk:
             start_skip (bool): Indicate whether the start values of the section should be considered.
             end_skip (bool): Indicate whether the end values of the section should be considered.
         Returns:
-            Appendable list of a tuple, indicating the lane number and
-            the annotation - the type of special case encountered.
+            Dict indicating the lane number and the annotation - the type of special case encountered.
         """
-        annotation = []
+        annotation = {}
 
         if not start_skip:
             if "Uitrijstrook" in section_verw_eigs["Start_kenmerk"].values():
-                annotation.extend(
-                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                     if lane_type == "Uitrijstrook"])
+                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs["Start_kenmerk"].items() if lane_type == "Uitrijstrook"})
 
             if "Samenvoeging" in section_verw_eigs["Start_kenmerk"].values():
-                annotation.extend(
-                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                     if lane_type == "Samenvoeging"])
+                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs["Start_kenmerk"].items() if lane_type == "Samenvoeging"})
 
             if "Weefstrook" in section_verw_eigs["Start_kenmerk"].values():
-                annotation.extend(
-                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
-                     if lane_type == "Weefstrook"])
+                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs["Start_kenmerk"].items() if lane_type == "Weefstrook"})
 
         if not end_skip:
             if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
-                annotation.extend(
-                    [(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items()
-                     if lane_type == "Invoegstrook"])
+                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs["Einde_kenmerk"].items() if lane_type == "Invoegstrook"})
 
             if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
-                annotation.extend([(value[1], value[0]) for keyword, value in section_verw_eigs["Einde_kenmerk"].items()
-                                   if keyword == "Special"])
+                annotation.update({value[1]: value[0] for keyword, value in
+                                  section_verw_eigs["Einde_kenmerk"].items() if keyword == "Special"})
 
         return annotation
 
@@ -1852,49 +1848,47 @@ class MSI(MSILegends):
                 d_row.MSIs[this_lane_projected].properties["u"] = self.name
 
             if annotation:
-                # TODO: Make it work for multiple annotations,
-                #  such as [(3, 'Uitrijstrook'), ('Special', ('ExtraRijstrook', 1))]
-                for anno in annotation:
-                    lane_nr, lane_type = anno
-                    print("Lane_info extracted:", lane_nr, lane_type)
+                lane_numbers = list(annotation.keys())
+                lane_types = list(annotation.values())
+                print("Try:", lane_numbers, lane_types)
 
                 # Broadening
-                if (lane_type == "ExtraRijstrook" and lane_nr == self.lane_nr
+                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
                     self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
                     d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
                 # Narrowing
-                if (lane_type == "Rijstrookbeëindiging" and lane_nr == self.lane_nr
+                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
                     self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
                     d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
 
                 # Secondary
-                if lane_type == "Invoegstrook" and lane_nr == self.lane_nr:
+                if self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook":
                     if this_lane_projected - 1 in d_row.MSIs.keys():
                         self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
-                if lane_type == "Uitrijstrook" and lane_nr == self.lane_nr + 1:
+                if self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook":
                     if this_lane_projected + 1 in d_row.MSIs.keys():
                         self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
-                if lane_type in ["Samenvoeging", "Weefstrook"] and True:
+                if ("Samenvoeging" in lane_types or "Weefstrook" in lane_types) and True:
                     # Relation from weefstrook/join lane to normal lane
-                    if lane_nr == this_lane_projected:
+                    if annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]:
                         if this_lane_projected - 1 in d_row.MSIs.keys() and this_lane_projected - 1 in d_row.local_road_properties.keys():
-                            if d_row.local_road_properties[this_lane_projected - 1] != lane_type:
+                            if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weefstrook/join lane
-                    if lane_nr == this_lane_projected + 1:
+                    if annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]:
                         if this_lane_projected + 1 in d_row.MSIs.keys() and this_lane_projected + 1 in d_row.local_road_properties.keys():
-                            if self.row.local_road_properties[self.lane_nr] != lane_type:
+                            if self.row.local_road_properties[self.lane_nr] != annotation[this_lane_projected]:
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
         # Remaining upstream primary relations
         if not self.properties["u"]:
             for u_row, desc in self.row.upstream.items():
-                shift, annotation = desc
+                shift, _ = desc  # Why annotation not used??
                 this_lane_projected = self.lane_nr + shift
                 if this_lane_projected in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[this_lane_projected].name
