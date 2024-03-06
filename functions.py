@@ -1458,7 +1458,9 @@ class MSINetwerk:
             In case multiple are found, their dictionaries are placed in a list. This
             should be handled outside the function.
         """
+        first_iteration = False
         if annotation is None:
+            first_iteration = True
             annotation = []
 
         if current_section_id is None:
@@ -1509,7 +1511,7 @@ class MSINetwerk:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 print(f"Looking for MSI row in the next section, {next_section_id}")
-                shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream)
+                shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream, first_iteration)
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
@@ -1540,7 +1542,7 @@ class MSINetwerk:
                     shift = shift + n_lanes_other
 
             if next_section_id:
-                shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream)
+                shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream, first_iteration)
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")
@@ -1562,9 +1564,7 @@ class MSINetwerk:
         # Store negative value in this direction.
         print(f"Marking {div_section_id} with -{shift_div}")
 
-        annotation = annotation + self.get_annotation(current_section["Verw_eigs"])
-        # I think at this moment that this function would never need to be called since the shift would not change
-        # shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream)
+        shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream, first_iteration)
 
         # Make it do the recursive function twice. Then return both options as a list.
         option_continuation = self.find_msi_recursive(cont_section_id, other_point["Pos_eigs"]["Km"],
@@ -1590,9 +1590,12 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream):
-        new_annotation = self.get_annotation(current_section_verw_eigs)
-        print(new_annotation)
+    def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream, first_iteration: bool):
+        if first_iteration:
+            new_annotation = self.get_annotation_no_start(current_section_verw_eigs)
+        else:
+            new_annotation = self.get_annotation(current_section_verw_eigs)
+
         if new_annotation:
             lane_type = new_annotation[0][1][0]
             if (downstream and lane_type == "ExtraRijstrook"
@@ -1634,8 +1637,35 @@ class MSINetwerk:
                                if lane_type == "Samenvoeging"])
 
         if "Weefstrook" in section_verw_eigs["Start_kenmerk"].values():
+            print("It has happened.")
             annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Start_kenmerk"].items()
                                if lane_type == "Weefstrook"])
+
+        return annotation
+
+    @staticmethod
+    def get_annotation_no_start(section_verw_eigs: dict) -> list:
+        """
+        Determines the annotation to be added to the current recursive
+        search based on only end processing properties of the current section.
+        Args:
+            section_verw_eigs (dict):
+        Returns:
+            Appendable list of a tuple, indicating the lane number and
+            the annotation - the type of special case encountered.
+        """
+        annotation = []
+
+        print("startkenmerk0:", section_verw_eigs["Start_kenmerk"])
+        print("eindekenmerk0:", section_verw_eigs["Einde_kenmerk"])
+
+        if "Invoegstrook" in section_verw_eigs["Einde_kenmerk"].values():
+            annotation.extend([(lane_nr, lane_type) for lane_nr, lane_type in section_verw_eigs["Einde_kenmerk"].items()
+                               if lane_type == "Invoegstrook"])
+
+        if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
+            annotation.extend([(key, value) for key, value in section_verw_eigs["Einde_kenmerk"].items()
+                               if key == "Special"])
 
         return annotation
 
