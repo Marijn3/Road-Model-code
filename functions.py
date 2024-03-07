@@ -1879,15 +1879,17 @@ class MSI(MSILegends):
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
                 if ("Samenvoeging" in lane_types or "Weefstrook" in lane_types) and True:
                     # Relation from weefstrook/join lane to normal lane
-                    if annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]:
-                        if this_lane_projected - 1 in d_row.MSIs.keys() and this_lane_projected - 1 in d_row.local_road_properties.keys():
-                            if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
+                    if this_lane_projected in lane_numbers and annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]:
+                        if (this_lane_projected - 1 in d_row.local_road_properties.keys() and
+                                d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]):
+                            if this_lane_projected - 1 in d_row.MSIs.keys():
                                 print(f"Cross case 1 with {self.lane_nr}")
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weefstrook/join lane
-                    if annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]:
-                        if this_lane_projected + 1 in d_row.MSIs.keys() and this_lane_projected + 1 in d_row.local_road_properties.keys():
-                            if self.row.local_road_properties[self.lane_nr] != annotation[this_lane_projected]:
+                    if this_lane_projected + 1 in lane_numbers and annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]:
+                        if (this_lane_projected + 1 in d_row.local_road_properties.keys() and
+                                d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]):
+                            if this_lane_projected + 1 in d_row.MSIs.keys():
                                 print(f"Cross case 2 with {self.lane_nr}")
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
