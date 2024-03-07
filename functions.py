@@ -1592,22 +1592,36 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream,
-                                is_first_iteration: bool, is_last_iteration: bool = False) -> tuple[int, dict]:
+    def update_shift_annotation(self, shift: int, annotation: dict, current_section_verw_eigs: dict, downstream: bool,
+                                is_first_iteration: bool = False, is_last_iteration: bool = False) -> tuple[int, dict]:
+        """
+        Adapts the shift and annotation value according to the previous shift and annotation
+        and the processing properties of the provided section.
+        Args:
+            shift (int): Shift so far.
+            annotation (dict): Annotation so far.
+            current_section_verw_eigs (dict): Processing properties of the section.
+            downstream (bool): Indication of search direction. True => Downstream, False => Upstream .
+            is_first_iteration (bool): Indicate if it is first iteration, in which case the start processing
+                values of the provided section will be ignored.
+            is_last_iteration (bool): Indicate if it is last iteration, in which case the end processing
+                values of the provided section will be ignored.
+        Returns:
+            Adjusted shift and annotation.
+        """
         new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
-        return_annotation = deepcopy(new_annotation)
 
-        if new_annotation:
-            lane_type = next(iter(new_annotation.values()), None)
-            if (downstream and lane_type == "ExtraRijstrook"
-                    or not downstream and lane_type == "Rijstrookbeeindiging"):
-                shift = shift + 1
-            elif (downstream and lane_type == "Rijstrookbeëindiging"
-                  or not downstream and lane_type == "ExtraRijstrook"):
-                shift = shift - 1
-            # Join dicts while preventing aliasing issues.
-            return_annotation = dict(list(annotation.items()) + list(new_annotation.items()))
-        return shift, return_annotation
+        if not new_annotation:
+            return shift, annotation
+
+        lane_type = next(iter(new_annotation.values()), None)
+        if downstream and lane_type == "ExtraRijstrook" or not downstream and lane_type == "Rijstrookbeeindiging":
+            shift = shift + 1
+        elif downstream and lane_type == "Rijstrookbeëindiging" or not downstream and lane_type == "ExtraRijstrook":
+            shift = shift - 1
+
+        # Join dicts while preventing aliasing issues.
+        return shift, dict(list(annotation.items()) + list(new_annotation.items()))
 
     @staticmethod
     def get_annotation(section_verw_eigs: dict, start_skip: bool = False, end_skip: bool = False) -> dict:
@@ -1850,7 +1864,6 @@ class MSI(MSILegends):
             if annotation:
                 lane_numbers = list(annotation.keys())
                 lane_types = list(annotation.values())
-                print("Try:", lane_numbers, lane_types)
 
                 # Broadening
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
