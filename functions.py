@@ -1595,6 +1595,7 @@ class MSINetwerk:
     def update_shift_annotation(self, shift, annotation, current_section_verw_eigs, downstream,
                                 is_first_iteration: bool, is_last_iteration: bool = False) -> tuple[int, dict]:
         new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
+        return_annotation = deepcopy(new_annotation)
 
         if new_annotation:
             lane_type = next(iter(new_annotation.values()), None)
@@ -1604,8 +1605,9 @@ class MSINetwerk:
             elif (downstream and lane_type == "Rijstrookbeëindiging"
                   or not downstream and lane_type == "ExtraRijstrook"):
                 shift = shift - 1
-            annotation = annotation.update(new_annotation)
-        return shift, annotation
+            # Join dicts while preventing aliasing issues.
+            return_annotation = dict(list(annotation.items()) + list(new_annotation.items()))
+        return shift, return_annotation
 
     @staticmethod
     def get_annotation(section_verw_eigs: dict, start_skip: bool = False, end_skip: bool = False) -> dict:
