@@ -1918,13 +1918,21 @@ class MSI(MSILegends):
         # MSIs that do not have any upstream relation, get a secondary relation
         if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
                 or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
-            print(f"[LOG:] {self.name} Could use a secondary upstream relation: {self.properties}")
+            print(f"[LOG:] {self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if True:
-                print("Applying relation!")
-                for u_row, desc in self.row.upstream.items():
+                print("[LOG:] Relatie wordt toegepast.")
+                u_row, desc = next(iter(self.row.upstream.items()))
+                print(u_row.local_road_info)
+                if (u_row.local_road_info["Pos_eigs"]["Hectoletter"] ==
+                        self.row.local_road_info["Pos_eigs"]["Hectoletter"]):
                     highest_msi_number = max([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[highest_msi_number])
+                else:
+                    # This should not occur in the Netherlands, but is here for safety.
+                    print("[Waarschuwing:] Er wordt een onverwachte relatie toegevoegd.")
+                    lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
+                    self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
 
     @staticmethod
     def make_secondary_connection(row1, row2):
