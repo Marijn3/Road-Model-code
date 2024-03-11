@@ -1272,6 +1272,13 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
                         f"{geom1} en \n{geom2}:\n")
 
 
+def make_MTM_name(pos_eigs: dict) -> str:
+    if pos_eigs["Hectoletter"]:
+        return f"{pos_eigs['Wegnummer']}_{pos_eigs['Hectoletter'].upper()}:{pos_eigs['Km']}"
+    else:
+        return f"{pos_eigs['Wegnummer']}{pos_eigs['Rijrichting']}:{pos_eigs['Km']}"
+
+
 class MSIRow:
     def __init__(self, msi_network, msi_row_info: dict, local_road_info: dict):
         self.msi_network = msi_network
@@ -1279,11 +1286,7 @@ class MSIRow:
         self.properties = self.info["Obj_eigs"]
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info["Obj_eigs"]
-        # TODO: use make_name(self.info) function for this!
-        if self.info["Pos_eigs"]["Hectoletter"]:
-            self.name = f"{self.info['Pos_eigs']['Wegnummer']}_{self.info['Pos_eigs']['Hectoletter'].upper()}:{self.info['Pos_eigs']['Km']}"
-        else:
-            self.name = f"{self.info['Pos_eigs']['Wegnummer']}{self.info['Pos_eigs']['Rijrichting']}:{self.info['Pos_eigs']['Km']}"
+        self.name = make_MTM_name(self.info["Pos_eigs"])
         self.lane_numbers = []
         self.n_lanes = 0
         self.n_msis = 0
