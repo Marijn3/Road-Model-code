@@ -35,43 +35,51 @@ class DataFrameLader:
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
-    def __init__(self, location: str | dict = None) -> None:
+    def __init__(self, input_location: str | dict = None) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            location (str or dict): The name of the location.
+            input_location (str or dict): The name of the location or a dict of coordinates.
         """
         self.data = {}
-        self.extent = None
 
-        if isinstance(location, str):
-            location = self.__convert_name_to_coords(location)
+        if isinstance(input_location, str):
+            coords = self.__get_coords_from_csv(input_location)
+        else:
+            coords = input_location
 
-        self.__define_extent_by_coords(location)
+        self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
         self.__load_dataframes()
 
-    def __convert_name_to_coords(self, location: str) -> dict[str, float]:
+    @staticmethod
+    def __get_coords_from_csv(location: str) -> dict[str, float]:
         """
-        Determines the coordinates the specified location name.
+        Load the extent coordinates of the specified location from the csv file.
         Args:
             location (str): The name of the location.
+        Returns:
+            dict: The extent coordinates (north, east, south, west).
         Raises:
             ValueError: If the specified location is not found in the csv file.
+            FileNotFoundError: If the file in the location of the filepath is not found.
+            ValueError: If there is an error reading the csv file.
         """
-        coords = self.__load_extent_from_csv(location)
-
-        if coords:
-            return coords
-        else:
+        try:
+            with open(DataFrameLader.__LOCATIONS_CSV_PATH, "r") as file:
+                csv_reader = csv.DictReader(file, delimiter=";")
+                for row in csv_reader:
+                    if row["locatie"] == location:
+                        return {
+                            "noord": float(row["noord"]),
+                            "oost": float(row["oost"]),
+                            "zuid": float(row["zuid"]),
+                            "west": float(row["west"]),
+                        }
             raise ValueError(f"Ongeldige locatie: {location}. Voer een geldige naam van een locatie in.")
-
-    def __define_extent_by_coords(self, coords: dict) -> None:
-        """
-        Determine the extent box from specified coordinates. Stores it in self.extent.
-        Args:
-            coords (str): The name of the location.
-        """
-        self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
+        except csv.Error as e:
+            raise ValueError(f"Fout bij het lezen van het csv bestand: {e}")
 
     def __load_dataframes(self) -> None:
         """
@@ -109,20 +117,19 @@ class DataFrameLader:
     @staticmethod
     def __get_layer_name(file_path) -> str:
         """
-        Extract the layer name from the file path.
-        Works well with the file paths in the original WEGGEG files.
+        Extract the layer name from the file path. The folder name is extracted and used
+        as the layer name. Works well with the file paths in the original WEGGEG files.
         Args:
             file_path (str): The path to the file.
         Returns:
             str: The layer name.
         """
-        # Folder name is extracted and used as the layer name.
         parts = file_path.split("/")
         folder_name = parts[-2]
         return folder_name
 
     @staticmethod
-    def convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
+    def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
         # TODO 26: Fix for verbindingsbogen.
         merged = line_merge(geom)
         if isinstance(merged, LineString):
@@ -167,8 +174,9 @@ class DataFrameLader:
             name (str): The name of the GeoDataFrame.
         """
         s1 = len(self.data[name])
+
         # Try to convert any MultiLineStrings to LineStrings.
-        self.data[name]["geometry"] = self.data[name]["geometry"].apply(lambda geom: self.convert_to_linestring(geom)
+        self.data[name]["geometry"] = self.data[name]["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
                                                                         if isinstance(geom, MultiLineString) else geom)
 
         # Filter all entries where the geometry column still contains a MultiLineString
@@ -246,35 +254,6 @@ class DataFrameLader:
         if "stroken" in name:
             # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
             self.data[name]["VNRWOL"] = pd.to_numeric(self.data[name]["VNRWOL"], errors="coerce").astype("Int64")
-
-    @staticmethod
-    def __load_extent_from_csv(location: str) -> dict[str, float]:
-        """
-        Load the extent coordinates of the specified location from the csv file.
-        Args:
-            location (str): The name of the location.
-        Returns:
-            dict: The extent coordinates (north, east, south, west).
-        Raises:
-            FileNotFoundError: If the file in the location of the filepath is not found.
-            ValueError: If there is an error reading the csv file.
-        """
-        try:
-            with open(DataFrameLader.__LOCATIONS_CSV_PATH, "r") as file:
-                csv_reader = csv.DictReader(file, delimiter=";")
-                for row in csv_reader:
-                    if row["locatie"] == location:
-                        return {
-                            "noord": float(row["noord"]),
-                            "oost": float(row["oost"]),
-                            "zuid": float(row["zuid"]),
-                            "west": float(row["west"]),
-                        }
-            raise ValueError(f"Ongeldige locatie: {location}. Voer een geldige naam van een locatie in.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
-        except csv.Error as e:
-            raise ValueError(f"Fout bij het lezen van het csv bestand: {e}")
 
 
 class WegModel:
@@ -1193,7 +1172,7 @@ def get_km_length(km: list[float]) -> int:
     Args:
         km (list): Range list of format [km1, km2]
     Returns:
-        Distance in meters between km1 and km2.
+        Rounded distance in meters between km1 and km2.
     """
     return round(1000 * abs(km[1] - km[0]))
 
