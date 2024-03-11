@@ -1771,7 +1771,9 @@ class MSI(MSILegends):
         }
 
     def determine_properties(self):
-        self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
+        if "Maximumsnelheid" in self.row.local_road_properties.keys():
+            self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
+        
         # Add DYN_V if it is applied and it is smaller than STAT_V
         dyn_v1, dyn_v2 = None, None
         if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():

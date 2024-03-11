@@ -2,7 +2,8 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Vught")
+# dfl = DataFrameLader("Vught")
+dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 405500, "west": 148300})
 wegmodel = WegModel(dfl)
 netwerk = MSINetwerk(wegmodel)
 
@@ -226,15 +227,15 @@ def svg_add_section(section_id: int, section_data: dict, dwg: svgwrite.Drawing):
     width = LANE_WIDTH * n_total_lanes
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
-    svg_dwg.add(asphalt)
+    dwg.add(asphalt)
 
     should_have_marking = color in [C_ASPHALT, C_HIGHLIGHT]
 
     if should_have_marking:
-        add_lane_marking(geom, section_data, n_main_lanes, left_rhl_offset, svg_dwg)
+        add_lane_marking(geom, section_data, n_main_lanes, left_rhl_offset, dwg)
 
 
-def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, left_rhl_offset: int, svg_dwg: svgwrite.Drawing):
+def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, left_rhl_offset: int, dwg: svgwrite.Drawing):
     prop = section_data["Obj_eigs"]
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
