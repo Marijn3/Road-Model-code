@@ -35,19 +35,48 @@ class DataFrameLader:
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
-    def __init__(self, location: str = None) -> None:
-        self.data = {}
-        self.extent = None
-        if location:
-            self.__load_dataframes(location)
-
-    def __load_dataframes(self, location: str) -> None:
+    def __init__(self, location: str | dict = None) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            location (str): The name of the location.
+            location (str or dict): The name of the location.
         """
-        self.__define_extent(location)
+        self.data = {}
+        self.extent = None
+
+        if isinstance(location, str):
+            location = self.__convert_name_to_coords(location)
+
+        self.__define_extent_by_coords(location)
+        self.__load_dataframes()
+
+    def __convert_name_to_coords(self, location: str) -> dict[str, float]:
+        """
+        Determines the coordinates the specified location name.
+        Args:
+            location (str): The name of the location.
+        Raises:
+            ValueError: If the specified location is not found in the csv file.
+        """
+        coords = self.__load_extent_from_csv(location)
+
+        if coords:
+            return coords
+        else:
+            raise ValueError(f"Ongeldige locatie: {location}. Voer een geldige naam van een locatie in.")
+
+    def __define_extent_by_coords(self, coords: dict) -> None:
+        """
+        Determine the extent box from specified coordinates. Stores it in self.extent.
+        Args:
+            coords (str): The name of the location.
+        """
+        self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
+
+    def __load_dataframes(self) -> None:
+        """
+        Load GeoDataFrames for each layer based on the specified location.
+        """
         for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             print(f"[LOG:] Laag {df_layer_name} laden...")
@@ -64,22 +93,6 @@ class DataFrameLader:
         """
         data = gpd.read_file(file_path)
         return self.__select_data_in_extent(data)
-
-    def __define_extent(self, location: str) -> None:
-        """
-        Determine the extent box of the specified location from coordinates.
-        Stores it in self.extent.
-        Args:
-            location (str): The name of the location.
-        Raises:
-            ValueError: If the specified location is not found in the csv file.
-        """
-        coords = self.__load_extent_from_csv(location)
-
-        if coords:
-            self.extent = box(xmin=coords["west"], ymin=coords["south"], xmax=coords["east"], ymax=coords["north"])
-        else:
-            raise ValueError(f"Ongeldige locatie: {location}. Voer een geldige naam van een locatie in.")
 
     def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
@@ -252,12 +265,12 @@ class DataFrameLader:
                 for row in csv_reader:
                     if row["locatie"] == location:
                         return {
-                            "north": float(row["noord"]),
-                            "east": float(row["oost"]),
-                            "south": float(row["zuid"]),
+                            "noord": float(row["noord"]),
+                            "oost": float(row["oost"]),
+                            "zuid": float(row["zuid"]),
                             "west": float(row["west"]),
                         }
-            return {}  # Return empty dictionary if the location is not found
+            raise ValueError(f"Ongeldige locatie: {location}. Voer een geldige naam van een locatie in.")
         except FileNotFoundError:
             raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
         except csv.Error as e:
