@@ -3,7 +3,7 @@ import svgwrite
 import math
 
 # dfl = DataFrameLader("Vught")
-dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 405000, "west": 148300})
+dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 405500, "west": 148300})
 wegmodel = WegModel(dfl)
 netwerk = MSINetwerk(wegmodel)
 
@@ -540,7 +540,7 @@ def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate
     dwg.add(group_vergence)
 
 
-def draw_msi_relations(netwerk: MSINetwerk, dwg: svgwrite.Drawing):
+def draw_msi_relations(dwg: svgwrite.Drawing):
     # Draw primary relations
     for element_id in element_by_id.keys():
         start_element, start_rotation, start_origin = element_by_id[element_id]
@@ -605,34 +605,35 @@ def make_text_hecto(km: float, letter: str | None) -> str:
     return f"{km}"
 
 
-def visualise(wegmodel, netwerk, path):
-    # Drawing is exported to given file path.
-    dwg = svgwrite.Drawing(filename=path, size=(1200, 1200 * RATIO), profile="full")
+# Create SVG drawing
+dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO), profile="full")
 
-    # Background color
-    dwg.add(dwg.rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
+# Background
+dwg.add(dwg.rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
 
-    # Section data (roads)
-    print("Sectiedata visualiseren...")
-    for section_id, section_info in wegmodel.sections.items():
-        svg_add_section(section_id, section_info, dwg)
+# Section data (roads)
+print("Sectiedata visualiseren...")
+for section_id, section_info in wegmodel.sections.items():
+    svg_add_section(section_id, section_info, dwg)
 
-    # Point data (MSIs, convergence, divergence)
-    print("Puntdata visualiseren...")
-    for point in wegmodel.get_points_info("MSI"):  # Specify "MSI" when vergence visualisation is not desired.
-        svg_add_point(point, dwg)
+# Point data (MSIs, convergence, divergence)
+print("Puntdata visualiseren...")
+points = wegmodel.get_points_info()
+for point in points:
+    svg_add_point(point, dwg)
 
-    # MSI relations
-    print("MSI-relaties visualiseren...")
-    draw_msi_relations(netwerk, dwg)
+# MSI relations
+print("MSI-relaties visualiseren...")
+draw_msi_relations(dwg)
 
-    # MSI images
-    # id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2__A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
-    # for msi_id, image in id_to_image.items():
-    #     element_by_id[msi_id]
+# id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2__A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
+# for msi_id, image in id_to_image.items():
+#     element_by_id[msi_id]
 
-    # Adjust viewBox
-    dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
+# viewBox
+dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
 
-    dwg.save(pretty=True, indent=2)
-    print("Visualisatie succesvol afgerond.")
+# Save SVG file
+dwg.save(pretty=True, indent=2)
+
+print("Visualisatie succesvol afgerond.")

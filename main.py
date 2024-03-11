@@ -1,5 +1,4 @@
 from ilp_input_creator import *
-from visualiser import visualise
 
 # Laad alle bestanden voor een vooropgesteld gebied en bewaar de GeoDataFrames in een class.
 # Gedefinieerde locaties: Vught, A27, A2Vink, A2VK, Goirle, Zonzeel
@@ -13,9 +12,6 @@ wegmodel = WegModel(dfl)
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
 MSIs = MSINetwerk(wegmodel)
-
-# Visualiseer het wegmodel en de signaalgeverrelaties.
-visualise(wegmodel, MSIs, "Server/Data/WEGGEG/road_visualization.svg")
 
 # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs)
