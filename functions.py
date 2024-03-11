@@ -9,6 +9,28 @@ GRID_SIZE = 0.00001
 MSI_RELATION_MAX_SEARCH_DISTANCE = 3500  # [m] - Richtlijn zegt max 1200 m tussen portalen. Dit wordt overschreden.
 DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
 
+# Mapping from lane registration to (nLanes, Special feature)
+LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
+                  "1 -> 1.6": (1, "TaperStart"), "1.6 -> 1": (1, "TaperEinde"),
+                  "2 -> 1.6": (2, "TaperStart"), "1.6 -> 2": (2, "TaperEinde"),
+                  "2 -> 2": (2, None), "2 -> 3": (3, "ExtraRijstrook"), "3 -> 2": (3, "Rijstrookbeëindiging"),
+                  "3 -> 3": (3, None), "3 -> 4": (4, "ExtraRijstrook"), "4 -> 3": (4, "Rijstrookbeëindiging"),
+                  "4 -> 4": (4, None), "4 -> 5": (5, "ExtraRijstrook"), "5 -> 4": (5, "Rijstrookbeëindiging"),
+                  "5 -> 5": (5, None), "5 -> 6": (6, "ExtraRijstrook"), "6 -> 5": (6, "Rijstrookbeëindiging"),
+                  "6 -> 6": (6, None),
+                  "7 -> 7": (7, None)}
+
+# All registrations with T as kantcode as marked in the opposite direction.
+LANE_MAPPING_T = {"1 -> 1": (1, None), "1 -> 2": (2, "Rijstrookbeëindiging"), "2 -> 1": (2, "ExtraRijstrook"),
+                  "1 -> 1.6": (1, "TaperEinde"), "1.6 -> 1": (1, "TaperStart"),
+                  "2 -> 1.6": (2, "TaperEinde"), "1.6 -> 2": (2, "TaperStart"),
+                  "2 -> 2": (2, None), "2 -> 3": (3, "Rijstrookbeëindiging"), "3 -> 2": (3, "ExtraRijstrook"),
+                  "3 -> 3": (3, None), "3 -> 4": (4, "Rijstrookbeëindiging"), "4 -> 3": (4, "ExtraRijstrook"),
+                  "4 -> 4": (4, None), "4 -> 5": (5, "Rijstrookbeëindiging"), "5 -> 4": (5, "ExtraRijstrook"),
+                  "5 -> 5": (5, None), "5 -> 6": (6, "Rijstrookbeëindiging"), "6 -> 5": (6, "ExtraRijstrook"),
+                  "6 -> 6": (6, None),
+                  "7 -> 7": (7, None)}
+
 
 class DataFrameLader:
     """
@@ -194,37 +216,16 @@ class DataFrameLader:
         # These column variable types should be changed.
         self.data[name]["WEGNUMMER"] = pd.to_numeric(self.data[name]["WEGNUMMER"], errors="coerce").astype("Int64")
 
-        # Mapping from lane registration to (nLanes, Special feature)
-        lane_mapping_h = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
-                          "1 -> 1.6": (1, "TaperStart"), "1.6 -> 1": (1, "TaperEinde"),
-                          "2 -> 1.6": (2, "TaperStart"), "1.6 -> 2": (2, "TaperEinde"),
-                          "2 -> 2": (2, None), "2 -> 3": (3, "ExtraRijstrook"), "3 -> 2": (3, "Rijstrookbeëindiging"),
-                          "3 -> 3": (3, None), "3 -> 4": (4, "ExtraRijstrook"), "4 -> 3": (4, "Rijstrookbeëindiging"),
-                          "4 -> 4": (4, None), "4 -> 5": (5, "ExtraRijstrook"), "5 -> 4": (5, "Rijstrookbeëindiging"),
-                          "5 -> 5": (5, None), "5 -> 6": (6, "ExtraRijstrook"), "6 -> 5": (6, "Rijstrookbeëindiging"),
-                          "6 -> 6": (6, None),
-                          "7 -> 7": (7, None)}
-        # All registrations with T as kantcode as marked in the opposite direction.
-        lane_mapping_t = {"1 -> 1": (1, None), "1 -> 2": (2, "Rijstrookbeëindiging"), "2 -> 1": (2, "ExtraRijstrook"),
-                          "1 -> 1.6": (1, "TaperEinde"), "1.6 -> 1": (1, "TaperStart"),
-                          "2 -> 1.6": (2, "TaperEinde"), "1.6 -> 2": (2, "TaperStart"),
-                          "2 -> 2": (2, None), "2 -> 3": (3, "Rijstrookbeëindiging"), "3 -> 2": (3, "ExtraRijstrook"),
-                          "3 -> 3": (3, None), "3 -> 4": (4, "Rijstrookbeëindiging"), "4 -> 3": (4, "ExtraRijstrook"),
-                          "4 -> 4": (4, None), "4 -> 5": (5, "Rijstrookbeëindiging"), "5 -> 4": (5, "ExtraRijstrook"),
-                          "5 -> 5": (5, None), "5 -> 6": (6, "Rijstrookbeëindiging"), "6 -> 5": (6, "ExtraRijstrook"),
-                          "6 -> 6": (6, None),
-                          "7 -> 7": (7, None)}
-
         if name == "Rijstroken":
             self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
-            mapping_function = lambda row: lane_mapping_h[row["OMSCHR"]] if row["KANTCODE"] == "H" \
-                                      else lane_mapping_t[row["OMSCHR"]]
+            mapping_function = lambda row: LANE_MAPPING_H[row["OMSCHR"]] if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T[row["OMSCHR"]]
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
         if name == "Mengstroken":
-            mapping_function = lambda row: lane_mapping_h[row["AANT_MSK"]] if row["KANTCODE"] == "H" \
-                                      else lane_mapping_t[row["AANT_MSK"]]
+            mapping_function = lambda row: LANE_MAPPING_H[row["AANT_MSK"]] if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T[row["AANT_MSK"]]
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
         if name == "Kantstroken":
@@ -343,6 +344,14 @@ class WegModel:
             return self.__extract_line_properties(row, name)
 
     def __extract_point_properties(self, row: pd.Series, name: str) -> dict:
+        """
+        Determines point info based on a row in the dataframe
+        Args:
+            row (Series): Dataframe row contents
+            name (str): Dataframe name
+        Returns:
+            Point info in generalised dict format.
+        """
         assert isinstance(row["geometry"], Point), f"Dit is geen simpele puntgeometrie: {row}"
 
         point_info = {
@@ -378,6 +387,16 @@ class WegModel:
 
     @staticmethod
     def __extract_line_properties(row: pd.Series, name: str) -> dict:
+        """
+        Determines line info based on a row in the dataframe
+        Args:
+            row (Series): Dataframe row contents
+            name (str): Dataframe name
+        Returns:
+            Line info in generalised dict format.
+        """
+        assert isinstance(row["geometry"], LineString), f"Dit is geen simpele puntgeometrie: {row}"
+
         section_info = {
             "Pos_eigs": {
                 "Rijrichting": "",
@@ -470,7 +489,6 @@ class WegModel:
         other_section_range = overlap_section_info["Pos_eigs"]["Km_bereik"]
         other_section_geom = overlap_section_info["Pos_eigs"]["Geometrie"]
         other_section_props = overlap_section_info["Obj_eigs"]
-
 
         new_section_range = new_section["Pos_eigs"]["Km_bereik"]
 
@@ -1655,7 +1673,7 @@ class MSINetwerk:
 
             if "Special" in section_verw_eigs["Einde_kenmerk"].keys():
                 annotation.update({value[1]: value[0] for keyword, value in
-                                  section_verw_eigs["Einde_kenmerk"].items() if keyword == "Special"})
+                                   section_verw_eigs["Einde_kenmerk"].items() if keyword == "Special"})
 
         return annotation
 
@@ -1773,7 +1791,7 @@ class MSI(MSILegends):
     def determine_properties(self):
         if "Maximumsnelheid" in self.row.local_road_properties.keys():
             self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
-        
+
         # Add DYN_V if it is applied and it is smaller than STAT_V
         dyn_v1, dyn_v2 = None, None
         if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
@@ -1917,7 +1935,7 @@ class MSI(MSILegends):
     def ensure_upstream_relation(self):
         # MSIs that do not have any upstream relation, get a secondary relation
         if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
-                or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
+                                       or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
             print(f"[LOG:] {self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if True:
