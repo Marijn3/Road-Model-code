@@ -130,7 +130,10 @@ class DataFrameLader:
 
     @staticmethod
     def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
-        # TODO 26: Fix for verbindingsbogen.
+        """
+        Deze functie is nog in aanbouw. De bedoeling is om hier MultiLineString registraties af te vangen.
+        TODO 26: Fix for verbindingsbogen.
+        """
         merged = line_merge(geom)
         if isinstance(merged, LineString):
             return merged
@@ -165,7 +168,7 @@ class DataFrameLader:
 
             return line_merge(MultiLineString([line1, line2]))
 
-        assert False, f"Omzetting naar LineString mislukt voor {geom}"
+        assert False, f"Omzetting naar LineString niet mogelijk voor {geom}"
 
     def __edit_columns(self, name: str) -> None:
         """
@@ -173,11 +176,11 @@ class DataFrameLader:
         Args:
             name (str): The name of the GeoDataFrame.
         """
-        s1 = len(self.data[name])
-
         # Try to convert any MultiLineStrings to LineStrings.
         self.data[name]["geometry"] = self.data[name]["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
                                                                         if isinstance(geom, MultiLineString) else geom)
+
+        s1 = len(self.data[name])
 
         # Filter all entries where the geometry column still contains a MultiLineString
         is_linestring_or_point = self.data[name]["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))
@@ -1272,7 +1275,7 @@ def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
                         f"{geom1} en \n{geom2}:\n")
 
 
-def make_MTM_name(pos_eigs: dict) -> str:
+def make_MTM_row_name(pos_eigs: dict) -> str:
     if pos_eigs["Hectoletter"]:
         return f"{pos_eigs['Wegnummer']}_{pos_eigs['Hectoletter'].upper()}:{pos_eigs['Km']}"
     else:
@@ -1286,7 +1289,7 @@ class MSIRow:
         self.properties = self.info["Obj_eigs"]
         self.local_road_info = local_road_info
         self.local_road_properties = self.local_road_info["Obj_eigs"]
-        self.name = make_MTM_name(self.info["Pos_eigs"])
+        self.name = make_MTM_row_name(self.info["Pos_eigs"])
         self.lane_numbers = []
         self.n_lanes = 0
         self.n_msis = 0

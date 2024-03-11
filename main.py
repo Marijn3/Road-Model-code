@@ -1,9 +1,11 @@
 from ilp_input_creator import *
 
 # Laad alle bestanden voor een vooropgesteld gebied en bewaar de GeoDataFrames in een class.
+# Gedefinieerde locaties: Vught, A27, A2Vink, A2VK, Goirle, Zonzeel
 # dfl = DataFrameLader("Vught")
+
 # Alternatief: voer eigen coördinaten in.
-dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300})
+dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 405500, "west": 148300})
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
