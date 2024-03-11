@@ -44,7 +44,7 @@ class Aanvraag(Oppervlak):
 
         # Obtain surrounding geometry and road properties
         # Temporary assumption: only one section below request
-        road_info = wegmodel.get_section_info_at(km=km_start, side=roadside)
+        road_info = wegmodel.get_section_info_by_bps(km=km_start, side=roadside)
         road_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"] if isinstance(lane_nr, int)
                       and lane_type not in ['Puntstuk']]
         n_lanes = len(road_lanes)

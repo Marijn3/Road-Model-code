@@ -933,22 +933,6 @@ class WegModel:
 
         return overlapping_sections
 
-    @staticmethod
-    def get_n_lanes(prop: dict) -> tuple[int, int]:
-        """
-        Determines the number of lanes given road properties.
-        Args:
-            prop (dict): Road properties to be evaluated.
-        Returns:
-            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
-            2) The number of lanes, exluding "puntstuk" registrations.
-        """
-        main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
-                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
-        any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
-                     and lane_type not in ["Puntstuk"]]
-        return len(main_lanes), len(any_lanes)
-
     def __post_processing(self) -> None:
         for section_index, section_info in self.sections.items():
             self.sections[section_index]["Verw_eigs"] = {
@@ -979,11 +963,11 @@ class WegModel:
                         key: value for key, value in section_info["Obj_eigs"].items() if value in ["Uitrijstrook", "Splitsing", "Weefstrook"]}
                     skip_end_check = True
 
-            start_sections = self.get_sections_at_point(start_point)
-            end_sections = self.get_sections_at_point(end_point)
+            start_sections = self.get_sections_by_point(start_point)
+            end_sections = self.get_sections_by_point(end_point)
 
-            main_up, div_up = self.separate_main_and_div(start_sections, section_index, section_info)
-            main_down, div_down = self.separate_main_and_div(end_sections, section_index, section_info)
+            main_up, div_up = self.__separate_main_and_div(start_sections, section_index, section_info)
+            main_down, div_down = self.__separate_main_and_div(end_sections, section_index, section_info)
 
             self.sections[section_index]["Verw_eigs"]["Sectie_stroomopwaarts"] = main_up
             self.sections[section_index]["Verw_eigs"]["Sectie_stroomafwaarts"] = main_down
@@ -992,11 +976,11 @@ class WegModel:
 
             if main_up and not skip_start_check:
                 self.sections[section_index]["Verw_eigs"]["Start_kenmerk"] = (
-                    self.get_dif_props(section_info["Obj_eigs"], self.sections[main_up]["Obj_eigs"]))
+                    self.__get_dif_props(section_info["Obj_eigs"], self.sections[main_up]["Obj_eigs"]))
 
             if main_down and not skip_end_check:
                 self.sections[section_index]["Verw_eigs"]["Einde_kenmerk"] = (
-                    self.get_dif_props(section_info["Obj_eigs"], self.sections[main_down]["Obj_eigs"]))
+                    self.__get_dif_props(section_info["Obj_eigs"], self.sections[main_down]["Obj_eigs"]))
 
         for point_index, point_info in self.points.items():
             self.points[point_index]["Verw_eigs"] = {
@@ -1008,7 +992,7 @@ class WegModel:
                 "Lokale_hoek": None,
             }
 
-            overlapping_sections = self.get_sections_at_point(point_info["Pos_eigs"]["Geometrie"])
+            overlapping_sections = self.get_sections_by_point(point_info["Pos_eigs"]["Geometrie"])
             sections_near_point = [section_id for section_id in overlapping_sections.keys()]
             self.points[point_index]["Verw_eigs"]["Sectie_ids"] = sections_near_point
 
@@ -1017,7 +1001,7 @@ class WegModel:
             self.points[point_index]["Verw_eigs"]["Aantal_hoofdstroken"] = max(lane_info, key=lambda x: x[0])[0]
             self.points[point_index]["Verw_eigs"]["Aantal_stroken"] = max(lane_info, key=lambda x: x[1])[1]
 
-            self.points[point_index]["Verw_eigs"]["Lokale_hoek"] = self.get_local_angle(sections_near_point, point_info["Pos_eigs"]["Geometrie"])
+            self.points[point_index]["Verw_eigs"]["Lokale_hoek"] = self.__get_local_angle(sections_near_point, point_info["Pos_eigs"]["Geometrie"])
 
             if point_info["Obj_eigs"]["Type"] in ["Samenvoeging", "Invoeging"]:
                 self.points[point_index]["Verw_eigs"]["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] != self.points[point_index]["Verw_eigs"]["Aantal_stroken"]]
@@ -1028,7 +1012,7 @@ class WegModel:
                 self.points[point_index]["Verw_eigs"]["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] != self.points[point_index]["Verw_eigs"]["Aantal_stroken"]]
 
     @staticmethod
-    def separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
+    def __separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
         connected = [index for index in connecting_sections.keys() if index != section_index]
         if len(connected) == 0:
             return None, None
@@ -1076,25 +1060,11 @@ class WegModel:
         return None, None
 
     @staticmethod
-    def get_dif_props(section_props: dict, other_props):
+    def __get_dif_props(section_props: dict, other_props):
         return {lane_nr: lane_type for lane_nr, lane_type in section_props.items()
                 if (lane_nr not in other_props) or (lane_nr in other_props and other_props[lane_nr] != lane_type)}
 
-    def get_points_info(self, specifier: str = None) -> list[dict]:
-        """
-        Obtain a list of all point registrations in the road model.
-        The type can be specified as "MSI", to return only MSI data.
-        Returns:
-            List of all point information.
-        """
-        if specifier == "MSI":
-            return [point for point in self.points.values() if point["Obj_eigs"]["Type"] == "Signalering"]
-        elif specifier == "*vergentie":
-            return [point for point in self.points.values() if point["Obj_eigs"]["Type"] != "Signalering"]
-        else:
-            return [point for point in self.points.values()]
-
-    def get_local_angle(self, overlapping_ids, point_geom: Point) -> float:
+    def __get_local_angle(self, overlapping_ids, point_geom: Point) -> float:
         """
         Find the approximate local angle of sections in the road model at a given point.
         Returns:
@@ -1143,7 +1113,37 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    def get_section_info_at(self, km: float, side: str, hectoletter: str = "") -> dict:
+    @staticmethod
+    def get_n_lanes(prop: dict) -> tuple[int, int]:
+        """
+        Determines the number of lanes given road properties.
+        Args:
+            prop (dict): Road properties to be evaluated.
+        Returns:
+            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
+            2) The number of lanes, exluding "puntstuk" registrations.
+        """
+        main_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
+                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+        any_lanes = [lane_nr for lane_nr, lane_type in prop.items() if isinstance(lane_nr, int)
+                     and lane_type not in ["Puntstuk"]]
+        return len(main_lanes), len(any_lanes)
+
+    def get_points_info(self, specifier: str = None) -> list[dict]:
+        """
+        Obtain a list of all point registrations in the road model.
+        The type can be specified as "MSI", to return only MSI data.
+        Returns:
+            List of all point information.
+        """
+        if specifier == "MSI":
+            return [point for point in self.points.values() if point["Obj_eigs"]["Type"] == "Signalering"]
+        elif specifier == "*vergentie":
+            return [point for point in self.points.values() if point["Obj_eigs"]["Type"] != "Signalering"]
+        else:
+            return [point for point in self.points.values()]
+
+    def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> dict:
         """
         Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
@@ -1160,7 +1160,7 @@ class WegModel:
                 return section
         return {}
 
-    def get_sections_at_point(self, point: Point) -> dict[int: dict]:
+    def get_sections_by_point(self, point: Point) -> dict[int: dict]:
         """
         Finds sections in self.sections that overlap the given point.
         Args:
@@ -1406,7 +1406,7 @@ class MSINetwerk:
             Every MSI also has a shift and annotation value, depending on what was encountered
             during the travel towards that MSI row from the start MSI row.
         """
-        starting_section_id = self.get_travel_starting_section_id(msi_row, downstream)
+        starting_section_id = self.__get_travel_starting_section_id(msi_row, downstream)
         current_km = msi_row.info["Pos_eigs"]["Km"]
         travel_direction = msi_row.local_road_info["Pos_eigs"]["Rijrichting"]
 
@@ -1417,7 +1417,7 @@ class MSINetwerk:
             return [msis]
         return msis
 
-    def get_travel_starting_section_id(self, msi_row: MSIRow, downstream: bool) -> int:
+    def __get_travel_starting_section_id(self, msi_row: MSIRow, downstream: bool) -> int:
         """
         Obtain section ID of section under MSI row. In case there are multiple sections,
         the upstream/downstream section will be taken as the starting section, depending
@@ -1429,7 +1429,7 @@ class MSINetwerk:
             Section ID of starting section, considering the MSI row and the
             downstream/upstream search direction.
         """
-        start_sections = self.roadmodel.get_sections_at_point(msi_row.info["Pos_eigs"]["Geometrie"])
+        start_sections = self.roadmodel.get_sections_by_point(msi_row.info["Pos_eigs"]["Geometrie"])
 
         if len(start_sections) == 0:  # Nothing found
             raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info['Pos_eigs']}.")
@@ -1738,6 +1738,8 @@ class MSI(MSILegends):
 
         # Store all that is unique to the MSI
         self.lane_nr = lane_nr
+
+        # TODO: Limit displayset based on properties such as being the leftmost or rightmost lane, tunnel presence...
         self.displayoptions = self.displayset_all
         self.name = f"{self.row.name}:{str(self.lane_nr)}"
 
