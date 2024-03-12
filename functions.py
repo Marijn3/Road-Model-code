@@ -8,6 +8,7 @@ import math
 GRID_SIZE = 0.00001
 MSI_RELATION_MAX_SEARCH_DISTANCE = 3500  # [m] - Richtlijn zegt max 1200 m tussen portalen. Dit wordt overschreden.
 DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
+ADD_SECONDARY_RELATIONS = True
 
 # Mapping from lane registration to (nLanes, Special feature)
 LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
@@ -1943,7 +1944,7 @@ class MSI(MSILegends):
                                        or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
             print(f"[LOG:] {self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
-            if True:
+            if ADD_SECONDARY_RELATIONS:
                 print("[LOG:] Relatie wordt toegepast.")
                 u_row, desc = next(iter(self.row.upstream.items()))
                 print(u_row.local_road_info)
