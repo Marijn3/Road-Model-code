@@ -266,14 +266,14 @@ class WegModel:
                      "Rijstrooksignaleringen", "Convergenties", "Divergenties"]
 
     def __init__(self, dfl: DataFrameLader):
-        self.base = {}
-        self.base_index = 0
+        self.__base = {}
+        self.__base_index = 0
         self.sections = {}
-        self.section_index = 0
-        self.points = {}
-        self.point_index = 0
-        self.has_base_layer = False
-        self.has_initial_layer = False
+        self.__section_index = 0
+        self.__points = {}
+        self.__point_index = 0
+        self.__has_base_layer = False
+        self.__has_initial_layer = False
 
         self.__import_dataframes(dfl)
         self.__post_processing()
@@ -293,14 +293,14 @@ class WegModel:
         """
         for df_name in self.__LAYER_NAMES:
             print(f"[STATUS:] Laag '{df_name}' wordt geïmporteerd...")
-            current_sections = self.section_index
-            current_points = self.point_index
+            current_sections = self.__section_index
+            current_points = self.__point_index
 
             self.__import_dataframe(dfl, df_name)
 
-            print(f"[STATUS:] {df_name} voegde {self.section_index - current_sections} secties "
-                  f"en {self.point_index - current_points} punten toe aan het model.\n"
-                  f"Het model heeft nu in totaal {self.section_index} secties en {self.point_index} punten.\n")
+            print(f"[STATUS:] {df_name} voegde {self.__section_index - current_sections} secties "
+                  f"en {self.__point_index - current_points} punten toe aan het model.\n"
+                  f"Het model heeft nu in totaal {self.__section_index} secties en {self.__point_index} punten.\n")
 
     def __import_dataframe(self, dfl: DataFrameLader, df_name: str):
         """
@@ -313,11 +313,11 @@ class WegModel:
         for index, row in dataframe.iterrows():
             feature_info = self.__extract_row_properties(row, df_name)
 
-            if not self.has_base_layer:
+            if not self.__has_base_layer:
                 self.__add_base(feature_info)
                 continue
 
-            if not self.has_initial_layer:
+            if not self.__has_initial_layer:
                 self.__add_initial_section(feature_info)
                 continue
 
@@ -327,9 +327,9 @@ class WegModel:
                 self.__determine_sectioning(feature_info)
 
         if df_name == "Wegvakken":
-            self.has_base_layer = True
+            self.__has_base_layer = True
         if df_name == "Rijstroken":
-            self.has_initial_layer = True
+            self.__has_initial_layer = True
 
     def __extract_row_properties(self, row: pd.Series, name: str):
         """
@@ -780,9 +780,9 @@ class WegModel:
             print(f"[WAARSCHUWING:] Groot lengteverschil: "
                   f"{get_km_length(new_section['Pos_eigs']['Km_bereik'])} en {new_section['Pos_eigs']['Geometrie'].length}\n")
 
-        self.sections[self.section_index] = new_section
-        self.__log_section(self.section_index, False)
-        self.section_index += 1
+        self.sections[self.__section_index] = new_section
+        self.__log_section(self.__section_index, False)
+        self.__section_index += 1
 
     def __add_initial_section(self, new_section: dict) -> None:
         """
@@ -823,9 +823,9 @@ class WegModel:
         """
         assert not is_empty(new_section["Pos_eigs"]["Geometrie"]), f"Poging om een lege lijngeometrie toe te voegen: {new_section}"
 
-        self.base[self.base_index] = new_section
-        self.__log_base(self.base_index)
-        self.base_index += 1
+        self.__base[self.__base_index] = new_section
+        self.__log_base(self.__base_index)
+        self.__base_index += 1
 
     def __add_point(self, point: dict) -> None:
         """
@@ -840,9 +840,9 @@ class WegModel:
         """
         assert not is_empty(point["Pos_eigs"]["Geometrie"]), f"Poging om een lege puntgeometrie toe te voegen: {point}"
 
-        self.points[self.point_index] = point
-        self.__log_point(self.point_index)
-        self.point_index += 1
+        self.__points[self.__point_index] = point
+        self.__log_point(self.__point_index)
+        self.__point_index += 1
 
     def __log_point(self, index: int) -> None:
         """
@@ -851,12 +851,12 @@ class WegModel:
             index (int): Index of point to print info for.
         """
         print(f"[LOG:] Punt {index} toegevoegd: \t"
-              f"{self.points[index]['Pos_eigs']['Km']:<7.3f} km \t"
-              f"{self.points[index]['Pos_eigs']['Wegnummer']}\t"
-              f"{self.points[index]['Pos_eigs']['Rijrichting']}\t"
-              f"{self.points[index]['Pos_eigs']['Hectoletter']}\t"
-              f"{self.points[index]['Obj_eigs']} \n"
-              f"\t\t\t\t\t\t\t{set_precision(self.points[index]['Pos_eigs']['Geometrie'], 1)}")
+              f"{self.__points[index]['Pos_eigs']['Km']:<7.3f} km \t"
+              f"{self.__points[index]['Pos_eigs']['Wegnummer']}\t"
+              f"{self.__points[index]['Pos_eigs']['Rijrichting']}\t"
+              f"{self.__points[index]['Pos_eigs']['Hectoletter']}\t"
+              f"{self.__points[index]['Obj_eigs']} \n"
+              f"\t\t\t\t\t\t\t{set_precision(self.__points[index]['Pos_eigs']['Geometrie'], 1)}")
 
     def __log_base(self, index: int) -> None:
         """
@@ -865,9 +865,9 @@ class WegModel:
             index (int): Index of section to print info for.
         """
         print(f"[LOG:] Basis {index} toegevoegd:  \t"
-              f"{self.base[index]['Pos_eigs']['Wegnummer']}\t"
-              f"{self.base[index]['Pos_eigs']['Hectoletter']}\n"
-              f"\t\t\t\t\t\t\t\t{set_precision(self.base[index]['Pos_eigs']['Geometrie'], 1)}")
+              f"{self.__base[index]['Pos_eigs']['Wegnummer']}\t"
+              f"{self.__base[index]['Pos_eigs']['Hectoletter']}\n"
+              f"\t\t\t\t\t\t\t\t{set_precision(self.__base[index]['Pos_eigs']['Geometrie'], 1)}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
         """
@@ -886,7 +886,7 @@ class WegModel:
 
     def __get_overlapping_base(self, new_section):
         overlapping_base = []
-        for base_index, base in self.base.items():
+        for base_index, base in self.__base.items():
             if get_overlap(new_section["Pos_eigs"]["Geometrie"], base["Pos_eigs"]["Geometrie"]):
                 overlapping_base.append({"Index": base_index, "Section_info": base})
 
@@ -982,8 +982,8 @@ class WegModel:
                 self.sections[section_index]["Verw_eigs"]["Einde_kenmerk"] = (
                     self.__get_dif_props(section_info["Obj_eigs"], self.sections[main_down]["Obj_eigs"]))
 
-        for point_index, point_info in self.points.items():
-            self.points[point_index]["Verw_eigs"] = {
+        for point_index, point_info in self.__points.items():
+            self.__points[point_index]["Verw_eigs"] = {
                 "Sectie_ids": [],
                 "Ingaande_secties": [],
                 "Uitgaande_secties": [],
@@ -994,22 +994,22 @@ class WegModel:
 
             overlapping_sections = self.get_sections_by_point(point_info["Pos_eigs"]["Geometrie"])
             sections_near_point = [section_id for section_id in overlapping_sections.keys()]
-            self.points[point_index]["Verw_eigs"]["Sectie_ids"] = sections_near_point
+            self.__points[point_index]["Verw_eigs"]["Sectie_ids"] = sections_near_point
 
             # Get the local number of (main) lanes. Take the highest value if there are multiple.
             lane_info = [self.get_n_lanes(section_info["Obj_eigs"]) for section_info in overlapping_sections.values()]
-            self.points[point_index]["Verw_eigs"]["Aantal_hoofdstroken"] = max(lane_info, key=lambda x: x[0])[0]
-            self.points[point_index]["Verw_eigs"]["Aantal_stroken"] = max(lane_info, key=lambda x: x[1])[1]
+            self.__points[point_index]["Verw_eigs"]["Aantal_hoofdstroken"] = max(lane_info, key=lambda x: x[0])[0]
+            self.__points[point_index]["Verw_eigs"]["Aantal_stroken"] = max(lane_info, key=lambda x: x[1])[1]
 
-            self.points[point_index]["Verw_eigs"]["Lokale_hoek"] = self.__get_local_angle(sections_near_point, point_info["Pos_eigs"]["Geometrie"])
+            self.__points[point_index]["Verw_eigs"]["Lokale_hoek"] = self.__get_local_angle(sections_near_point, point_info["Pos_eigs"]["Geometrie"])
 
             if point_info["Obj_eigs"]["Type"] in ["Samenvoeging", "Invoeging"]:
-                self.points[point_index]["Verw_eigs"]["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] != self.points[point_index]["Verw_eigs"]["Aantal_stroken"]]
-                self.points[point_index]["Verw_eigs"]["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] == self.points[point_index]["Verw_eigs"]["Aantal_stroken"]]
+                self.__points[point_index]["Verw_eigs"]["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] != self.__points[point_index]["Verw_eigs"]["Aantal_stroken"]]
+                self.__points[point_index]["Verw_eigs"]["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] == self.__points[point_index]["Verw_eigs"]["Aantal_stroken"]]
 
             if point_info["Obj_eigs"]["Type"] in ["Splitsing", "Uitvoeging"]:
-                self.points[point_index]["Verw_eigs"]["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] == self.points[point_index]["Verw_eigs"]["Aantal_stroken"]]
-                self.points[point_index]["Verw_eigs"]["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] != self.points[point_index]["Verw_eigs"]["Aantal_stroken"]]
+                self.__points[point_index]["Verw_eigs"]["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] == self.__points[point_index]["Verw_eigs"]["Aantal_stroken"]]
+                self.__points[point_index]["Verw_eigs"]["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info["Obj_eigs"])[1] != self.__points[point_index]["Verw_eigs"]["Aantal_stroken"]]
 
     @staticmethod
     def __separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
@@ -1137,11 +1137,11 @@ class WegModel:
             List of all point information.
         """
         if specifier == "MSI":
-            return [point for point in self.points.values() if point["Obj_eigs"]["Type"] == "Signalering"]
+            return [point for point in self.__points.values() if point["Obj_eigs"]["Type"] == "Signalering"]
         elif specifier == "*vergentie":
-            return [point for point in self.points.values() if point["Obj_eigs"]["Type"] != "Signalering"]
+            return [point for point in self.__points.values() if point["Obj_eigs"]["Type"] != "Signalering"]
         else:
-            return [point for point in self.points.values()]
+            return [point for point in self.__points.values()]
 
     def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> dict:
         """
@@ -1543,21 +1543,19 @@ class MSINetwerk:
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
-                next_section_id = current_section["Verw_eigs"]["Sectie_stroomafwaarts"]
-                if "Puntstuk" not in current_section["Obj_eigs"].values():
-                    # This is the diverging section. Determine annotation.
-                    next_section = self.roadmodel.sections[next_section_id]
-                    puntstuk_section_id = next_section["Verw_eigs"]["Sectie_stroomopwaarts"]
-                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]["Obj_eigs"])
-                    shift = shift + n_lanes_other
+                next_section_name = "Sectie_stroomafwaarts"
+                puntstuk_section_name = "Sectie_stroomopwaarts"
             else:
-                next_section_id = current_section["Verw_eigs"]["Sectie_stroomopwaarts"]
-                if "Puntstuk" not in current_section["Obj_eigs"].values():
-                    # This is the diverging section. Determine annotation.
-                    next_section = self.roadmodel.sections[next_section_id]
-                    puntstuk_section_id = next_section["Verw_eigs"]["Sectie_stroomafwaarts"]
-                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]["Obj_eigs"])
-                    shift = shift + n_lanes_other
+                next_section_name = "Sectie_stroomopwaarts"
+                puntstuk_section_name = "Sectie_stroomafwaarts"
+
+            next_section_id = current_section["Verw_eigs"][next_section_name]
+            if "Puntstuk" not in current_section["Obj_eigs"].values():
+                # This is the diverging section. Determine annotation.
+                next_section = self.roadmodel.sections[next_section_id]
+                puntstuk_section_id = next_section["Verw_eigs"][puntstuk_section_name]
+                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id]["Obj_eigs"])
+                shift = shift + n_lanes_other
 
             if next_section_id:
                 shift, annotation = self.update_shift_annotation(shift, annotation, current_section["Verw_eigs"], downstream, first_iteration)
@@ -1597,10 +1595,12 @@ class MSINetwerk:
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
-                                       current_section_id in point_info["Verw_eigs"]["Sectie_ids"] and point_info["Pos_eigs"]["Km"] < current_km]
+                                       current_section_id in point_info["Verw_eigs"]["Sectie_ids"]
+                                       and point_info["Pos_eigs"]["Km"] < current_km]
         else:
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
-                                       current_section_id in point_info["Verw_eigs"]["Sectie_ids"] and point_info["Pos_eigs"]["Km"] > current_km]
+                                       current_section_id in point_info["Verw_eigs"]["Sectie_ids"]
+                                       and point_info["Pos_eigs"]["Km"] > current_km]
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if
@@ -1630,10 +1630,11 @@ class MSINetwerk:
         if not new_annotation:
             return shift, annotation
 
-        lane_type = next(iter(new_annotation.values()), None)
-        if downstream and lane_type == "ExtraRijstrook" or not downstream and lane_type == "Rijstrookbeeindiging":
+        if (downstream and "ExtraRijstrook" in new_annotation.values()
+                or not downstream and "Rijstrookbeeindiging" in new_annotation.values()):
             shift = shift + 1
-        elif downstream and lane_type == "Rijstrookbeëindiging" or not downstream and lane_type == "ExtraRijstrook":
+        elif (downstream and "Rijstrookbeëindiging" in new_annotation.values()
+                or not downstream and "ExtraRijstrook" in new_annotation.values()):
             shift = shift - 1
 
         # Join dicts while preventing aliasing issues.
@@ -1809,6 +1810,7 @@ class MSI(MSILegends):
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSU’s.
+        #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations.
         self.properties["C_X"] = False
         self.properties["C_V"] = False
 
@@ -1825,25 +1827,26 @@ class MSI(MSILegends):
                 at_border_right = self.name == msi_names[-1]
                 break
 
-        if cw_number:
-            self.properties["N_CW"] = len(self.row.cw[cw_number])
-            self.properties["N_TS"] = self.properties["N_CW"]
+        assert cw_number, f"Er is iets misgegaan met het bepalen van het cw_nummer voor {self.name}"
 
-            self.properties["CW"] = self.row.cw[cw_number]
-            self.properties["CW_num"] = cw_number
-            self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
-            self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
+        self.properties["N_CW"] = len(self.row.cw[cw_number])
+        self.properties["N_TS"] = self.properties["N_CW"]
 
-            # Assumption: traffic stream == carriageway
-            self.properties["TS"] = self.properties["CW"]
-            self.properties["TS_num"] = self.properties["CW_num"]
-            self.properties["TS_right"] = self.properties["CW_right"]
-            self.properties["TS_left"] = self.properties["CW_left"]
+        self.properties["CW"] = self.row.cw[cw_number]
+        self.properties["CW_num"] = cw_number
+        self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
+        self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
 
-            # Safest assumption: 0 for both directions.
-            # Influence levels are only filled in when the MSI borders a different traffic stream.
-            self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
-            self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
+        # Assumption: traffic stream == carriageway
+        self.properties["TS"] = self.properties["CW"]
+        self.properties["TS_num"] = self.properties["CW_num"]
+        self.properties["TS_right"] = self.properties["CW_right"]
+        self.properties["TS_left"] = self.properties["CW_left"]
+
+        # Safest assumption: 0 for both directions.
+        # Influence levels are only filled in when the MSI borders a different traffic stream.
+        self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
+        self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
