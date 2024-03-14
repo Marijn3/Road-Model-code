@@ -98,9 +98,9 @@ class Aanvraag(Oppervlak):
                 keep_left_open = True
 
             if keep_left_open:
-                return list(range(1, max(self.ruimte_midden) + 1))  # Case TL2 or LL3
-            else:
                 return list(range(min(self.ruimte_midden), n_lanes + 1))  # Case TR3 or LR4
+            else:
+                return list(range(1, max(self.ruimte_midden) + 1))  # Case TL2 or LL3
 
         condition_tl_nothing = self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 3.50
         condition_tl1 = self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 3.50

@@ -25,6 +25,6 @@ aanvraag = Aanvraag(wegmodel,
                     km_end=13.98,
                     wegkant="R",
                     # ruimte_links=1.5,
-                    # ruimte_midden=[],
-                    ruimte_rechts=1.5,
+                    ruimte_midden=[1],
+                    # ruimte_rechts=1.5,
                     )
