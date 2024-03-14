@@ -75,23 +75,31 @@ class Aanvraag(Oppervlak):
         Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
 
     def __get_lanes_werkvak(self, road_info: dict) -> list:
-        road_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"].items() if isinstance(lane_nr, int)
-                      and lane_type not in ['Puntstuk']]
-        n_lanes = len(road_lanes)
+        all_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"].items() if isinstance(lane_nr, int)
+                     and lane_type not in ["Puntstuk"]]
 
+        main_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"].items() if isinstance(lane_nr, int)
+                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+
+        lanes_left = all_lanes[:all_lanes.index(main_lanes[0])]
+        lanes_right = all_lanes[all_lanes.index(main_lanes[-1])+1:]
+
+        n_lanes = len(all_lanes)
         sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
 
         if self.ruimte_midden:
-            keep_left_open = True
+            assert all(lane_nr in main_lanes for lane_nr in self.ruimte_midden), "Een aangevraagde rijstrook hoort niet bij de hoofdstroken."
 
-            n_lanes_left = min(self.ruimte_midden) - 1
-            n_lanes_right = n_lanes - max(self.ruimte_midden)
-            if n_lanes_left < n_lanes_right:
+            keep_left_open = True  # If False: keep right open.
+
+            n_main_lanes_left = min(self.ruimte_midden) - 1
+            n_main_lanes_right = n_lanes - max(self.ruimte_midden)
+            if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
-            elif n_lanes_left == n_lanes_right:
-                if road_lanes[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+            elif n_main_lanes_left == n_main_lanes_right:
+                if road_info["Obj_eigs"][1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = False
-                if road_lanes[n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                if road_info["Obj_eigs"][n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = True
                 # Desired result: if vluchtstrook on both sides and space equal, then left side should be open.
             else:
@@ -121,25 +129,25 @@ class Aanvraag(Oppervlak):
             return []
 
         if condition_tl1:
-            return [1]
+            return lanes_left
 
         if condition_tr1:
-            return [n_lanes]
+            return lanes_right
 
         if condition_tr2:
-            return [n_lanes - 1, n_lanes]
+            return [min(lanes_right)-1] + lanes_right
 
         if condition_ll1:
-            return [1]
+            return lanes_left
 
         if condition_ll2:
-            return [1, 2]
+            return lanes_left  # And lane narrowing
 
         if condition_lr2:
-            return [n_lanes]
+            return lanes_right
 
         if condition_lr3:
-            return [n_lanes - 1, n_lanes]
+            return lanes_right  # And lane narrowing
 
         print("Deze code zou nooit moeten worden bereikt. Hoe dan ook, geen afzettingen nodig.")
         return []
