@@ -3,11 +3,15 @@ from functions import *
 
 class Oppervlak:
     def __init__(self, roadside: str, km_start: float, km_end: float, width: list) -> None:
+        self.roadside = roadside
         self.km_start = km_start
         self.km_end = km_end
         self.width = width
-        self.roadside = roadside
-        print(self.width)
+
+        self.print_surface()
+
+    def print_surface(self):
+        print(f"Oppervlak gemaakt aan {self.roadside} van {self.km_start} tot {self.km_end}, breedte {self.width},")
 
 
 class Werkvak(Oppervlak):
@@ -27,9 +31,6 @@ class Aanvraag(Oppervlak):
         assert sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1, "Specificeer één eis."
 
         self.wegmodel = wegmodel
-        self.km_start = km_start
-        self.km_end = km_end
-        self.wegkant = wegkant
         self.hectoletter = hectoletter
         self.ruimte_links = ruimte_links
         self.ruimte_midden = ruimte_midden
@@ -40,7 +41,7 @@ class Aanvraag(Oppervlak):
         self.color = "green"
         self.request_width = self.__determine_request_width()
 
-        super().__init__(self.wegkant, self.km_start, self.km_end, self.request_width)
+        super().__init__(wegkant, km_start, km_end, self.request_width)
 
         self.__make_werkvak()
 
@@ -59,7 +60,7 @@ class Aanvraag(Oppervlak):
         # Obtain surrounding geometry and road properties
         # Temporary assumption: only one section below request, section identified by km_start
         road_info = self.wegmodel.get_section_info_by_bps(km=self.km_start,
-                                                          side=self.wegkant,
+                                                          side=self.roadside,
                                                           hectoletter=self.hectoletter)
 
         if not road_info:
@@ -69,7 +70,7 @@ class Aanvraag(Oppervlak):
         lanes_werkvak = self.__get_lanes_werkvak(road_info)
 
         # Initialise werkvak
-        Werkvak(self.wegkant, self.km_start, self.km_end, lanes_werkvak)
+        Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
 
     def __get_lanes_werkvak(self, road_info: dict) -> list:
         road_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"] if isinstance(lane_nr, int)
@@ -104,7 +105,7 @@ class Aanvraag(Oppervlak):
 
         condition_tr_nothing = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts > sphere_of_influence
         condition_tr1 = self.duur_korter_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= sphere_of_influence
-        condition_tr2 = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.1
+        condition_tr2 = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
 
         condition_ll1 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 0.25
         condition_ll2 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 0.25
@@ -140,6 +141,4 @@ class Aanvraag(Oppervlak):
 
         print("Deze code zou nooit moeten worden bereikt. Hoe dan ook, geen afzettingen nodig.")
         return []
-
-
 
