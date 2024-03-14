@@ -2,16 +2,18 @@ from functions import *
 
 
 class Oppervlak:
-    def __init__(self, roadside: str, km_start: float, km_end: float, width: list) -> None:
+    def __init__(self, roadside: str, km_start: float, km_end: float, surf_type: str, width: list) -> None:
         self.roadside = roadside
         self.km_start = km_start
         self.km_end = km_end
         self.width = width
+        self.surf_type = surf_type
 
         self.print_surface()
 
     def print_surface(self):
-        print(f"Oppervlak gemaakt aan {self.roadside} van {self.km_start} tot {self.km_end}, breedte {self.width},")
+        print(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
+              f"van {self.km_start} tot {self.km_end}, met breedte {self.width}.")
 
 
 class Werkvak(Oppervlak):
@@ -20,7 +22,7 @@ class Werkvak(Oppervlak):
         width_2 = [lane*3.5 for lane in lanes]
         widths = sorted(set(width_1 + width_2))
         width = [widths[0], widths[-1]]
-        super().__init__(roadside, km_start, km_end, width)
+        super().__init__(roadside, km_start, km_end, "Werkvak", width)
         self.color = "cyan"
 
 
@@ -41,20 +43,20 @@ class Aanvraag(Oppervlak):
         self.color = "green"
         self.request_width = self.__determine_request_width()
 
-        super().__init__(wegkant, km_start, km_end, self.request_width)
+        super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_width)
 
         self.__make_werkvak()
 
     def __determine_request_width(self) -> list:
         if self.ruimte_links:
-            return [-self.ruimte_links - 3.5, -self.ruimte_links]
+            return [-1000, -self.ruimte_links]
         if self.ruimte_midden:
             width_1 = [(lane - 1) * 3.5 for lane in self.ruimte_midden]
             width_2 = [lane * 3.5 for lane in self.ruimte_midden]
             widths = sorted(set(width_1 + width_2))
             return [widths[0], widths[-1]]
         if self.ruimte_rechts:
-            return [self.ruimte_rechts, self.ruimte_rechts + 3.5]
+            return [self.ruimte_rechts, 1000]
 
     def __make_werkvak(self):
         # Obtain surrounding geometry and road properties
@@ -73,7 +75,7 @@ class Aanvraag(Oppervlak):
         Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
 
     def __get_lanes_werkvak(self, road_info: dict) -> list:
-        road_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"] if isinstance(lane_nr, int)
+        road_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"].items() if isinstance(lane_nr, int)
                       and lane_type not in ['Puntstuk']]
         n_lanes = len(road_lanes)
 
