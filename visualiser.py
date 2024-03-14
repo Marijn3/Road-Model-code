@@ -429,25 +429,25 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
     group_red_cross.add(dwg.line(
         start=(box_west + clearance, box_north + clearance),
         end=(box_east - clearance, box_south - clearance),
-        stroke="#990000", stroke_width=STROKE))  # \
+        stroke="#FF0000", stroke_width=STROKE))  # \
     group_red_cross.add(dwg.line(
         start=(box_east - clearance, box_north + clearance),
         end=(box_west + clearance, box_south - clearance),
-        stroke="#990000", stroke_width=STROKE))  # /
+        stroke="#FF0000", stroke_width=STROKE))  # /
 
     group_green_arrow = group_msi_row.add(dwg.g(id="green-arrow", opacity=0))
     group_green_arrow.add(dwg.line(
         start=(box_west + box_size/2, box_north + clearance/2),
         end=(box_west + box_size/2, box_south - clearance*1.5),
-        stroke="#009900", stroke_width=STROKE))  # |
+        stroke="#00FF00", stroke_width=STROKE))  # |
     group_green_arrow.add(dwg.line(
         start=(box_west + box_size/2 + math.sqrt(STROKE/2)/2, box_south - clearance/2),
         end=(box_west + clearance + math.sqrt(STROKE/2)/2, box_south - box_size/2 + clearance/2),
-        stroke="#009900", stroke_width=STROKE))  # \
+        stroke="#00FF00", stroke_width=STROKE))  # \
     group_green_arrow.add(dwg.line(
         start=(box_west + box_size/2 - math.sqrt(STROKE/2)/2, box_south - clearance/2),
         end=(box_east - clearance - math.sqrt(STROKE/2)/2, box_south - box_size/2 + clearance/2),
-        stroke="#009900", stroke_width=STROKE))  # /
+        stroke="#00FF00", stroke_width=STROKE))  # /
 
     group_left_arrow = group_msi_row.add(dwg.g(id="left-arrow", opacity=0))
     group_left_arrow.add(dwg.line(
@@ -511,16 +511,16 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
 
     for circle in group_flashers.elements[:2]:
         circle.add(dwg.animate("fill", attributeType="XML", from_="yellow", to="white",
-                                   id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
+                               id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
     for circle in group_flashers.elements[-2:]:
         circle.add(dwg.animate("fill", attributeType="XML", from_="white", to="yellow",
-                                   id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
+                               id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
 
     group_red_ring = group_msi_row.add(dwg.g(id="red-ring", opacity=0))
     group_red_ring.add(dwg.circle(
         center=center_coords,
         r=box_size * 0.40,
-        fill="none", stroke="#990000", stroke_width=STROKE))
+        fill="none", stroke="#FF0000", stroke_width=STROKE))
 
     group_speed = group_msi_row.add(dwg.g(id="speed", opacity=0))
     group_speed.add(svgwrite.text.Text(
