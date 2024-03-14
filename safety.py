@@ -3,11 +3,11 @@ from functions import *
 
 class Oppervlak:
     def __init__(self, roadside: str, km_start: float, km_end: float, width: list) -> None:
-        self._km_start = km_start
-        self._km_end = km_end
-        self._width = width
-        self._roadside = roadside
-        print(self._width)
+        self.km_start = km_start
+        self.km_end = km_end
+        self.width = width
+        self.roadside = roadside
+        print(self.width)
 
 
 class Werkvak(Oppervlak):
@@ -17,7 +17,7 @@ class Werkvak(Oppervlak):
         widths = sorted(set(width_1 + width_2))
         width = [widths[0], widths[-1]]
         super().__init__(roadside, km_start, km_end, width)
-        self._color = "cyan"
+        self.color = "cyan"
 
 
 class Aanvraag(Oppervlak):
@@ -65,67 +65,70 @@ class Aanvraag(Oppervlak):
         if not road_info:
             raise Exception("Combinatie van km, wegkant en hectoletter niet gevonden!")
 
+        # Obtain minimal number of lanes for werkvak according to request
+        lanes_werkvak = self.__get_lanes_werkvak(road_info)
+
+        # Initialise werkvak
+        Werkvak(self.wegkant, self.km_start, self.km_end, lanes_werkvak)
+
+    def __get_lanes_werkvak(self, road_info: dict) -> list:
         road_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"] if isinstance(lane_nr, int)
                       and lane_type not in ['Puntstuk']]
         n_lanes = len(road_lanes)
 
         sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
 
-        # Obtain minimal number of lanes for werkvak according to request
-        lanes_werkvak = self.__get_lanes_werkvak(n_lanes, sphere_of_influence)
+        if self.ruimte_midden:
+            keep_left_open = True
 
-        # Initialise werkvak
-        Werkvak(self.wegkant, self.km_start, self.km_end, lanes_werkvak)
+            n_lanes_left = min(self.ruimte_midden) - 1
+            n_lanes_right = n_lanes - max(self.ruimte_midden)
+            if n_lanes_left < n_lanes_right:
+                keep_left_open = False
+            elif n_lanes_left == n_lanes_right:
+                if road_lanes[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                    keep_left_open = False
+                if road_lanes[n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                    keep_left_open = True
+                # Desired result: if vluchtstrook on both sides and space equal, then left side should be open.
+            else:
+                keep_left_open = True
 
-    def __get_lanes_werkvak(self, n_lanes: int, sphere_of_influence: float) -> list:
-        if self.maatregel_korter_24h:
-            if self.ruimte_links:
-                if self.ruimte_links >= 3.50:
-                    print("Geen afzettingen nodig.")
-                    return []
-                else:
-                    return [1]  # Case TL1
+            if keep_left_open:
+                return list(range(1, max(self.ruimte_midden) + 1))  # Case TL2 or LL3
+            else:
+                return list(range(min(self.ruimte_midden), n_lanes + 1))  # Case TR3 or LR4
 
-            if self.ruimte_midden:
-                a = min(self.ruimte_midden) - 1
-                b = n_lanes - max(self.ruimte_midden)
-                if a < b:
-                    return list(range(1, max(self.ruimte_midden) + 1))  # Case TL2
-                else:
-                    return list(range(min(self.ruimte_midden), n_lanes + 1))  # Case TR3
+        if self.maatregel_korter_24h and self.ruimte_links:
+            if self.ruimte_links >= 3.50:
+                print("Geen afzettingen nodig.")
+                return []
+            else:
+                return [1]  # Case TL1
 
-            if self.ruimte_rechts:
-                if self.ruimte_rechts >= sphere_of_influence:
-                    print("Geen afzettingen nodig.")
-                    return []
-                elif self.ruimte_rechts >= 1.10:
+        if not self.maatregel_korter_24h and self.ruimte_links:
+            if self.ruimte_links >= 0.25:
+                return [1]  # LL1
+            else:
+                return [1, 2]  # Case LL2
 
-                    return [n_lanes]  # Case TR1
-                else:
-                    return [n_lanes - 1, n_lanes]  # Case TR2
-        else:  # Measure longer than day
-            if self.ruimte_links:
-                if self.ruimte_links >= 0.25:
-                    return [1]  # LL1
-                else:
-                    return [1, 2]  # Case LL2
+        if self.maatregel_korter_24h and self.ruimte_rechts:
+            if self.ruimte_rechts >= sphere_of_influence:
+                print("Geen afzettingen nodig.")
+                return []
+            elif self.ruimte_rechts >= 1.10:
+                return [n_lanes]  # Case TR1
+            else:
+                return [n_lanes - 1, n_lanes]  # Case TR2
 
-            if self.ruimte_midden:
-                a = min(self.ruimte_midden) - 1
-                b = n_lanes - max(self.ruimte_midden)
-                if a < b:
-                    return list(range(1, max(self.ruimte_midden) + 1))  # Case LL3
-                else:
-                    return list(range(min(self.ruimte_midden), n_lanes + 1))  # Case LR4
-
-            if self.ruimte_rechts:
-                if self.ruimte_rechts >= 2.50:  # Alpha: invloedssfeer van de weg
-                    print("Geen afzettingen nodig.")
-                    return []  # Case LR1
-                elif self.ruimte_rechts >= 1.00:
-                    return [n_lanes]  # Case LR2
-                else:
-                    return [n_lanes - 1, n_lanes]  # Case LR3
+        if not self.maatregel_korter_24h and self.ruimte_rechts:
+            if self.ruimte_rechts >= 2.50:  # Alpha: invloedssfeer van de weg
+                print("Geen afzettingen nodig.")
+                return []  # Case LR1
+            elif self.ruimte_rechts >= 1.00:
+                return [n_lanes]  # Case LR2
+            else:
+                return [n_lanes - 1, n_lanes]  # Case LR3
 
         print("Deze code zou nooit moeten worden bereikt.")
         return []
