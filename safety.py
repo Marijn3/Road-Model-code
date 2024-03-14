@@ -72,7 +72,10 @@ class Aanvraag(Oppervlak):
         lanes_werkvak = self.__get_lanes_werkvak(road_info)
 
         # Initialise werkvak
-        Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
+        if lanes_werkvak:
+            Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
+        else:
+            print("Geen afzettingen nodig voor deze aanvraag.")
 
     def __get_lanes_werkvak(self, road_info: dict) -> list:
         all_lanes = [lane_nr for lane_nr, lane_type in road_info["Obj_eigs"].items() if isinstance(lane_nr, int)
@@ -110,45 +113,38 @@ class Aanvraag(Oppervlak):
             else:
                 return list(range(1, max(self.ruimte_midden) + 1))  # Case TL2 or LL3
 
-        condition_tl_nothing = self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 3.50
         condition_tl1 = self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 3.50
 
-        condition_tr_nothing = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts > sphere_of_influence
         condition_tr1 = self.duur_korter_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= sphere_of_influence
         condition_tr2 = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
 
         condition_ll1 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 0.25
         condition_ll2 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 0.25
 
-        condition_lr_nothing = not self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts > 2.50
         condition_lr2 = not self.duur_korter_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
         condition_lr3 = not self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
-
-        if condition_tl_nothing or condition_tr_nothing or condition_lr_nothing:
-            print("Geen afzettingen nodig.")
-            return []
 
         if condition_tl1:
             return lanes_left
 
-        if condition_tr1:
+        elif condition_tr1:
             return lanes_right
 
-        if condition_tr2:
+        elif condition_tr2:
             return [min(lanes_right)-1] + lanes_right
 
-        if condition_ll1:
+        elif condition_ll1:
             return lanes_left
 
-        if condition_ll2:
+        elif condition_ll2:
             return lanes_left  # And lane narrowing
 
-        if condition_lr2:
+        elif condition_lr2:
             return lanes_right
 
-        if condition_lr3:
+        elif condition_lr3:
             return lanes_right  # And lane narrowing
 
-        print("Deze code zou nooit moeten worden bereikt. Hoe dan ook, geen afzettingen nodig.")
-        return []
+        else:
+            return []
 
