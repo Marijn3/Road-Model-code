@@ -23,7 +23,7 @@ class Werkvak(Oppervlak):
 class Aanvraag(Oppervlak):
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
-                 max_v: int = 70, maatregel_korter_24h: bool = True, afzetting: str = "Bakens") -> None:
+                 max_v: int = 70, duur_korter_24h: bool = True, afzetting: str = "Bakens") -> None:
         assert sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1, "Specificeer één eis."
 
         self.wegmodel = wegmodel
@@ -35,7 +35,7 @@ class Aanvraag(Oppervlak):
         self.ruimte_midden = ruimte_midden
         self.ruimte_rechts = ruimte_rechts
         self.max_v = max_v
-        self.maatregel_korter_24h = maatregel_korter_24h
+        self.duur_korter_24h = duur_korter_24h
         self.afzetting = afzetting
         self.color = "green"
         self.request_width = self.__determine_request_width()
@@ -99,38 +99,46 @@ class Aanvraag(Oppervlak):
             else:
                 return list(range(min(self.ruimte_midden), n_lanes + 1))  # Case TR3 or LR4
 
-        if self.maatregel_korter_24h and self.ruimte_links:
-            if self.ruimte_links >= 3.50:
-                print("Geen afzettingen nodig.")
-                return []
-            else:
-                return [1]  # Case TL1
+        condition_tl_nothing = self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 3.50
+        condition_tl1 = self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 3.50
 
-        if not self.maatregel_korter_24h and self.ruimte_links:
-            if self.ruimte_links >= 0.25:
-                return [1]  # LL1
-            else:
-                return [1, 2]  # Case LL2
+        condition_tr_nothing = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts > sphere_of_influence
+        condition_tr1 = self.duur_korter_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= sphere_of_influence
+        condition_tr2 = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.1
 
-        if self.maatregel_korter_24h and self.ruimte_rechts:
-            if self.ruimte_rechts >= sphere_of_influence:
-                print("Geen afzettingen nodig.")
-                return []
-            elif self.ruimte_rechts >= 1.10:
-                return [n_lanes]  # Case TR1
-            else:
-                return [n_lanes - 1, n_lanes]  # Case TR2
+        condition_ll1 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 0.25
+        condition_ll2 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 0.25
 
-        if not self.maatregel_korter_24h and self.ruimte_rechts:
-            if self.ruimte_rechts >= 2.50:  # Alpha: invloedssfeer van de weg
-                print("Geen afzettingen nodig.")
-                return []  # Case LR1
-            elif self.ruimte_rechts >= 1.00:
-                return [n_lanes]  # Case LR2
-            else:
-                return [n_lanes - 1, n_lanes]  # Case LR3
+        condition_lr_nothing = not self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts > 2.50
+        condition_lr2 = not self.duur_korter_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
+        condition_lr3 = not self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
 
-        print("Deze code zou nooit moeten worden bereikt.")
+        if condition_tl_nothing or condition_tr_nothing or condition_lr_nothing:
+            print("Geen afzettingen nodig.")
+            return []
+
+        if condition_tl1:
+            return [1]
+
+        if condition_tr1:
+            return [n_lanes]
+
+        if condition_tr2:
+            return [n_lanes - 1, n_lanes]
+
+        if condition_ll1:
+            return [1]
+
+        if condition_ll2:
+            return [1, 2]
+
+        if condition_lr2:
+            return [n_lanes]
+
+        if condition_lr3:
+            return [n_lanes - 1, n_lanes]
+
+        print("Deze code zou nooit moeten worden bereikt. Hoe dan ook, geen afzettingen nodig.")
         return []
 
 
