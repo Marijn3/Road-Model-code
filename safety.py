@@ -31,6 +31,8 @@ class Aanvraag(Oppervlak):
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
                  max_v: int = 70, duur_korter_24h: bool = True, afzetting: str = "Bakens") -> None:
         assert sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1, "Specificeer één eis."
+        assert not ruimte_links or (ruimte_links and ruimte_links > 0), "Onjuiste aanvraag. Definieer positieve afstanden."
+        assert not ruimte_rechts or (ruimte_rechts and ruimte_rechts > 0), "Onjuiste aanvraag. Definieer positieve afstanden."
 
         self.wegmodel = wegmodel
         self.hectoletter = hectoletter
