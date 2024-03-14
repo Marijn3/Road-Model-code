@@ -4,28 +4,27 @@ from ilp_input_creator import *
 # Gedefinieerde locaties: [Volledig correcte import] Vught, A27
 #                         [Kleine verwerkingsfouten] A2Vink, Goirle, Zonzeel
 #                         [Importfouten] A2VK
-# dfl = DataFrameLader("Vught")
+dfl = DataFrameLader("A27")
 
 # Alternatief: voer eigen coördinaten in.
-dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300})
+# dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300})
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
 
-# Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-MSIs = MSINetwerk(wegmodel)
-
-# Exporteer de MSI-eigenschappen naar een bestand.
-ilp_input = make_ILP_input(MSIs)
-generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")
+# # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
+# MSIs = MSINetwerk(wegmodel)
+#
+# # Exporteer de MSI-eigenschappen naar een bestand.
+# ilp_input = make_ILP_input(MSIs)
+# generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")
 
 # Instantieer een aanvraag
 aanvraag = Aanvraag(wegmodel,
-                    km_start=119.65,
-                    km_end=119.7,
+                    km_start=13.95,
+                    km_end=13.98,
                     wegkant="R",
                     # ruimte_links=1.5,
                     # ruimte_midden=[],
                     ruimte_rechts=1.5,
                     )
-
