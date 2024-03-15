@@ -53,18 +53,26 @@ class Aanvraag(Oppervlak):
         self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info["Obj_eigs"].items()
                            if isinstance(lane_nr, int) and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
 
-        lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
-        self.lanes_left = {lane_nr: lane_type for lane_nr, lane_type in self.road_info["Obj_eigs"].items() if lane_nr in lane_nrs_left}
-        lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
-        self.lanes_right = {lane_nr: lane_type for lane_nr, lane_type in self.road_info["Obj_eigs"].items() if lane_nr in lane_nrs_right}
+        self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
+        self.lanes_left = self.filter_lanes(self.lane_nrs_left)
+        self.lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
+        self.lanes_right = self.filter_lanes(self.lane_nrs_right)
+
+        self.lane_nrs_right_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
+        self.lanes_right_tr2 = self.filter_lanes(self.lane_nrs_right)
 
         self.request_lanes = self.determine_request_lanes()
-        self.n_lanes = len(self.lanes)
-        self.sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
 
         super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes)
 
+        self.n_lanes = len(self.lanes)
+        self.sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
+
         self.__make_werkvak()
+
+    def filter_lanes(self, lane_nrs: list) -> dict:
+        return {lane_nr: lane_type for lane_nr, lane_type in self.road_info["Obj_eigs"].items()
+                if lane_nr in lane_nrs and lane_type not in ["Puntstuk"]}
 
     def get_road_info(self, km_start, roadside, hectoletter):
         # Obtain surrounding geometry and road properties
@@ -84,7 +92,7 @@ class Aanvraag(Oppervlak):
         if self.ruimte_midden:
             assert all(lane_nr in self.main_lanes for lane_nr in self.ruimte_midden), \
                 "Een aangevraagde rijstrook hoort niet bij de hoofdstroken."
-            return {lane_nr: lane_type for lane_nr, lane_type in self.road_info["Obj_eigs"].items() if lane_nr in self.ruimte_midden}
+            return self.filter_lanes(self.ruimte_midden)
         if self.ruimte_rechts:
             return self.lanes_right
 
@@ -116,9 +124,9 @@ class Aanvraag(Oppervlak):
                 keep_left_open = True
 
             if keep_left_open:
-                return {}  # list(range(min(self.ruimte_midden), self.n_lanes + 1))  # Case TR3 or LR4
+                return self.filter_lanes(list(range(min(self.ruimte_midden), self.n_lanes + 1)))  # Case TR3 or LR4
             else:
-                return {}  # list(range(1, max(self.ruimte_midden) + 1))  # Case TL2 or LL3
+                return self.filter_lanes(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
 
         condition_tl1 = self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 3.50
 
@@ -138,7 +146,7 @@ class Aanvraag(Oppervlak):
             return self.lanes_right
 
         elif condition_tr2:
-            return {}  # redo implementation using dicts: [min(self.lanes_right)-1] + self.lanes_right
+            return self.lanes_right_tr2
 
         elif condition_ll1:
             return self.lanes_left
