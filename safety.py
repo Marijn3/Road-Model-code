@@ -47,6 +47,7 @@ class Aanvraag(Oppervlak):
         self.duur_korter_24h = duur_korter_24h
         self.afzetting = afzetting
         self.color = "green"
+
         self.road_info = self.get_road_info(km_start, wegkant, hectoletter)
 
         self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info["Obj_eigs"].items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
@@ -58,6 +59,8 @@ class Aanvraag(Oppervlak):
         self.lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
         self.lanes_right = self.filter_lanes(self.lane_nrs_right)
 
+        # if self.ruimte_links and not self.lane_nrs_left: ...
+
         self.lane_nrs_right_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
         self.lanes_right_tr2 = self.filter_lanes(self.lane_nrs_right)
 
@@ -65,7 +68,7 @@ class Aanvraag(Oppervlak):
 
         super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes)
 
-        self.n_lanes = len(self.lanes)
+        self.n_lanes = len(self.all_lanes)
         self.sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
 
         self.__make_werkvak()
