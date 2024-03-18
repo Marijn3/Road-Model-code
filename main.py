@@ -12,9 +12,9 @@ dfl = DataFrameLader("A27")
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
 
-# # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-# MSIs = MSINetwerk(wegmodel)
-#
+# Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
+MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
+
 # # Exporteer de MSI-eigenschappen naar een bestand.
 # ilp_input = make_ILP_input(MSIs)
 # generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")
