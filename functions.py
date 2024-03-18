@@ -6,9 +6,7 @@ from copy import deepcopy
 import math
 
 GRID_SIZE = 0.00001
-MSI_RELATION_MAX_SEARCH_DISTANCE = 3500  # [m] - Richtlijn zegt max 1200 m tussen portalen. Dit wordt overschreden.
 DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
-ADD_SECONDARY_RELATIONS = True
 
 # Mapping from lane registration to (nLanes, Special feature)
 LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
@@ -53,6 +51,9 @@ class LijnVerwerkingsEigenschappen:
         self.sectie_afbuigend_stroomafwaarts = None
         self.start_kenmerk = {}
         self.einde_kenmerk = {}
+        self.aantal_hoofdrijstroken = None
+        self.aantal_rijstroken_links = None
+        self.aantal_rijstroken_rechts = None
 
 
 class PuntVerwerkingsEigenschappen:
@@ -991,6 +992,18 @@ class WegModel:
                 section_verw_eigs.einde_kenmerk = (
                     self.__get_dif_props(section_info.obj_eigs, self.sections[main_down].obj_eigs))
 
+            stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
+                       if lane_type not in ["Puntstuk"] and isinstance(lane_nr, int)]
+            hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
+                                  if lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+            strooknummers_links = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
+            strooknummers_rechts = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
+
+            section_verw_eigs.aantal_rijstroken = len(stroken)
+            section_verw_eigs.aantal_hoofdrijstroken = len(hoofdstrooknummers)
+            section_verw_eigs.aantal_rijstroken_links = len(strooknummers_links)
+            section_verw_eigs.aantal_rijstroken_rechts = len(strooknummers_rechts)
+
             self.sections[section_index].verw_eigs = section_verw_eigs
 
         for point_index, point_info in self.__points.items():
@@ -1387,8 +1400,18 @@ class MSIRow:
 
 
 class MSINetwerk:
-    def __init__(self, roadmodel: WegModel):
+    def __init__(self, roadmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
+        """
+        Instantiats an MSI network based on the provided road model and settings.
+            roadmodel (WegModel): The road model on which the lane signalling relations will be based.
+            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there 
+                should be at most 1200 m between MSI rows. In the geometry, this is often exceeded.
+            alle_secundaire_relaties (bool): Indication whether all additionally determined
+                secundary relation types, which are not in the guidelines, should be added.
+        """
         self.roadmodel = roadmodel
+        self.add_secondary_relations = alle_secundaire_relaties
+        self.max_search_distance = maximale_zoekafstand
 
         self.MSIrows = [MSIRow(self, msi_info, self.roadmodel.get_one_section_at_point(msi_info.pos_eigs.geometrie))
                         for row_numbering, msi_info in enumerate(self.roadmodel.get_points_info("MSI"))]
@@ -1517,7 +1540,7 @@ class MSINetwerk:
         # Base case 3: Maximum depth reached.
         current_distance += current_section.pos_eigs.geometrie.length
         print(f"Current depth: {current_distance}")
-        if current_distance >= MSI_RELATION_MAX_SEARCH_DISTANCE:
+        if current_distance >= self.max_search_distance:
             print(f"The maximum depth was exceeded on this search: {current_distance}")
             return {None: (shift, annotation)}
 
@@ -1964,7 +1987,7 @@ class MSI(MSILegends):
                                        or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
             print(f"[LOG:] {self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
-            if ADD_SECONDARY_RELATIONS:
+            if self.row.msi_network.add_secondary_relations:
                 print("[LOG:] Relatie wordt toegepast.")
                 u_row, desc = next(iter(self.row.upstream.items()))
                 print(u_row.local_road_info)
