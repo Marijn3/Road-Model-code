@@ -39,7 +39,7 @@ class PositieEigenschappen:
         self.rijrichting = rijrichting
         self.wegnummer = wegnummer
         self.hectoletter = hectoletter
-        self.km = [] if km is None else km
+        self.km = float() if km is None else km
         self.geometrie = geometrie
 
 
@@ -581,12 +581,14 @@ class WegModel:
                     km_bereik = [max(new_section_range), max(other_section_range)]
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section(
-                    rijrichting=other_section_side,
-                    wegnummer=other_section_road_number,
-                    hectoletter=other_section_hectoletter,
-                    km=km_bereik,
-                    geometrie=added_geom,
-                    obj_eigs=new_section_props
+                    ObjectInfo(
+                        pos_eigs=PositieEigenschappen(
+                            rijrichting=other_section_side,
+                            wegnummer=other_section_road_number,
+                            hectoletter=other_section_hectoletter,
+                            km=km_bereik,
+                            geometrie=added_geom),
+                        obj_eigs=new_section_props)
                 )
                 # Trim the new_section range and geometry for next iteration.
                 if right_side:
@@ -641,12 +643,14 @@ class WegModel:
                     assert added_geom, f"Geen overlap gevonden tussen {new_section_geom} en {other_section_geom}."
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section(
-                        rijrichting=other_section_side,
-                        wegnummer=other_section_road_number,
-                        hectoletter=other_section_hectoletter,
-                        km=km_bereik,
-                        geometrie=added_geom,
-                        obj_eigs=both_props
+                        ObjectInfo(
+                            pos_eigs=PositieEigenschappen(
+                                rijrichting=other_section_side,
+                                wegnummer=other_section_road_number,
+                                hectoletter=other_section_hectoletter,
+                                km=km_bereik,
+                                geometrie=added_geom),
+                            obj_eigs=both_props)
                     )
                     if right_side:
                         km_remaining = [max(new_section_range), max(other_section_range)]
@@ -668,12 +672,14 @@ class WegModel:
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section(
-                        rijrichting=other_section_side,
-                        wegnummer=other_section_road_number,
-                        hectoletter=other_section_hectoletter,
-                        km=km_bereik,
-                        geometrie=added_geom,
-                        obj_eigs=both_props
+                        ObjectInfo(
+                            pos_eigs=PositieEigenschappen(
+                                rijrichting=other_section_side,
+                                wegnummer=other_section_road_number,
+                                hectoletter=other_section_hectoletter,
+                                km=km_bereik,
+                                geometrie=added_geom),
+                            obj_eigs=both_props)
                     )
                     # We can remove the old other_section from the road model, since it has now been completely used.
                     sections_to_remove.add(other_section_index)
@@ -689,12 +695,14 @@ class WegModel:
                     else:
                         # This is the final iteration
                         self.__add_section(
-                            rijrichting=other_section_side,
-                            wegnummer=other_section_road_number,
-                            hectoletter=other_section_hectoletter,
-                            km=new_section_range,
-                            geometrie=new_section_geom,
-                            obj_eigs=new_section_props
+                            ObjectInfo(
+                                pos_eigs=PositieEigenschappen(
+                                    rijrichting=other_section_side,
+                                    wegnummer=other_section_road_number,
+                                    hectoletter=other_section_hectoletter,
+                                    km=new_section_range,
+                                    geometrie=new_section_geom),
+                                obj_eigs=new_section_props)
                         )
                         break
 
@@ -712,12 +720,14 @@ class WegModel:
                     km_bereik = [max(other_section_range), max(new_section_range)]
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section(
-                    rijrichting=other_section_side,
-                    wegnummer=other_section_road_number,
-                    hectoletter=other_section_hectoletter,
-                    km=km_bereik,
-                    geometrie=added_geom,
-                    obj_eigs=other_section_props
+                    ObjectInfo(
+                        pos_eigs=PositieEigenschappen(
+                            rijrichting=other_section_side,
+                            wegnummer=other_section_road_number,
+                            hectoletter=other_section_hectoletter,
+                            km=km_bereik,
+                            geometrie=added_geom),
+                        obj_eigs=other_section_props)
                 )
                 # Trim the other_section range and geometry for next iteration.
                 if right_side:
@@ -769,27 +779,21 @@ class WegModel:
 
         self.__log_section(index, True)
 
-    def __add_section(self, rijrichting: str, wegnummer: str, hectoletter: str, km: list, geometrie: LineString,
-                      obj_eigs: dict) -> None:
+    def __add_section(self, new_section: ObjectInfo) -> None:
         """
         Adds a section to the sections variable and increases the index.
         Args:
-            - rijrichting (str): Side of the road. Either "R" or "L".
-            - wegnummer (str): Letter and number indicating the name of the road.
-            - hectoletter (str): Hectoletter of the section.
-            - km (list[float]): Start and end registration kilometer.
-            - geometrie (LineString): The geometry of the section.
-            - obj_eigs (dict): Properties of the section.
+            - new_section_info (ObjectInfo): Information class for new section.
         Prints:
             Newly added section properties.
         """
-        assert not is_empty(geometrie), f"Poging om een lege lijngeometrie toe te voegen: {geometrie}"
-        if abs(get_km_length(km) - geometrie.length) > 100:
-            print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(km)} en {geometrie.length}\n")
+        assert not is_empty(new_section.pos_eigs.geometrie), \
+            f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
+        if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
+            print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section.pos_eigs.km)} "
+                  f"en {new_section.pos_eigs.geometrie.length}\n")
 
-        pos_eigs = PositieEigenschappen(rijrichting, wegnummer, hectoletter, km, geometrie)
-
-        self.sections[self.__section_index] = ObjectInfo(pos_eigs, obj_eigs)
+        self.sections[self.__section_index] = new_section
         self.__log_section(self.__section_index, False)
         self.__section_index += 1
 
@@ -817,12 +821,14 @@ class WegModel:
             geom = reverse(new_section.pos_eigs.geometrie)
 
         self.__add_section(
-            rijrichting=new_section.pos_eigs.rijrichting,
-            wegnummer=overlap_info.pos_eigs.wegnummer,
-            hectoletter=overlap_info.pos_eigs.hectoletter,
-            km=new_section.pos_eigs.km,
-            geometrie=geom,
-            obj_eigs=new_section.obj_eigs
+            ObjectInfo(
+                pos_eigs=PositieEigenschappen(
+                    rijrichting=new_section.pos_eigs.rijrichting,
+                    wegnummer=overlap_info.pos_eigs.wegnummer,
+                    hectoletter=overlap_info.pos_eigs.hectoletter,
+                    km=new_section.pos_eigs.km,
+                    geometrie=geom),
+                obj_eigs=new_section.obj_eigs)
         )
 
     def __add_base(self, new_section: ObjectInfo) -> None:
