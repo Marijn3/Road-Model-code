@@ -1526,8 +1526,7 @@ class MSINetwerk:
             print(f"Single MSI row found on {current_section_id}: {msis_on_section[0].pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
-            return {self.get_msi_row_at(msis_on_section[0].pos_eigs.km, msis_on_section[0].pos_eigs.hectoletter):
-                        (shift, annotation)}
+            return {self.get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
 
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
@@ -1535,7 +1534,7 @@ class MSINetwerk:
             print(f"Meerdere MSIs gevonden bij {current_section_id}. Dichtstbijzijnde: {nearest_msi.pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
-            return {self.get_msi_row_at(nearest_msi.pos_eigs.km, nearest_msi.pos_eigs.hectoletter): (shift, annotation)}
+            return {self.get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
 
         # Base case 3: Maximum depth reached.
         current_distance += current_section.pos_eigs.geometrie.length
@@ -1720,17 +1719,16 @@ class MSINetwerk:
 
         return annotation
 
-    def get_msi_row_at(self, km: float, hectoletter: str) -> MSIRow | None:
+    def get_msi_row_by_pos(self, pos_eigs: PositieEigenschappen) -> MSIRow | None:
         """
         Find the MSI row in self.MSIrows with the provided km registration and hectoletter.
         Args:
-            km (int): Point km registration to compare to.
-            hectoletter (str): Point hectoletter registration to compare to.
+            pos_eigs (str): Point hectoletter registration to compare to.
         Returns:
             MSIRow object as specified.
         """
         for msi_row in self.MSIrows:
-            if msi_row.info.pos_eigs.km == km and msi_row.info.pos_eigs.hectoletter == hectoletter:
+            if msi_row.info.pos_eigs == pos_eigs:
                 return msi_row
         return None
 

@@ -2,7 +2,7 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Vught")
+dfl = DataFrameLader("Goirle")
 # dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300})
 wegmodel = WegModel(dfl)
 netwerk = MSINetwerk(wegmodel)
