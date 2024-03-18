@@ -58,11 +58,11 @@ class LijnVerwerkingsEigenschappen:
 class PuntVerwerkingsEigenschappen:
     def __init__(self):
         self.sectie_ids = []
-        self.Ingaande_secties = []
-        self.Uitgaande_secties = []
-        self.Aantal_hoofdstroken = None
-        self.Aantal_stroken = None
-        self.Lokale_hoek = None
+        self.ingaande_secties = []
+        self.uitgaande_secties = []
+        self.aantal_hoofdstroken = None
+        self.aantal_stroken = None
+        self.lokale_hoek = None
 
 
 class ObjectInfo:
@@ -546,8 +546,8 @@ class WegModel:
 
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
-                print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section['Pos_eigs']['Km_bereik'])} "
-                      f" en {new_section['Pos_eigs']['Geometrie'].length}\n")
+                print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section.pos_eigs.km)} "
+                      f" en {new_section.pos_eigs.geometrie.length}\n")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
@@ -1440,7 +1440,7 @@ class MSINetwerk:
         start_sections = self.roadmodel.get_sections_by_point(msi_row.info.pos_eigs.geometrie)
 
         if len(start_sections) == 0:  # Nothing found
-            raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info['Pos_eigs']}.")
+            raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info.pos_eigs}.")
 
         if len(start_sections) == 1:  # Obtain first (and only) ID in dict.
             return next(iter(start_sections.keys()))
@@ -1494,7 +1494,7 @@ class MSINetwerk:
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
-            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0]['Pos_eigs']['Km']}")
+            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0].pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
             return {self.get_msi_row_at(msis_on_section[0].pos_eigs.km, msis_on_section[0].pos_eigs.hectoletter): (shift, annotation)}
@@ -1502,7 +1502,7 @@ class MSINetwerk:
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi.pos_eigs.km))
-            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi['Pos_eigs']['Km']}")
+            print(f"Multiple MSI rows found on {current_section_id}. Picking the closest one: {nearest_msi.pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
             return {self.get_msi_row_at(nearest_msi.pos_eigs.km, nearest_msi.pos_eigs.hectoletter): (shift, annotation)}
@@ -1616,7 +1616,8 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def update_shift_annotation(self, shift: int, annotation: dict, current_section_verw_eigs: dict, downstream: bool,
+    def update_shift_annotation(self, shift: int, annotation: dict,
+                                current_section_verw_eigs: LijnVerwerkingsEigenschappen, downstream: bool,
                                 is_first_iteration: bool = False, is_last_iteration: bool = False) -> tuple[int, dict]:
         """
         Adapts the shift and annotation value according to the previous shift and annotation
@@ -1624,7 +1625,7 @@ class MSINetwerk:
         Args:
             shift (int): Shift so far.
             annotation (dict): Annotation so far.
-            current_section_verw_eigs (dict): Processing properties of the section.
+            current_section_verw_eigs (LijnVerwerkingsEigenschappen): Processing properties of the section.
             downstream (bool): Indication of search direction. True => Downstream, False => Upstream .
             is_first_iteration (bool): Indicate if it is first iteration, in which case the start processing
                 values of the provided section will be ignored.
@@ -1649,12 +1650,13 @@ class MSINetwerk:
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
 
     @staticmethod
-    def get_annotation(section_verw_eigs: dict, start_skip: bool = False, end_skip: bool = False) -> dict:
+    def get_annotation(section_verw_eigs: LijnVerwerkingsEigenschappen,
+                       start_skip: bool = False, end_skip: bool = False) -> dict:
         """
         Determines the annotation to be added to the current recursive
         search based on processing properties of the current section.
         Args:
-            section_verw_eigs (dict): Processing properties of section
+            section_verw_eigs (LijnVerwerkingsEigenschappen): Processing properties of section
             start_skip (bool): Indicate whether the start values of the section should be considered.
             end_skip (bool): Indicate whether the end values of the section should be considered.
         Returns:
