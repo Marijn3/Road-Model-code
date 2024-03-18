@@ -2,8 +2,8 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Goirle")
-# dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300})
+# dfl = DataFrameLader("Goirle")
+dfl = DataFrameLader({"noord": 395500, "oost": 133000, "zuid": 393600, "west": 128000})
 wegmodel = WegModel(dfl)
 netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
 
@@ -138,20 +138,28 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: 
     line_geom = section_info.pos_eigs.geometrie
     point_type = point_info.obj_eigs["Type"]
 
-    point_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
-    point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
+    point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
+    point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
 
     # TODO: it may be possible that both the start and end of a section should be adjusted.
-    if point_type == "Splitsing" and point_at_line_start:
+    if point_type == "Splitsing" and point_is_at_line_start:
+        assert len(point_info.verw_eigs.uitgaande_secties) == 2,\
+            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg uitgaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
         change_start = True
-    elif point_type == "Samenvoeging" and point_at_line_end:
+    elif point_type == "Samenvoeging" and point_is_at_line_end:
+        assert len(point_info.verw_eigs.ingaande_secties) == 2, \
+            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg ingaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
         change_start = False
-    elif point_type == "Uitvoeging" and point_at_line_start:
+    elif point_type == "Uitvoeging" and point_is_at_line_start:
+        assert len(point_info.verw_eigs.uitgaande_secties) == 2, \
+            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg uitgaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
         change_start = True
-    elif point_type == "Invoeging" and point_at_line_end:
+    elif point_type == "Invoeging" and point_is_at_line_end:
+        assert len(point_info.verw_eigs.ingaande_secties) == 2, \
+            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg ingaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
         change_start = False
     else:
