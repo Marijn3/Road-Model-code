@@ -50,8 +50,8 @@ class Aanvraag(Oppervlak):
 
         self.road_info = self.get_road_info(km_start, wegkant, hectoletter)
 
-        self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info["Obj_eigs"].items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
-        self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info["Obj_eigs"].items()
+        self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
+        self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
                            if isinstance(lane_nr, int) and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
 
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
@@ -74,10 +74,10 @@ class Aanvraag(Oppervlak):
         self.__make_werkvak()
 
     def filter_lanes(self, lane_nrs: list) -> dict:
-        return {lane_nr: lane_type for lane_nr, lane_type in self.road_info["Obj_eigs"].items()
+        return {lane_nr: lane_type for lane_nr, lane_type in self.road_info.obj_eigs.items()
                 if lane_nr in lane_nrs and lane_type not in ["Puntstuk"]}
 
-    def get_road_info(self, km_start, roadside, hectoletter):
+    def get_road_info(self, km_start, roadside, hectoletter) -> ObjectInfo:
         # Obtain surrounding geometry and road properties
         # Temporary assumption: only one section below request, section identified by km_start
         road_info = self.wegmodel.get_section_info_by_bps(km=km_start,
@@ -118,9 +118,9 @@ class Aanvraag(Oppervlak):
             if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
             elif n_main_lanes_left == n_main_lanes_right:
-                if road_info["Obj_eigs"][1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                if road_info.obj_eigs[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = False
-                if road_info["Obj_eigs"][self.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                if road_info.obj_eigs[self.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = True
                 # Desired result: if vluchtstrook on both sides and space equal, then left side should be open.
             else:

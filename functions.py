@@ -382,7 +382,7 @@ class WegModel:
 
         point_info.pos_eigs.km = row["KMTR"]
         point_info.pos_eigs.geometrie = row["geometry"]
-        point_info.obj_eigs.type = row["Type"]
+        point_info.obj_eigs["Type"] = row["Type"]
 
         if name == "Rijstrooksignaleringen":
             point_info.obj_eigs["Rijstrooknummers"] = [int(char) for char in row["RIJSTRKNRS"]]
@@ -788,14 +788,20 @@ class WegModel:
 
         overlap_info = overlap_base["Section_info"]
 
-        new_section.pos_eigs.wegnummer = overlap_info.pos_eigs.wegnummer
-        new_section.pos_eigs.hectoletter = overlap_info.pos_eigs.hectoletter
-
         # Ensure the first geometries are oriented in driving direction according to the base layer.
-        if not same_direction(new_section.pos_eigs.geometrie, overlap_info.pos_eigs.geometrie):
-            new_section.pos_eigs.geometrie = reverse(new_section.pos_eigs.geometrie)
+        if same_direction(new_section.pos_eigs.geometrie, overlap_info.pos_eigs.geometrie):
+            geom = new_section.pos_eigs.geometrie
+        else:
+            geom = reverse(new_section.pos_eigs.geometrie)
 
-        self.__add_section(new_section)
+        self.__add_section(
+            rijrichting=new_section.pos_eigs.rijrichting,
+            wegnummer=overlap_info.pos_eigs.wegnummer,
+            hectoletter=overlap_info.pos_eigs.hectoletter,
+            km=new_section.pos_eigs.km,
+            geometrie=geom,
+            obj_eigs=new_section.obj_eigs
+        )
 
     def __add_base(self, new_section: ObjectInfo) -> None:
         """
@@ -986,11 +992,11 @@ class WegModel:
 
             self.__points[point_index].verw_eigs["Lokale_hoek"] = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 
-            if point_info.obj_eigs.type in ["Samenvoeging", "Invoeging"]:
+            if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 self.__points[point_index].verw_eigs["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info.obj_eigs)[1] != self.__points[point_index].verw_eigs["Aantal_stroken"]]
                 self.__points[point_index].verw_eigs["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info.obj_eigs)[1] == self.__points[point_index].verw_eigs["Aantal_stroken"]]
 
-            if point_info.obj_eigs.type in ["Splitsing", "Uitvoeging"]:
+            if point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]:
                 self.__points[point_index].verw_eigs["Ingaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info.obj_eigs)[1] == self.__points[point_index].verw_eigs["Aantal_stroken"]]
                 self.__points[point_index].verw_eigs["Uitgaande_secties"] = [section_id for section_id, section_info in overlapping_sections.items() if self.get_n_lanes(section_info.obj_eigs)[1] != self.__points[point_index].verw_eigs["Aantal_stroken"]]
 
@@ -1120,13 +1126,13 @@ class WegModel:
             List of all point information.
         """
         if specifier == "MSI":
-            return [point for point in self.__points.values() if point.obj_eigs.type == "Signalering"]
+            return [point for point in self.__points.values() if point.obj_eigs["Type"] == "Signalering"]
         elif specifier == "*vergentie":
-            return [point for point in self.__points.values() if point.obj_eigs.type != "Signalering"]
+            return [point for point in self.__points.values() if point.obj_eigs["Type"] != "Signalering"]
         else:
             return [point for point in self.__points.values()]
 
-    def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> dict:
+    def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> ObjectInfo:
         """
         Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
@@ -1141,7 +1147,7 @@ class WegModel:
                     min(section.pos_eigs.km) <= km <= max(section.pos_eigs.km) and
                     section.pos_eigs.hectoletter == hectoletter):
                 return section
-        return {}
+        raise ReferenceError(f"Geen sectie gevonden met {km}, {side} en {hectoletter}.")
 
     def get_sections_by_point(self, point: Point) -> dict[int: dict]:
         """
@@ -1520,8 +1526,8 @@ class MSINetwerk:
 
         # Recursive case 2: *vergence point on the section.
         other_point = other_points_on_section[0]
-        downstream_split = downstream and other_point.obj_eigs.type in ["Splitsing", "Uitvoeging"]
-        upstream_split = not downstream and other_point.obj_eigs.type in ["Samenvoeging", "Invoeging"]
+        downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
+        upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
 
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
@@ -1587,7 +1593,7 @@ class MSINetwerk:
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if
-                           point.obj_eigs.type == "Signalering"]
+                           point.obj_eigs["Type"] == "Signalering"]
 
         return other_points_on_section, msis_on_section
 
