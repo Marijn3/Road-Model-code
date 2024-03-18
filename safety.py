@@ -17,11 +17,10 @@ class Oppervlak:
               f"van {self.km_start} tot {self.km_end}, met stroken {self.lanes} en breedte {self.width}.")
 
     def get_width(self) -> list:
-        lane_numbers = [lane_nr for lane_nr in self.lanes.keys()]
-        width_1 = [(lane-1)*3.5 for lane in lane_numbers]
-        width_2 = [lane*3.5 for lane in lane_numbers]
-        widths = sorted(set(width_1 + width_2))
-        return [widths[0], widths[-1]]
+        lane_numbers = self.lanes.keys()
+        min_width = min((lane - 1) * 3.5 for lane in lane_numbers)
+        max_width = max(lane * 3.5 for lane in lane_numbers)
+        return [min_width, max_width]
 
 
 class Werkvak(Oppervlak):
