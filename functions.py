@@ -1551,19 +1551,21 @@ class MSINetwerk:
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             if downstream:
-                next_section_name = "Sectie_stroomafwaarts"
-                puntstuk_section_name = "Sectie_stroomopwaarts"
+                next_section_id = current_section.verw_eigs.sectie_stroomafwaarts
+                if "Puntstuk" not in current_section.obj_eigs.values():
+                    # This is the diverging section. Determine annotation.
+                    next_section = self.roadmodel.sections[next_section_id]
+                    puntstuk_section_id = next_section.verw_eigs.sectie_stroomopwaarts
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
+                    shift = shift + n_lanes_other
             else:
-                next_section_name = "Sectie_stroomopwaarts"
-                puntstuk_section_name = "Sectie_stroomafwaarts"
-
-            next_section_id = current_section.verw_eigs[next_section_name]
-            if "Puntstuk" not in current_section.obj_eigs.values():
-                # This is the diverging section. Determine annotation.
-                next_section = self.roadmodel.sections[next_section_id]
-                puntstuk_section_id = next_section.verw_eigs[puntstuk_section_name]
-                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
-                shift = shift + n_lanes_other
+                next_section_id = current_section.verw_eigs.sectie_stroomopwaarts
+                if "Puntstuk" not in current_section.obj_eigs.values():
+                    # This is the diverging section. Determine annotation.
+                    next_section = self.roadmodel.sections[next_section_id]
+                    puntstuk_section_id = next_section.verw_eigs.sectie_stroomafwaarts
+                    n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
+                    shift = shift + n_lanes_other
 
             if next_section_id:
                 shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs, downstream, first_iteration)
@@ -1603,11 +1605,11 @@ class MSINetwerk:
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
-                                       current_section_id in point_info.verw_eigs["Sectie_ids"]
+                                       current_section_id in point_info.verw_eigs.sectie_ids
                                        and point_info.pos_eigs.km < current_km]
         else:
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
-                                       current_section_id in point_info.verw_eigs["Sectie_ids"]
+                                       current_section_id in point_info.verw_eigs.sectie_ids
                                        and point_info.pos_eigs.km > current_km]
 
         # Further filters for MSIs specifically

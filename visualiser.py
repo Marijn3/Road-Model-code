@@ -117,9 +117,9 @@ def check_point_on_line(sid: int) -> None | ObjectInfo:
 
     """
     #
-    for point_data in wegmodel.get_points_info():
-        if sid in point_data.verw_eigs.sectie_ids and point_data.obj_eigs["Type"] not in ["Signalering"]:
-            return point_data
+    for point_info in wegmodel.get_points_info():
+        if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["Type"] not in ["Signalering"]:
+            return point_info
     return None
 
 
@@ -164,7 +164,7 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: 
 
 def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
                   point_info: ObjectInfo, change_start: bool = True):
-    angle_radians = math.radians(point_info.verw_eigs["Lokale_hoek"])
+    angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
     this_has_puntstuk = "Puntstuk" in section_info.obj_eigs.values()
@@ -335,9 +335,9 @@ def add_markerline(coords: list[tuple], dwg: svgwrite.Drawing, linetype: str = "
 
 def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing):
     coords = get_flipped_coords(point_info.pos_eigs.geometrie)[0]
-    info_offset = LANE_WIDTH * (point_info.verw_eigs["Aantal_stroken"] +
-                                (point_info.verw_eigs["Aantal_stroken"] - point_info.verw_eigs.aantal_hoofdstroken)) / 2
-    rotate_angle = 90 - point_info.verw_eigs["Lokale_hoek"]
+    info_offset = LANE_WIDTH * (point_info.verw_eigs.aantal_stroken +
+                                (point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken)) / 2
+    rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
     if point_info.obj_eigs["Type"] == "Signalering":
         if DISPLAY_ONROAD:
@@ -598,11 +598,11 @@ def rotate_point(draw_point, origin, angle_degrees):
     return qx, qy
 
 
-def make_name(point_data, nr) -> str:
-    if point_data.pos_eigs.hectoletter:
-        return f"{point_data['Pos_eigs']['Wegnummer']}_{point_data['Pos_eigs']['Hectoletter'].upper()}:{point_data['Pos_eigs']['Km']}:{nr}"
+def make_name(point_info, nr) -> str:
+    if point_info.pos_eigs.hectoletter:
+        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:{point_info.pos_eigs.km}:{nr}"
     else:
-        return f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
+        return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km}:{nr}"
 
 
 def make_text_hecto(km: float, letter: str | None) -> str:
