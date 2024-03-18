@@ -1630,7 +1630,9 @@ class MSINetwerk:
         return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float,
-                                travel_direction: str, downstream: bool):
+                                travel_direction: str, downstream: bool) -> tuple[list, list]:
+        # TODO: Return tuple of dicts, including the index, so that the MSI can be retrieved more easily.
+
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
@@ -1988,7 +1990,6 @@ class MSI(MSILegends):
             if self.row.msi_network.add_secondary_relations:
                 print("[LOG:] Relatie wordt toegepast.")
                 u_row, desc = next(iter(self.row.upstream.items()))
-                print(u_row.local_road_info)
                 if (u_row.local_road_info.pos_eigs.hectoletter ==
                         self.row.local_road_info.pos_eigs.hectoletter):
                     highest_msi_number = max([msi_nr for msi_nr in u_row.MSIs.keys()])

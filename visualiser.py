@@ -5,7 +5,7 @@ import math
 dfl = DataFrameLader("Goirle")
 # dfl = DataFrameLader({"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300})
 wegmodel = WegModel(dfl)
-netwerk = MSINetwerk(wegmodel)
+netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
