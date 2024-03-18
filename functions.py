@@ -53,6 +53,9 @@ class LijnVerwerkingsEigenschappen:
         self.sectie_afbuigend_stroomafwaarts = None
         self.start_kenmerk = {}
         self.einde_kenmerk = {}
+        self.aantal_hoofdrijstroken = None
+        self.aantal_rijstroken_links = None
+        self.aantal_rijstroken_rechts = None
 
 
 class PuntVerwerkingsEigenschappen:
@@ -990,6 +993,18 @@ class WegModel:
             if main_down and not skip_end_check:
                 section_verw_eigs.einde_kenmerk = (
                     self.__get_dif_props(section_info.obj_eigs, self.sections[main_down].obj_eigs))
+
+            stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
+                       if lane_type not in ["Puntstuk"] and isinstance(lane_nr, int)]
+            hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
+                                  if lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+            strooknummers_links = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
+            strooknummers_rechts = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
+
+            section_verw_eigs.aantal_rijstroken = len(stroken)
+            section_verw_eigs.aantal_hoofdrijstroken = len(hoofdstrooknummers)
+            section_verw_eigs.aantal_rijstroken_links = len(strooknummers_links)
+            section_verw_eigs.aantal_rijstroken_rechts = len(strooknummers_rechts)
 
             self.sections[section_index].verw_eigs = section_verw_eigs
 

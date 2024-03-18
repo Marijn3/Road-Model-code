@@ -23,7 +23,7 @@ else:
     STROKE = MSIBOX_SIZE*0.05
 
 C_TRANSPARENT = "#6D876D"
-C_HIGHLIGHT = "brown"
+C_HIGHLIGHT = "dimgrey"
 C_ASPHALT = "grey"
 C_WHITE = "#faf8f5"
 
@@ -213,15 +213,16 @@ def svg_add_section(section_id: int, section_info: ObjectInfo, dwg: svgwrite.Dra
 
     n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_info.obj_eigs)
 
+    n_main_lanes = section_info.verw_eigs.aantal_hoofdrijstroken
+    n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
+    n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
+
     if n_main_lanes < 1 or n_total_lanes < 1:
         # These sections are not added. This is fine, because they fall outside the visualisation frame.
         return
 
-    left_rhl_offset = LANE_WIDTH if (1 in section_info.obj_eigs.keys()
-                                     and section_info.obj_eigs[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]) else 0
-
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
-    offset = (LANE_WIDTH * n_main_lanes) / 2 + left_rhl_offset - LANE_WIDTH * n_total_lanes / 2
+    offset = LANE_WIDTH * (n_lanes_left - n_lanes_right) / 2
 
     asphalt_coords = get_offset_coords(geom, offset)
     color = get_road_color(section_info.obj_eigs)
@@ -233,16 +234,17 @@ def svg_add_section(section_id: int, section_info: ObjectInfo, dwg: svgwrite.Dra
     should_have_marking = color in [C_ASPHALT, C_HIGHLIGHT]
 
     if should_have_marking:
-        add_lane_marking(geom, section_info, n_main_lanes, left_rhl_offset, dwg)
+        add_lane_marking(geom, section_info, dwg)
 
 
-def add_lane_marking(geom: LineString, section_info: ObjectInfo,
-                     n_main_lanes: int, left_rhl_offset: int, dwg: svgwrite.Drawing):
+def add_lane_marking(geom: LineString, section_info: ObjectInfo, dwg: svgwrite.Drawing):
     prop = section_info.obj_eigs
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
     # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-    marking_offsets = [(LANE_WIDTH * n_main_lanes) / 2 + left_rhl_offset - LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
+    marking_offsets = [(LANE_WIDTH * section_info.verw_eigs.aantal_hoofdrijstroken) / 2
+                       + LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
+                       - LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
     first_lane_nr = lane_numbers[0]
     last_lane_nr = lane_numbers[-1]
