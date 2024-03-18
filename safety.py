@@ -17,11 +17,10 @@ class Oppervlak:
               f"van {self.km_start} tot {self.km_end}, met stroken {self.lanes} en breedte {self.width}.")
 
     def get_width(self) -> list:
-        lane_numbers = [lane_nr for lane_nr in self.lanes.keys()]
-        width_1 = [(lane-1)*3.5 for lane in lane_numbers]
-        width_2 = [lane*3.5 for lane in lane_numbers]
-        widths = sorted(set(width_1 + width_2))
-        return [widths[0], widths[-1]]
+        lane_numbers = self.lanes.keys()
+        min_width = min((lane - 1) * 3.5 for lane in lane_numbers)
+        max_width = max(lane * 3.5 for lane in lane_numbers)
+        return [min_width, max_width]
 
 
 class Werkvak(Oppervlak):
@@ -50,8 +49,8 @@ class Aanvraag(Oppervlak):
 
         self.road_info = self.get_road_info(km_start, wegkant, hectoletter)
 
-        self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info["Obj_eigs"].items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
-        self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info["Obj_eigs"].items()
+        self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
+        self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
                            if isinstance(lane_nr, int) and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
 
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
@@ -74,10 +73,10 @@ class Aanvraag(Oppervlak):
         self.__make_werkvak()
 
     def filter_lanes(self, lane_nrs: list) -> dict:
-        return {lane_nr: lane_type for lane_nr, lane_type in self.road_info["Obj_eigs"].items()
+        return {lane_nr: lane_type for lane_nr, lane_type in self.road_info.obj_eigs.items()
                 if lane_nr in lane_nrs and lane_type not in ["Puntstuk"]}
 
-    def get_road_info(self, km_start, roadside, hectoletter):
+    def get_road_info(self, km_start, roadside, hectoletter) -> ObjectInfo:
         # Obtain surrounding geometry and road properties
         # Temporary assumption: only one section below request, section identified by km_start
         road_info = self.wegmodel.get_section_info_by_bps(km=km_start,
@@ -118,9 +117,9 @@ class Aanvraag(Oppervlak):
             if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
             elif n_main_lanes_left == n_main_lanes_right:
-                if road_info["Obj_eigs"][1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                if road_info.obj_eigs[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = False
-                if road_info["Obj_eigs"][self.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                if road_info.obj_eigs[self.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = True
                 # Desired result: if vluchtstrook on both sides and space equal, then left side should be open.
             else:

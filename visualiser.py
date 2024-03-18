@@ -107,7 +107,7 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
         return get_flipped_coords(offset_geom)
 
 
-def check_point_on_line(sid: int) -> None | dict:
+def check_point_on_line(sid: int) -> None | ObjectInfo:
     """
     Finds a *vergence point on the section. Assumes there is at most one *vergence
     point per section. In any case, the first one encountered is returned.
@@ -117,77 +117,78 @@ def check_point_on_line(sid: int) -> None | dict:
 
     """
     #
-    for point_data in wegmodel.get_points_info():
-        if sid in point_data["Verw_eigs"]["Sectie_ids"] and point_data["Obj_eigs"]["Type"] not in ["Signalering"]:
-            return point_data
+    for point_info in wegmodel.get_points_info():
+        if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["Type"] not in ["Signalering"]:
+            return point_info
     return None
 
 
-def get_changed_geometry(section_id: int, section_data: dict, point_data: dict) -> LineString:
+def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: ObjectInfo) -> LineString:
     """
     Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
     *vergentiepunt point, and it is necessary to move it. Also adds a general property to the section
     that details whether there is a *vergence point at the start or end of it.
     Args:
         section_id (int): ID of section to be moved.
-        section_data (dict): All data of the section to be moved.
-        point_data (dict): Data of the point where the geometry should be moved.
+        section_info (ObjectInfo): All data of the section to be moved.
+        point_info (ObjectINfo): Data of the point where the geometry should be moved.
     Returns:
         The geometry of the section, where one of the endpoints is displaced if necessary.
     """
-    line_geom = section_data["Pos_eigs"]["Geometrie"]
-    point_type = point_data["Obj_eigs"]["Type"]
+    line_geom = section_info.pos_eigs.geometrie
+    point_type = point_info.obj_eigs["Type"]
 
-    point_at_line_start = dwithin(Point(line_geom.coords[0]), point_data["Pos_eigs"]["Geometrie"], 0.5)
-    point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_data["Pos_eigs"]["Geometrie"], 0.5)
+    point_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
+    point_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
 
     # TODO: it may be possible that both the start and end of a section should be adjusted.
     if point_type == "Splitsing" and point_at_line_start:
-        other_lane_id = [sid for sid in point_data["Verw_eigs"]["Uitgaande_secties"] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
         change_start = True
     elif point_type == "Samenvoeging" and point_at_line_end:
-        other_lane_id = [sid for sid in point_data["Verw_eigs"]["Ingaande_secties"] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
         change_start = False
     elif point_type == "Uitvoeging" and point_at_line_start:
-        other_lane_id = [sid for sid in point_data["Verw_eigs"]["Uitgaande_secties"] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
         change_start = True
     elif point_type == "Invoeging" and point_at_line_end:
-        other_lane_id = [sid for sid in point_data["Verw_eigs"]["Ingaande_secties"] if sid != section_id][0]
+        other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
         change_start = False
     else:
         # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
         return line_geom
 
     other_section_data = wegmodel.sections[other_lane_id]
-    return move_endpoint(section_data, other_section_data, point_data, change_start)
+    return move_endpoint(section_info, other_section_data, point_info, change_start)
 
 
-def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict, change_start: bool = True):
-    angle_radians = math.radians(point_data["Verw_eigs"]["Lokale_hoek"])
+def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
+                  point_info: ObjectInfo, change_start: bool = True):
+    angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
-    this_has_puntstuk = "Puntstuk" in section_data["Obj_eigs"].values()
-    other_has_puntstuk = "Puntstuk" in other_section_data["Obj_eigs"].values()
+    this_has_puntstuk = "Puntstuk" in section_info.obj_eigs.values()
+    other_has_puntstuk = "Puntstuk" in other_section_info.obj_eigs.values()
 
     assert not (this_has_puntstuk and other_has_puntstuk),\
-        f"Twee secties met puntstuk: {section_data}{other_section_data}"
+        f"Twee secties met puntstuk: {section_info}{other_section_info}"
     assert (this_has_puntstuk or other_has_puntstuk),\
-        f"Geen sectie met puntstuk: {section_data}{other_section_data}"
+        f"Geen sectie met puntstuk: {section_info}{other_section_info}"
 
     displacement = 0
-    n_lanes_largest = point_data["Verw_eigs"]["Aantal_hoofdstroken"]
+    n_lanes_largest = point_info.verw_eigs.aantal_hoofdstroken
 
     if this_has_puntstuk:
-        n_lanes_a, _ = wegmodel.get_n_lanes(section_data["Obj_eigs"])
-        n_lanes_b, _ = wegmodel.get_n_lanes(other_section_data["Obj_eigs"])
+        n_lanes_a, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
+        n_lanes_b, _ = wegmodel.get_n_lanes(other_section_info.obj_eigs)
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
 
     if other_has_puntstuk:
-        n_lanes_a, _ = wegmodel.get_n_lanes(other_section_data["Obj_eigs"])
-        n_lanes_b, _ = wegmodel.get_n_lanes(section_data["Obj_eigs"])
+        n_lanes_a, _ = wegmodel.get_n_lanes(other_section_info.obj_eigs)
+        n_lanes_b, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
-    line_geom = section_data["Pos_eigs"]["Geometrie"]
+    line_geom = section_info.pos_eigs.geometrie
     if change_start:
         point_to_displace = line_geom.coords[0]
     else:
@@ -202,28 +203,28 @@ def move_endpoint(section_data: dict, other_section_data: dict, point_data: dict
         return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
 
 
-def svg_add_section(section_id: int, section_data: dict, dwg: svgwrite.Drawing):
+def svg_add_section(section_id: int, section_info: ObjectInfo, dwg: svgwrite.Drawing):
     point_on_line = check_point_on_line(section_id)
 
     if point_on_line:
-        geom = get_changed_geometry(section_id, section_data, point_on_line)
+        geom = get_changed_geometry(section_id, section_info, point_on_line)
     else:
-        geom = section_data["Pos_eigs"]["Geometrie"]
+        geom = section_info.pos_eigs.geometrie
 
-    n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_data["Obj_eigs"])
+    n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_info.obj_eigs)
 
     if n_main_lanes < 1 or n_total_lanes < 1:
         # These sections are not added. This is fine, because they fall outside the visualisation frame.
         return
 
-    left_rhl_offset = LANE_WIDTH if (1 in section_data["Obj_eigs"].keys()
-                                     and section_data["Obj_eigs"][1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]) else 0
+    left_rhl_offset = LANE_WIDTH if (1 in section_info.obj_eigs.keys()
+                                     and section_info.obj_eigs[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]) else 0
 
     # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
     offset = (LANE_WIDTH * n_main_lanes) / 2 + left_rhl_offset - LANE_WIDTH * n_total_lanes / 2
 
     asphalt_coords = get_offset_coords(geom, offset)
-    color = get_road_color(section_data["Obj_eigs"])
+    color = get_road_color(section_info.obj_eigs)
     width = LANE_WIDTH * n_total_lanes
 
     asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
@@ -232,11 +233,12 @@ def svg_add_section(section_id: int, section_data: dict, dwg: svgwrite.Drawing):
     should_have_marking = color in [C_ASPHALT, C_HIGHLIGHT]
 
     if should_have_marking:
-        add_lane_marking(geom, section_data, n_main_lanes, left_rhl_offset, dwg)
+        add_lane_marking(geom, section_info, n_main_lanes, left_rhl_offset, dwg)
 
 
-def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, left_rhl_offset: int, dwg: svgwrite.Drawing):
-    prop = section_data["Obj_eigs"]
+def add_lane_marking(geom: LineString, section_info: ObjectInfo,
+                     n_main_lanes: int, left_rhl_offset: int, dwg: svgwrite.Drawing):
+    prop = section_info.obj_eigs
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
     # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
@@ -258,9 +260,9 @@ def add_lane_marking(geom: LineString, section_data: dict, n_main_lanes: int, le
 
         # A puntstuk is the final lane.
         if next_lane == "Puntstuk":
-            if section_data["Verw_eigs"]["*vergentiepunt_start"]:
+            if section_info.verw_eigs.vergentiepunt_start:
                 add_markerline(line_coords, dwg, "Punt_start")
-            elif section_data["Verw_eigs"]["*vergentiepunt_einde"]:
+            elif section_info.verw_eigs.vergentiepunt_einde:
                 add_markerline(line_coords, dwg, "Punt_einde")
             # else:
                 # print(f"not found in keys of {section_data}")
@@ -331,34 +333,36 @@ def add_markerline(coords: list[tuple], dwg: svgwrite.Drawing, linetype: str = "
     dwg.add(line)
 
 
-def svg_add_point(point_data: dict, dwg: svgwrite.Drawing):
-    coords = get_flipped_coords(point_data["Pos_eigs"]["Geometrie"])[0]
-    info_offset = LANE_WIDTH * (point_data["Verw_eigs"]["Aantal_stroken"] + (point_data["Verw_eigs"]["Aantal_stroken"] - point_data["Verw_eigs"]["Aantal_hoofdstroken"])) / 2
-    rotate_angle = 90 - point_data["Verw_eigs"]["Lokale_hoek"]
+def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing):
+    coords = get_flipped_coords(point_info.pos_eigs.geometrie)[0]
+    info_offset = LANE_WIDTH * (point_info.verw_eigs.aantal_stroken +
+                                (point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken)) / 2
+    rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
-    if point_data["Obj_eigs"]["Type"] == "Signalering":
+    if point_info.obj_eigs["Type"] == "Signalering":
         if DISPLAY_ONROAD:
-            display_MSI_onroad(point_data, coords, info_offset, rotate_angle, dwg)
+            display_MSI_onroad(point_info, coords, info_offset, rotate_angle, dwg)
         else:
-            display_MSI_roadside(point_data, coords, info_offset, rotate_angle, dwg)
+            display_MSI_roadside(point_info, coords, info_offset, rotate_angle, dwg)
     else:
-        display_vergence(point_data, coords, info_offset, rotate_angle, dwg)
+        display_vergence(point_info, coords, info_offset, rotate_angle, dwg)
 
 
-def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
+def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    hecto_offset = 0 if not point_data["Pos_eigs"]["Hectoletter"] else LANE_WIDTH*25
+    hecto_offset = 0 if not point_info.pos_eigs.hectoletter else LANE_WIDTH * 25
+    displacement = 0
 
-    for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
-        msi_name = make_name(point_data, nr)
+    for nr in point_info.obj_eigs["Rijstrooknummers"]:
+        msi_name = make_name(point_info, nr)
         displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE) + hecto_offset
         box_pos = (coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2)
         square = dwg.rect(id=msi_name,
-                                      insert=box_pos,
-                                      size=(MSIBOX_SIZE, MSIBOX_SIZE),
-                                      fill="#1e1b17", stroke="black", stroke_width=STROKE,
-                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
-                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+                          insert=box_pos,
+                          size=(MSIBOX_SIZE, MSIBOX_SIZE),
+                          fill="#1e1b17", stroke="black", stroke_width=STROKE,
+                          onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                          onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -369,7 +373,7 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
     group_text = svgwrite.container.Group(id="text")
     text_coords = (coords[0] + displacement + MSIBOX_SIZE * 1.3, coords[1])
     anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
-    text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
+    text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km, point_info.pos_eigs.hectoletter),
                               insert=text_coords,
                               fill="white", font_family="Arial", dominant_baseline="central",
                               text_anchor=anchorpoint, font_size=TEXT_SIZE)
@@ -381,21 +385,22 @@ def display_MSI_roadside(point_data: dict, coords: tuple, info_offset: float, ro
     dwg.add(group_msi_row)
 
 
-def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
+def display_MSI_onroad(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
     play = (LANE_WIDTH - MSIBOX_SIZE)/2
+    displacement = 0
 
-    for nr in point_data["Obj_eigs"]["Rijstrooknummers"]:
-        msi_name = make_name(point_data, nr)
-        displacement = LANE_WIDTH * (nr - 1) - point_data["Verw_eigs"]["Aantal_hoofdstroken"] * LANE_WIDTH / 2
+    for nr in point_info.obj_eigs["Rijstrooknummers"]:
+        msi_name = make_name(point_info, nr)
+        displacement = LANE_WIDTH * (nr - 1) - point_info.verw_eigs.aantal_hoofdstroken * LANE_WIDTH / 2
         box_pos = (coords[0] + displacement + play, coords[1] - MSIBOX_SIZE / 2)
         stroke = 0.3
         square = dwg.rect(id=msi_name,
-                                      insert=box_pos,
-                                      size=(MSIBOX_SIZE, MSIBOX_SIZE),
-                                      fill="#1e1b17", stroke="black", stroke_width=stroke,
-                                      onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
-                                      onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+                          insert=box_pos,
+                          size=(MSIBOX_SIZE, MSIBOX_SIZE),
+                          fill="#1e1b17", stroke="black", stroke_width=stroke,
+                          onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                          onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
         element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -406,7 +411,7 @@ def display_MSI_onroad(point_data: dict, coords: tuple, info_offset: float, rota
     group_text = svgwrite.container.Group(id="text")
     text_coords = (coords[0] + 2 + displacement + MSIBOX_SIZE, coords[1])
     anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
-    text = svgwrite.text.Text(make_text_hecto(point_data["Pos_eigs"]["Km"], point_data["Pos_eigs"]["Hectoletter"]),
+    text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km, point_info.pos_eigs.hectoletter),
                               insert=text_coords,
                               fill="white", font_family="Arial", dominant_baseline="central",
                               text_anchor=anchorpoint, font_size=max(4.0, MSIBOX_SIZE*0.8))
@@ -528,10 +533,11 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, box_coords: tuple,
         text_anchor="middle", dominant_baseline="central"))
 
 
-def display_vergence(point_data: dict, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
+def display_vergence(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float,
+                     dwg: svgwrite.Drawing):
     group_vergence = svgwrite.container.Group()
 
-    text = svgwrite.text.Text(f"{point_data['Pos_eigs']['Km']} {point_data['Obj_eigs']['Type']}",
+    text = svgwrite.text.Text(f"{point_info.pos_eigs.km} {point_info.obj_eigs['Type']}",
                               insert=(coords[0] + 1 + info_offset, coords[1]),
                               fill="white", font_family="Arial", dominant_baseline="central", font_size=4)
 
@@ -592,11 +598,11 @@ def rotate_point(draw_point, origin, angle_degrees):
     return qx, qy
 
 
-def make_name(point_data, nr) -> str:
-    if point_data["Pos_eigs"]["Hectoletter"]:
-        return f"{point_data['Pos_eigs']['Wegnummer']}_{point_data['Pos_eigs']['Hectoletter'].upper()}:{point_data['Pos_eigs']['Km']}:{nr}"
+def make_name(point_info, nr) -> str:
+    if point_info.pos_eigs.hectoletter:
+        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:{point_info.pos_eigs.km}:{nr}"
     else:
-        return f"{point_data['Pos_eigs']['Wegnummer']}{point_data['Pos_eigs']['Rijrichting']}:{point_data['Pos_eigs']['Km']}:{nr}"
+        return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km}:{nr}"
 
 
 def make_text_hecto(km: float, letter: str | None) -> str:
