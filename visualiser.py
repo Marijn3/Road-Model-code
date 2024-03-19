@@ -2,8 +2,8 @@ from functions import *
 import svgwrite
 import math
 
-# dfl = DataFrameLader("Goirle")
-dfl = DataFrameLader({"noord": 395500, "oost": 133000, "zuid": 393600, "west": 128000})
+dfl = DataFrameLader("Vught")
+# dfl = DataFrameLader({"noord": 395500, "oost": 133000, "zuid": 393600, "west": 128000})
 wegmodel = WegModel(dfl)
 # netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
 
@@ -359,8 +359,7 @@ def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: flo
         msi_name = make_name(point_info, nr)
         displacement = info_offset + VISUAL_PLAY + (nr - 1) * (VISUAL_PLAY + MSIBOX_SIZE) + hecto_offset
         box_pos = (coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2)
-        square = dwg.rect(id=msi_name,
-                          insert=box_pos,
+        square = dwg.rect(insert=box_pos,
                           size=(MSIBOX_SIZE, MSIBOX_SIZE),
                           fill="#1e1b17", stroke="black", stroke_width=STROKE,
                           onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
@@ -372,7 +371,7 @@ def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: flo
         box_center = (coords[0] + displacement + MSIBOX_SIZE / 2, coords[1])
         draw_all_legends(group_msi_row, msi_name, box_pos, box_center, MSIBOX_SIZE, dwg)
 
-    group_text = svgwrite.container.Group(id="text")
+    group_text = svgwrite.container.Group()
     text_coords = (coords[0] + displacement + MSIBOX_SIZE * 1.3, coords[1])
     anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km, point_info.pos_eigs.hectoletter),
@@ -397,8 +396,7 @@ def display_MSI_onroad(point_info: ObjectInfo, coords: tuple, info_offset: float
         displacement = LANE_WIDTH * (nr - 1) - point_info.verw_eigs.aantal_hoofdstroken * LANE_WIDTH / 2
         box_pos = (coords[0] + displacement + play, coords[1] - MSIBOX_SIZE / 2)
         stroke = 0.3
-        square = dwg.rect(id=msi_name,
-                          insert=box_pos,
+        square = dwg.rect(insert=box_pos,
                           size=(MSIBOX_SIZE, MSIBOX_SIZE),
                           fill="#1e1b17", stroke="black", stroke_width=stroke,
                           onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
@@ -410,7 +408,7 @@ def display_MSI_onroad(point_info: ObjectInfo, coords: tuple, info_offset: float
         box_center = (coords[0] + displacement + play + MSIBOX_SIZE / 2, coords[1])
         draw_all_legends(group_msi_row, msi_name, box_pos, box_center, MSIBOX_SIZE, dwg)
 
-    group_text = svgwrite.container.Group(id="text")
+    group_text = svgwrite.container.Group()
     text_coords = (coords[0] + 2 + displacement + MSIBOX_SIZE, coords[1])
     anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
     text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km, point_info.pos_eigs.hectoletter),

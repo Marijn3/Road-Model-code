@@ -71,9 +71,12 @@ def transform_row_name(name: str) -> list | str | None:
         Row name in the form used by JvM.
     Example:
         transform_name("A2R:119.204") = RSU_A2_R_119.204
+        transform_name("A2_A:119.204") = RSU_A2_A_119.204
     """
     road, km = name.split(":")
-    return f"RSU_{road[:-1]}_{road[-1]}_{km}"
+    if "_" not in road:
+        return f"RSU_{road[:-1]}_{road[-1]}_{km}"
+    return f"RSU_{road}_{km}"
 
 
 def make_ILP_input(network: MSINetwerk) -> dict:
