@@ -433,7 +433,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
     box_south = box_north + box_size
     clearance = box_size*0.2
 
-    group_red_cross = group_msi_row.add(dwg.g(id=f"{msi_name}-red-cross", opacity=0))
+    group_red_cross = group_msi_row.add(dwg.g(id=f"{msi_name}-red-cross", visibility="hidden"))
     group_red_cross.add(dwg.line(
         start=(box_west + clearance, box_north + clearance),
         end=(box_east - clearance, box_south - clearance),
@@ -443,7 +443,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         end=(box_west + clearance, box_south - clearance),
         stroke="#FF0000", stroke_width=STROKE))  # /
 
-    group_green_arrow = group_msi_row.add(dwg.g(id=f"{msi_name}-green-arrow", opacity=0))
+    group_green_arrow = group_msi_row.add(dwg.g(id=f"{msi_name}-green-arrow", visibility="hidden"))
     group_green_arrow.add(dwg.line(
         start=(box_west + box_size/2, box_north + clearance/2),
         end=(box_west + box_size/2, box_south - clearance*1.5),
@@ -457,7 +457,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         end=(box_east - clearance - math.sqrt(STROKE/2)/2, box_south - box_size/2 + clearance/2),
         stroke="#00FF00", stroke_width=STROKE))  # /
 
-    group_left_arrow = group_msi_row.add(dwg.g(id=f"{msi_name}-left-arrow", opacity=0))
+    group_left_arrow = group_msi_row.add(dwg.g(id=f"{msi_name}-left-arrow", visibility="hidden"))
     group_left_arrow.add(dwg.line(
         start=(box_west + clearance - STROKE/2, box_south - clearance),
         end=(box_east - clearance*1.75, box_south - clearance),
@@ -471,7 +471,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         end=(box_west + clearance*1.5, box_south - clearance*1.5),
         stroke="#FFFFFF", stroke_width=STROKE))  # /
 
-    group_right_arrow = group_msi_row.add(dwg.g(id=f"{msi_name}-right-arrow", opacity=0))
+    group_right_arrow = group_msi_row.add(dwg.g(id=f"{msi_name}-right-arrow", visibility="hidden"))
     group_right_arrow.add(dwg.line(
         start=(box_east - clearance + STROKE/2, box_south - clearance),
         end=(box_west + clearance*1.75, box_south - clearance),
@@ -485,7 +485,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         end=(box_east - clearance*1.5, box_south - clearance*1.5),
         stroke="#FFFFFF", stroke_width=STROKE))  # \
 
-    group_eor = group_msi_row.add(dwg.g(id=f"{msi_name}-end-of-restrictions", opacity=0))
+    group_eor = group_msi_row.add(dwg.g(id=f"{msi_name}-end-of-restrictions", visibility="hidden"))
     group_eor.add(dwg.circle(
         center=center_coords,
         r=box_size * 0.45,
@@ -503,7 +503,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
         stroke="#FFFFFF", stroke_width=STROKE))
 
-    group_flashers = group_msi_row.add(dwg.g(id=f"{msi_name}-flashers", opacity=0))
+    group_flashers = group_msi_row.add(dwg.g(id=f"{msi_name}-flashers", visibility="hidden"))
     group_flashers.add(dwg.circle(
         center=(box_west + clearance/2, box_north + clearance/2),
         r=clearance/4, fill="yellow"))  # top-left
@@ -524,7 +524,7 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         circle.add(dwg.animate("fill", attributeType="XML", from_="white", to="yellow",
                                id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
 
-    group_red_ring = group_msi_row.add(dwg.g(id=f"{msi_name}-red-ring", opacity=0))
+    group_red_ring = group_msi_row.add(dwg.g(id=f"{msi_name}-red-ring", visibility="hidden"))
     group_red_ring.add(dwg.circle(
         center=center_coords,
         r=box_size * 0.40,
