@@ -510,16 +510,16 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         r=clearance/4, fill="yellow"))  # top-right
     group_flashers.add(dwg.circle(
         center=(box_west + clearance/2, box_south - clearance/2),
-        r=clearance/4, fill="white"))  # bottom-left
+        r=clearance/4, fill="black"))  # bottom-left
     group_flashers.add(dwg.circle(
         center=(box_east - clearance/2, box_south - clearance/2),
-        r=clearance/4, fill="white"))  # bottom-right
+        r=clearance/4, fill="black"))  # bottom-right
 
     for circle in group_flashers.elements[:2]:
-        circle.add(dwg.animate("fill", attributeType="XML", from_="yellow", to="white",
+        circle.add(dwg.animate("fill", attributeType="XML", from_="yellow", to="black",
                                id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
     for circle in group_flashers.elements[-2:]:
-        circle.add(dwg.animate("fill", attributeType="XML", from_="white", to="yellow",
+        circle.add(dwg.animate("fill", attributeType="XML", from_="black", to="yellow",
                                id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
 
     group_red_ring = group_msi_row.add(dwg.g(id=f"b[{msi_name}]", visibility="hidden"))
@@ -527,8 +527,6 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
         center=center_coords,
         r=box_size * 0.40,
         fill="none", stroke="#FF0000", stroke_width=STROKE))
-
-    # TODO: Add overruling blank. (f"o[msi_name]"
 
     group_50 = group_msi_row.add(dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
     group_50.add(svgwrite.text.Text(
@@ -554,6 +552,12 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
     group_100.add(svgwrite.text.Text(
         "100", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
         text_anchor="middle", dominant_baseline="central"))
+
+    group_overruling_blank = group_msi_row.add(dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
+    group_overruling_blank.add(dwg.rect(insert=box_coords,
+                                        size=(MSIBOX_SIZE, MSIBOX_SIZE),
+                                        fill="#1e1b17", stroke="none"))
+
 
 
 def display_vergence(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float,
