@@ -40,13 +40,8 @@ svg_file = 'Server/Data/WEGGEG/road_visualization.svg'
 
 
 # MSI images [for Vught example]
-id_to_image = {'[RSU_A2_R_118.395,1]': ['i'], '[RSU_A2_R_118.395,2]': ['i'], '[RSU_A2_R_118.395,3]': ['i'], '[RSU_A2_R_118.395,4]': ['i'], '[RSU_A2_R_119.204,1]': ['g'], '[RSU_A2_R_119.204,2]': ['g'], '[RSU_A2_R_119.204,3]': ['l', 'a'], '[RSU_A2_R_119.204,4]': ['x'], '[RSU_A2_R_119.204,5]': ['x'], '[RSU_A2_R_119.47,1]': ['g'], '[RSU_A2_R_119.47,2]': ['g'], '[RSU_A2_R_119.47,3]': ['x'], '[RSU_A2_R_119.47,4]': ['x'], '[RSU_A2_R_119.47,5]': ['x'], '[RSU_A2_R_119.844,1]': ['z'], '[RSU_A2_R_119.844,2]': ['z'], '[RSU_A2_R_119.844,3]': ['z'], '[RSU_A2_R_119.844,4]': ['z'], '[RSU_A2_R_119.844,5]': ['z'], '[RSU_A2_A_118.72,1]': ['z'], '[RSU_A2_R_118.74,1]': ['i'], '[RSU_A2_R_118.74,2]': ['i'], '[RSU_A2_R_118.74,3]': ['i'], '[RSU_A2_R_118.74,4]': ['l', 'a']}
+id_to_image = {'[RSU_A2_R_121.33,1]': ['z'], '[RSU_A2_R_121.33,2]': ['z'], '[RSU_A2_R_121.33,3]': ['z'], '[RSU_A2_R_120.46,1]': ['i'], '[RSU_A2_R_120.46,2]': ['i'], '[RSU_A2_R_120.46,3]': ['l', 'a'], '[RSU_A2_R_120.92,1]': ['g'], '[RSU_A2_R_120.92,2]': ['g'], '[RSU_A2_R_120.92,3]': ['x'], '[RSU_A2_R_119.844,1]': ['i'], '[RSU_A2_R_119.844,2]': ['i'], '[RSU_A2_R_119.844,3]': ['i'], '[RSU_A2_R_119.844,4]': ['i'], '[RSU_A2_R_119.844,5]': ['i']}
 legends_to_activate = {name: True for name in determine_group_names(id_to_image)}
-
-# group_visibility = {
-#     'h[A58R:38.839:1]': True,
-#     'h[A58R:38.839:2]': True,
-#     'x[A58R:38.839:3]': True,
-# }
 toggle_visibility(svg_file, legends_to_activate)
+print("Legends added")
 

@@ -376,7 +376,10 @@ def createSVG_roadmodel(model, json_data):
     with open("Server/Data/WEGGEG/road_visualization.svg", "r") as file:
         svg = file.read()
     # TODO: Adjust svg based on json_data info!
+    # Add code for legend visibility toggle here. The dict below is used as id_to_image in that.
     print("By MSI name:", {key: value['State'] for key, value in json_data.items() if value['State'][0] != 'Blank'})
+    # Don't forget to remove all previous legends first,
+    # or to change (add/remove) only those that do not match with the old svg!
     return svg, json_data
 
 
