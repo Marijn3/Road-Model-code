@@ -8,14 +8,14 @@ def toggle_visibility(svg_file, group_id, visible):
     # Find the group element with the specified ID
     group = root.find(".//*[@id='{}']".format(group_id))
 
-    # Update the visibility attribute
     if group is not None:
-        group.attrib['style'] = 'visibility: {};'.format('visible' if visible else 'hidden')
-        tree.write(svg_file)
+        group.attrib["visibility"] = "visible" if visible else "hidden"
+        # Specify that namespaces (ns0) should not be written out
+        ET.register_namespace('', 'http://www.w3.org/2000/svg')
+        tree.write(svg_file, xml_declaration=True, method='xml', encoding='utf-8')
 
 
-# Example usage
 svg_file = 'Server/Data/WEGGEG/road_visualization.svg'
-group_id = 'r[A58L:38.839:2]'
-visible = False  # Set visibility to False to hide the group
+group_id = 'z[A58L:38.839:2]'
+visible = True
 toggle_visibility(svg_file, group_id, visible)
