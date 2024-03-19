@@ -143,23 +143,15 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: 
 
     # TODO: it may be possible that both the start and end of a section should be adjusted.
     if point_type == "Splitsing" and point_is_at_line_start:
-        assert len(point_info.verw_eigs.uitgaande_secties) == 2,\
-            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg uitgaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
         change_start = True
     elif point_type == "Samenvoeging" and point_is_at_line_end:
-        assert len(point_info.verw_eigs.ingaande_secties) == 2, \
-            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg ingaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
         change_start = False
     elif point_type == "Uitvoeging" and point_is_at_line_start:
-        assert len(point_info.verw_eigs.uitgaande_secties) == 2, \
-            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg uitgaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
         change_start = True
     elif point_type == "Invoeging" and point_is_at_line_end:
-        assert len(point_info.verw_eigs.ingaande_secties) == 2, \
-            f"{point_info.verw_eigs.uitgaande_secties} is niet genoeg ingaande secties voor {point_info.pos_eigs.km}"
         other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
         change_start = False
     else:

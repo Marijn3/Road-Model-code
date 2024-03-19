@@ -312,7 +312,7 @@ class WegModel:
         self.__base_index = 0
         self.sections = {}
         self.__section_index = 0
-        self.__points = {}
+        self.points = {}
         self.__point_index = 0
         self.__has_base_layer = False
         self.__has_initial_layer = False
@@ -752,6 +752,16 @@ class WegModel:
             self.sections.pop(index)
             print(f"[LOG:] Sectie {index} verwijderd.\n")
 
+    def __remove_points(self, indices: set[int]) -> None:
+        """
+        Removes points at the given indices.
+        Args:
+            indices (set): Set of indices at which to remove points.
+        """
+        for index in indices:
+            self.points.pop(index)
+            print(f"[LOG:] Punt {index} verwijderd.\n")
+
     def __update_section(self, index: int,
                          new_km: list = None, new_obj_eigs: dict = None, new_geometrie: LineString = None) -> None:
         """
@@ -858,7 +868,7 @@ class WegModel:
         assert not is_empty(new_point.pos_eigs.geometrie),\
             f"Poging om een lege puntgeometrie toe te voegen: {new_point}"
 
-        self.__points[self.__point_index] = new_point
+        self.points[self.__point_index] = new_point
         self.__log_point(self.__point_index)
         self.__point_index += 1
 
@@ -869,12 +879,12 @@ class WegModel:
             index (int): Index of point to print info for.
         """
         print(f"[LOG:] Punt {index} toegevoegd: \t"
-              f"{self.__points[index].pos_eigs.km:<7.3f} km \t"
-              f"{self.__points[index].pos_eigs.wegnummer}\t"
-              f"{self.__points[index].pos_eigs.rijrichting}\t"
-              f"{self.__points[index].pos_eigs.hectoletter}\t"
-              f"{self.__points[index].obj_eigs} \n"
-              f"\t\t\t\t\t\t\t{set_precision(self.__points[index].pos_eigs.geometrie, 1)}")
+              f"{self.points[index].pos_eigs.km:<7.3f} km \t"
+              f"{self.points[index].pos_eigs.wegnummer}\t"
+              f"{self.points[index].pos_eigs.rijrichting}\t"
+              f"{self.points[index].pos_eigs.hectoletter}\t"
+              f"{self.points[index].obj_eigs} \n"
+              f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
 
     def __log_base(self, index: int) -> None:
         """
@@ -1006,7 +1016,8 @@ class WegModel:
 
             self.sections[section_index].verw_eigs = section_verw_eigs
 
-        for point_index, point_info in self.__points.items():
+        points_to_remove = set()
+        for point_index, point_info in self.points.items():
             point_verw_eigs = PuntVerwerkingsEigenschappen()
 
             overlapping_sections = self.get_sections_by_point(point_info.pos_eigs.geometrie)
@@ -1036,7 +1047,15 @@ class WegModel:
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
-            self.__points[point_index].verw_eigs = point_verw_eigs
+            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging", "Splitsing", "Uitvoeging"] and
+                    not (len(point_verw_eigs.uitgaande_secties) == 2 or len(point_verw_eigs.ingaande_secties) == 2)):
+                # This point should not be added at all. Remove it later.
+                points_to_remove.add(point_index)
+                continue
+
+            self.points[point_index].verw_eigs = point_verw_eigs
+
+        self.__remove_points(points_to_remove)
 
     @staticmethod
     def __separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
@@ -1164,11 +1183,11 @@ class WegModel:
             List of all point information.
         """
         if specifier == "MSI":
-            return [point for point in self.__points.values() if point.obj_eigs["Type"] == "Signalering"]
+            return [point for point in self.points.values() if point.obj_eigs["Type"] == "Signalering"]
         elif specifier == "*vergentie":
-            return [point for point in self.__points.values() if point.obj_eigs["Type"] != "Signalering"]
+            return [point for point in self.points.values() if point.obj_eigs["Type"] != "Signalering"]
         else:
-            return [point for point in self.__points.values()]
+            return [point for point in self.points.values()]
 
     def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> ObjectInfo:
         """
