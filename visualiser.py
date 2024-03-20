@@ -2,10 +2,14 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Vught")
-# dfl = DataFrameLader({"noord": 395500, "oost": 133000, "zuid": 393600, "west": 128000})
+dfl = DataFrameLader("Vinkeveen")
+# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle, Vinkeveen
+#                         [Verwerkingsfouten] Zonzeel, Zuidasdok [Puntstuk registrations]
+#                         [Importfouten] A2VK, Bavel, Everdingen
+# dfl = DataFrameLader({"noord": 484000, "oost": 120200, "zuid": 483000, "west": 117000})
+
 wegmodel = WegModel(dfl)
-# netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
+netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -650,13 +654,13 @@ for section_id, section_info in wegmodel.sections.items():
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = wegmodel.get_points_info("MSI")  # Specify "MSI" here when *vergence points no longer desired to visualise.
+points = wegmodel.get_points_info()  # Specify "MSI" here when *vergence points no longer desired to visualise.
 for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-# print("MSI-relaties visualiseren...")
-# draw_msi_relations(dwg)
+print("MSI-relaties visualiseren...")
+draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)

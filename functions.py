@@ -5,8 +5,8 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.00001
-DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
+GRID_SIZE = 0.000001
+DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
 LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
@@ -40,6 +40,10 @@ class PositieEigenschappen:
         self.km = float() if km is None else km
         self.geometrie = geometrie
 
+    def __repr__(self):
+        return f"Rijrichting='{self.rijrichting}', Wegnummer='{self.wegnummer}', " \
+               f"Hectoletter='{self.hectoletter}', Km={self.km}, Geometrie={self.geometrie}"
+
 
 class LijnVerwerkingsEigenschappen:
     def __init__(self):
@@ -55,6 +59,19 @@ class LijnVerwerkingsEigenschappen:
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
 
+    def __repr__(self):
+        return (f"Vergentiepunt_start={self.vergentiepunt_start}, "
+                f"Vergentiepunt_einde={self.vergentiepunt_einde}, "
+                f"Sectie_stroomopwaarts={self.sectie_stroomopwaarts}, "
+                f"Sectie_stroomafwaarts={self.sectie_stroomafwaarts}, "
+                f"Sectie_afbuigend_stroomopwaarts={self.sectie_afbuigend_stroomopwaarts}, "
+                f"Sectie_afbuigend_stroomafwaarts={self.sectie_afbuigend_stroomafwaarts}, "
+                f"Start_kenmerk={self.start_kenmerk}, "
+                f"Einde_kenmerk={self.einde_kenmerk}, "
+                f"Aantal_hoofdrijstroken={self.aantal_hoofdrijstroken}, "
+                f"Aantal_rijstroken_links={self.aantal_rijstroken_links}, "
+                f"Aantal_rijstroken_rechts={self.aantal_rijstroken_rechts}")
+
 
 class PuntVerwerkingsEigenschappen:
     def __init__(self):
@@ -65,12 +82,25 @@ class PuntVerwerkingsEigenschappen:
         self.aantal_stroken = None
         self.lokale_hoek = None
 
+    def __repr__(self):
+        return (f"Sectie_ids={self.sectie_ids}, "
+                f"Ingaande_secties={self.ingaande_secties}, "
+                f"Uitgaande_secties={self.uitgaande_secties}, "
+                f"Aantal_hoofdstroken={self.aantal_hoofdstroken}, "
+                f"Aantal_stroken={self.aantal_stroken}, "
+                f"Lokale_hoek={self.lokale_hoek}")
+
 
 class ObjectInfo:
     def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None):
         self.pos_eigs = PositieEigenschappen() if pos_eigs is None else pos_eigs
         self.obj_eigs = {} if obj_eigs is None else obj_eigs
         self.verw_eigs = None
+
+    def __repr__(self):
+        return (f"Positie-eigenschappen:\n{self.pos_eigs}\n"
+                f"Objecteigenschappen:\n{self.obj_eigs}\n"
+                f"Verwerkingseigenschappen:\n{self.verw_eigs}\n")
 
 
 class DataFrameLader:
@@ -260,14 +290,20 @@ class DataFrameLader:
         if name == "Rijstroken":
             self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
-            mapping_function = lambda row: LANE_MAPPING_H[row["OMSCHR"]] if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T[row["OMSCHR"]]
+            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], (0, None)) if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T.get(row["OMSCHR"], (0, None))
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
+            # # Remove all unknown entries using a boolean mask.
+            # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
+
         if name == "Mengstroken":
-            mapping_function = lambda row: LANE_MAPPING_H[row["AANT_MSK"]] if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T[row["AANT_MSK"]]
+            mapping_function = lambda row: LANE_MAPPING_H.get(row["AANT_MSK"], (0, None)) if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T.get(row["AANT_MSK"], (0, None))
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
+
+            # # Remove all unknown entries using a boolean mask.
+            # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
 
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
@@ -494,6 +530,11 @@ class WegModel:
             print(f"[WAARSCHUWING:] {new_section} overlapt niet met eerdere lagen. Deze sectie wordt niet toegevoegd.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
+
+        for overlapper in overlap_sections:
+            if overlapper["Section_info"].pos_eigs.geometrie is None:
+                # Do NOT add the section, as there was a reason the geometry is not present.
+                return
 
         overlap_section = overlap_sections.pop(0)
 
@@ -749,8 +790,8 @@ class WegModel:
             indices (set): Set of indices at which to remove sections.
         """
         for index in indices:
-            self.sections.pop(index)
             print(f"[LOG:] Sectie {index} verwijderd.\n")
+            self.sections.pop(index)
 
     def __remove_points(self, indices: set[int]) -> None:
         """
@@ -759,8 +800,8 @@ class WegModel:
             indices (set): Set of indices at which to remove points.
         """
         for index in indices:
+            print(f"[LOG:] Punt {index} verwijderd: {self.points[index]}\n")
             self.points.pop(index)
-            print(f"[LOG:] Punt {index} verwijderd.\n")
 
     def __update_section(self, index: int,
                          new_km: list = None, new_obj_eigs: dict = None, new_geometrie: LineString = None) -> None:
@@ -917,6 +958,7 @@ class WegModel:
         for base_index, base in self.__base.items():
             if get_overlap(new_section.pos_eigs.geometrie, base.pos_eigs.geometrie):
                 overlapping_base.append({"Index": base_index, "Section_info": base})
+                    # TODO: simplify to {index: section_info}
 
         #     # For the rest of the implementation, sorting in driving direction is assumed.
         #     # Thus, sections on the left side should be ordered from high to low ranges.
@@ -949,6 +991,7 @@ class WegModel:
                 if get_overlap(section_a.pos_eigs.geometrie, section_b.pos_eigs.geometrie):
                     overlapping_sections.append({"Index": section_b_index,
                                                  "Section_info": section_b})
+                    # TODO: simplify to {index: section_info}
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
@@ -1047,11 +1090,13 @@ class WegModel:
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
-            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging", "Splitsing", "Uitvoeging"] and
-                    not (len(point_verw_eigs.uitgaande_secties) == 2 or len(point_verw_eigs.ingaande_secties) == 2)):
+            # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
+            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
+                    and not (len(point_verw_eigs.ingaande_secties) == 2) or
+                (point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
+                    and not len(point_verw_eigs.uitgaande_secties) == 2)):
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
-                continue
 
             self.points[point_index].verw_eigs = point_verw_eigs
 
@@ -1309,6 +1354,7 @@ def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
     elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
         return overlap_geometry
     else:
+        # print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
         return None
 
 
@@ -1362,6 +1408,9 @@ class MSIRow:
         self.downstream = {}
         self.upstream = {}
 
+    def __repr__(self):
+        return self.name
+
     def fill_row_properties(self):
         # Determine everything there is to know about the road in general
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
@@ -1397,6 +1446,7 @@ class MSIRow:
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
         for row in downstream_rows:
+            print(row)
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print("Conclusion:", msi_row.name, desc)
@@ -1423,8 +1473,8 @@ class MSINetwerk:
         """
         Instantiats an MSI network based on the provided road model and settings.
             roadmodel (WegModel): The road model on which the lane signalling relations will be based.
-            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there 
-                should be at most 1200 m between MSI rows. In the geometry, this is often exceeded.
+            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
+            at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
             alle_secundaire_relaties (bool): Indication whether all additionally determined
                 secundary relation types, which are not in the guidelines, should be added.
         """
@@ -1528,17 +1578,18 @@ class MSINetwerk:
             In case multiple are found, their dictionaries are placed in a list. This
             should be handled outside the function.
         """
-        first_iteration = False
-        if annotation is None:
-            first_iteration = True
-            annotation = {}
-
         if current_section_id is None:
             return {None: (shift, annotation)}
 
         current_section = self.roadmodel.sections[current_section_id]
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
+
+        first_iteration = False
+        if annotation is None:
+            first_iteration = True
+            current_distance -= current_section.pos_eigs.geometrie.length
+            annotation = {}
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
@@ -1593,7 +1644,8 @@ class MSINetwerk:
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
-        assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {other_points_on_section}"
+        assert len(other_points_on_section) == 1, \
+            f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
 
         # Recursive case 2: *vergence point on the section.
         other_point = other_points_on_section[0]
@@ -1609,7 +1661,7 @@ class MSINetwerk:
                 next_section = self.roadmodel.sections[next_section_id]
                 puntstuk_section_id = next_section.verw_eigs.sectie_stroomopwaarts if downstream \
                     else next_section.verw_eigs.sectie_stroomafwaarts
-                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
+                _, n_lanes_other = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
                 shift = shift + n_lanes_other
 
             if next_section_id:
@@ -1631,7 +1683,7 @@ class MSINetwerk:
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
             print(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
 
-        shift_div, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[cont_section_id].obj_eigs)
+        _, shift_div = self.roadmodel.get_n_lanes(self.roadmodel.sections[cont_section_id].obj_eigs)
 
         # Store negative value in this direction.
         print(f"Marking {div_section_id} with -{shift_div}")
@@ -1646,12 +1698,15 @@ class MSINetwerk:
         option_diversion = self.find_msi_recursive(div_section_id, other_point.pos_eigs.km,
                                                    downstream, travel_direction,
                                                    shift - shift_div, current_distance, annotation)
-        return [option_continuation, option_diversion]
+        if isinstance(option_continuation, list):
+            return option_continuation + [option_diversion]
+        elif isinstance(option_diversion, list):
+            return option_diversion + [option_continuation]
+        else:
+            return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float,
                                 travel_direction: str, downstream: bool) -> tuple[list, list]:
-        # TODO: Return tuple of dicts, including the index, so that the MSI can be retrieved more easily.
-
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
