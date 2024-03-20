@@ -40,6 +40,10 @@ class PositieEigenschappen:
         self.km = float() if km is None else km
         self.geometrie = geometrie
 
+    def __repr__(self):
+        return f"Rijrichting='{self.rijrichting}', Wegnummer='{self.wegnummer}', " \
+               f"Hectoletter='{self.hectoletter}', Km={self.km}, Geometrie={self.geometrie}"
+
 
 class LijnVerwerkingsEigenschappen:
     def __init__(self):
@@ -55,6 +59,19 @@ class LijnVerwerkingsEigenschappen:
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
 
+    def __repr__(self):
+        return (f"Vergentiepunt_start={self.vergentiepunt_start}, "
+                f"Vergentiepunt_einde={self.vergentiepunt_einde}, "
+                f"Sectie_stroomopwaarts={self.sectie_stroomopwaarts}, "
+                f"Sectie_stroomafwaarts={self.sectie_stroomafwaarts}, "
+                f"Sectie_afbuigend_stroomopwaarts={self.sectie_afbuigend_stroomopwaarts}, "
+                f"Sectie_afbuigend_stroomafwaarts={self.sectie_afbuigend_stroomafwaarts}, "
+                f"Start_kenmerk={self.start_kenmerk}, "
+                f"Einde_kenmerk={self.einde_kenmerk}, "
+                f"Aantal_hoofdrijstroken={self.aantal_hoofdrijstroken}, "
+                f"Aantal_rijstroken_links={self.aantal_rijstroken_links}, "
+                f"Aantal_rijstroken_rechts={self.aantal_rijstroken_rechts}")
+
 
 class PuntVerwerkingsEigenschappen:
     def __init__(self):
@@ -65,12 +82,25 @@ class PuntVerwerkingsEigenschappen:
         self.aantal_stroken = None
         self.lokale_hoek = None
 
+    def __repr__(self):
+        return (f"Sectie_ids={self.sectie_ids}, "
+                f"Ingaande_secties={self.ingaande_secties}, "
+                f"Uitgaande_secties={self.uitgaande_secties}, "
+                f"Aantal_hoofdstroken={self.aantal_hoofdstroken}, "
+                f"Aantal_stroken={self.aantal_stroken}, "
+                f"Lokale_hoek={self.lokale_hoek}")
+
 
 class ObjectInfo:
     def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None):
         self.pos_eigs = PositieEigenschappen() if pos_eigs is None else pos_eigs
         self.obj_eigs = {} if obj_eigs is None else obj_eigs
         self.verw_eigs = None
+
+    def __repr__(self):
+        return (f"Positie-eigenschappen:\n{self.pos_eigs}\n"
+                f"Objecteigenschappen:\n{self.obj_eigs}\n"
+                f"Verwerkingseigenschappen:\n{self.verw_eigs}\n")
 
 
 class DataFrameLader:
