@@ -1643,7 +1643,8 @@ class MSINetwerk:
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
-        assert len(other_points_on_section) == 1, f"Onverwacht aantal punten op lijn: {[(point.obj_eigs.type, point.pos_eigs.km) for point in other_points_on_section]}"
+        assert len(other_points_on_section) == 1, \
+            f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
 
         # Recursive case 2: *vergence point on the section.
         other_point = other_points_on_section[0]
@@ -1696,7 +1697,12 @@ class MSINetwerk:
         option_diversion = self.find_msi_recursive(div_section_id, other_point.pos_eigs.km,
                                                    downstream, travel_direction,
                                                    shift - shift_div, current_distance, annotation)
-        return [option_continuation, option_diversion]
+        if isinstance(option_continuation, list):
+            return option_continuation + [option_diversion]
+        elif isinstance(option_diversion, list):
+            return option_diversion + [option_continuation]
+        else:
+            return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float,
                                 travel_direction: str, downstream: bool) -> tuple[list, list]:
