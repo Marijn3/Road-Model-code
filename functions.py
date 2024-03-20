@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.000001
+GRID_SIZE = 0.00001
 DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
@@ -1654,19 +1654,19 @@ class MSINetwerk:
 
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
-            next_section_id = current_section.verw_eigs.sectie_stroomafwaarts if downstream \
-                else current_section.verw_eigs.sectie_stroomopwaarts
+            next_section_id = other_point.verw_eigs.uitgaande_secties[0] if downstream \
+                else other_point.verw_eigs.ingaande_secties[0]
             if "Puntstuk" not in current_section.obj_eigs.values():
                 # This is the diverging section. Determine annotation.
-                next_section = self.roadmodel.sections[next_section_id]
-                puntstuk_section_id = next_section.verw_eigs.sectie_stroomopwaarts if downstream \
-                    else next_section.verw_eigs.sectie_stroomafwaarts
-                _, n_lanes_other = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
+                if downstream:
+                    puntstuk_section_id = list(set(other_point.verw_eigs.ingaande_secties) - {current_section_id})[0]
+                else:
+                    puntstuk_section_id = list(set(other_point.verw_eigs.uitgaande_secties) - {current_section_id})[0]
+                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
                 shift = shift + n_lanes_other
 
-            if next_section_id:
-                shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                                 downstream, first_iteration)
+            shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
+                                                             downstream, first_iteration)
 
             print(f"The *vergence point leads to section {next_section_id}")
             print(f"Marking {next_section_id} with +{shift}")

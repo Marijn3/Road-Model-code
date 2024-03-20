@@ -2,7 +2,7 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Vinkeveen")
+dfl = DataFrameLader("Vught")
 # Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle, Vinkeveen
 #                         [Verwerkingsfouten] Zonzeel, Zuidasdok [Puntstuk registrations]
 #                         [Importfouten] A2VK, Bavel, Everdingen
@@ -175,9 +175,9 @@ def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
     other_has_puntstuk = "Puntstuk" in other_section_info.obj_eigs.values()
 
     assert not (this_has_puntstuk and other_has_puntstuk),\
-        f"Twee secties met puntstuk: {section_info}{other_section_info}"
+        f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{section_info}\n{other_section_info}"
     assert (this_has_puntstuk or other_has_puntstuk),\
-        f"Geen sectie met puntstuk: {section_info}{other_section_info}"
+        f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{section_info}\n{other_section_info}"
 
     displacement = 0
     n_lanes_largest = point_info.verw_eigs.aantal_hoofdstroken
