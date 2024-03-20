@@ -3,13 +3,13 @@ import svgwrite
 import math
 
 dfl = DataFrameLader("Vinkeveen")
-# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle
-#                         [Verwerkingsfouten] Vinkeveen, Zonzeel, Zuidasdok [Puntstuk registrations]
+# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle, Vinkeveen
+#                         [Verwerkingsfouten] Zonzeel, Zuidasdok [Puntstuk registrations]
 #                         [Importfouten] A2VK, Bavel, Everdingen
 # dfl = DataFrameLader({"noord": 484000, "oost": 120200, "zuid": 483000, "west": 117000})
 
 wegmodel = WegModel(dfl)
-netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
+netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5

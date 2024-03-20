@@ -1473,8 +1473,8 @@ class MSINetwerk:
         """
         Instantiats an MSI network based on the provided road model and settings.
             roadmodel (WegModel): The road model on which the lane signalling relations will be based.
-            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there 
-                should be at most 1200 m between MSI rows. In the geometry, this is often exceeded.
+            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
+            at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
             alle_secundaire_relaties (bool): Indication whether all additionally determined
                 secundary relation types, which are not in the guidelines, should be added.
         """
