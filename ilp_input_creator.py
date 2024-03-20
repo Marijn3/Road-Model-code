@@ -59,7 +59,9 @@ def transform_name(name: str) -> list | str | None:
         return [transform_name(n) for n in name]
 
     road, km, msi_nr = name.split(":")
-    return f"[RSU_{road[:-1]}_{road[-1]}_{km},{msi_nr}]"
+    if "_" not in road:
+        road = f"{road[:-1]}_{road[-1]}"
+    return f"[RSU_{road}_{km},{msi_nr}]"
 
 
 def transform_row_name(name: str) -> list | str | None:
@@ -70,12 +72,12 @@ def transform_row_name(name: str) -> list | str | None:
     Returns:
         Row name in the form used by JvM.
     Example:
-        transform_name("A2R:119.204") = RSU_A2_R_119.204
-        transform_name("A2_A:119.204") = RSU_A2_A_119.204
+        transform_row_name("A2R:119.204") = RSU_A2_R_119.204
+        transform_row_name("A2_A:119.204") = RSU_A2_A_119.204
     """
     road, km = name.split(":")
     if "_" not in road:
-        return f"RSU_{road[:-1]}_{road[-1]}_{km}"
+        road = f"{road[:-1]}_{road[-1]}"
     return f"RSU_{road}_{km}"
 
 

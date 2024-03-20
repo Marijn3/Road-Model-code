@@ -259,9 +259,6 @@ DEFS_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 USE_TEMPATE = '''<use href="#{legend_id}"/>'''
 
 
-
-
-
 def toggle_visibility(svg_file, group_visibility):
     tree = ET.parse(svg_file)
     root = tree.getroot()
@@ -280,7 +277,6 @@ def toggle_visibility(svg_file, group_visibility):
 
 def translate_jvm_to_mtm(name_jvm: str) -> str:
     name_jvm = name_jvm[1:-1]  # Gets rid of leading and trailing [brackets]
-    print(name_jvm)
     rsu, wegnummer, rijrichting_or_hecto, km_msi_nr = name_jvm.split("_")
     km, msi_nr = km_msi_nr.split(",")
     if rijrichting_or_hecto in ["L", "R"]:

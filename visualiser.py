@@ -654,7 +654,7 @@ for section_id, section_info in wegmodel.sections.items():
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = wegmodel.get_points_info()  # Specify "MSI" here when *vergence points no longer desired to visualise.
+points = wegmodel.get_points_info("MSI")  # Specify "MSI" here when *vergence points no longer desired to visualise.
 for point in points:
     svg_add_point(point, dwg)
 
