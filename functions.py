@@ -260,14 +260,20 @@ class DataFrameLader:
         if name == "Rijstroken":
             self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
-            mapping_function = lambda row: LANE_MAPPING_H[row["OMSCHR"]] if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T[row["OMSCHR"]]
+            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], "Unknown") if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T.get(row["OMSCHR"], "Unknown")
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
+            # Remove all unknown entries using a boolean mask.
+            self.data[name] = self.data[name][self.data[name]["laneInfo"] != "Unknown"]
+
         if name == "Mengstroken":
-            mapping_function = lambda row: LANE_MAPPING_H[row["AANT_MSK"]] if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T[row["AANT_MSK"]]
+            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], "Unknown") if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T.get(row["OMSCHR"], "Unknown")
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
+
+            # Remove all unknown entries using a boolean mask.
+            self.data[name] = self.data[name][self.data[name]["laneInfo"] != "Unknown"]
 
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
