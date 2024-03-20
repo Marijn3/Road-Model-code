@@ -98,7 +98,9 @@ class ObjectInfo:
         self.verw_eigs = None
 
     def __repr__(self):
-        return (f"Positie-eigenschappen:\n{self.pos_eigs}\n"
+        typename = "Sectie" if isinstance(self.pos_eigs.geometrie, LineString) else "Punt"
+        return (f"{typename}:\n"
+                f"Positie-eigenschappen:\n{self.pos_eigs}\n"
                 f"Objecteigenschappen:\n{self.obj_eigs}\n"
                 f"Verwerkingseigenschappen:\n{self.verw_eigs}\n")
 
