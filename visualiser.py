@@ -3,8 +3,8 @@ import svgwrite
 import math
 
 dfl = DataFrameLader("Goirle")
-# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout,
-#                         [Verwerkingsfouten] Vinkeveen, Goirle, Zonzeel, Zuidasdok
+# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle
+#                         [Verwerkingsfouten] Vinkeveen, Zonzeel, Zuidasdok
 #                         [Importfouten] A2VK, Bavel
 # dfl = DataFrameLader({"noord": 397500, "oost": 119000, "zuid": 395000, "west": 115000})
 wegmodel = WegModel(dfl)

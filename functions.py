@@ -1068,6 +1068,13 @@ class WegModel:
             sections_near_point = [section_id for section_id in overlapping_sections.keys()]
             point_verw_eigs.sectie_ids = sections_near_point
 
+            # Get the local number of (main) lanes. Take the highest value if there are multiple.
+            lane_info = [self.get_n_lanes(section_info.obj_eigs) for section_info in overlapping_sections.values()]
+            point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
+            point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
+
+            point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
+
             if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
@@ -1091,14 +1098,6 @@ class WegModel:
                     and not len(point_verw_eigs.uitgaande_secties) == 2)):
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
-                continue
-
-            # Get the local number of (main) lanes. Take the highest value if there are multiple.
-            lane_info = [self.get_n_lanes(section_info.obj_eigs) for section_info in overlapping_sections.values()]
-            point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
-            point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
-
-            point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 
             self.points[point_index].verw_eigs = point_verw_eigs
 
