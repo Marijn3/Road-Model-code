@@ -1,9 +1,9 @@
 from ilp_input_creator import *
 
 # Laad alle bestanden voor een vooropgesteld gebied en bewaar de GeoDataFrames in een class.
-# Gedefinieerde locaties: [Volledig correcte import] Vught, A27
-#                         [Kleine verwerkingsfouten] A2Vink, Goirle, Zonzeel
-#                         [Importfouten] A2VK
+# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout,
+#                         [Kleine verwerkingsfouten] Vinkeveen, Goirle, Zonzeel
+#                         [Importfouten] A2VK, Bavel
 dfl = DataFrameLader("A27")
 
 # Alternatief: voer eigen coördinaten in.
