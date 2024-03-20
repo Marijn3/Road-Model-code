@@ -1646,11 +1646,20 @@ class MSINetwerk:
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
                                                shift, current_distance, annotation)
 
-        assert len(other_points_on_section) == 1, \
+        assert len(other_points_on_section) == 1 or len(other_points_on_section) == 2, \
             f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
 
         # Recursive case 2: *vergence point on the section.
-        other_point = other_points_on_section[0]
+        if len(other_points_on_section) == 1:
+            other_point = other_points_on_section[0]
+        if len(other_points_on_section) == 2:
+            if (downstream and current_section.pos_eigs.rijrichting == "R" or
+                    not downstream and current_section.pos_eigs.rijrichting == "L"):
+                other_point = [point for point in other_points_on_section if point.pos_eigs.km > current_km][0]
+            if (downstream and current_section.pos_eigs.rijrichting == "L" or
+                    not downstream and current_section.pos_eigs.rijrichting == "R"):
+                other_point = [point for point in other_points_on_section if point.pos_eigs.km < current_km][0]
+
         downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
         upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
 

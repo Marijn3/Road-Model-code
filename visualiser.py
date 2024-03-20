@@ -4,12 +4,12 @@ import math
 
 dfl = DataFrameLader("Vught")
 # Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle, Vinkeveen
-#                         [Verwerkingsfouten] Zonzeel, Zuidasdok [Puntstuk registrations]
-#                         [Importfouten] A2VK, Bavel, Everdingen
-# dfl = DataFrameLader({"noord": 484000, "oost": 120200, "zuid": 483000, "west": 117000})
+#                         [Verwerkingsfouten] Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
+#                         [Importfouten] A2VK, Everdingen
+# dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
-# netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
+netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -659,8 +659,8 @@ for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
-# print("MSI-relaties visualiseren...")
-# draw_msi_relations(dwg)
+print("MSI-relaties visualiseren...")
+draw_msi_relations(dwg)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
