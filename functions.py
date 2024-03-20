@@ -5,8 +5,8 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.00001
-DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen geometrieën.
+GRID_SIZE = 0.000001
+DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
 LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
@@ -290,20 +290,20 @@ class DataFrameLader:
         if name == "Rijstroken":
             self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
 
-            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], "Unknown") if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T.get(row["OMSCHR"], "Unknown")
+            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], (0, None)) if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T.get(row["OMSCHR"], (0, None))
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
 
-            # Remove all unknown entries using a boolean mask.
-            self.data[name] = self.data[name][self.data[name]["laneInfo"] != "Unknown"]
+            # # Remove all unknown entries using a boolean mask.
+            # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
 
         if name == "Mengstroken":
-            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], "Unknown") if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T.get(row["OMSCHR"], "Unknown")
+            mapping_function = lambda row: LANE_MAPPING_H.get(row["AANT_MSK"], (0, None)) if row["KANTCODE"] == "H" \
+                else LANE_MAPPING_T.get(row["AANT_MSK"], (0, None))
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
-
-            # Remove all unknown entries using a boolean mask.
-            self.data[name] = self.data[name][self.data[name]["laneInfo"] != "Unknown"]
+            
+            # # Remove all unknown entries using a boolean mask.
+            # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
 
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
@@ -531,6 +531,11 @@ class WegModel:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
+        for overlapper in overlap_sections:
+            if overlapper["Section_info"].pos_eigs.geometrie is None:
+                # Do NOT add the section, as there was a reason the geometry is not present.
+                return
+
         overlap_section = overlap_sections.pop(0)
 
         other_section_index = overlap_section["Index"]
@@ -574,12 +579,12 @@ class WegModel:
                 other_section_props = overlap_section_info.obj_eigs
                 other_section_geom = overlap_section_info.pos_eigs.geometrie
 
-            # print("New section range:", new_section_range)
-            # print("New section props:", new_section_props)
-            # print("New section geom:", set_precision(new_section.pos_eigs.geometrie, 1))
-            # print("Other section range:", other_section_range)
-            # print("Other section props:", other_section_props)
-            # print("Other section geom:", set_precision(other_section_geom, 1))
+            print("New section range:", new_section_range)
+            print("New section props:", new_section_props)
+            print("New section geom:", set_precision(new_section.pos_eigs.geometrie, 1))
+            print("Other section range:", other_section_range)
+            print("Other section props:", other_section_props)
+            print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
@@ -617,6 +622,7 @@ class WegModel:
                 else:
                     km_bereik = [max(new_section_range), max(other_section_range)]
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
+                print("Call1")
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -679,6 +685,7 @@ class WegModel:
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     assert added_geom, f"Geen overlap gevonden tussen {new_section_geom} en {other_section_geom}."
                     both_props = {**other_section_props, **new_section_props}
+                    print("Call2")
                     self.__add_section(
                         ObjectInfo(
                             pos_eigs=PositieEigenschappen(
@@ -708,6 +715,7 @@ class WegModel:
                         km_bereik = [max(new_section_range), min(other_section_range)]
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
+                    print("Call3")
                     self.__add_section(
                         ObjectInfo(
                             pos_eigs=PositieEigenschappen(
@@ -731,6 +739,7 @@ class WegModel:
                         continue
                     else:
                         # This is the final iteration
+                        print("Call4")
                         self.__add_section(
                             ObjectInfo(
                                 pos_eigs=PositieEigenschappen(
@@ -756,6 +765,7 @@ class WegModel:
                 else:
                     km_bereik = [max(other_section_range), max(new_section_range)]
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
+                print("Call5")
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -836,6 +846,7 @@ class WegModel:
         """
         assert not is_empty(new_section.pos_eigs.geometrie), \
             f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
+        print(new_section)
         if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
             print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section.pos_eigs.km)} "
                   f"en {new_section.pos_eigs.geometrie.length}\n")
@@ -867,6 +878,7 @@ class WegModel:
         else:
             geom = reverse(new_section.pos_eigs.geometrie)
 
+        print("Call6")
         self.__add_section(
             ObjectInfo(
                 pos_eigs=PositieEigenschappen(
@@ -985,6 +997,7 @@ class WegModel:
                 if get_overlap(section_a.pos_eigs.geometrie, section_b.pos_eigs.geometrie):
                     overlapping_sections.append({"Index": section_b_index,
                                                  "Section_info": section_b})
+                    # TODO: simplify to {index: section_info}
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
@@ -1345,6 +1358,7 @@ def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
     elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
         return overlap_geometry
     else:
+        print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
         return None
 
 
