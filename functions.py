@@ -301,7 +301,7 @@ class DataFrameLader:
             mapping_function = lambda row: LANE_MAPPING_H.get(row["AANT_MSK"], (0, None)) if row["KANTCODE"] == "H" \
                 else LANE_MAPPING_T.get(row["AANT_MSK"], (0, None))
             self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
-            
+
             # # Remove all unknown entries using a boolean mask.
             # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
 
@@ -579,12 +579,12 @@ class WegModel:
                 other_section_props = overlap_section_info.obj_eigs
                 other_section_geom = overlap_section_info.pos_eigs.geometrie
 
-            print("New section range:", new_section_range)
-            print("New section props:", new_section_props)
-            print("New section geom:", set_precision(new_section.pos_eigs.geometrie, 1))
-            print("Other section range:", other_section_range)
-            print("Other section props:", other_section_props)
-            print("Other section geom:", set_precision(other_section_geom, 1))
+            # print("New section range:", new_section_range)
+            # print("New section props:", new_section_props)
+            # print("New section geom:", set_precision(new_section.pos_eigs.geometrie, 1))
+            # print("Other section range:", other_section_range)
+            # print("Other section props:", other_section_props)
+            # print("Other section geom:", set_precision(other_section_geom, 1))
 
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
@@ -622,7 +622,6 @@ class WegModel:
                 else:
                     km_bereik = [max(new_section_range), max(other_section_range)]
                 added_geom = get_first_remainder(new_section_geom, other_section_geom)
-                print("Call1")
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -685,7 +684,6 @@ class WegModel:
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     assert added_geom, f"Geen overlap gevonden tussen {new_section_geom} en {other_section_geom}."
                     both_props = {**other_section_props, **new_section_props}
-                    print("Call2")
                     self.__add_section(
                         ObjectInfo(
                             pos_eigs=PositieEigenschappen(
@@ -715,7 +713,6 @@ class WegModel:
                         km_bereik = [max(new_section_range), min(other_section_range)]
                     added_geom = get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
-                    print("Call3")
                     self.__add_section(
                         ObjectInfo(
                             pos_eigs=PositieEigenschappen(
@@ -739,7 +736,6 @@ class WegModel:
                         continue
                     else:
                         # This is the final iteration
-                        print("Call4")
                         self.__add_section(
                             ObjectInfo(
                                 pos_eigs=PositieEigenschappen(
@@ -765,7 +761,6 @@ class WegModel:
                 else:
                     km_bereik = [max(other_section_range), max(new_section_range)]
                 added_geom = get_first_remainder(other_section_geom, new_section_geom)
-                print("Call5")
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -878,7 +873,6 @@ class WegModel:
         else:
             geom = reverse(new_section.pos_eigs.geometrie)
 
-        print("Call6")
         self.__add_section(
             ObjectInfo(
                 pos_eigs=PositieEigenschappen(
@@ -965,6 +959,7 @@ class WegModel:
         for base_index, base in self.__base.items():
             if get_overlap(new_section.pos_eigs.geometrie, base.pos_eigs.geometrie):
                 overlapping_base.append({"Index": base_index, "Section_info": base})
+                    # TODO: simplify to {index: section_info}
 
         #     # For the rest of the implementation, sorting in driving direction is assumed.
         #     # Thus, sections on the left side should be ordered from high to low ranges.
@@ -1073,13 +1068,6 @@ class WegModel:
             sections_near_point = [section_id for section_id in overlapping_sections.keys()]
             point_verw_eigs.sectie_ids = sections_near_point
 
-            # Get the local number of (main) lanes. Take the highest value if there are multiple.
-            lane_info = [self.get_n_lanes(section_info.obj_eigs) for section_info in overlapping_sections.values()]
-            point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
-            point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
-
-            point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
-
             if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
@@ -1096,11 +1084,21 @@ class WegModel:
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
-            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging", "Splitsing", "Uitvoeging"] and
-                    not (len(point_verw_eigs.uitgaande_secties) == 2 or len(point_verw_eigs.ingaande_secties) == 2)):
+            # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
+            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
+                    and not (len(point_verw_eigs.ingaande_secties) == 2) or
+                (point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
+                    and not len(point_verw_eigs.uitgaande_secties) == 2)):
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
                 continue
+
+            # Get the local number of (main) lanes. Take the highest value if there are multiple.
+            lane_info = [self.get_n_lanes(section_info.obj_eigs) for section_info in overlapping_sections.values()]
+            point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
+            point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
+
+            point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 
             self.points[point_index].verw_eigs = point_verw_eigs
 
