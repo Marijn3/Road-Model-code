@@ -6,7 +6,7 @@ from copy import deepcopy
 import math
 
 GRID_SIZE = 0.000001
-DISTANCE_TOLERANCE = 0.5  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
+DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
 LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
@@ -790,7 +790,7 @@ class WegModel:
             indices (set): Set of indices at which to remove sections.
         """
         for index in indices:
-            print(f"[LOG:] Sectie {index} verwijderd: {self.sections[index]}\n")
+            print(f"[LOG:] Sectie {index} verwijderd.\n")
             self.sections.pop(index)
 
     def __remove_points(self, indices: set[int]) -> None:
@@ -841,7 +841,6 @@ class WegModel:
         """
         assert not is_empty(new_section.pos_eigs.geometrie), \
             f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
-        print(new_section)
         if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
             print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section.pos_eigs.km)} "
                   f"en {new_section.pos_eigs.geometrie.length}\n")
@@ -1355,7 +1354,7 @@ def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
     elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
         return overlap_geometry
     else:
-        print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
+        # print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
         return None
 
 
@@ -1408,6 +1407,9 @@ class MSIRow:
         self.cw = {}
         self.downstream = {}
         self.upstream = {}
+
+    def __repr__(self):
+        return self.name
 
     def fill_row_properties(self):
         # Determine everything there is to know about the road in general
@@ -1516,8 +1518,6 @@ class MSINetwerk:
 
         print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
-
-        print(msis)
 
         if isinstance(msis, dict):
             return [msis]
