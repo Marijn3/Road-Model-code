@@ -1578,17 +1578,18 @@ class MSINetwerk:
             In case multiple are found, their dictionaries are placed in a list. This
             should be handled outside the function.
         """
-        first_iteration = False
-        if annotation is None:
-            first_iteration = True
-            annotation = {}
-
         if current_section_id is None:
             return {None: (shift, annotation)}
 
         current_section = self.roadmodel.sections[current_section_id]
         other_points_on_section, msis_on_section = (
             self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
+
+        first_iteration = False
+        if annotation is None:
+            first_iteration = True
+            current_distance -= current_section.pos_eigs.geometrie.length
+            annotation = {}
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
