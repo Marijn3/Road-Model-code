@@ -790,8 +790,8 @@ class WegModel:
             indices (set): Set of indices at which to remove sections.
         """
         for index in indices:
+            print(f"[LOG:] Sectie {index} verwijderd: {self.sections[index]}\n")
             self.sections.pop(index)
-            print(f"[LOG:] Sectie {index} verwijderd.\n")
 
     def __remove_points(self, indices: set[int]) -> None:
         """
@@ -800,8 +800,8 @@ class WegModel:
             indices (set): Set of indices at which to remove points.
         """
         for index in indices:
+            print(f"[LOG:] Punt {index} verwijderd: {self.points[index]}\n")
             self.points.pop(index)
-            print(f"[LOG:] Punt {index} verwijderd.\n")
 
     def __update_section(self, index: int,
                          new_km: list = None, new_obj_eigs: dict = None, new_geometrie: LineString = None) -> None:

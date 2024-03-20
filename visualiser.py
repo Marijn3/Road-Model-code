@@ -2,7 +2,10 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Zuidasdok")
+dfl = DataFrameLader("Goirle")
+# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout,
+#                         [Verwerkingsfouten] Vinkeveen, Goirle, Zonzeel, Zuidasdok
+#                         [Importfouten] A2VK, Bavel
 # dfl = DataFrameLader({"noord": 397500, "oost": 119000, "zuid": 395000, "west": 115000})
 wegmodel = WegModel(dfl)
 netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
@@ -650,7 +653,7 @@ for section_id, section_info in wegmodel.sections.items():
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = wegmodel.get_points_info("MSI")  # Specify "MSI" here when *vergence points no longer desired to visualise.
+points = wegmodel.get_points_info()  # Specify "MSI" here when *vergence points no longer desired to visualise.
 for point in points:
     svg_add_point(point, dwg)
 
