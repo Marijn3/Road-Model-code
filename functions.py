@@ -1661,7 +1661,7 @@ class MSINetwerk:
                 next_section = self.roadmodel.sections[next_section_id]
                 puntstuk_section_id = next_section.verw_eigs.sectie_stroomopwaarts if downstream \
                     else next_section.verw_eigs.sectie_stroomafwaarts
-                n_lanes_other, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
+                _, n_lanes_other = self.roadmodel.get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
                 shift = shift + n_lanes_other
 
             if next_section_id:
@@ -1683,7 +1683,7 @@ class MSINetwerk:
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
             print(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
 
-        shift_div, _ = self.roadmodel.get_n_lanes(self.roadmodel.sections[cont_section_id].obj_eigs)
+        _, shift_div = self.roadmodel.get_n_lanes(self.roadmodel.sections[cont_section_id].obj_eigs)
 
         # Store negative value in this direction.
         print(f"Marking {div_section_id} with -{shift_div}")
@@ -1707,8 +1707,6 @@ class MSINetwerk:
 
     def evaluate_section_points(self, current_section_id: int, current_km: float,
                                 travel_direction: str, downstream: bool) -> tuple[list, list]:
-        # TODO: Return tuple of dicts, including the index, so that the MSI can be retrieved more easily.
-
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
