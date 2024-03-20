@@ -2,11 +2,12 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Everdingen")
+# dfl = DataFrameLader("Zuidasdok")
 # Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle
 #                         [Verwerkingsfouten] Vinkeveen, Zonzeel, Zuidasdok
 #                         [Importfouten] A2VK, Bavel, Everdingen
-# dfl = DataFrameLader({"noord": 397500, "oost": 119000, "zuid": 395000, "west": 115000})
+dfl = DataFrameLader({"noord": 484000, "oost": 120200, "zuid": 483000, "west": 117000})
+
 wegmodel = WegModel(dfl)
 netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=3500, alle_secundaire_relaties=True)
 

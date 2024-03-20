@@ -1444,6 +1444,7 @@ class MSIRow:
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
         for row in downstream_rows:
+            print(row)
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print("Conclusion:", msi_row.name, desc)
@@ -1515,6 +1516,8 @@ class MSINetwerk:
 
         print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
+
+        print(msis)
 
         if isinstance(msis, dict):
             return [msis]
