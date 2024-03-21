@@ -606,7 +606,6 @@ class WegModel:
             both_sections_first = (
                                       (min(new_section_range) == min(other_section_range) and right_side)
                                   ) or (
-                                  ) or (
                                       (max(new_section_range) == max(other_section_range) and left_side))
 
             other_section_first = (
