@@ -642,7 +642,8 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO), profile="full")
+dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO),
+                       profile="full", id="svg5")  # This specific ID tag is used by JvM script
 
 # Background
 group_background = svgwrite.container.Group(id="background")
