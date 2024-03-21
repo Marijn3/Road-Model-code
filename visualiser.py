@@ -667,7 +667,7 @@ dwg.add(group_points)
 
 # MSI relations
 print("MSI-relaties visualiseren...")
-group_msi_relations = svgwrite.container.Group(id="msi-relations")
+group_msi_relations = svgwrite.container.Group(id="nametags_MSI")  # This tag is used to disable/enable based on button
 draw_msi_relations(group_msi_relations)
 dwg.add(group_msi_relations)
 
