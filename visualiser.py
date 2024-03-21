@@ -437,28 +437,28 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
 
     group_50 = group_msi_row.add(dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
     group_50.add(svgwrite.text.Text(
-        "50", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "50", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_70 = group_msi_row.add(dwg.g(id=f"g[{msi_name}]", visibility="hidden"))
     group_70.add(svgwrite.text.Text(
-        "70", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "70", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_80 = group_msi_row.add(dwg.g(id=f"h[{msi_name}]", visibility="hidden"))
     group_80.add(svgwrite.text.Text(
-        "80", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "80", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_90 = group_msi_row.add(dwg.g(id=f"i[{msi_name}]", visibility="hidden"))
     group_90.add(svgwrite.text.Text(
-        "90", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "90", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_100 = group_msi_row.add(dwg.g(id=f"j[{msi_name}]", visibility="hidden"))
     group_100.add(svgwrite.text.Text(
-        "100", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "100", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        letter_spacing="-0.5", text_anchor="middle", dominant_baseline="middle"))
 
     group_overruling_blank = group_msi_row.add(dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
     group_overruling_blank.add(dwg.rect(insert=box_coords,
