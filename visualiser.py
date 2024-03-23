@@ -6,7 +6,7 @@ import math
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen
 # Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
 # Importfouten : A2VK, Everdingen
-dfl = DataFrameLader("Zuidasdok")
+dfl = DataFrameLader("Vught")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
@@ -350,7 +350,7 @@ def add_markerline(coords: list[tuple], group_road: svgwrite.container.Group, li
     group_road.add(line)
 
 
-def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing, group_points: svgwrite.container.Group):
+def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing):
     coords = get_flipped_coords(point_info.pos_eigs.geometrie)[0]
     info_offset = LANE_WIDTH * (point_info.verw_eigs.aantal_stroken +
                                 (point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken)) / 2
@@ -367,7 +367,7 @@ def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing, group_points: s
 
 def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "f", "r"] else LANE_WIDTH * 25
+    hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "f", "h"] else LANE_WIDTH * 25
     displacement = 0
 
     for nr in point_info.obj_eigs["Rijstrooknummers"]:
@@ -398,7 +398,7 @@ def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: flo
 
     group_msi_row.add(group_text)
     group_msi_row.rotate(rotate_angle, center=coords)
-    group_points.add(group_msi_row)
+    dwg.add(group_msi_row)
 
 
 def display_MSI_onroad(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
@@ -435,7 +435,7 @@ def display_MSI_onroad(point_info: ObjectInfo, coords: tuple, info_offset: float
 
     group_msi_row.add(group_text)
     group_msi_row.rotate(rotate_angle, center=coords)
-    group_points.add(group_msi_row)
+    dwg.add(group_msi_row)
 
 
 def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
@@ -583,7 +583,7 @@ def display_vergence(point_info: ObjectInfo, coords: tuple, info_offset: float, 
 
     group_vergence.add(text)
     group_vergence.rotate(rotate_angle, center=coords)
-    group_points.add(group_vergence)
+    dwg.add(group_vergence)
 
 
 def draw_msi_relations(group_msi_relations: svgwrite.container.Group):
@@ -670,11 +670,9 @@ dwg.add(group_road)
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-group_points = svgwrite.container.Group(id="points")
 points = wegmodel.get_points_info("MSI")  # Specify "MSI" here when *vergence points no longer desired to visualise.
 for point in points:
-    svg_add_point(point, dwg, group_points)
-dwg.add(group_points)
+    svg_add_point(point, dwg)
 
 # MSI relations
 print("MSI-relaties visualiseren...")
