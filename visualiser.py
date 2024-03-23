@@ -139,7 +139,7 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, points_info:
     Args:
         section_id (int): ID of section to be moved.
         section_info (ObjectInfo): All data of the section to be moved.
-        point_info (ObjectINfo): Data of the point where the geometry should be moved.
+        points_info (list[ObjectINfo]): Data of the points on the section where the geometry should be moved.
     Returns:
         The geometry of the section, where one of the endpoints is displaced if necessary.
     """
@@ -149,36 +149,36 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, points_info:
         # Case by case analysis of what should be done to the line geometry.
         point_type = point_info.obj_eigs["Type"]
 
-        point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
-        point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
+        point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, DISTANCE_TOLERANCE)
+        point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, DISTANCE_TOLERANCE)
 
         if point_type == "Splitsing" and point_is_at_line_start:
             other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
-            change_start = True
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, True)
         elif point_type == "Samenvoeging" and point_is_at_line_end:
             other_lane_id = list(set(point_info.verw_eigs.ingaande_secties) - {section_id})[0]
-            change_start = False
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, False)
         elif point_type == "Uitvoeging" and point_is_at_line_start:
             other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
-            change_start = True
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, True)
         elif point_type == "Invoeging" and point_is_at_line_end:
             other_lane_id = list(set(point_info.verw_eigs.ingaande_secties) - {section_id})[0]
-            change_start = False
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, False)
         else:
             # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
             continue
 
-        other_section_data = wegmodel.sections[other_lane_id]
-        line_geom = move_endpoint(section_info, line_geom, other_section_data, point_info, change_start)
-
     return line_geom
 
 
-def move_endpoint(section_info: ObjectInfo, line_geom: LineString, other_section_info: ObjectInfo,
+def move_endpoint(section_info: ObjectInfo, line_geom: LineString, other_section_id: int,
                   point_info: ObjectInfo, change_start: bool = True):
+    other_section_info = wegmodel.sections[other_section_id]
+
     angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
+    # TODO: Get rid of assumption that puntstuk is always on the left!
     this_has_puntstuk = "Puntstuk" in section_info.obj_eigs.values()
     other_has_puntstuk = "Puntstuk" in other_section_info.obj_eigs.values()
 
