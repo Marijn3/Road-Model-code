@@ -6,11 +6,13 @@ import math
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen
 # Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
 # Importfouten : A2VK, Everdingen
-dfl = DataFrameLader("Vught")
+dfl = DataFrameLader("Bavel")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
-netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
+netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relaties=True)
+
+OUTFILE = "Server/Data/WEGGEG/road_visualization.svg"
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -112,23 +114,24 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
         return get_flipped_coords(offset_geom)
 
 
-def check_point_on_line(sid: int) -> None | ObjectInfo:
+def check_points_on_line(sid: int) -> list[ObjectInfo]:
     """
     Finds a *vergence point on the section. Assumes there is at most one *vergence
     point per section. In any case, the first one encountered is returned.
     Args:
         sid (int): Section ID to search for.
     Returns:
-
+        Point info of all points on the section in a list
     """
     #
+    points_info = []
     for point_info in wegmodel.get_points_info():
         if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["Type"] not in ["Signalering"]:
-            return point_info
-    return None
+            points_info.append(point_info)
+    return points_info
 
 
-def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: ObjectInfo) -> LineString:
+def get_changed_geometry(section_id: int, section_info: ObjectInfo, points_info: list[ObjectInfo]) -> LineString:
     """
     Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
     *vergentiepunt point, and it is necessary to move it. Also adds a general property to the section
@@ -141,33 +144,37 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: 
         The geometry of the section, where one of the endpoints is displaced if necessary.
     """
     line_geom = section_info.pos_eigs.geometrie
-    point_type = point_info.obj_eigs["Type"]
 
-    point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
-    point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
+    for point_info in points_info:
+        # Case by case analysis of what should be done to the line geometry.
+        point_type = point_info.obj_eigs["Type"]
 
-    # TODO: it may be possible that both the start and end of a section should be adjusted.
-    if point_type == "Splitsing" and point_is_at_line_start:
-        other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
-        change_start = True
-    elif point_type == "Samenvoeging" and point_is_at_line_end:
-        other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
-        change_start = False
-    elif point_type == "Uitvoeging" and point_is_at_line_start:
-        other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
-        change_start = True
-    elif point_type == "Invoeging" and point_is_at_line_end:
-        other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
-        change_start = False
-    else:
-        # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
-        return line_geom
+        point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
+        point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
 
-    other_section_data = wegmodel.sections[other_lane_id]
-    return move_endpoint(section_info, other_section_data, point_info, change_start)
+        if point_type == "Splitsing" and point_is_at_line_start:
+            other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
+            change_start = True
+        elif point_type == "Samenvoeging" and point_is_at_line_end:
+            other_lane_id = list(set(point_info.verw_eigs.ingaande_secties) - {section_id})[0]
+            change_start = False
+        elif point_type == "Uitvoeging" and point_is_at_line_start:
+            other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
+            change_start = True
+        elif point_type == "Invoeging" and point_is_at_line_end:
+            other_lane_id = list(set(point_info.verw_eigs.ingaande_secties) - {section_id})[0]
+            change_start = False
+        else:
+            # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
+            continue
+
+        other_section_data = wegmodel.sections[other_lane_id]
+        line_geom = move_endpoint(section_info, line_geom, other_section_data, point_info, change_start)
+
+    return line_geom
 
 
-def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
+def move_endpoint(section_info: ObjectInfo, line_geom: LineString, other_section_info: ObjectInfo,
                   point_info: ObjectInfo, change_start: bool = True):
     angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
@@ -193,7 +200,6 @@ def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
         n_lanes_b, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
-    line_geom = section_info.pos_eigs.geometrie
     if change_start:
         point_to_displace = line_geom.coords[0]
     else:
@@ -209,10 +215,10 @@ def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
 
 
 def svg_add_section(section_id: int, section_info: ObjectInfo, group_road: svgwrite.container.Group):
-    point_on_line = check_point_on_line(section_id)
+    points_on_line = check_points_on_line(section_id)
 
-    if point_on_line:
-        geom = get_changed_geometry(section_id, section_info, point_on_line)
+    if points_on_line:
+        geom = get_changed_geometry(section_id, section_info, points_on_line)
     else:
         geom = section_info.pos_eigs.geometrie
 
@@ -356,7 +362,7 @@ def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing, group_points: s
 
 def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    hecto_offset = 0 if not point_info.pos_eigs.hectoletter else LANE_WIDTH * 25
+    hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "f", "r"] else LANE_WIDTH * 25
     displacement = 0
 
     for nr in point_info.obj_eigs["Rijstrooknummers"]:
@@ -642,7 +648,7 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO),
+dwg = svgwrite.Drawing(filename=OUTFILE, size=(1000, 1000 * RATIO),
                        profile="full", id="svg5")  # This specific ID tag is used by JvM script
 
 # Background
