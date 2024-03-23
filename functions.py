@@ -55,7 +55,8 @@ class LijnVerwerkingsEigenschappen:
         self.sectie_afbuigend_stroomafwaarts = None
         self.start_kenmerk = {}
         self.einde_kenmerk = {}
-        self.aantal_hoofdrijstroken = None
+        self.aantal_stroken = None
+        self.aantal_hoofdstroken = None
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
 
@@ -68,7 +69,8 @@ class LijnVerwerkingsEigenschappen:
                 f"Sectie_afbuigend_stroomafwaarts={self.sectie_afbuigend_stroomafwaarts}, "
                 f"Start_kenmerk={self.start_kenmerk}, "
                 f"Einde_kenmerk={self.einde_kenmerk}, "
-                f"Aantal_hoofdrijstroken={self.aantal_hoofdrijstroken}, "
+                f"Aantal_stroken={self.aantal_stroken}, "
+                f"Aantal_hoofdstroken={self.aantal_hoofdstroken}, "
                 f"Aantal_rijstroken_links={self.aantal_rijstroken_links}, "
                 f"Aantal_rijstroken_rechts={self.aantal_rijstroken_rechts}")
 
@@ -1047,14 +1049,14 @@ class WegModel:
                     self.__get_dif_props(section_info.obj_eigs, self.sections[main_down].obj_eigs))
 
             stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                       if lane_type not in ["Puntstuk"] and isinstance(lane_nr, int)]
+                       if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
             hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
                                   if lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
             strooknummers_links = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
             strooknummers_rechts = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
 
-            section_verw_eigs.aantal_rijstroken = len(stroken)
-            section_verw_eigs.aantal_hoofdrijstroken = len(hoofdstrooknummers)
+            section_verw_eigs.aantal_stroken = len(stroken)
+            section_verw_eigs.aantal_hoofdstroken = len(hoofdstrooknummers)
             section_verw_eigs.aantal_rijstroken_links = len(strooknummers_links)
             section_verw_eigs.aantal_rijstroken_rechts = len(strooknummers_rechts)
 
@@ -1070,8 +1072,11 @@ class WegModel:
 
             # Get the local number of (main) lanes. Take the highest value if there are multiple.
             lane_info = [self.get_n_lanes(section_info.obj_eigs) for section_info in overlapping_sections.values()]
-            point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
-            point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
+
+            point_verw_eigs.aantal_hoofdstroken = max(lane_info.verw_eigs.aantal_hoofdstroken for lane_info in overlapping_sections.values())
+            # point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
+            point_verw_eigs.aantal_stroken = max(lane_info.verw_eigs.aantal_stroken for lane_info in overlapping_sections.values())
+            # point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
 
             point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 

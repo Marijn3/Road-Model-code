@@ -171,33 +171,33 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, points_info:
     return line_geom
 
 
-def move_endpoint(section_info: ObjectInfo, line_geom: LineString, other_section_id: int,
+def move_endpoint(this_section_info: ObjectInfo, line_geom: LineString, other_section_id: int,
                   point_info: ObjectInfo, change_start: bool = True):
     other_section_info = wegmodel.sections[other_section_id]
 
     angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
-    # TODO: Get rid of assumption that puntstuk is always on the left!
-    this_has_puntstuk = "Puntstuk" in section_info.obj_eigs.values()
-    other_has_puntstuk = "Puntstuk" in other_section_info.obj_eigs.values()
+    this_is_continuous = (this_section_info.obj_eigs[max([key for key in this_section_info.obj_eigs.keys() if isinstance(key, int)])] == "Puntstuk"
+                          or other_section_info.obj_eigs[1] == "Puntstuk")
+    other_is_continuous = (other_section_info.obj_eigs[max([key for key in other_section_info.obj_eigs.keys() if isinstance(key, int)])] == "Puntstuk"
+                           or this_section_info.obj_eigs[1] == "Puntstuk")
 
-    assert not (this_has_puntstuk and other_has_puntstuk),\
-        f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{section_info}\n{other_section_info}"
-    assert (this_has_puntstuk or other_has_puntstuk),\
-        f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{section_info}\n{other_section_info}"
+    assert not (this_is_continuous and other_is_continuous),\
+        f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
+    assert (this_is_continuous or other_is_continuous),\
+        f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
 
     displacement = 0
     n_lanes_largest = point_info.verw_eigs.aantal_hoofdstroken
 
-    if this_has_puntstuk:
-        n_lanes_a, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
-        n_lanes_b, _ = wegmodel.get_n_lanes(other_section_info.obj_eigs)
+    if this_is_continuous:
+        n_lanes_a = this_section_info.verw_eigs.aantal_hoofdstroken
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
 
-    if other_has_puntstuk:
-        n_lanes_a, _ = wegmodel.get_n_lanes(other_section_info.obj_eigs)
-        n_lanes_b, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
+    elif other_is_continuous:
+        n_lanes_a = other_section_info.verw_eigs.aantal_hoofdstroken
+        n_lanes_b = this_section_info.verw_eigs.aantal_hoofdstroken
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
     if change_start:
@@ -224,7 +224,7 @@ def svg_add_section(section_id: int, section_info: ObjectInfo, group_road: svgwr
 
     n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_info.obj_eigs)
 
-    n_main_lanes = section_info.verw_eigs.aantal_hoofdrijstroken
+    n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
     n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
     n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
 
@@ -252,7 +252,7 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
     # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-    marking_offsets = [(LANE_WIDTH * section_info.verw_eigs.aantal_hoofdrijstroken) / 2
+    marking_offsets = [(LANE_WIDTH * section_info.verw_eigs.aantal_hoofdstroken) / 2
                        + LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
                        - LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
