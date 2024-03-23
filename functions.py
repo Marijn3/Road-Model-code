@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.00001
+GRID_SIZE = 0.000001
 DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
@@ -1119,7 +1119,7 @@ class WegModel:
 
         stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
 
-        # If puntstuk itself, return section with same hectoletter.
+        # If puntstuk itself, return section with same hectoletter. # TODO: remove this assumption.
         if "Puntstuk" in section_info.obj_eigs.values():
             connected = [index for index, section in stream_sections.items() if
                          section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
@@ -1137,7 +1137,7 @@ class WegModel:
                 return None, None
             return connected[0], None
 
-        # If one of the other sections is puntstuk, act accordingly.
+        # If one of the other sections is puntstuk, act accordingly. # TODO: remove this assumption.
         connected = [index for index, section in stream_sections.items() if "Puntstuk" in section.obj_eigs.values()]
         diverging = [index for index, section in stream_sections.items() if "Puntstuk" not in section.obj_eigs.values()]
 
@@ -1588,14 +1588,15 @@ class MSINetwerk:
             return {None: (shift, annotation)}
 
         current_section = self.roadmodel.sections[current_section_id]
-        other_points_on_section, msis_on_section = (
-            self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream))
 
         first_iteration = False
         if annotation is None:
             first_iteration = True
             current_distance -= current_section.pos_eigs.geometrie.length
             annotation = {}
+
+        other_points_on_section, msis_on_section = (
+            self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream, first_iteration))
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
@@ -1671,7 +1672,7 @@ class MSINetwerk:
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             next_section_id = other_point.verw_eigs.uitgaande_secties[0] if downstream \
                 else other_point.verw_eigs.ingaande_secties[0]
-            if "Puntstuk" not in current_section.obj_eigs.values():
+            if "Puntstuk" not in current_section.obj_eigs.values():  # TODO: remove this assumption.
                 # This is the diverging section. Determine annotation.
                 if downstream:
                     puntstuk_section_id = list(set(other_point.verw_eigs.ingaande_secties) - {current_section_id})[0]
@@ -1721,16 +1722,26 @@ class MSINetwerk:
             return [option_continuation, option_diversion]
 
     def evaluate_section_points(self, current_section_id: int, current_km: float,
-                                travel_direction: str, downstream: bool) -> tuple[list, list]:
+                                travel_direction: str, downstream: bool, first_iteration: bool) -> tuple[list, list]:
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
-            other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
-                                       current_section_id in point_info.verw_eigs.sectie_ids
-                                       and point_info.pos_eigs.km < current_km]
+            if first_iteration:
+                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                                           current_section_id in point_info.verw_eigs.sectie_ids
+                                           and point_info.pos_eigs.km < current_km]
+            else:
+                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                                           current_section_id in point_info.verw_eigs.sectie_ids
+                                           and point_info.pos_eigs.km != current_km]
         else:
-            other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
-                                       current_section_id in point_info.verw_eigs.sectie_ids
-                                       and point_info.pos_eigs.km > current_km]
+            if first_iteration:
+                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                                           current_section_id in point_info.verw_eigs.sectie_ids
+                                           and point_info.pos_eigs.km > current_km]
+            else:
+                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                                           current_section_id in point_info.verw_eigs.sectie_ids
+                                           and point_info.pos_eigs.km != current_km]
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if
