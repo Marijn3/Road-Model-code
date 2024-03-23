@@ -6,7 +6,7 @@ import math
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen
 # Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
 # Importfouten : A2VK, Everdingen
-dfl = DataFrameLader("Bavel")
+dfl = DataFrameLader("Zuidasdok")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
@@ -76,7 +76,7 @@ def determine_gap(prop: dict) -> bool:
     Returns:
         Boolean indicating whether a gap occurs.
     """
-    lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int) and lane not in ["Puntstuk"]])
+    lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
     for lane_number in lane_numbers[:-1]:
         if lane_number + 1 not in prop.keys():
             return True
@@ -263,6 +263,12 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
     if prop[first_lane_nr] != "Vluchtstrook":
         add_markerline(line_coords, group_road)
+    # Also add puntstuk if it is the very first registration
+    if prop[first_lane_nr] == "Puntstuk":
+        if section_info.verw_eigs.vergentiepunt_start:
+            add_markerline(line_coords, group_road, "Punt_start", dir=-1)
+        elif section_info.verw_eigs.vergentiepunt_einde:
+            add_markerline(line_coords, group_road, "Punt_einde", dir=-1)
 
     # Add middle markings. All of these markings have a this_lane and a next_lane
     for lane_number in lane_numbers[:-1]:
@@ -270,14 +276,12 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
         next_lane = prop[lane_number + 1]
         line_coords = get_offset_coords(geom, marking_offsets.pop(0))
 
-        # A puntstuk is the final lane.
+        # A puntstuk that is not the first lane, is the final lane.
         if next_lane == "Puntstuk":
             if section_info.verw_eigs.vergentiepunt_start:
-                add_markerline(line_coords, group_road, "Punt_start")
+                add_markerline(line_coords, group_road, "Punt_start", dir=1)
             elif section_info.verw_eigs.vergentiepunt_einde:
-                add_markerline(line_coords, group_road, "Punt_einde")
-            # else:
-                # print(f"not found in keys of {section_data}")
+                add_markerline(line_coords, group_road, "Punt_einde", dir=1)
             break
 
         # An emergency lane is demarcated with a solid line.
@@ -313,7 +317,7 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
         add_markerline(line_coords, group_road)
 
 
-def add_markerline(coords: list[tuple], group_road: svgwrite.container.Group, linetype: str = "full"):
+def add_markerline(coords: list[tuple], group_road: svgwrite.container.Group, linetype: str = "full", dir: int = 1):
     if linetype == "Streep-3-9":
         line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=C_WHITE, stroke_width=0.4,
                                         stroke_dasharray="3 9")
@@ -328,7 +332,8 @@ def add_markerline(coords: list[tuple], group_road: svgwrite.container.Group, li
 
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
         mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
-        third_point = (triangle_end[0] + LANE_WIDTH * -vec[1] / mag, triangle_end[1] + LANE_WIDTH * vec[0] / mag)
+        third_point = (triangle_end[0] + LANE_WIDTH * dir * -vec[1] / mag,
+                       triangle_end[1] + LANE_WIDTH * dir * vec[0] / mag)
         all_points = coords + [third_point]
 
         triangle = svgwrite.shapes.Polygon(points=all_points, fill=C_WHITE)
