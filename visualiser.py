@@ -261,7 +261,7 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
 
     # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
-    if prop[first_lane_nr] != "Vluchtstrook":
+    if prop[first_lane_nr] not in ["Vluchtstrook", "Puntstuk"]:
         add_markerline(line_coords, group_road)
     # Also add puntstuk if it is the very first registration
     if prop[first_lane_nr] == "Puntstuk":
@@ -271,9 +271,12 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
             add_markerline(line_coords, group_road, "Punt_einde", dir=-1)
 
     # Add middle markings. All of these markings have a this_lane and a next_lane
-    for lane_number in lane_numbers[:-1]:
-        this_lane = prop[lane_number]
-        next_lane = prop[lane_number + 1]
+    for this_lane_number in lane_numbers[:-1]:
+        next_lane_number = this_lane_number + 1
+        
+        this_lane = prop[this_lane_number]
+        next_lane = prop[next_lane_number]
+        
         line_coords = get_offset_coords(geom, marking_offsets.pop(0))
 
         # A puntstuk that is not the first lane, is the final lane.
@@ -297,7 +300,7 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
             add_markerline(line_coords, group_road, "Streep-3-9")
 
         # A rush hour lane (on the final lane) has special lines.
-        elif next_lane == "Spitsstrook" and lane_number + 1 == last_lane_nr:
+        elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
             add_markerline(line_coords, group_road)
 
         # All other lanes are separated by dashed lines.
