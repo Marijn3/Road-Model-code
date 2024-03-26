@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.00001
+GRID_SIZE = 0.000001
 DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
@@ -348,6 +348,7 @@ class WegModel:
                      "Rijstrooksignaleringen", "Convergenties", "Divergenties"]
 
     def __init__(self, dfl: DataFrameLader):
+        self.dfl = dfl
         self.__base = {}
         self.__base_index = 0
         self.sections = {}
@@ -357,14 +358,12 @@ class WegModel:
         self.__has_base_layer = False
         self.__has_initial_layer = False
 
-        self.__import_dataframes(dfl)
+        self.__import_dataframes()
         self.__post_processing()
 
-    def __import_dataframes(self, dfl: DataFrameLader) -> None:
+    def __import_dataframes(self) -> None:
         """
         Load road attributes from all DataFrames.
-        Args:
-            dfl (DataFrameLader): DataFrameLoader class with all dataframes.
         Note:
             The "wegvakken" layer from the shivi subset of WEGGEG is the
             first layer to be imported because these statements hold for it:
@@ -378,20 +377,19 @@ class WegModel:
             current_sections = self.__section_index
             current_points = self.__point_index
 
-            self.__import_dataframe(dfl, df_name)
+            self.__import_dataframe(df_name)
 
             print(f"[STATUS:] {df_name} voegde {self.__section_index - current_sections} secties "
                   f"en {self.__point_index - current_points} punten toe aan het model.\n"
                   f"Het model heeft nu in totaal {self.__section_index} secties en {self.__point_index} punten.\n")
 
-    def __import_dataframe(self, dfl: DataFrameLader, df_name: str):
+    def __import_dataframe(self, df_name: str):
         """
         Load line and point features and their attributes from a GeoDataFrame.
         Args:
-            dfl (DataFrameLader): DataFrameLoader class with all dataframes.
             df_name (str): Name of DataFrame to be imported.
         """
-        dataframe = dfl.data[df_name]
+        dataframe = self.dfl.data[df_name]
         for index, row in dataframe.iterrows():
             feature_info = self.__extract_row_properties(row, df_name)
 
@@ -1008,6 +1006,24 @@ class WegModel:
         return overlapping_sections
 
     def __post_processing(self) -> None:
+        sections_to_remove = set()
+        for section_index, section_info in self.sections.items():
+            # Throw out sections that do not intersect the final frame.
+            if not section_info.pos_eigs.geometrie.intersects(self.dfl.extent):
+                sections_to_remove.add(section_index)
+                print(f"Throwing out section {section_index}, as it doesn't intersect the extent.")
+                continue
+
+            # Throw out sections that do not have (integer) lane numbers in the keys.
+            if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
+                sections_to_remove.add(section_index)
+                print(f"Throwing out section {section_index}, as it doesn't have integer keys.")
+                continue
+
+            print("Section that has passed:", section_info.obj_eigs)
+
+        self.__remove_sections(sections_to_remove)
+
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
             
@@ -1149,12 +1165,13 @@ class WegModel:
         section_b_info = adjacent_sections[section_b_id]
 
         section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
+        print(section_b_info.obj_eigs)
         section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
 
         a_is_continuous = (section_a_info.obj_eigs[section_a_max_lane_nr] == "Puntstuk"
-                              or section_b_info.obj_eigs[1] == "Puntstuk")
+                           or section_b_info.obj_eigs[1] == "Puntstuk")
         b_is_continuous = (section_b_info.obj_eigs[section_b_max_lane_nr] == "Puntstuk"
-                               or section_a_info.obj_eigs[1] == "Puntstuk")
+                           or section_a_info.obj_eigs[1] == "Puntstuk")
 
         if a_is_continuous:
             return section_a_id, section_b_id

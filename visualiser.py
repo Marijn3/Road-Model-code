@@ -6,7 +6,7 @@ import math
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen
 # Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
 # Importfouten : A2VK, Everdingen
-dfl = DataFrameLader("Vught")
+dfl = DataFrameLader("Zuidasdok")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
