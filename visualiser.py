@@ -1,6 +1,8 @@
 from functions import *
 import svgwrite
-import math
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__) 
 
 
 class SvgMaker:
@@ -71,18 +73,18 @@ class SvgMaker:
         self.dwg.add(self.g_background)
 
     def visualise_roads(self):
-        print("Sectiedata visualiseren...")
+        logger.info("Sectiedata visualiseren...")
         for section_id, section_info in self.wegmodel.sections.items():
             self.svg_add_section(section_id, section_info)
         self.dwg.add(self.g_road)
 
     def visualise_msis(self):
-        print("Puntdata visualiseren...")
+        logger.info("Puntdata visualiseren...")
         points = self.wegmodel.get_points_info("MSI")
         for point in points:
             self.svg_add_point(point)
 
-        print("MSI-relaties visualiseren...")
+        logger.info("MSI-relaties visualiseren...")
         self.draw_msi_relations()
         self.dwg.add(self.g_msi_relations)
 
@@ -94,7 +96,7 @@ class SvgMaker:
         # Save SVG file
         self.dwg.save(pretty=True, indent=2)
 
-        print("Visualisatie succesvol afgerond.")
+        logger.info("Visualisatie succesvol afgerond.")
 
     def get_road_color(self, prop: dict) -> str:
         """
