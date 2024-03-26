@@ -269,7 +269,7 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
 
     # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
-    if prop[first_lane_nr] not in ["Vluchtstrook", "Puntstuk"]:
+    if prop[first_lane_nr] not in ["Vluchtstrook"]:
         add_markerline(line_coords, group_road)
     # Also add puntstuk if it is the very first registration
     if prop[first_lane_nr] == "Puntstuk":
@@ -284,16 +284,23 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
         
         this_lane = prop[this_lane_number]
         next_lane = prop[next_lane_number]
-        
-        line_coords = get_offset_coords(geom, marking_offsets.pop(0))
+
+        # Puntstuk has already been drawn
+        if this_lane == "Puntstuk":
+            continue
 
         # A puntstuk that is not the first lane, is the final lane.
         if next_lane == "Puntstuk":
+            line_coords = get_offset_coords(geom, marking_offsets.pop(0))
+            add_markerline(line_coords, group_road)
             if section_info.verw_eigs.vergentiepunt_start:
                 add_markerline(line_coords, group_road, "Punt_start", dir=1)
             elif section_info.verw_eigs.vergentiepunt_einde:
                 add_markerline(line_coords, group_road, "Punt_einde", dir=1)
             break
+
+        # Puntstuk cases have been handled, now the normal cases.
+        line_coords = get_offset_coords(geom, marking_offsets.pop(0))
 
         # An emergency lane is demarcated with a solid line.
         if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
