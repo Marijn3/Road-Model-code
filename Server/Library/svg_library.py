@@ -10,6 +10,7 @@ from Data.demo2.svg_four_lane import *
 from Data.large_road_2.svg_eight_lane import *
 from Data.test.svg_test import *
 from Data.test_RHL.svg_test_RHL import *
+import xml.etree.ElementTree as ET
 
 DEFS_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 
@@ -258,6 +259,59 @@ DEFS_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 USE_TEMPATE = '''<use href="#{legend_id}"/>'''
 
 
+def toggle_visibility(svg_file, group_visibility):
+    tree = ET.parse(svg_file)
+    root = tree.getroot()
+
+    for group_id, visible in group_visibility.items():
+        # Find the group element with the specified ID
+        group = root.find(".//*[@id='{}']".format(group_id))
+
+        if group is not None:
+            group.attrib["visibility"] = "visible" if visible else "hidden"
+
+    # Specify that namespaces (ns0) should not be written out
+    ET.register_namespace('', 'http://www.w3.org/2000/svg')
+    tree.write(svg_file, xml_declaration=True, method='xml', encoding='utf-8')
+
+
+def translate_jvm_to_mtm(name_jvm: str) -> str:
+    name_jvm = name_jvm[1:-1]  # Gets rid of leading and trailing [brackets]
+    rsu, wegnummer, rijrichting_or_hecto, km_msi_nr = name_jvm.split("_")
+    km, msi_nr = km_msi_nr.split(",")
+    if rijrichting_or_hecto in ["L", "R"]:
+        return f"{wegnummer}{rijrichting_or_hecto}:{km}:{msi_nr}"
+    else:
+        return f"{wegnummer}_{rijrichting_or_hecto}:{km}:{msi_nr}"
+
+
+def determine_group_names(name_to_legend: dict) -> list:
+    group_names = []
+    for jvm_name, legend_list in name_to_legend.items():
+        mtm_name = translate_jvm_to_mtm(jvm_name)
+        for legend_name in legend_list:
+            group_names.append(f"{legend_name}[{mtm_name}]")
+    return group_names
+
+
+def createSVG_roadmodel(model, json_data):
+    results, json_data = getMyVars(model, json_data)
+    svg_file = "Server/Data/WEGGEG/road_visualization.svg"
+    with open(svg_file, "r") as file:
+        svg = file.read()
+    # TODO: Adjust svg based on json_data info!
+
+    # Add code for legend visibility toggle here. The dict below is used as id_to_image in that.
+    id_to_image = {key: value['State'] for key, value in json_data.items() if value['State'][0] != 'Blank'}
+    print("New legends:", id_to_image)
+    legends_to_activate = {name: True for name in determine_group_names(id_to_image)}
+    toggle_visibility(svg_file, legends_to_activate)
+
+    # Don't forget to remove all previous legends first,
+    # or to change (add/remove) only those that do not match with the old svg!
+    return svg, json_data
+
+
 def getMyVars(model, json_data):
     # couple model variables to svg variables
     legend_ids = {
@@ -368,18 +422,6 @@ def createSVG_test(model, json_data):
         content="".join(empty_road)
     )
 
-    return svg, json_data
-
-
-def createSVG_roadmodel(model, json_data):
-    results, json_data = getMyVars(model, json_data)
-    with open("Server/Data/WEGGEG/road_visualization.svg", "r") as file:
-        svg = file.read()
-    # TODO: Adjust svg based on json_data info!
-    # Add code for legend visibility toggle here. The dict below is used as id_to_image in that.
-    print("By MSI name:", {key: value['State'] for key, value in json_data.items() if value['State'][0] != 'Blank'})
-    # Don't forget to remove all previous legends first,
-    # or to change (add/remove) only those that do not match with the old svg!
     return svg, json_data
 
 

@@ -2,14 +2,17 @@ from functions import *
 import svgwrite
 import math
 
-dfl = DataFrameLader("Vinkeveen")
-# Gedefinieerde locaties: [Volledig correcte import] Vught, Oosterhout, Goirle, Vinkeveen
-#                         [Verwerkingsfouten] Zonzeel, Zuidasdok [Puntstuk registrations]
-#                         [Importfouten] A2VK, Bavel, Everdingen
-# dfl = DataFrameLader({"noord": 484000, "oost": 120200, "zuid": 483000, "west": 117000})
+# ========= Gedefinieerde locaties =========
+# Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen
+# Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
+# Importfouten : A2VK, Everdingen
+dfl = DataFrameLader("Vught")
+# dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
-netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
+netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relaties=True)
+
+OUTFILE = "Server/Data/WEGGEG/road_visualization.svg"
 
 # Visualiser parameters
 LANE_WIDTH = 3.5
@@ -20,11 +23,11 @@ if DISPLAY_ONROAD:
     MSIBOX_SIZE = LANE_WIDTH*0.8
     TEXT_SIZE = MSIBOX_SIZE*0.8
     VISUAL_PLAY = MSIBOX_SIZE*0.2
-    STROKE = MSIBOX_SIZE*0.07
+    BASE_STROKE = MSIBOX_SIZE * 0.07
 else:
     TEXT_SIZE = MSIBOX_SIZE*0.6
     VISUAL_PLAY = MSIBOX_SIZE*0.2
-    STROKE = MSIBOX_SIZE*0.05
+    BASE_STROKE = MSIBOX_SIZE * 0.05
 
 C_TRANSPARENT = "#6D876D"
 C_HIGHLIGHT = "dimgrey"
@@ -73,7 +76,7 @@ def determine_gap(prop: dict) -> bool:
     Returns:
         Boolean indicating whether a gap occurs.
     """
-    lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int) and lane not in ["Puntstuk"]])
+    lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
     for lane_number in lane_numbers[:-1]:
         if lane_number + 1 not in prop.keys():
             return True
@@ -111,23 +114,24 @@ def get_offset_coords(geom: LineString, offset: float = 0) -> list[tuple]:
         return get_flipped_coords(offset_geom)
 
 
-def check_point_on_line(sid: int) -> None | ObjectInfo:
+def check_points_on_line(sid: int) -> list[ObjectInfo]:
     """
     Finds a *vergence point on the section. Assumes there is at most one *vergence
     point per section. In any case, the first one encountered is returned.
     Args:
         sid (int): Section ID to search for.
     Returns:
-
+        Point info of all points on the section in a list
     """
     #
+    points_info = []
     for point_info in wegmodel.get_points_info():
         if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["Type"] not in ["Signalering"]:
-            return point_info
-    return None
+            points_info.append(point_info)
+    return points_info
 
 
-def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: ObjectInfo) -> LineString:
+def get_changed_geometry(section_id: int, section_info: ObjectInfo, points_info: list[ObjectInfo]) -> LineString:
     """
     Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
     *vergentiepunt point, and it is necessary to move it. Also adds a general property to the section
@@ -135,64 +139,67 @@ def get_changed_geometry(section_id: int, section_info: ObjectInfo, point_info: 
     Args:
         section_id (int): ID of section to be moved.
         section_info (ObjectInfo): All data of the section to be moved.
-        point_info (ObjectINfo): Data of the point where the geometry should be moved.
+        points_info (list[ObjectINfo]): Data of the points on the section where the geometry should be moved.
     Returns:
         The geometry of the section, where one of the endpoints is displaced if necessary.
     """
     line_geom = section_info.pos_eigs.geometrie
-    point_type = point_info.obj_eigs["Type"]
 
-    point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, 0.5)
-    point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, 0.5)
+    for point_info in points_info:
+        # Case by case analysis of what should be done to the line geometry.
+        point_type = point_info.obj_eigs["Type"]
 
-    # TODO: it may be possible that both the start and end of a section should be adjusted.
-    if point_type == "Splitsing" and point_is_at_line_start:
-        other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
-        change_start = True
-    elif point_type == "Samenvoeging" and point_is_at_line_end:
-        other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
-        change_start = False
-    elif point_type == "Uitvoeging" and point_is_at_line_start:
-        other_lane_id = [sid for sid in point_info.verw_eigs.uitgaande_secties if sid != section_id][0]
-        change_start = True
-    elif point_type == "Invoeging" and point_is_at_line_end:
-        other_lane_id = [sid for sid in point_info.verw_eigs.ingaande_secties if sid != section_id][0]
-        change_start = False
-    else:
-        # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
-        return line_geom
+        point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, DISTANCE_TOLERANCE)
+        point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, DISTANCE_TOLERANCE)
 
-    other_section_data = wegmodel.sections[other_lane_id]
-    return move_endpoint(section_info, other_section_data, point_info, change_start)
+        if point_type == "Splitsing" and point_is_at_line_start:
+            other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, True)
+        elif point_type == "Samenvoeging" and point_is_at_line_end:
+            other_lane_id = list(set(point_info.verw_eigs.ingaande_secties) - {section_id})[0]
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, False)
+        elif point_type == "Uitvoeging" and point_is_at_line_start:
+            other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, True)
+        elif point_type == "Invoeging" and point_is_at_line_end:
+            other_lane_id = list(set(point_info.verw_eigs.ingaande_secties) - {section_id})[0]
+            line_geom = move_endpoint(section_info, line_geom, other_lane_id, point_info, False)
+        else:
+            # This is for all cases where a section DOES connect to a *vergence point, but should not be moved.
+            continue
+
+    return line_geom
 
 
-def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
+def move_endpoint(this_section_info: ObjectInfo, line_geom: LineString, other_section_id: int,
                   point_info: ObjectInfo, change_start: bool = True):
+    other_section_info = wegmodel.sections[other_section_id]
+
     angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
-    this_has_puntstuk = "Puntstuk" in section_info.obj_eigs.values()
-    other_has_puntstuk = "Puntstuk" in other_section_info.obj_eigs.values()
+    this_is_continuous = (this_section_info.obj_eigs[max([key for key in this_section_info.obj_eigs.keys() if isinstance(key, int)])] == "Puntstuk"
+                          or other_section_info.obj_eigs[1] == "Puntstuk")
+    other_is_continuous = (other_section_info.obj_eigs[max([key for key in other_section_info.obj_eigs.keys() if isinstance(key, int)])] == "Puntstuk"
+                           or this_section_info.obj_eigs[1] == "Puntstuk")
 
-    assert not (this_has_puntstuk and other_has_puntstuk),\
-        f"Twee secties met puntstuk: {section_info}{other_section_info}"
-    assert (this_has_puntstuk or other_has_puntstuk),\
-        f"Geen sectie met puntstuk: {section_info}{other_section_info}"
+    assert not (this_is_continuous and other_is_continuous),\
+        f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
+    assert (this_is_continuous or other_is_continuous),\
+        f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
 
     displacement = 0
     n_lanes_largest = point_info.verw_eigs.aantal_hoofdstroken
 
-    if this_has_puntstuk:
-        n_lanes_a, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
-        n_lanes_b, _ = wegmodel.get_n_lanes(other_section_info.obj_eigs)
+    if this_is_continuous:
+        n_lanes_a = this_section_info.verw_eigs.aantal_hoofdstroken
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
 
-    if other_has_puntstuk:
-        n_lanes_a, _ = wegmodel.get_n_lanes(other_section_info.obj_eigs)
-        n_lanes_b, _ = wegmodel.get_n_lanes(section_info.obj_eigs)
+    elif other_is_continuous:
+        n_lanes_a = other_section_info.verw_eigs.aantal_hoofdstroken
+        n_lanes_b = this_section_info.verw_eigs.aantal_hoofdstroken
         displacement = LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
 
-    line_geom = section_info.pos_eigs.geometrie
     if change_start:
         point_to_displace = line_geom.coords[0]
     else:
@@ -207,17 +214,17 @@ def move_endpoint(section_info: ObjectInfo, other_section_info: ObjectInfo,
         return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
 
 
-def svg_add_section(section_id: int, section_info: ObjectInfo, dwg: svgwrite.Drawing):
-    point_on_line = check_point_on_line(section_id)
+def svg_add_section(section_id: int, section_info: ObjectInfo, group_road: svgwrite.container.Group):
+    points_on_line = check_points_on_line(section_id)
 
-    if point_on_line:
-        geom = get_changed_geometry(section_id, section_info, point_on_line)
+    if points_on_line:
+        geom = get_changed_geometry(section_id, section_info, points_on_line)
     else:
         geom = section_info.pos_eigs.geometrie
 
     n_main_lanes, n_total_lanes = wegmodel.get_n_lanes(section_info.obj_eigs)
 
-    n_main_lanes = section_info.verw_eigs.aantal_hoofdrijstroken
+    n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
     n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
     n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
 
@@ -232,21 +239,20 @@ def svg_add_section(section_id: int, section_info: ObjectInfo, dwg: svgwrite.Dra
     color = get_road_color(section_info.obj_eigs)
     width = LANE_WIDTH * n_total_lanes
 
-    asphalt = svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width)
-    dwg.add(asphalt)
+    group_road.add(svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
 
     should_have_marking = color in [C_ASPHALT, C_HIGHLIGHT]
 
     if should_have_marking:
-        add_lane_marking(geom, section_info, dwg)
+        add_lane_marking(geom, section_info, group_road)
 
 
-def add_lane_marking(geom: LineString, section_info: ObjectInfo, dwg: svgwrite.Drawing):
+def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svgwrite.container.Group):
     prop = section_info.obj_eigs
     lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
     # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-    marking_offsets = [(LANE_WIDTH * section_info.verw_eigs.aantal_hoofdrijstroken) / 2
+    marking_offsets = [(LANE_WIDTH * section_info.verw_eigs.aantal_hoofdstroken) / 2
                        + LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
                        - LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
@@ -255,59 +261,66 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, dwg: svgwrite.D
 
     # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
-    if prop[first_lane_nr] != "Vluchtstrook":
-        add_markerline(line_coords, dwg)
+    if prop[first_lane_nr] not in ["Vluchtstrook", "Puntstuk"]:
+        add_markerline(line_coords, group_road)
+    # Also add puntstuk if it is the very first registration
+    if prop[first_lane_nr] == "Puntstuk":
+        if section_info.verw_eigs.vergentiepunt_start:
+            add_markerline(line_coords, group_road, "Punt_start", dir=-1)
+        elif section_info.verw_eigs.vergentiepunt_einde:
+            add_markerline(line_coords, group_road, "Punt_einde", dir=-1)
 
     # Add middle markings. All of these markings have a this_lane and a next_lane
-    for lane_number in lane_numbers[:-1]:
-        this_lane = prop[lane_number]
-        next_lane = prop[lane_number + 1]
+    for this_lane_number in lane_numbers[:-1]:
+        next_lane_number = this_lane_number + 1
+        
+        this_lane = prop[this_lane_number]
+        next_lane = prop[next_lane_number]
+        
         line_coords = get_offset_coords(geom, marking_offsets.pop(0))
 
-        # A puntstuk is the final lane.
+        # A puntstuk that is not the first lane, is the final lane.
         if next_lane == "Puntstuk":
             if section_info.verw_eigs.vergentiepunt_start:
-                add_markerline(line_coords, dwg, "Punt_start")
+                add_markerline(line_coords, group_road, "Punt_start", dir=1)
             elif section_info.verw_eigs.vergentiepunt_einde:
-                add_markerline(line_coords, dwg, "Punt_einde")
-            # else:
-                # print(f"not found in keys of {section_data}")
+                add_markerline(line_coords, group_road, "Punt_einde", dir=1)
             break
 
         # An emergency lane is demarcated with a solid line.
         if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
-            add_markerline(line_coords, dwg)
+            add_markerline(line_coords, group_road)
 
         # A plus lane is demarcated with a 9-3 dashed line.
         elif this_lane == "Plusstrook":
-            add_markerline(line_coords, dwg, "Streep-9-3")
+            add_markerline(line_coords, group_road, "Streep-9-3")
 
         # If the next lane is a samenvoeging, use normal dashed lane marking.
         elif next_lane == "Samenvoeging":
-            add_markerline(line_coords, dwg, "Streep-3-9")
+            add_markerline(line_coords, group_road, "Streep-3-9")
 
         # A rush hour lane (on the final lane) has special lines.
-        elif next_lane == "Spitsstrook" and lane_number + 1 == last_lane_nr:
-            add_markerline(line_coords, dwg)
+        elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
+            add_markerline(line_coords, group_road)
 
         # All other lanes are separated by dashed lines.
         elif this_lane == next_lane:
-            add_markerline(line_coords, dwg, "Streep-3-9")
+            add_markerline(line_coords, group_road, "Streep-3-9")
 
         # If the lane types are not the same, block markings are used.
         else:
-            add_markerline(line_coords, dwg, "Blok")
+            add_markerline(line_coords, group_road, "Blok")
 
     # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
     # Spitsstrook has special lane marking.
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
     if prop[last_lane_nr] == "Spitsstrook":
-        add_markerline(line_coords, dwg, "Dun")
+        add_markerline(line_coords, group_road, "Dun")
     elif prop[last_lane_nr] not in ["Vluchtstrook", "Puntstuk"]:
-        add_markerline(line_coords, dwg)
+        add_markerline(line_coords, group_road)
 
 
-def add_markerline(coords: list[tuple], dwg: svgwrite.Drawing, linetype: str = "full"):
+def add_markerline(coords: list[tuple], group_road: svgwrite.container.Group, linetype: str = "full", dir: int = 1):
     if linetype == "Streep-3-9":
         line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=C_WHITE, stroke_width=0.4,
                                         stroke_dasharray="3 9")
@@ -322,11 +335,12 @@ def add_markerline(coords: list[tuple], dwg: svgwrite.Drawing, linetype: str = "
 
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
         mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
-        third_point = (triangle_end[0] + LANE_WIDTH * -vec[1] / mag, triangle_end[1] + LANE_WIDTH * vec[0] / mag)
+        third_point = (triangle_end[0] + LANE_WIDTH * dir * -vec[1] / mag,
+                       triangle_end[1] + LANE_WIDTH * dir * vec[0] / mag)
         all_points = coords + [third_point]
 
         triangle = svgwrite.shapes.Polygon(points=all_points, fill=C_WHITE)
-        dwg.add(triangle)
+        group_road.add(triangle)
 
         line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=C_WHITE, stroke_width=0.4)
 
@@ -336,7 +350,7 @@ def add_markerline(coords: list[tuple], dwg: svgwrite.Drawing, linetype: str = "
     else:
         line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=C_WHITE, stroke_width=0.4)
 
-    dwg.add(line)
+    group_road.add(line)
 
 
 def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing):
@@ -356,7 +370,7 @@ def svg_add_point(point_info: ObjectInfo, dwg: svgwrite.Drawing):
 
 def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float, dwg: svgwrite.Drawing):
     group_msi_row = svgwrite.container.Group()
-    hecto_offset = 0 if not point_info.pos_eigs.hectoletter else LANE_WIDTH * 25
+    hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "f", "h"] else LANE_WIDTH * 25
     displacement = 0
 
     for nr in point_info.obj_eigs["Rijstrooknummers"]:
@@ -365,7 +379,7 @@ def display_MSI_roadside(point_info: ObjectInfo, coords: tuple, info_offset: flo
         box_pos = (coords[0] + displacement, coords[1] - MSIBOX_SIZE / 2)
         square = dwg.rect(insert=box_pos,
                           size=(MSIBOX_SIZE, MSIBOX_SIZE),
-                          fill="#1e1b17", stroke="black", stroke_width=STROKE,
+                          fill="#1e1b17", stroke="black", stroke_width=BASE_STROKE,
                           onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                           onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
         group_msi_row.add(square)
@@ -437,28 +451,28 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
 
     group_50 = group_msi_row.add(dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
     group_50.add(svgwrite.text.Text(
-        "50", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "50", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_70 = group_msi_row.add(dwg.g(id=f"g[{msi_name}]", visibility="hidden"))
     group_70.add(svgwrite.text.Text(
-        "70", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "70", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_80 = group_msi_row.add(dwg.g(id=f"h[{msi_name}]", visibility="hidden"))
     group_80.add(svgwrite.text.Text(
-        "80", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "80", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_90 = group_msi_row.add(dwg.g(id=f"i[{msi_name}]", visibility="hidden"))
     group_90.add(svgwrite.text.Text(
-        "90", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "90", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        text_anchor="middle", dominant_baseline="middle"))
 
     group_100 = group_msi_row.add(dwg.g(id=f"j[{msi_name}]", visibility="hidden"))
     group_100.add(svgwrite.text.Text(
-        "100", insert=center_coords, fill="white", font_family="Courier New", font_size=box_size*0.60,
-        text_anchor="middle", dominant_baseline="central"))
+        "100", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+        letter_spacing="-0.5", text_anchor="middle", dominant_baseline="middle"))
 
     group_overruling_blank = group_msi_row.add(dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
     group_overruling_blank.add(dwg.rect(insert=box_coords,
@@ -469,71 +483,71 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
     group_red_cross.add(dwg.line(
         start=(box_west + clearance, box_north + clearance),
         end=(box_east - clearance, box_south - clearance),
-        stroke="#FF0000", stroke_width=STROKE))  # \
+        stroke="#FF0000", stroke_width=BASE_STROKE))  # \
     group_red_cross.add(dwg.line(
         start=(box_east - clearance, box_north + clearance),
         end=(box_west + clearance, box_south - clearance),
-        stroke="#FF0000", stroke_width=STROKE))  # /
+        stroke="#FF0000", stroke_width=BASE_STROKE))  # /
 
     group_green_arrow = group_msi_row.add(dwg.g(id=f"y[{msi_name}]", visibility="hidden"))
     group_green_arrow.add(dwg.line(
         start=(box_west + box_size / 2, box_north + clearance / 2),
         end=(box_west + box_size / 2, box_south - clearance * 1.5),
-        stroke="#00FF00", stroke_width=STROKE))  # |
+        stroke="#00FF00", stroke_width=BASE_STROKE))  # |
     group_green_arrow.add(dwg.line(
-        start=(box_west + box_size / 2 + math.sqrt(STROKE / 2) / 2, box_south - clearance / 2),
-        end=(box_west + clearance + math.sqrt(STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
-        stroke="#00FF00", stroke_width=STROKE))  # \
+        start=(box_west + box_size / 2 + math.sqrt(BASE_STROKE / 2) / 2, box_south - clearance / 2),
+        end=(box_west + clearance + math.sqrt(BASE_STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
+        stroke="#00FF00", stroke_width=BASE_STROKE))  # \
     group_green_arrow.add(dwg.line(
-        start=(box_west + box_size / 2 - math.sqrt(STROKE / 2) / 2, box_south - clearance / 2),
-        end=(box_east - clearance - math.sqrt(STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
-        stroke="#00FF00", stroke_width=STROKE))  # /
+        start=(box_west + box_size / 2 - math.sqrt(BASE_STROKE / 2) / 2, box_south - clearance / 2),
+        end=(box_east - clearance - math.sqrt(BASE_STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
+        stroke="#00FF00", stroke_width=BASE_STROKE))  # /
 
     group_left_arrow = group_msi_row.add(dwg.g(id=f"l[{msi_name}]", visibility="hidden"))
     group_left_arrow.add(dwg.line(
-        start=(box_west + clearance - STROKE / 2, box_south - clearance),
+        start=(box_west + clearance - BASE_STROKE / 2, box_south - clearance),
         end=(box_east - clearance * 1.75, box_south - clearance),
-        stroke="#FFFFFF", stroke_width=STROKE))  # _
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))  # _
     group_left_arrow.add(dwg.line(
-        start=(box_west + clearance, box_south - clearance + STROKE / 2),
+        start=(box_west + clearance, box_south - clearance + BASE_STROKE / 2),
         end=(box_west + clearance, box_north + clearance * 1.75),
-        stroke="#FFFFFF", stroke_width=STROKE))  # |
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))  # |
     group_left_arrow.add(dwg.line(
         start=(box_east - clearance, box_north + clearance),
         end=(box_west + clearance * 1.5, box_south - clearance * 1.5),
-        stroke="#FFFFFF", stroke_width=STROKE))  # /
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))  # /
 
     group_right_arrow = group_msi_row.add(dwg.g(id=f"r[{msi_name}]", visibility="hidden"))
     group_right_arrow.add(dwg.line(
-        start=(box_east - clearance + STROKE / 2, box_south - clearance),
+        start=(box_east - clearance + BASE_STROKE / 2, box_south - clearance),
         end=(box_west + clearance * 1.75, box_south - clearance),
-        stroke="#FFFFFF", stroke_width=STROKE))  # _
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))  # _
     group_right_arrow.add(dwg.line(
-        start=(box_east - clearance, box_south - clearance + STROKE / 2),
+        start=(box_east - clearance, box_south - clearance + BASE_STROKE / 2),
         end=(box_east - clearance, box_north + clearance * 1.75),
-        stroke="#FFFFFF", stroke_width=STROKE))  # |
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))  # |
     group_right_arrow.add(dwg.line(
         start=(box_west + clearance, box_north + clearance),
         end=(box_east - clearance * 1.5, box_south - clearance * 1.5),
-        stroke="#FFFFFF", stroke_width=STROKE))  # \
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))  # \
 
     group_eor = group_msi_row.add(dwg.g(id=f"z[{msi_name}]", visibility="hidden"))
     group_eor.add(dwg.circle(
         center=center_coords,
         r=box_size * 0.45,
-        fill="none", stroke="#FFFFFF", stroke_width=STROKE))
+        fill="none", stroke="#FFFFFF", stroke_width=BASE_STROKE))
     group_eor.add(dwg.line(
-        start=(box_east - clearance - STROKE * 1.5, box_north + clearance - STROKE * 1.5),
-        end=(box_west + clearance - STROKE * 1.5, box_south - clearance - STROKE * 1.5),
-        stroke="#FFFFFF", stroke_width=STROKE))
+        start=(box_east - clearance - BASE_STROKE * 1.5, box_north + clearance - BASE_STROKE * 1.5),
+        end=(box_west + clearance - BASE_STROKE * 1.5, box_south - clearance - BASE_STROKE * 1.5),
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))
     group_eor.add(dwg.line(
         start=(box_east - clearance, box_north + clearance),
         end=(box_west + clearance, box_south - clearance),
-        stroke="#FFFFFF", stroke_width=STROKE))
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))
     group_eor.add(dwg.line(
-        start=(box_east - clearance + STROKE * 1.5, box_north + clearance + STROKE * 1.5),
-        end=(box_west + clearance + STROKE * 1.5, box_south - clearance + STROKE * 1.5),
-        stroke="#FFFFFF", stroke_width=STROKE))
+        start=(box_east - clearance + BASE_STROKE * 1.5, box_north + clearance + BASE_STROKE * 1.5),
+        end=(box_west + clearance + BASE_STROKE * 1.5, box_south - clearance + BASE_STROKE * 1.5),
+        stroke="#FFFFFF", stroke_width=BASE_STROKE))
 
     group_flashers = group_msi_row.add(dwg.g(id=f"a[{msi_name}]", visibility="hidden"))
     group_flashers.add(dwg.circle(
@@ -560,11 +574,10 @@ def draw_all_legends(group_msi_row: svgwrite.container.Group, msi_name: str,
     group_red_ring.add(dwg.circle(
         center=center_coords,
         r=box_size * 0.40,
-        fill="none", stroke="#FF0000", stroke_width=STROKE))
+        fill="none", stroke="#FF0000", stroke_width=BASE_STROKE))
 
 
-def display_vergence(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float,
-                     dwg: svgwrite.Drawing):
+def display_vergence(point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
     group_vergence = svgwrite.container.Group()
 
     text = svgwrite.text.Text(f"{point_info.pos_eigs.km} {point_info.obj_eigs['Type']}",
@@ -576,7 +589,7 @@ def display_vergence(point_info: ObjectInfo, coords: tuple, info_offset: float, 
     dwg.add(group_vergence)
 
 
-def draw_msi_relations(dwg: svgwrite.Drawing):
+def draw_msi_relations(group_msi_relations: svgwrite.container.Group):
     # Draw primary relations
     for element_id in element_by_id.keys():
         start_element, start_rotation, start_origin = element_by_id[element_id]
@@ -587,30 +600,31 @@ def draw_msi_relations(dwg: svgwrite.Drawing):
                     if msi.properties["d"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["d"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        draw_msi_relation("p", start_pos, end_pos, dwg)
+                        draw_msi_relation("p", start_pos, end_pos, group_msi_relations)
                     if msi.properties["ds"]:
                         for end_id in msi.properties["ds"]:
                             end_element, end_rotation, end_origin = element_by_id[end_id]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                            draw_msi_relation("s", start_pos, end_pos, dwg)
+                            draw_msi_relation("s", start_pos, end_pos, group_msi_relations)
                     if msi.properties["dt"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["dt"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        draw_msi_relation("t", start_pos, end_pos, dwg)
+                        draw_msi_relation("t", start_pos, end_pos, group_msi_relations)
                     if msi.properties["db"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["db"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        draw_msi_relation("b", start_pos, end_pos, dwg)
+                        draw_msi_relation("b", start_pos, end_pos, group_msi_relations)
                     if msi.properties["dn"]:
                         end_element, end_rotation, end_origin = element_by_id[msi.properties["dn"]]
                         end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                        draw_msi_relation("n", start_pos, end_pos, dwg)
+                        draw_msi_relation("n", start_pos, end_pos, group_msi_relations)
 
 
-def draw_msi_relation(rel_type: str, start_pos: tuple, end_pos: tuple, dwg: svgwrite.Drawing):
-    dwg.add(dwg.line(start=start_pos, end=end_pos, stroke=COLORMAP[rel_type], stroke_width=STROKE*2))
-    dwg.add(dwg.circle(center=start_pos, r=STROKE*4, fill=COLORMAP[rel_type]))
-    dwg.add(dwg.circle(center=end_pos, r=STROKE*4, fill=COLORMAP[rel_type]))
+def draw_msi_relation(rel_type: str, start_pos: tuple, end_pos: tuple, group_msi_relations: svgwrite.container.Group):
+    group_msi_relations.add(svgwrite.shapes.Line(start=start_pos, end=end_pos,
+                                                 stroke=COLORMAP[rel_type], stroke_width=BASE_STROKE * 2))
+    group_msi_relations.add(svgwrite.shapes.Circle(center=start_pos, r=BASE_STROKE * 4, fill=COLORMAP[rel_type]))
+    group_msi_relations.add(svgwrite.shapes.Circle(center=end_pos, r=BASE_STROKE * 4, fill=COLORMAP[rel_type]))
 
 
 def get_center_coords(element, angle_degrees, origin):
@@ -642,25 +656,32 @@ def make_text_hecto(km: float, letter: str | None) -> str:
 
 
 # Create SVG drawing
-dwg = svgwrite.Drawing(filename="Server/Data/WEGGEG/road_visualization.svg", size=(1000, 1000 * RATIO), profile="full")
+dwg = svgwrite.Drawing(filename=OUTFILE, size=(1000, 1000 * RATIO),
+                       profile="full", id="svg5")  # This specific ID tag is used by JvM script
 
 # Background
-dwg.add(dwg.rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
+group_background = svgwrite.container.Group(id="background")
+group_background.add(dwg.rect(insert=(TOP_LEFT_X, TOP_LEFT_Y), size=(VIEWBOX_WIDTH, VIEWBOX_HEIGHT), fill="green"))
+dwg.add(group_background)
 
 # Section data (roads)
 print("Sectiedata visualiseren...")
+group_road = svgwrite.container.Group(id="road")
 for section_id, section_info in wegmodel.sections.items():
-    svg_add_section(section_id, section_info, dwg)
+    svg_add_section(section_id, section_info, group_road)
+dwg.add(group_road)
 
 # Point data (MSIs, convergence, divergence)
 print("Puntdata visualiseren...")
-points = wegmodel.get_points_info()  # Specify "MSI" here when *vergence points no longer desired to visualise.
+points = wegmodel.get_points_info("MSI")  # Specify "MSI" here when *vergence points no longer desired to visualise.
 for point in points:
     svg_add_point(point, dwg)
 
 # MSI relations
 print("MSI-relaties visualiseren...")
-draw_msi_relations(dwg)
+group_msi_relations = svgwrite.container.Group(id="nametags_MSI")  # This tag is used to disable/enable based on button
+draw_msi_relations(group_msi_relations)
+dwg.add(group_msi_relations)
 
 # viewBox
 dwg.viewbox(minx=TOP_LEFT_X, miny=TOP_LEFT_Y, width=VIEWBOX_WIDTH, height=VIEWBOX_HEIGHT)
