@@ -50,9 +50,6 @@ class SvgMaker:
         # Dictionary to store squares by ID
         self.element_by_id = {}
 
-        # TODO: Make publicly available current section info?
-        # self.current_section_info = {}
-
         self.dwg = svgwrite.Drawing()
         self.g_background = svgwrite.container.Group(id="background")
         self.g_road = svgwrite.container.Group(id="road")
@@ -290,9 +287,9 @@ class SvgMaker:
         should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT]
 
         if should_have_marking:
-            self.add_lane_marking(geom, section_info)
+            self.draw_lane_marking(geom, section_info)
 
-    def add_lane_marking(self, geom: LineString, section_info: ObjectInfo):
+    def draw_lane_marking(self, geom: LineString, section_info: ObjectInfo):
         prop = section_info.obj_eigs
         lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
 
@@ -312,13 +309,13 @@ class SvgMaker:
         # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
         line_coords = self.get_offset_coords(geom, marking_offsets.pop(0))
         if prop[first_lane_nr] not in ["Vluchtstrook"]:
-            self.add_markerline(line_coords)
+            self.draw_markerline(line_coords)
         # Also add puntstuk if it is the very first registration
         if prop[first_lane_nr] == "Puntstuk":
             if section_info.verw_eigs.vergentiepunt_start:
-                self.add_markerline(line_coords, "Punt_start", dir=-1)
+                self.draw_markerline(line_coords, "Punt_start", direction=-1)
             elif section_info.verw_eigs.vergentiepunt_einde:
-                self.add_markerline(line_coords, "Punt_einde", dir=-1)
+                self.draw_markerline(line_coords, "Punt_einde", direction=-1)
 
         # Add middle markings. All of these markings have a this_lane and a next_lane
         for this_lane_number in lane_numbers[:-1]:
@@ -334,11 +331,11 @@ class SvgMaker:
             # A puntstuk that is not the first lane, is the final lane.
             if next_lane == "Puntstuk":
                 line_coords = self.get_offset_coords(geom, marking_offsets.pop(0))
-                self.add_markerline(line_coords)
+                self.draw_markerline(line_coords)
                 if section_info.verw_eigs.vergentiepunt_start:
-                    self.add_markerline(line_coords, "Punt_start", dir=1)
+                    self.draw_markerline(line_coords, "Punt_start", direction=1)
                 elif section_info.verw_eigs.vergentiepunt_einde:
-                    self.add_markerline(line_coords, "Punt_einde", dir=1)
+                    self.draw_markerline(line_coords, "Punt_einde", direction=1)
                 break
 
             # Puntstuk cases have been handled, now the normal cases.
@@ -346,73 +343,75 @@ class SvgMaker:
 
             # An emergency lane is demarcated with a solid line.
             if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
-                self.add_markerline(line_coords)
+                self.draw_markerline(line_coords)
 
             # A plus lane is demarcated with a 9-3 dashed line.
             elif this_lane == "Plusstrook":
-                self.add_markerline(line_coords, "Streep-9-3")
+                self.draw_markerline(line_coords, "Streep-9-3")
 
             # If the next lane is a samenvoeging, use normal dashed lane marking.
             elif next_lane == "Samenvoeging":
-                self.add_markerline(line_coords, "Streep-3-9")
+                self.draw_markerline(line_coords, "Streep-3-9")
 
             # A rush hour lane (on the final lane) has special lines.
             elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
-                self.add_markerline(line_coords)
+                self.draw_markerline(line_coords)
 
             # All other lanes are separated by dashed lines.
             elif this_lane == next_lane:
-                self.add_markerline(line_coords, "Streep-3-9")
+                self.draw_markerline(line_coords, "Streep-3-9")
 
             # If the lane types are not the same, block markings are used.
             else:
-                self.add_markerline(line_coords, "Blok")
+                self.draw_markerline(line_coords, "Blok")
 
         # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
         # Spitsstrook has special lane marking.
         line_coords = self.get_offset_coords(geom, marking_offsets.pop(0))
         if next_lane == "Spitsstrook":
-            self.add_markerline(line_coords, "Dun")
+            self.draw_markerline(line_coords, "Dun")
         elif next_lane not in ["Vluchtstrook", "Puntstuk"]:
-            self.add_markerline(line_coords)
+            self.draw_markerline(line_coords)
 
-    def add_markerline(self, coords: list[tuple], linetype: str = "full", dir: int = 1):
-        # TODO: This function can be improved / split up.
+    def draw_markerline(self, coords: list[tuple], linetype: str = "full", direction: int = 1):
         if linetype == "Streep-3-9":
-            line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=0.4,
-                                            stroke_dasharray="3 9")
+            self.draw_line(coords, 0.4, "3 9")
         elif linetype == "Streep-9-3":
-            line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=0.4,
-                                            stroke_dasharray="9 3")
+            self.draw_line(coords, 0.4, "9 3")
         elif linetype == "Blok":
-            line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=0.6,
-                                            stroke_dasharray="0.8 4")
+            self.draw_line(coords, 0.6, "0.8 4")
         elif linetype == "Punt_start" or linetype == "Punt_einde":
-            triangle_end = coords[-1] if linetype == "Punt_start" else coords[0]
-
-            vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
-            mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
-            third_point = (triangle_end[0] + self.LANE_WIDTH * dir * -vec[1] / mag,
-                           triangle_end[1] + self.LANE_WIDTH * dir * vec[0] / mag)
-            all_points = coords + [third_point]
-
-            triangle = svgwrite.shapes.Polygon(points=all_points, fill=self.__C_WHITE)
-            self.g_road.add(triangle)
-
-            line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=0.4)
-
+            self.draw_triangle(coords, linetype, direction)
+            self.draw_line(coords, 0.4)
         elif linetype == "Dun":
-            line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=0.2)
-
+            self.draw_line(coords, 0.2)
         else:
-            line = svgwrite.shapes.Polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=0.4)
+            self.draw_line(coords, 0.4)
 
+    def draw_line(self, coords: list[tuple], width: float, dasharray: str = ""):
+        if dasharray:
+            line = self.dwg.polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=width,
+                                     stroke_dasharray=dasharray)
+        else:
+            line = self.dwg.polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=width)
         self.g_road.add(line)
+
+    def draw_triangle(self, coords: list[tuple], linetype: str, direction: int = 1):
+        triangle_end = coords[-1] if linetype == "Punt_start" else coords[0]
+
+        vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
+        mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
+        third_point = (triangle_end[0] + self.LANE_WIDTH * direction * -vec[1] / mag,
+                       triangle_end[1] + self.LANE_WIDTH * direction * vec[0] / mag)
+        all_points = coords + [third_point]
+
+        triangle = self.dwg.polygon(points=all_points, fill=self.__C_WHITE)
+        self.g_road.add(triangle)
 
     def svg_add_point(self, point_info: ObjectInfo):
         coords = self.get_flipped_coords(point_info.pos_eigs.geometrie)[0]
         info_offset = self.LANE_WIDTH * (point_info.verw_eigs.aantal_stroken +
-                                    (point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken)) / 2
+                      (point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken)) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
         if point_info.obj_eigs["Type"] == "Signalering":
