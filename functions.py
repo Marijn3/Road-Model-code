@@ -1136,12 +1136,10 @@ class WegModel:
             point_verw_eigs.sectie_ids = sections_near_point
 
             # Get the local number of (main) lanes. Take the highest value if there are multiple.
-            lane_info = [self.get_n_lanes(section_info.obj_eigs) for section_info in overlapping_sections.values()]
-
-            point_verw_eigs.aantal_hoofdstroken = max(lane_info.verw_eigs.aantal_hoofdstroken for lane_info in overlapping_sections.values())
-            # point_verw_eigs.aantal_hoofdstroken = max(lane_info, key=lambda x: x[0])[0]
-            point_verw_eigs.aantal_stroken = max(lane_info.verw_eigs.aantal_stroken for lane_info in overlapping_sections.values())
-            # point_verw_eigs.aantal_stroken = max(lane_info, key=lambda x: x[1])[1]
+            point_verw_eigs.aantal_stroken = (
+                max(lane_info.verw_eigs.aantal_stroken for lane_info in overlapping_sections.values()))
+            point_verw_eigs.aantal_hoofdstroken = (
+                max(lane_info.verw_eigs.aantal_hoofdstroken for lane_info in overlapping_sections.values()))
 
             point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 

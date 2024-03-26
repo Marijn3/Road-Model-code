@@ -32,7 +32,7 @@ class SvgMaker:
 
         if onroad:
             self.MSIBOX_SIZE = self.LANE_WIDTH * 0.8
-            self.TEXT_SIZE = self.MSIBOX_SIZE * 0.8
+            self.TEXT_SIZE = max(4.0, self.MSIBOX_SIZE * 0.8)
             self.VISUAL_PLAY = self.MSIBOX_SIZE * 0.2
             self.BASE_STROKE = self.MSIBOX_SIZE * 0.07
         else:
@@ -50,23 +50,18 @@ class SvgMaker:
         # Dictionary to store squares by ID
         self.element_by_id = {}
 
-        self.dwg = svgwrite.Drawing()
-        self.g_background = svgwrite.container.Group(id="background")
-        self.g_road = svgwrite.container.Group(id="road")
+        # Create instances for visualisation
+        self.dwg = self.dwg = svgwrite.Drawing(filename=self.outfile, size=(self.size, self.size * self.RATIO),
+                                               profile="full", id="svg5")  # This specific ID tag is used by JvM script
+        self.g_background = self.dwg.g(id="background")
+        self.g_road = self.dwg.g(id="road")
+        self.g_msi_relations = self.dwg.g(id="nametags_MSI")  # This tag is used in user interface
 
-        self.adjust_image_settings()
+        # Visualise the image part by part
         self.visualise_background()
         self.visualise_roads()
         self.visualise_msis()
         self.save_image()
-
-    def adjust_image_settings(self):
-        # Create SVG drawing
-        self.dwg = svgwrite.Drawing(filename=self.outfile, size=(self.size, self.size * self.RATIO),
-                                    profile="full", id="svg5")  # This specific ID tag is used by JvM script
-        # Adjust viewbox
-        self.dwg.viewbox(minx=self.TOP_LEFT_X, miny=self.TOP_LEFT_Y, width=self.VIEWBOX_WIDTH,
-                         height=self.VIEWBOX_HEIGHT)
 
     def visualise_background(self):
         # Background
@@ -88,11 +83,14 @@ class SvgMaker:
             self.svg_add_point(point)
 
         print("MSI-relaties visualiseren...")
-        g_msi_relations = svgwrite.container.Group(id="nametags_MSI")  # This tag is used to disable/enable based on button
-        self.draw_msi_relations(g_msi_relations)
-        self.dwg.add(g_msi_relations)
+        self.draw_msi_relations()
+        self.dwg.add(self.g_msi_relations)
 
     def save_image(self):
+        # Adjust viewbox
+        self.dwg.viewbox(minx=self.TOP_LEFT_X, miny=self.TOP_LEFT_Y, width=self.VIEWBOX_WIDTH,
+                         height=self.VIEWBOX_HEIGHT)
+
         # Save SVG file
         self.dwg.save(pretty=True, indent=2)
 
@@ -423,7 +421,7 @@ class SvgMaker:
             self.display_vergence(point_info, coords, info_offset, rotate_angle)
 
     def display_MSI_roadside(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
-        group_msi_row = svgwrite.container.Group()
+        g_msi_row = self.dwg.g()
         hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "f", "h"] else self.LANE_WIDTH * 25
         displacement = 0
 
@@ -432,29 +430,22 @@ class SvgMaker:
             displacement = info_offset + self.VISUAL_PLAY + (nr - 1) * (self.VISUAL_PLAY + self.MSIBOX_SIZE) + hecto_offset
             box_pos = (coords[0] + displacement, coords[1] - self.MSIBOX_SIZE / 2)
             square = self.draw_msi(box_pos)
-            group_msi_row.add(square)
+            g_msi_row.add(square)
             self.element_by_id[msi_name] = square, rotate_angle, coords
 
             # Extra elements
             box_center = (coords[0] + displacement + self.MSIBOX_SIZE / 2, coords[1])
-            self.draw_all_legends(group_msi_row, msi_name, box_pos, box_center, self.MSIBOX_SIZE)
+            self.draw_all_legends(g_msi_row, msi_name, box_pos, box_center, self.MSIBOX_SIZE)
 
-        group_text = svgwrite.container.Group()
         text_coords = (coords[0] + displacement + self.MSIBOX_SIZE * 1.3, coords[1])
-        anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
-        text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km, point_info.pos_eigs.hectoletter),
-                                  insert=text_coords,
-                                  fill="white", font_family="Arial", dominant_baseline="central",
-                                  text_anchor=anchorpoint, font_size=self.TEXT_SIZE)
-        group_text.add(text)
-        group_text.rotate(-rotate_angle, center=text_coords)
-
-        group_msi_row.add(group_text)
-        group_msi_row.rotate(rotate_angle, center=coords)
-        self.dwg.add(group_msi_row)
+        
+        g_msi_text = self.draw_msi_text(point_info, text_coords, rotate_angle)
+        g_msi_row.add(g_msi_text)
+        g_msi_row.rotate(rotate_angle, center=coords)
+        self.dwg.add(g_msi_row)
 
     def display_MSI_onroad(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
-        group_msi_row = svgwrite.container.Group()
+        g_msi_row = self.dwg.g()
         play = (self.LANE_WIDTH - self.MSIBOX_SIZE)/2
         displacement = 0
 
@@ -463,26 +454,19 @@ class SvgMaker:
             displacement = self.LANE_WIDTH * (nr - 1) - point_info.verw_eigs.aantal_hoofdstroken * self.LANE_WIDTH / 2
             box_pos = (coords[0] + displacement + play, coords[1] - self.MSIBOX_SIZE / 2)
             square = self.draw_msi(box_pos)
-            group_msi_row.add(square)
+            g_msi_row.add(square)
             self.element_by_id[msi_name] = square, rotate_angle, coords
 
             # Extra elements
             box_center = (coords[0] + displacement + play + self.MSIBOX_SIZE / 2, coords[1])
-            self.draw_all_legends(group_msi_row, msi_name, box_pos, box_center, self.MSIBOX_SIZE)
+            self.draw_all_legends(g_msi_row, msi_name, box_pos, box_center, self.MSIBOX_SIZE)
 
-        group_text = svgwrite.container.Group()
         text_coords = (coords[0] + 2 + displacement + self.MSIBOX_SIZE, coords[1])
-        anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
-        text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km, point_info.pos_eigs.hectoletter),
-                                  insert=text_coords,
-                                  fill="white", font_family="Arial", dominant_baseline="central",
-                                  text_anchor=anchorpoint, font_size=max(4.0, self.MSIBOX_SIZE*0.8))
-        group_text.add(text)
-        group_text.rotate(-rotate_angle, center=text_coords)
-
-        group_msi_row.add(group_text)
-        group_msi_row.rotate(rotate_angle, center=coords)
-        self.dwg.add(group_msi_row)
+        
+        g_msi_text = self.draw_msi_text(point_info, text_coords, rotate_angle)
+        g_msi_row.add(g_msi_text)
+        g_msi_row.rotate(rotate_angle, center=coords)
+        self.dwg.add(g_msi_row)
 
     def draw_msi(self, box_pos):
         return self.dwg.rect(insert=box_pos,
@@ -490,8 +474,20 @@ class SvgMaker:
                              fill="#1e1b17", stroke="black", stroke_width=self.BASE_STROKE,
                              onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                              onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+    
+    def draw_msi_text(self, point_info, text_coords, rotate_angle):
+        g_text = self.dwg.g()
+        anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
+        text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km,
+                                                  point_info.pos_eigs.rijrichting,
+                                                  point_info.pos_eigs.hectoletter),
+                                  insert=text_coords, text_anchor=anchorpoint, font_size=self.TEXT_SIZE,
+                                  fill="white", font_family="Arial", dominant_baseline="central")        
+        g_text.add(text)
+        g_text.rotate(-rotate_angle, center=text_coords)
+        return g_text
 
-    def draw_all_legends(self, group_msi_row: svgwrite.container.Group, msi_name: str,
+    def draw_all_legends(self, g_msi_row: svgwrite.container.Group, msi_name: str,
                          box_coords: tuple, center_coords: tuple, box_size: float):
         box_west = box_coords[0]
         box_north = box_coords[1]
@@ -499,141 +495,141 @@ class SvgMaker:
         box_south = box_north + box_size
         clearance = box_size*0.2
 
-        group_50 = group_msi_row.add(self.dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
-        group_50.add(svgwrite.text.Text(
+        g_50 = g_msi_row.add(self.dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
+        g_50.add(svgwrite.text.Text(
             "50", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
-        group_70 = group_msi_row.add(self.dwg.g(id=f"g[{msi_name}]", visibility="hidden"))
-        group_70.add(svgwrite.text.Text(
+        g_70 = g_msi_row.add(self.dwg.g(id=f"g[{msi_name}]", visibility="hidden"))
+        g_70.add(svgwrite.text.Text(
             "70", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
-        group_80 = group_msi_row.add(self.dwg.g(id=f"h[{msi_name}]", visibility="hidden"))
-        group_80.add(svgwrite.text.Text(
+        g_80 = g_msi_row.add(self.dwg.g(id=f"h[{msi_name}]", visibility="hidden"))
+        g_80.add(svgwrite.text.Text(
             "80", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
-        group_90 = group_msi_row.add(self.dwg.g(id=f"i[{msi_name}]", visibility="hidden"))
-        group_90.add(svgwrite.text.Text(
+        g_90 = g_msi_row.add(self.dwg.g(id=f"i[{msi_name}]", visibility="hidden"))
+        g_90.add(svgwrite.text.Text(
             "90", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
-        group_100 = group_msi_row.add(self.dwg.g(id=f"j[{msi_name}]", visibility="hidden"))
-        group_100.add(svgwrite.text.Text(
+        g_100 = g_msi_row.add(self.dwg.g(id=f"j[{msi_name}]", visibility="hidden"))
+        g_100.add(svgwrite.text.Text(
             "100", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             letter_spacing="-0.5", text_anchor="middle", dominant_baseline="middle"))
 
-        group_overruling_blank = group_msi_row.add(self.dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
-        group_overruling_blank.add(self.dwg.rect(insert=box_coords,
+        g_overruling_blank = g_msi_row.add(self.dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
+        g_overruling_blank.add(self.dwg.rect(insert=box_coords,
                                             size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
                                             fill="#1e1b17", stroke="none"))
 
-        group_red_cross = group_msi_row.add(self.dwg.g(id=f"x[{msi_name}]", visibility="hidden"))
-        group_red_cross.add(self.dwg.line(
+        g_red_cross = g_msi_row.add(self.dwg.g(id=f"x[{msi_name}]", visibility="hidden"))
+        g_red_cross.add(self.dwg.line(
             start=(box_west + clearance, box_north + clearance),
             end=(box_east - clearance, box_south - clearance),
             stroke="#FF0000", stroke_width=self.BASE_STROKE))  # \
-        group_red_cross.add(self.dwg.line(
+        g_red_cross.add(self.dwg.line(
             start=(box_east - clearance, box_north + clearance),
             end=(box_west + clearance, box_south - clearance),
             stroke="#FF0000", stroke_width=self.BASE_STROKE))  # /
 
-        group_green_arrow = group_msi_row.add(self.dwg.g(id=f"y[{msi_name}]", visibility="hidden"))
-        group_green_arrow.add(self.dwg.line(
+        g_green_arrow = g_msi_row.add(self.dwg.g(id=f"y[{msi_name}]", visibility="hidden"))
+        g_green_arrow.add(self.dwg.line(
             start=(box_west + box_size / 2, box_north + clearance / 2),
             end=(box_west + box_size / 2, box_south - clearance * 1.5),
             stroke="#00FF00", stroke_width=self.BASE_STROKE))  # |
-        group_green_arrow.add(self.dwg.line(
+        g_green_arrow.add(self.dwg.line(
             start=(box_west + box_size / 2 + math.sqrt(self.BASE_STROKE / 2) / 2, box_south - clearance / 2),
             end=(box_west + clearance + math.sqrt(self.BASE_STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
             stroke="#00FF00", stroke_width=self.BASE_STROKE))  # \
-        group_green_arrow.add(self.dwg.line(
+        g_green_arrow.add(self.dwg.line(
             start=(box_west + box_size / 2 - math.sqrt(self.BASE_STROKE / 2) / 2, box_south - clearance / 2),
             end=(box_east - clearance - math.sqrt(self.BASE_STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
             stroke="#00FF00", stroke_width=self.BASE_STROKE))  # /
 
-        group_left_arrow = group_msi_row.add(self.dwg.g(id=f"l[{msi_name}]", visibility="hidden"))
-        group_left_arrow.add(self.dwg.line(
+        g_left_arrow = g_msi_row.add(self.dwg.g(id=f"l[{msi_name}]", visibility="hidden"))
+        g_left_arrow.add(self.dwg.line(
             start=(box_west + clearance - self.BASE_STROKE / 2, box_south - clearance),
             end=(box_east - clearance * 1.75, box_south - clearance),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))  # _
-        group_left_arrow.add(self.dwg.line(
+        g_left_arrow.add(self.dwg.line(
             start=(box_west + clearance, box_south - clearance + self.BASE_STROKE / 2),
             end=(box_west + clearance, box_north + clearance * 1.75),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))  # |
-        group_left_arrow.add(self.dwg.line(
+        g_left_arrow.add(self.dwg.line(
             start=(box_east - clearance, box_north + clearance),
             end=(box_west + clearance * 1.5, box_south - clearance * 1.5),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))  # /
 
-        group_right_arrow = group_msi_row.add(self.dwg.g(id=f"r[{msi_name}]", visibility="hidden"))
-        group_right_arrow.add(self.dwg.line(
+        g_right_arrow = g_msi_row.add(self.dwg.g(id=f"r[{msi_name}]", visibility="hidden"))
+        g_right_arrow.add(self.dwg.line(
             start=(box_east - clearance + self.BASE_STROKE / 2, box_south - clearance),
             end=(box_west + clearance * 1.75, box_south - clearance),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))  # _
-        group_right_arrow.add(self.dwg.line(
+        g_right_arrow.add(self.dwg.line(
             start=(box_east - clearance, box_south - clearance + self.BASE_STROKE / 2),
             end=(box_east - clearance, box_north + clearance * 1.75),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))  # |
-        group_right_arrow.add(self.dwg.line(
+        g_right_arrow.add(self.dwg.line(
             start=(box_west + clearance, box_north + clearance),
             end=(box_east - clearance * 1.5, box_south - clearance * 1.5),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))  # \
 
-        group_eor = group_msi_row.add(self.dwg.g(id=f"z[{msi_name}]", visibility="hidden"))
-        group_eor.add(self.dwg.circle(
+        g_eor = g_msi_row.add(self.dwg.g(id=f"z[{msi_name}]", visibility="hidden"))
+        g_eor.add(self.dwg.circle(
             center=center_coords,
             r=box_size * 0.45,
             fill="none", stroke="#FFFFFF", stroke_width=self.BASE_STROKE))
-        group_eor.add(self.dwg.line(
+        g_eor.add(self.dwg.line(
             start=(box_east - clearance - self.BASE_STROKE * 1.5, box_north + clearance - self.BASE_STROKE * 1.5),
             end=(box_west + clearance - self.BASE_STROKE * 1.5, box_south - clearance - self.BASE_STROKE * 1.5),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))
-        group_eor.add(self.dwg.line(
+        g_eor.add(self.dwg.line(
             start=(box_east - clearance, box_north + clearance),
             end=(box_west + clearance, box_south - clearance),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))
-        group_eor.add(self.dwg.line(
+        g_eor.add(self.dwg.line(
             start=(box_east - clearance + self.BASE_STROKE * 1.5, box_north + clearance + self.BASE_STROKE * 1.5),
             end=(box_west + clearance + self.BASE_STROKE * 1.5, box_south - clearance + self.BASE_STROKE * 1.5),
             stroke="#FFFFFF", stroke_width=self.BASE_STROKE))
 
-        group_flashers = group_msi_row.add(self.dwg.g(id=f"a[{msi_name}]", visibility="hidden"))
-        group_flashers.add(self.dwg.circle(center=(box_west + clearance / 2, box_north + clearance / 2),
+        g_flashers = g_msi_row.add(self.dwg.g(id=f"a[{msi_name}]", visibility="hidden"))
+        g_flashers.add(self.dwg.circle(center=(box_west + clearance / 2, box_north + clearance / 2),
                                            r=clearance / 4, fill="yellow"))  # top-left
-        group_flashers.add(self.dwg.circle(center=(box_east - clearance / 2, box_north + clearance / 2),
+        g_flashers.add(self.dwg.circle(center=(box_east - clearance / 2, box_north + clearance / 2),
                                            r=clearance / 4, fill="yellow"))  # top-right
-        group_flashers.add(self.dwg.circle(center=(box_west + clearance / 2, box_south - clearance / 2),
+        g_flashers.add(self.dwg.circle(center=(box_west + clearance / 2, box_south - clearance / 2),
                                            r=clearance / 4, fill="black"))  # bottom-left
-        group_flashers.add(self.dwg.circle(center=(box_east - clearance / 2, box_south - clearance / 2),
+        g_flashers.add(self.dwg.circle(center=(box_east - clearance / 2, box_south - clearance / 2),
                                            r=clearance / 4, fill="black"))  # bottom-right
 
-        for circle in group_flashers.elements[:2]:
+        for circle in g_flashers.elements[:2]:
             circle.add(self.dwg.animate("fill", attributeType="XML", from_="yellow", to="black",
                                         id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
-        for circle in group_flashers.elements[-2:]:
+        for circle in g_flashers.elements[-2:]:
             circle.add(self.dwg.animate("fill", attributeType="XML", from_="black", to="yellow",
                                         id="anim", dur="3s", repeatCount="indefinite", calcMode="discrete"))
 
-        group_red_ring = group_msi_row.add(self.dwg.g(id=f"b[{msi_name}]", visibility="hidden"))
-        group_red_ring.add(self.dwg.circle(
+        g_red_ring = g_msi_row.add(self.dwg.g(id=f"b[{msi_name}]", visibility="hidden"))
+        g_red_ring.add(self.dwg.circle(
             center=center_coords,
             r=box_size * 0.40,
             fill="none", stroke="#FF0000", stroke_width=self.BASE_STROKE))
 
     def display_vergence(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
-        group_vergence = svgwrite.container.Group()
+        g_vergence = self.dwg.g()
 
         text = svgwrite.text.Text(f"{point_info.pos_eigs.km} {point_info.obj_eigs['Type']}",
                                   insert=(coords[0] + 1 + info_offset, coords[1]),
                                   fill="white", font_family="Arial", dominant_baseline="central", font_size=4)
 
-        group_vergence.add(text)
-        group_vergence.rotate(rotate_angle, center=coords)
-        self.dwg.add(group_vergence)
+        g_vergence.add(text)
+        g_vergence.rotate(rotate_angle, center=coords)
+        self.dwg.add(g_vergence)
 
-    def draw_msi_relations(self, g_msi_relations: svgwrite.container.Group):
+    def draw_msi_relations(self):
         # Draw primary relations
         for element_id in self.element_by_id.keys():
             start_element, start_rotation, start_origin = self.element_by_id[element_id]
@@ -644,30 +640,30 @@ class SvgMaker:
                         if msi.properties["d"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["d"]]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("p", start_pos, end_pos, g_msi_relations)
+                            self.draw_msi_relation("p", start_pos, end_pos)
                         if msi.properties["ds"]:
                             for end_id in msi.properties["ds"]:
                                 end_element, end_rotation, end_origin = self.element_by_id[end_id]
                                 end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                                self.draw_msi_relation("s", start_pos, end_pos, g_msi_relations)
+                                self.draw_msi_relation("s", start_pos, end_pos)
                         if msi.properties["dt"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["dt"]]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("t", start_pos, end_pos, g_msi_relations)
+                            self.draw_msi_relation("t", start_pos, end_pos)
                         if msi.properties["db"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["db"]]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("b", start_pos, end_pos, g_msi_relations)
+                            self.draw_msi_relation("b", start_pos, end_pos)
                         if msi.properties["dn"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["dn"]]
                             end_pos = get_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("n", start_pos, end_pos, g_msi_relations)
+                            self.draw_msi_relation("n", start_pos, end_pos)
 
-    def draw_msi_relation(self, rel_type: str, start_pos: tuple, end_pos: tuple, g_msi_relations: svgwrite.container.Group):
-        g_msi_relations.add(self.dwg.line(start=start_pos, end=end_pos,
-                                          stroke=self.__COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
-        g_msi_relations.add(self.dwg.circle(center=start_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
-        g_msi_relations.add(self.dwg.circle(center=end_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
+    def draw_msi_relation(self, rel_type: str, start_pos: tuple, end_pos: tuple):
+        self.g_msi_relations.add(self.dwg.line(start=start_pos, end=end_pos,
+                                               stroke=self.__COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
+        self.g_msi_relations.add(self.dwg.circle(center=start_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
+        self.g_msi_relations.add(self.dwg.circle(center=end_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
 
 
 def get_center_coords(element, angle_degrees, origin):
@@ -692,7 +688,7 @@ def make_name(point_info, nr) -> str:
         return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km}:{nr}"
 
 
-def make_text_hecto(km: float, letter: str | None) -> str:
+def make_text_hecto(km: float, rijrichting: str, letter: str | None) -> str:
     if letter:
         return f"{km} {letter}"
-    return f"{km}"
+    return f"{km} {rijrichting}"
