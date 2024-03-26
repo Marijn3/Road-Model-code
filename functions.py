@@ -5,9 +5,6 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.00001
-DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
-
 # Mapping from lane registration to (nLanes, Special feature)
 LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
                   "1 -> 1.6": (1, "TaperStart"), "1.6 -> 1": (1, "TaperEinde"),
@@ -138,6 +135,7 @@ class DataFrameLader:
         Args:
             input_location (str or dict): The name of the location or a dict of coordinates.
         """
+
         self.data = {}
 
         if isinstance(input_location, str):
@@ -349,6 +347,9 @@ class WegModel:
                      "Rijstrooksignaleringen", "Convergenties", "Divergenties"]
 
     def __init__(self, dfl: DataFrameLader):
+        self.DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
+        self.GRID_SIZE = 0.00001
+
         self.dfl = dfl
         self.__base = {}
         self.__base_index = 0
@@ -466,7 +467,7 @@ class WegModel:
         section_info = ObjectInfo()
         
         section_info.pos_eigs.km = [row["BEGINKM"], row["EINDKM"]]
-        section_info.pos_eigs.geometrie = set_precision(row["geometry"], GRID_SIZE)
+        section_info.pos_eigs.geometrie = set_precision(row["geometry"], self.GRID_SIZE)
 
         if name == "Wegvakken":
             section_info.pos_eigs.wegnummer = row["WEGNR_HMP"]
@@ -623,7 +624,7 @@ class WegModel:
                     km_bereik = [min(new_section_range), min(other_section_range)]
                 else:
                     km_bereik = [max(new_section_range), max(other_section_range)]
-                added_geom = get_first_remainder(new_section_geom, other_section_geom)
+                added_geom = self.get_first_remainder(new_section_geom, other_section_geom)
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -639,7 +640,7 @@ class WegModel:
                     new_section_range = [min(other_section_range), max(new_section_range)]
                 else:
                     new_section_range = [max(other_section_range), min(new_section_range)]
-                new_section_geom = get_first_remainder(new_section_geom, added_geom)
+                new_section_geom = self.get_first_remainder(new_section_geom, added_geom)
 
             # Case B: start is equal.
             elif both_sections_first:
@@ -700,7 +701,7 @@ class WegModel:
                         km_remaining = [max(new_section_range), max(other_section_range)]
                     else:
                         km_remaining = [min(new_section_range), min(other_section_range)]
-                    other_geom = get_first_remainder(other_section_geom, added_geom)
+                    other_geom = self.get_first_remainder(other_section_geom, added_geom)
                     self.__update_section(other_section_index,
                                           new_km=km_remaining,
                                           new_geometrie=other_geom)
@@ -732,7 +733,7 @@ class WegModel:
                         new_section_range = [max(other_section_range), max(new_section_range)]
                     else:
                         new_section_range = [min(other_section_range), min(new_section_range)]
-                    new_section_geom = get_first_remainder(new_section_geom, added_geom)
+                    new_section_geom = self.get_first_remainder(new_section_geom, added_geom)
                     # Determine if there are more overlapping sections to deal with.
                     if overlap_sections:
                         continue
@@ -762,7 +763,7 @@ class WegModel:
                     km_bereik = [min(other_section_range), min(new_section_range)]
                 else:
                     km_bereik = [max(other_section_range), max(new_section_range)]
-                added_geom = get_first_remainder(other_section_geom, new_section_geom)
+                added_geom = self.get_first_remainder(other_section_geom, new_section_geom)
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -778,12 +779,39 @@ class WegModel:
                     other_section_range = [min(new_section_range), max(other_section_range)]
                 else:
                     other_section_range = [max(new_section_range), min(other_section_range)]
-                other_section_geom = get_first_remainder(other_section_geom, added_geom)
+                other_section_geom = self.get_first_remainder(other_section_geom, added_geom)
 
             else:
                 raise Exception("Er is iets misgegaan met het bereik.")
 
         self.__remove_sections(sections_to_remove)
+
+    def get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
+        """
+        Finds the first geometry that two Shapely LineStrings do NOT have in common.
+        Args:
+            geom1 (LineString): The first Shapely LineString.
+            geom2 (LineString): The second Shapely LineString.
+        Returns:
+            A LineString describing the difference geometry between the two
+            provided sections. If there are two options, the first remainder
+            option is returned, based on the directional order of geom1.
+        """
+        assert not equals_exact(geom1, geom2,
+                                tolerance=self.GRID_SIZE), f"Geometriën zijn exact aan elkaar gelijk: {geom1}"
+        diff = difference(geom1, geom2, grid_size=self.GRID_SIZE)
+
+        if isinstance(diff, LineString) and not diff.is_empty:
+            return diff
+        elif isinstance(diff, MultiLineString) and not diff.is_empty:
+            diffs = [geom for geom in diff.geoms]
+            if get_num_geometries(diff) > 2:
+                print(f"[WAARSCHUWING:] Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}\n")
+            # Return the first geometry (directional order of geom1 is maintained)
+            return diffs[0]
+        else:
+            raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+                            f"{geom1} en \n{geom2}:\n")
 
     def __remove_sections(self, indices: set[int]) -> None:
         """
@@ -1031,12 +1059,12 @@ class WegModel:
             end_point = Point(section_info.pos_eigs.geometrie.coords[-1])
 
             for point_info in self.get_points_info("*vergentie"):
-                if point_info.pos_eigs.geometrie.dwithin(start_point, DISTANCE_TOLERANCE):
+                if point_info.pos_eigs.geometrie.dwithin(start_point, self.DISTANCE_TOLERANCE):
                     section_verw_eigs.vergentiepunt_start = True
                     section_verw_eigs.start_kenmerk = {key: value for key, value in section_info.obj_eigs.items()
                                                        if value in ["Invoegstrook", "Samenvoeging", "Weefstrook"]}
                     skip_start_check = True
-                if point_info.pos_eigs.geometrie.dwithin(end_point, DISTANCE_TOLERANCE):
+                if point_info.pos_eigs.geometrie.dwithin(end_point, self.DISTANCE_TOLERANCE):
                     section_verw_eigs.vergentiepunt_einde = True
                     section_verw_eigs.einde_kenmerk = {key: value for key, value in section_info.obj_eigs.items()
                                                        if value in ["Uitrijstrook", "Splitsing", "Weefstrook"]}
@@ -1296,7 +1324,7 @@ class WegModel:
         Returns:
             dict[int, dict]: Attributes of the (first) road section at the specified kilometer point.
         """
-        return {index: section for index, section in self.sections.items() if dwithin(point, section.pos_eigs.geometrie, DISTANCE_TOLERANCE)}
+        return {index: section for index, section in self.sections.items() if dwithin(point, section.pos_eigs.geometrie, self.DISTANCE_TOLERANCE)}
 
     def get_one_section_at_point(self, point: Point) -> ObjectInfo:
         """
@@ -1309,7 +1337,7 @@ class WegModel:
             ObjectInfo: Attributes of the (first) road section at the specified kilometer point.
         """
         for section_info in self.sections.values():
-            if dwithin(point, section_info.pos_eigs.geometrie, DISTANCE_TOLERANCE):
+            if dwithin(point, section_info.pos_eigs.geometrie, self.DISTANCE_TOLERANCE):
                 return section_info
         raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
 
@@ -1384,7 +1412,7 @@ def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
         If the geometries do not overlap or have only a Point of
         intersection, the function returns None.
     """
-    overlap_geometry = intersection(geom1, geom2, grid_size=GRID_SIZE)
+    overlap_geometry = intersection(geom1, geom2, grid_size=self.GRID_SIZE)
 
     if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
         return line_merge(overlap_geometry)
@@ -1393,33 +1421,6 @@ def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
     else:
         # print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
         return None
-
-
-def get_first_remainder(geom1: LineString, geom2: LineString) -> LineString:
-    """
-    Finds the first geometry that two Shapely LineStrings do NOT have in common.
-    Args:
-        geom1 (LineString): The first Shapely LineString.
-        geom2 (LineString): The second Shapely LineString.
-    Returns:
-        A LineString describing the difference geometry between the two
-        provided sections. If there are two options, the first remainder
-        option is returned, based on the directional order of geom1.
-    """
-    assert not equals_exact(geom1, geom2, tolerance=GRID_SIZE), f"Geometriën zijn exact aan elkaar gelijk: {geom1}"
-    diff = difference(geom1, geom2, grid_size=GRID_SIZE)
-
-    if isinstance(diff, LineString) and not diff.is_empty:
-        return diff
-    elif isinstance(diff, MultiLineString) and not diff.is_empty:
-        diffs = [geom for geom in diff.geoms]
-        if get_num_geometries(diff) > 2:
-            print(f"[WAARSCHUWING:] Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}\n")
-        # Return the first geometry (directional order of geom1 is maintained)
-        return diffs[0]
-    else:
-        raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
-                        f"{geom1} en \n{geom2}:\n")
 
 
 def make_MTM_row_name(point_info: ObjectInfo) -> str:
