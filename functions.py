@@ -7,7 +7,7 @@ import math
 import logging
 
 # Initialize the logger
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -673,6 +673,7 @@ class WegModel:
                 if other_ends_equal:
                     if not (equals(new_section_geom, other_section_geom) or (
                             equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
+                        # TODO: refine these conditions
                         logger.warning(f"Geometrieën komen niet helemaal overeen: "
                                        f"{new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
