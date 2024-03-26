@@ -144,25 +144,25 @@ class DataFrameLader:
             Lane mapping dictionary.
         """
         mapping = {}
-        for first_n_lanes in range(1, 8):
-            for next_n_lanes in range(1, 8):
+        for i in range(1, 8):
+            for j in range(1, 8):
                 # Exclude entries where the difference is more than 1 (e.g. 1 -> 3)
-                if abs(first_n_lanes - next_n_lanes) <= 1:
-                    key = f"{first_n_lanes} -> {next_n_lanes}"
+                if abs(i - j) <= 1:
+                    key = f"{i} -> {j}"
                     if direction == "H":
-                        if first_n_lanes == next_n_lanes:
-                            value = (first_n_lanes, None)
-                        elif first_n_lanes > next_n_lanes:
-                            value = (first_n_lanes, "Rijstrookbeëindiging")
+                        if i == j:
+                            value = (i, None)
+                        elif i > j:
+                            value = (i, "Rijstrookbeëindiging")
                         else:
-                            value = (next_n_lanes, "ExtraRijstrook")
+                            value = (j, "ExtraRijstrook")
                     else:  # For direction "T"
-                        if first_n_lanes == next_n_lanes:
-                            value = (first_n_lanes, None)
-                        elif first_n_lanes > next_n_lanes:
-                            value = (first_n_lanes, "ExtraRijstrook")
+                        if i == j:
+                            value = (i, None)
+                        elif i > j:
+                            value = (i, "ExtraRijstrook")
                         else:
-                            value = (next_n_lanes, "Rijstrookbeëindiging")
+                            value = (j, "Rijstrookbeëindiging")
                     mapping[key] = value
         if direction == "H":
             mapping["1 -> 1.6"] = (1, "TaperStart")
