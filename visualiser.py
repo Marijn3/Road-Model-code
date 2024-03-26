@@ -3,10 +3,10 @@ import svgwrite
 import math
 
 # ========= Gedefinieerde locaties =========
-# Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen
-# Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [Puntstuk registrations], Bavel [MSI relations]
+# Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
+# Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [MSI relations], Bavel [MSI relations]
 # Importfouten : A2VK, Everdingen
-dfl = DataFrameLader("Zuidasdok")
+dfl = DataFrameLader("A27")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
