@@ -5,28 +5,6 @@ import csv
 from copy import deepcopy
 import math
 
-# Mapping from lane registration to (nLanes, Special feature)
-LANE_MAPPING_H = {"1 -> 1": (1, None), "1 -> 2": (2, "ExtraRijstrook"), "2 -> 1": (2, "Rijstrookbeëindiging"),
-                  "1 -> 1.6": (1, "TaperStart"), "1.6 -> 1": (1, "TaperEinde"),
-                  "2 -> 1.6": (2, "TaperStart"), "1.6 -> 2": (2, "TaperEinde"),
-                  "2 -> 2": (2, None), "2 -> 3": (3, "ExtraRijstrook"), "3 -> 2": (3, "Rijstrookbeëindiging"),
-                  "3 -> 3": (3, None), "3 -> 4": (4, "ExtraRijstrook"), "4 -> 3": (4, "Rijstrookbeëindiging"),
-                  "4 -> 4": (4, None), "4 -> 5": (5, "ExtraRijstrook"), "5 -> 4": (5, "Rijstrookbeëindiging"),
-                  "5 -> 5": (5, None), "5 -> 6": (6, "ExtraRijstrook"), "6 -> 5": (6, "Rijstrookbeëindiging"),
-                  "6 -> 6": (6, None),
-                  "7 -> 7": (7, None)}
-
-# All registrations with T as kantcode as marked in the opposite direction.
-LANE_MAPPING_T = {"1 -> 1": (1, None), "1 -> 2": (2, "Rijstrookbeëindiging"), "2 -> 1": (2, "ExtraRijstrook"),
-                  "1 -> 1.6": (1, "TaperEinde"), "1.6 -> 1": (1, "TaperStart"),
-                  "2 -> 1.6": (2, "TaperEinde"), "1.6 -> 2": (2, "TaperStart"),
-                  "2 -> 2": (2, None), "2 -> 3": (3, "Rijstrookbeëindiging"), "3 -> 2": (3, "ExtraRijstrook"),
-                  "3 -> 3": (3, None), "3 -> 4": (4, "Rijstrookbeëindiging"), "4 -> 3": (4, "ExtraRijstrook"),
-                  "4 -> 4": (4, None), "4 -> 5": (5, "Rijstrookbeëindiging"), "5 -> 4": (5, "ExtraRijstrook"),
-                  "5 -> 5": (5, None), "5 -> 6": (6, "Rijstrookbeëindiging"), "6 -> 5": (6, "ExtraRijstrook"),
-                  "6 -> 6": (6, None),
-                  "7 -> 7": (7, None)}
-
 
 class PositieEigenschappen:
     def __init__(self, rijrichting: str = "", wegnummer: str = "", hectoletter: str = "",
@@ -144,6 +122,8 @@ class DataFrameLader:
         """
 
         self.data = {}
+        self.lane_mapping_h = self.construct_lane_mapping("H")
+        self.lane_mapping_t = self.construct_lane_mapping("T")
 
         if isinstance(input_location, str):
             coords = self.__get_coords_from_csv(input_location)
@@ -152,6 +132,49 @@ class DataFrameLader:
 
         self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
         self.__load_dataframes()
+
+    @staticmethod
+    def construct_lane_mapping(direction: str) -> dict:
+        """
+        Mapping from lane registration to (nLanes, Special feature)
+        All registrations with T as kantcode as marked in the opposite direction.
+        Args:
+            direction: Either "H" or "T".
+        Returns:
+            Lane mapping dictionary.
+        """
+        mapping = {}
+        for first_n_lanes in range(1, 8):
+            for next_n_lanes in range(1, 8):
+                # Exclude entries where the difference is more than 1 (e.g. 1 -> 3)
+                if abs(first_n_lanes - next_n_lanes) <= 1:
+                    key = f"{first_n_lanes} -> {next_n_lanes}"
+                    if direction == "H":
+                        if first_n_lanes == next_n_lanes:
+                            value = (first_n_lanes, None)
+                        elif first_n_lanes > next_n_lanes:
+                            value = (first_n_lanes, "Rijstrookbeëindiging")
+                        else:
+                            value = (next_n_lanes, "ExtraRijstrook")
+                    else:  # For direction "T"
+                        if first_n_lanes == next_n_lanes:
+                            value = (first_n_lanes, None)
+                        elif first_n_lanes > next_n_lanes:
+                            value = (first_n_lanes, "ExtraRijstrook")
+                        else:
+                            value = (next_n_lanes, "Rijstrookbeëindiging")
+                    mapping[key] = value
+        if direction == "H":
+            mapping["1 -> 1.6"] = (1, "TaperStart")
+            mapping["1.6 -> 1"] = (1, "TaperEinde")
+            mapping["2 -> 1.6"] = (2, "TaperStart")
+            mapping["1.6 -> 2"] = (2, "TaperEinde")
+        if direction == "T":
+            mapping["1 -> 1.6"] = (1, "TaperEinde")
+            mapping["1.6 -> 1"] = (1, "TaperStart")
+            mapping["2 -> 1.6"] = (2, "TaperEinde")
+            mapping["1.6 -> 2"] = (2, "TaperStart")
+        return mapping
 
     @staticmethod
     def __get_coords_from_csv(location: str) -> dict[str, float]:
@@ -330,12 +353,11 @@ class DataFrameLader:
         # Assign dataframe back to original position
         self.data[name] = df
 
-    @staticmethod
-    def get_lane_info(row, column):
+    def get_lane_info(self, row, column):
         if row["KANTCODE"] == "H":
-            return LANE_MAPPING_H.get(row[column], (0, None))
+            return self.lane_mapping_h.get(row[column], (0, None))
         else:
-            return LANE_MAPPING_T.get(row[column], (0, None))
+            return self.lane_mapping_t.get(row[column], (0, None))
 
 
 class WegModel:
