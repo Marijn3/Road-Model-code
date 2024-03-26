@@ -1011,16 +1011,12 @@ class WegModel:
             # Throw out sections that do not intersect the final frame.
             if not section_info.pos_eigs.geometrie.intersects(self.dfl.extent):
                 sections_to_remove.add(section_index)
-                print(f"Throwing out section {section_index}, as it doesn't intersect the extent.")
                 continue
 
             # Throw out sections that do not have (integer) lane numbers in the keys.
             if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
                 sections_to_remove.add(section_index)
-                print(f"Throwing out section {section_index}, as it doesn't have integer keys.")
                 continue
-
-            print("Section that has passed:", section_info.obj_eigs)
 
         self.__remove_sections(sections_to_remove)
 
@@ -1067,7 +1063,7 @@ class WegModel:
             stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
                        if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
             hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                                  if lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+                                  if lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]]
             strooknummers_links = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
             strooknummers_rechts = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
 
