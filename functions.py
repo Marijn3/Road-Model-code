@@ -452,8 +452,7 @@ class WegModel:
 
         return point_info
 
-    @staticmethod
-    def __extract_line_properties(row: pd.Series, name: str) -> ObjectInfo:
+    def __extract_line_properties(self, row: pd.Series, name: str) -> ObjectInfo:
         """
         Determines line info based on a row in the dataframe
         Args:
@@ -570,7 +569,7 @@ class WegModel:
 
         while True:
 
-            if not get_overlap(new_section_geom, other_section_geom):
+            if not self.get_overlap(new_section_geom, other_section_geom):
                 if not overlap_sections:
                     break
 
@@ -684,7 +683,7 @@ class WegModel:
                     else:
                         km_bereik = [max(new_section_range), min(new_section_range)]
 
-                    added_geom = get_overlap(new_section_geom, other_section_geom)
+                    added_geom = self.get_overlap(new_section_geom, other_section_geom)
                     assert added_geom, f"Geen overlap gevonden tussen {new_section_geom} en {other_section_geom}."
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section(
@@ -714,7 +713,7 @@ class WegModel:
                         km_bereik = [min(new_section_range), max(other_section_range)]
                     else:
                         km_bereik = [max(new_section_range), min(other_section_range)]
-                    added_geom = get_overlap(new_section_geom, other_section_geom)
+                    added_geom = self.get_overlap(new_section_geom, other_section_geom)
                     both_props = {**other_section_props, **new_section_props}
                     self.__add_section(
                         ObjectInfo(
@@ -812,6 +811,31 @@ class WegModel:
         else:
             raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
                             f"{geom1} en \n{geom2}:\n")
+
+    def get_overlap(self, geom1: LineString, geom2: LineString) -> LineString | None:
+        """
+        Finds the overlap geometry between two Shapely geometries.
+        Args:
+            geom1 (LineString): The first Shapely LineString.
+            geom2 (LineString): The second Shapely LineString.
+        Returns:
+            LineString describing the overlap geometry.
+            Returns None if there is no overlap geometry.
+        Note:
+            The function uses the `intersection` method from Shapely to
+            compute the overlap between the two LineString geometries.
+            If the geometries do not overlap or have only a Point of
+            intersection, the function returns None.
+        """
+        overlap_geometry = intersection(geom1, geom2, grid_size=self.GRID_SIZE)
+
+        if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
+            return line_merge(overlap_geometry)
+        elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
+            return overlap_geometry
+        else:
+            # print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
+            return None
 
     def __remove_sections(self, indices: set[int]) -> None:
         """
@@ -986,7 +1010,7 @@ class WegModel:
     def __get_overlapping_base(self, new_section):
         overlapping_base = []
         for base_index, base in self.__base.items():
-            if get_overlap(new_section.pos_eigs.geometrie, base.pos_eigs.geometrie):
+            if self.get_overlap(new_section.pos_eigs.geometrie, base.pos_eigs.geometrie):
                 overlapping_base.append({"Index": base_index, "Section_info": base})
                     # TODO: simplify to {index: section_info}
 
@@ -1018,7 +1042,7 @@ class WegModel:
             # First, dismiss all sections which have a non-overlapping range,
             # which prevents the more complex get_overlap() function from being called.
             if determine_range_overlap(section_a.pos_eigs.km, section_b.pos_eigs.km):
-                if get_overlap(section_a.pos_eigs.geometrie, section_b.pos_eigs.geometrie):
+                if self.get_overlap(section_a.pos_eigs.geometrie, section_b.pos_eigs.geometrie):
                     overlapping_sections.append({"Index": section_b_index,
                                                  "Section_info": section_b})
                     # TODO: simplify to {index: section_info}
@@ -1190,7 +1214,6 @@ class WegModel:
         section_b_info = adjacent_sections[section_b_id]
 
         section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
-        print(section_b_info.obj_eigs)
         section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
 
         a_is_continuous = (section_a_info.obj_eigs[section_a_max_lane_nr] == "Puntstuk"
@@ -1397,32 +1420,6 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
     return linedist_a < linedist_b
 
 
-def get_overlap(geom1: LineString, geom2: LineString) -> LineString | None:
-    """
-    Finds the overlap geometry between two Shapely geometries.
-    Args:
-        geom1 (LineString): The first Shapely LineString.
-        geom2 (LineString): The second Shapely LineString.
-    Returns:
-        LineString describing the overlap geometry.
-        Returns None if there is no overlap geometry.
-    Note:
-        The function uses the `intersection` method from Shapely to
-        compute the overlap between the two LineString geometries.
-        If the geometries do not overlap or have only a Point of
-        intersection, the function returns None.
-    """
-    overlap_geometry = intersection(geom1, geom2, grid_size=self.GRID_SIZE)
-
-    if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
-        return line_merge(overlap_geometry)
-    elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
-        return overlap_geometry
-    else:
-        # print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
-        return None
-
-
 def make_MTM_row_name(point_info: ObjectInfo) -> str:
     if point_info.pos_eigs.hectoletter:
         return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:{point_info.pos_eigs.km}"
@@ -1484,7 +1481,6 @@ class MSIRow:
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
         for row in downstream_rows:
-            print(row)
             for msi_row, desc in row.items():
                 if msi_row is not None:
                     print("Conclusion:", msi_row.name, desc)
