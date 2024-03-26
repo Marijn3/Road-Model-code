@@ -4,6 +4,11 @@ from shapely import *
 import csv
 from copy import deepcopy
 import math
+import logging
+
+# Initialize the logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class PositieEigenschappen:
@@ -212,7 +217,7 @@ class DataFrameLader:
         """
         for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
-            print(f"[LOG:] Laag {df_layer_name} laden...")
+            logger.info(f"Laag {df_layer_name} laden...")
             self.data[df_layer_name] = self.__load_dataframe(file_path)
             self.__edit_columns(df_layer_name)
 
@@ -273,7 +278,7 @@ class DataFrameLader:
 
             common_points = [point for point in line1_points if point in line2_points]
             if len(common_points) == 0:
-                print(f"[WAARSCHUWING:] MultiLineString zonder gemeen punt wordt overgeslagen: {line1} en {line2}")
+                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
                 return geom
 
             assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
@@ -293,7 +298,7 @@ class DataFrameLader:
 
             return line_merge(MultiLineString([line1, line2]))
 
-        print(f"[Waarschuwing:] Omzetting naar LineString niet mogelijk voor {geom}")
+        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
         return geom
 
     def __edit_columns(self, name: str) -> None:
@@ -316,7 +321,7 @@ class DataFrameLader:
         s2 = len(df)
 
         if s1 - s2 > 0:
-            print(f"[LOG:] Aantal registraties verwijderd: {s1 - s2}")
+            logger.debug(f"Aantal registraties verwijderd: {s1 - s2}")
 
         df["WEGNUMMER"] = pd.to_numeric(df["WEGNUMMER"], errors="coerce").astype("Int64")
 
@@ -394,15 +399,8 @@ class WegModel:
                 4) It contains the hectoletter.
         """
         for df_name in self.__LAYER_NAMES:
-            print(f"[STATUS:] Laag '{df_name}' wordt geïmporteerd...")
-            current_sections = self.__section_index
-            current_points = self.__point_index
-
+            logger.info(f"Laag '{df_name}' wordt geïmporteerd...")
             self.__import_dataframe(df_name)
-
-            print(f"[STATUS:] {df_name} voegde {self.__section_index - current_sections} secties "
-                  f"en {self.__point_index - current_points} punten toe aan het model.\n"
-                  f"Het model heeft nu in totaal {self.__section_index} secties en {self.__point_index} punten.\n")
 
     def __import_dataframe(self, df_name: str):
         """
@@ -549,7 +547,7 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            print(f"[WAARSCHUWING:] {new_section} overlapt niet met eerdere lagen. Deze sectie wordt niet toegevoegd.")
+            logger.warning(f"{new_section} overlapt niet met eerdere lagen. Deze sectie wordt niet toegevoegd.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -601,17 +599,10 @@ class WegModel:
                 other_section_props = overlap_section_info.obj_eigs
                 other_section_geom = overlap_section_info.pos_eigs.geometrie
 
-            # print("New section range:", new_section_range)
-            # print("New section props:", new_section_props)
-            # print("New section geom:", set_precision(new_section.pos_eigs.geometrie, 1))
-            # print("Other section range:", other_section_range)
-            # print("Other section props:", other_section_props)
-            # print("Other section geom:", set_precision(other_section_geom, 1))
-
             assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
             if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
-                print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section.pos_eigs.km)} "
-                      f" en {new_section.pos_eigs.geometrie.length}\n")
+                logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_section.pos_eigs.km)} "
+                               f"en {new_section.pos_eigs.geometrie.length}")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
@@ -682,8 +673,8 @@ class WegModel:
                 if other_ends_equal:
                     if not (equals(new_section_geom, other_section_geom) or (
                             equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
-                        print(f"[WAARSCHUWING:] Geometrieën komen niet helemaal overeen: "
-                              f"{new_section_geom} and {other_section_geom}\n")
+                        logger.warning(f"Geometrieën komen niet helemaal overeen: "
+                                       f"{new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
                                           new_km=new_section_range,
                                           new_obj_eigs=new_section_props,
@@ -824,7 +815,7 @@ class WegModel:
         elif isinstance(diff, MultiLineString) and not diff.is_empty:
             diffs = [geom for geom in diff.geoms]
             if get_num_geometries(diff) > 2:
-                print(f"[WAARSCHUWING:] Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}\n")
+                logger.warning(f"Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}\n")
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
@@ -853,7 +844,6 @@ class WegModel:
         elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return overlap_geometry
         else:
-            # print(f"[Waarschuwing:] Geen overlap gevonden tussen {geom1} en {geom2}")
             return None
 
     def __remove_sections(self, indices: set[int]) -> None:
@@ -863,7 +853,7 @@ class WegModel:
             indices (set): Set of indices at which to remove sections.
         """
         for index in indices:
-            print(f"[LOG:] Sectie {index} verwijderd.\n")
+            logger.debug(f"Sectie {index} verwijderd.\n")
             self.sections.pop(index)
 
     def __remove_points(self, indices: set[int]) -> None:
@@ -873,7 +863,7 @@ class WegModel:
             indices (set): Set of indices at which to remove points.
         """
         for index in indices:
-            print(f"[LOG:] Punt {index} verwijderd: {self.points[index]}\n")
+            logger.debug(f"Punt {index} verwijderd: {self.points[index]}\n")
             self.points.pop(index)
 
     def __update_section(self, index: int,
@@ -895,7 +885,8 @@ class WegModel:
 
         if new_km:
             if abs(get_km_length(new_km) - new_geometrie.length) > 100:
-                print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_km)} en {new_geometrie.length}\n")
+                logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_km)} "
+                               f"en {new_geometrie.length}")
             self.sections[index].pos_eigs.km = new_km
         if new_obj_eigs:
             self.sections[index].obj_eigs.update(new_obj_eigs)
@@ -915,8 +906,8 @@ class WegModel:
         assert not is_empty(new_section.pos_eigs.geometrie), \
             f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
         if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
-            print(f"[WAARSCHUWING:] Groot lengteverschil: {get_km_length(new_section.pos_eigs.km)} "
-                  f"en {new_section.pos_eigs.geometrie.length}\n")
+            logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_section.pos_eigs.km)} "
+                           f"en {new_section.pos_eigs.geometrie.length}")
 
         self.sections[self.__section_index] = new_section
         self.__log_section(self.__section_index, False)
@@ -933,7 +924,7 @@ class WegModel:
         overlap_base = self.__get_overlapping_base(new_section)
 
         if not overlap_base:
-            print(f"[WAARSCHUWING:] {new_section} overlapt niet met de basis. Deze sectie wordt niet toegevoegd.")
+            logger.warning(f"{new_section} overlapt niet met de basis. Deze sectie wordt niet toegevoegd.")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -992,13 +983,13 @@ class WegModel:
         Args:
             index (int): Index of point to print info for.
         """
-        print(f"[LOG:] Punt {index} toegevoegd: \t"
-              f"{self.points[index].pos_eigs.km:<7.3f} km \t"
-              f"{self.points[index].pos_eigs.wegnummer}\t"
-              f"{self.points[index].pos_eigs.rijrichting}\t"
-              f"{self.points[index].pos_eigs.hectoletter}\t"
-              f"{self.points[index].obj_eigs} \n"
-              f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
+        logger.debug(f"Punt {index} toegevoegd: \t"
+                    f"{self.points[index].pos_eigs.km:<7.3f} km \t"
+                    f"{self.points[index].pos_eigs.wegnummer}\t"
+                    f"{self.points[index].pos_eigs.rijrichting}\t"
+                    f"{self.points[index].pos_eigs.hectoletter}\t"
+                    f"{self.points[index].obj_eigs} \n"
+                    f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
 
     def __log_base(self, index: int) -> None:
         """
@@ -1006,10 +997,10 @@ class WegModel:
         Args:
             index (int): Index of section to print info for.
         """
-        print(f"[LOG:] Basis {index} toegevoegd:  \t"
-              f"{self.__base[index].pos_eigs.wegnummer}\t"
-              f"{self.__base[index].pos_eigs.hectoletter}\n"
-              f"\t\t\t\t\t\t\t\t{set_precision(self.__base[index].pos_eigs.geometrie, 1)}")
+        logger.debug(f"Basis {index} toegevoegd:  \t"
+                    f"{self.__base[index].pos_eigs.wegnummer}\t"
+                    f"{self.__base[index].pos_eigs.hectoletter}\n"
+                    f"\t\t\t\t\t\t\t\t{set_precision(self.__base[index].pos_eigs.geometrie, 1)}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
         """
@@ -1018,13 +1009,13 @@ class WegModel:
             index (int): Index of section to print info for.
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
-        print(f"[LOG:] Sectie {index} {wording[changed]}\t"
-              f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
-              f"{self.sections[index].pos_eigs.wegnummer}\t"
-              f"{self.sections[index].pos_eigs.rijrichting}\t"
-              f"{self.sections[index].pos_eigs.hectoletter}\t"
-              f"{self.sections[index].obj_eigs} \n"
-              f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
+        logger.debug(f"Sectie {index} {wording[changed]}\t"
+                    f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
+                    f"{self.sections[index].pos_eigs.wegnummer}\t"
+                    f"{self.sections[index].pos_eigs.rijrichting}\t"
+                    f"{self.sections[index].pos_eigs.hectoletter}\t"
+                    f"{self.sections[index].obj_eigs} \n"
+                    f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
 
     def __get_overlapping_base(self, new_section):
         overlapping_base = []
@@ -1288,7 +1279,7 @@ class WegModel:
                 previous_point = line_points[closest_index]  # Middle point
 
             if next_point == previous_point:
-                print(f"[WAARSCHUWING:] Geen lokale hoek gevonden voor {line}")
+                logger.warning(f"Geen lokale hoek gevonden voor {line}")
                 continue
 
             delta_x = next_point[0] - previous_point[0]
@@ -1500,14 +1491,14 @@ class MSIRow:
         for row in downstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
-                    print("Conclusion:", msi_row.name, desc)
+                    logger.debug(f"Conclusion: {msi_row.name} {desc}")
                     self.downstream[msi_row] = desc
 
         upstream_rows = self.msi_network.travel_roadmodel(self, False)
         for row in upstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
-                    print("Conclusion:", msi_row.name, desc)
+                    logger.debug(f"Conclusion: {msi_row.name} {desc}")
                     self.upstream[msi_row] = desc
 
     def fill_msi_properties(self):
@@ -1548,8 +1539,7 @@ class MSINetwerk:
         for msi_row in self.MSIrows:
             for msi in msi_row.MSIs.values():
                 filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
-                print(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
-                print("")
+                logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}\n")
 
     def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
         """
@@ -1567,7 +1557,7 @@ class MSINetwerk:
         current_km = msi_row.info.pos_eigs.km
         travel_direction = msi_row.local_road_info.pos_eigs.rijrichting
 
-        print(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
+        logger.debug(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
 
         if isinstance(msis, dict):
@@ -1594,7 +1584,7 @@ class MSINetwerk:
         if len(start_sections) == 1:  # Obtain first (and only) ID in dict.
             return next(iter(start_sections.keys()))
 
-        print("[WAARSCHUWING:] Meer dan één sectie gevonden op MSI locatie. Keuze op basis van zoekrichting.")
+        logger.warning(f"Meer dan één sectie gevonden op MSI locatie. Keuze op basis van zoekrichting.")
         if ((downstream and msi_row.local_road_info.pos_eigs.rijrichting == "L")
                 or (not downstream and msi_row.local_road_info.pos_eigs.rijrichting == "R")):
             km_registration_to_equate = 1
@@ -1645,7 +1635,7 @@ class MSINetwerk:
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
-            print(f"Single MSI row found on {current_section_id}: {msis_on_section[0].pos_eigs.km}")
+            logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
             return {self.get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
@@ -1653,21 +1643,21 @@ class MSINetwerk:
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi.pos_eigs.km))
-            print(f"Meerdere MSIs gevonden bij {current_section_id}. Dichtstbijzijnde: {nearest_msi.pos_eigs.km}")
+            logger.debug(f"Meerdere MSIs gevonden bij {current_section_id}. Dichtstbijzijnde: {nearest_msi.pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
             return {self.get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
 
         # Base case 3: Maximum depth reached.
         current_distance += current_section.pos_eigs.geometrie.length
-        print(f"Current depth: {current_distance}")
+        logger.debug(f"Zoekdiepte: {current_distance}")
         if current_distance >= self.max_search_distance:
-            print(f"The maximum depth was exceeded on this search: {current_distance}")
+            logger.debug(f"De maximale zoekdiepte is overschreden: {current_distance}")
             return {None: (shift, annotation)}
 
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
-            print(f"No other points on {current_section_id}.")
+            logger.debug(f"No other points on {current_section_id}.")
             if downstream:
                 connecting_section_ids = [sid for sid in (current_section.verw_eigs.sectie_stroomafwaarts,
                                                           current_section.verw_eigs.sectie_afbuigend_stroomafwaarts)
@@ -1680,17 +1670,17 @@ class MSINetwerk:
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
-                print(f"No connections at all with {current_section_id}")
+                logger.debug(f"No connections at all with {current_section_id}")
                 return {None: (shift, annotation)}
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
-                print(f"It seems that more than one section is connected to {current_section_id}:"
-                      f"{connecting_section_ids}. Stopping.")
+                logger.debug(f"It seems that more than one section is connected to {current_section_id}:"
+                            f"{connecting_section_ids}. Stopping.")
                 return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
-                print(f"Looking for MSI row in the next section, {next_section_id}")
+                logger.debug(f"Looking for MSI row in the next section, {next_section_id}")
                 shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                  downstream, first_iteration)
                 return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
@@ -1729,8 +1719,8 @@ class MSINetwerk:
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration)
 
-            print(f"The *vergence point leads to section {next_section_id}")
-            print(f"Marking {next_section_id} with +{shift}")
+            logger.debug(f"The *vergence point leads to section {next_section_id}")
+            logger.debug(f"Marking {next_section_id} with +{shift}")
 
             return self.find_msi_recursive(next_section_id, other_point.pos_eigs.km, downstream, travel_direction,
                                            shift, current_distance, annotation)
@@ -1738,16 +1728,16 @@ class MSINetwerk:
         if upstream_split:
             cont_section_id = current_section.verw_eigs.sectie_stroomopwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomopwaarts
-            print(f"The *vergence point is an upstream split into {cont_section_id} and {div_section_id}")
+            logger.debug(f"The *vergence point is an upstream split into {cont_section_id} and {div_section_id}")
         else:
             cont_section_id = current_section.verw_eigs.sectie_stroomafwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
-            print(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
+            logger.debug(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
 
         _, shift_div = self.roadmodel.get_n_lanes(self.roadmodel.sections[cont_section_id].obj_eigs)
 
         # Store negative value in this direction.
-        print(f"Marking {div_section_id} with -{shift_div}")
+        logger.debug(f"Marking {div_section_id} with -{shift_div}")
 
         shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                          downstream, first_iteration)
@@ -2080,25 +2070,25 @@ class MSI(MSILegends):
                 # Broadening
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    print(f"Extra case with {self.lane_nr}")
+                    logger.debug(f"Extra case with {self.lane_nr}")
                     self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
                     d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
                 # Narrowing
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    print(f"Eindiging case with {self.lane_nr}")
+                    logger.debug(f"Eindiging case with {self.lane_nr}")
                     self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
                     d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
 
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    print(f"Invoegstrook case with {self.lane_nr}")
+                    logger.debug(f"Invoegstrook case with {self.lane_nr}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    print(f"Uitrijstrook case with {self.lane_nr}")
+                    logger.debug(f"Uitrijstrook case with {self.lane_nr}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
@@ -2109,7 +2099,7 @@ class MSI(MSILegends):
                         if (this_lane_projected - 1 in d_row.local_road_properties.keys() and
                                 d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]):
                             if this_lane_projected - 1 in d_row.MSIs.keys():
-                                print(f"Cross case 1 with {self.lane_nr}")
+                                logger.debug(f"Cross case 1 with {self.lane_nr}")
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weefstrook/join lane
                     if (this_lane_projected + 1 in lane_numbers
@@ -2117,7 +2107,7 @@ class MSI(MSILegends):
                         if (this_lane_projected + 1 in d_row.local_road_properties.keys() and
                                 d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]):
                             if this_lane_projected + 1 in d_row.MSIs.keys():
-                                print(f"Cross case 2 with {self.lane_nr}")
+                                logger.debug(f"Cross case 2 with {self.lane_nr}")
                                 self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
         # Remaining upstream primary relations
@@ -2132,10 +2122,10 @@ class MSI(MSILegends):
         # MSIs that do not have any upstream relation, get a secondary relation
         if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
                                        or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
-            print(f"[LOG:] {self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
+            logger.debug(f"{self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if self.row.msi_network.add_secondary_relations:
-                print("[LOG:] Relatie wordt toegepast.")
+                logger.debug(f"Relatie wordt toegepast.")
                 u_row, desc = next(iter(self.row.upstream.items()))
                 if (u_row.local_road_info.pos_eigs.hectoletter ==
                         self.row.local_road_info.pos_eigs.hectoletter):
@@ -2143,7 +2133,7 @@ class MSI(MSILegends):
                     self.make_secondary_connection(self, u_row.MSIs[highest_msi_number])
                 else:
                     # This should not occur in the Netherlands, but is here for safety.
-                    print("[Waarschuwing:] Er wordt een onverwachte relatie toegevoegd.")
+                    logger.warning(f"Er wordt een onverwachte relatie toegevoegd.")
                     lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
 
