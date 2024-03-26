@@ -15,6 +15,14 @@ netwerk = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relati
 
 OUTFILE = "Server/Data/WEGGEG/road_visualization.svg"
 
+
+class svgMaker:
+    
+
+
+
+
+
 # Visualiser parameters
 LANE_WIDTH = 3.5
 MSIBOX_SIZE = 20

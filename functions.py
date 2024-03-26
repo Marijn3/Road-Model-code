@@ -5,7 +5,7 @@ import csv
 from copy import deepcopy
 import math
 
-GRID_SIZE = 0.000001
+GRID_SIZE = 0.00001
 DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
 
 # Mapping from lane registration to (nLanes, Special feature)
