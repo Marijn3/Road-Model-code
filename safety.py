@@ -1,4 +1,4 @@
-from functions import *
+from visualiser import *
 
 
 class Oppervlak:
