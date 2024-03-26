@@ -261,6 +261,11 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
 
     first_lane_nr = lane_numbers[0]
     last_lane_nr = lane_numbers[-1]
+    next_lane = None
+
+    # Exclude puntstuk from counting as the last lane
+    if prop[last_lane_nr] == "Puntstuk":
+        last_lane_nr = lane_numbers[-2]
 
     # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
@@ -317,9 +322,9 @@ def add_lane_marking(geom: LineString, section_info: ObjectInfo, group_road: svg
     # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
     # Spitsstrook has special lane marking.
     line_coords = get_offset_coords(geom, marking_offsets.pop(0))
-    if prop[last_lane_nr] == "Spitsstrook":
+    if next_lane == "Spitsstrook":
         add_markerline(line_coords, group_road, "Dun")
-    elif prop[last_lane_nr] not in ["Vluchtstrook", "Puntstuk"]:
+    elif next_lane not in ["Vluchtstrook", "Puntstuk"]:
         add_markerline(line_coords, group_road)
 
 
