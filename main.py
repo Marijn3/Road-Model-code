@@ -16,7 +16,7 @@ MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=
 ilp_input = make_ILP_input(MSIs)
 generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")
 
-# # Instantieer een aanvraag
+# # Instantieer een aanvraag (A27 Oosterhout)
 # aanvraag = Aanvraag(wegmodel,
 #                     km_start=13.95,
 #                     km_end=13.98,

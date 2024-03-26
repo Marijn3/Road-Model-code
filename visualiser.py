@@ -178,9 +178,12 @@ def move_endpoint(this_section_info: ObjectInfo, line_geom: LineString, other_se
     angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
     tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
-    this_is_continuous = (this_section_info.obj_eigs[max([key for key in this_section_info.obj_eigs.keys() if isinstance(key, int)])] == "Puntstuk"
+    this_section_max_lane_nr = max([key for key in this_section_info.obj_eigs.keys() if isinstance(key, int)])
+    other_section_max_lane_nr = max([key for key in other_section_info.obj_eigs.keys() if isinstance(key, int)])
+
+    this_is_continuous = (this_section_info.obj_eigs[this_section_max_lane_nr] == "Puntstuk"
                           or other_section_info.obj_eigs[1] == "Puntstuk")
-    other_is_continuous = (other_section_info.obj_eigs[max([key for key in other_section_info.obj_eigs.keys() if isinstance(key, int)])] == "Puntstuk"
+    other_is_continuous = (other_section_info.obj_eigs[other_section_max_lane_nr] == "Puntstuk"
                            or this_section_info.obj_eigs[1] == "Puntstuk")
 
     assert not (this_is_continuous and other_is_continuous),\

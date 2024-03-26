@@ -1117,19 +1117,20 @@ class WegModel:
         if len(connected) == 1:
             return connected[0], None
 
-        stream_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
+        adjacent_sections = {index: section for index, section in connecting_sections.items() if index != section_index}
 
-        # If puntstuk itself, return section with same hectoletter. # TODO: remove this assumption.
-        if "Puntstuk" in section_info.obj_eigs.values():
-            connected = [index for index, section in stream_sections.items() if
+        # If puntstuk itself, return section with same hectoletter.
+        this_section_max_lane_nr = max([key for key in section_info.obj_eigs.keys() if isinstance(key, int)])
+        if section_info.obj_eigs[this_section_max_lane_nr] == "Puntstuk":
+            connected = [index for index, section in adjacent_sections.items() if
                          section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
             # If all hectoletters are the same, use the km registration.
             if len(connected) > 1:
                 if section_info.pos_eigs.rijrichting == "L":
-                    connected = [index for index, section in stream_sections.items() if
+                    connected = [index for index, section in adjacent_sections.items() if
                                  section_info.pos_eigs.km[1] == section.pos_eigs.km[0]]
                 if section_info.pos_eigs.rijrichting == "R":
-                    connected = [index for index, section in stream_sections.items() if
+                    connected = [index for index, section in adjacent_sections.items() if
                                  section_info.pos_eigs.km[0] == section.pos_eigs.km[1]]
             if len(connected) > 1:
                 raise AssertionError("Meer dan één sectie lijkt kandidaat voor de hoofdbaan.")
@@ -1137,17 +1138,33 @@ class WegModel:
                 return None, None
             return connected[0], None
 
-        # If one of the other sections is puntstuk, act accordingly. # TODO: remove this assumption.
-        connected = [index for index, section in stream_sections.items() if "Puntstuk" in section.obj_eigs.values()]
-        diverging = [index for index, section in stream_sections.items() if "Puntstuk" not in section.obj_eigs.values()]
+        assert len(adjacent_sections) == 2, "Er moeten twee secties verbonden zijn aan een puntstuk."
 
-        if len(connected) == 1:
-            return connected[0], diverging[0]
+        # If one of the other sections is puntstuk, act accordingly.
+        # Extract sections from dict
+        section_ids = list(adjacent_sections.keys())
+        section_a_id = section_ids[0]
+        section_b_id = section_ids[1]
+        section_a_info = adjacent_sections[section_a_id]
+        section_b_info = adjacent_sections[section_b_id]
+
+        section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
+        section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
+
+        a_is_continuous = (section_a_info.obj_eigs[section_a_max_lane_nr] == "Puntstuk"
+                              or section_b_info.obj_eigs[1] == "Puntstuk")
+        b_is_continuous = (section_b_info.obj_eigs[section_b_max_lane_nr] == "Puntstuk"
+                               or section_a_info.obj_eigs[1] == "Puntstuk")
+
+        if a_is_continuous:
+            return section_a_id, section_b_id
+        elif b_is_continuous:
+            return section_b_id, section_a_id
 
         # If neither other section had puntstuk, return the one section with same hectoletter
-        connected = [index for index, section in stream_sections.items() if
+        connected = [index for index, section in adjacent_sections.items() if
                      section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
-        diverging = [index for index, section in stream_sections.items() if
+        diverging = [index for index, section in adjacent_sections.items() if
                      section_info.pos_eigs.hectoletter != section.pos_eigs.hectoletter]
 
         if len(connected) == 1:
