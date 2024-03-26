@@ -313,9 +313,9 @@ class SvgMaker:
         # Also add puntstuk if it is the very first registration
         if prop[first_lane_nr] == "Puntstuk":
             if section_info.verw_eigs.vergentiepunt_start:
-                self.draw_markerline(line_coords, "Punt_start", direction=-1)
+                self.draw_markerline(line_coords, "Punt-start", direction=-1)
             elif section_info.verw_eigs.vergentiepunt_einde:
-                self.draw_markerline(line_coords, "Punt_einde", direction=-1)
+                self.draw_markerline(line_coords, "Punt-einde", direction=-1)
 
         # Add middle markings. All of these markings have a this_lane and a next_lane
         for this_lane_number in lane_numbers[:-1]:
@@ -333,9 +333,9 @@ class SvgMaker:
                 line_coords = self.get_offset_coords(geom, marking_offsets.pop(0))
                 self.draw_markerline(line_coords)
                 if section_info.verw_eigs.vergentiepunt_start:
-                    self.draw_markerline(line_coords, "Punt_start", direction=1)
+                    self.draw_markerline(line_coords, "Punt-start", direction=1)
                 elif section_info.verw_eigs.vergentiepunt_einde:
-                    self.draw_markerline(line_coords, "Punt_einde", direction=1)
+                    self.draw_markerline(line_coords, "Punt-einde", direction=1)
                 break
 
             # Puntstuk cases have been handled, now the normal cases.
@@ -380,7 +380,7 @@ class SvgMaker:
             self.draw_line(coords, 0.4, "9 3")
         elif linetype == "Blok":
             self.draw_line(coords, 0.6, "0.8 4")
-        elif linetype == "Punt_start" or linetype == "Punt_einde":
+        elif linetype == "Punt-start" or linetype == "Punt-einde":
             self.draw_triangle(coords, linetype, direction)
             self.draw_line(coords, 0.4)
         elif linetype == "Dun":
@@ -397,7 +397,7 @@ class SvgMaker:
         self.g_road.add(line)
 
     def draw_triangle(self, coords: list[tuple], linetype: str, direction: int = 1):
-        triangle_end = coords[-1] if linetype == "Punt_start" else coords[0]
+        triangle_end = coords[-1] if linetype == "Punt-start" else coords[0]
 
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
         mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
@@ -410,8 +410,8 @@ class SvgMaker:
 
     def svg_add_point(self, point_info: ObjectInfo):
         coords = self.get_flipped_coords(point_info.pos_eigs.geometrie)[0]
-        info_offset = self.LANE_WIDTH * (point_info.verw_eigs.aantal_stroken +
-                      (point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken)) / 2
+        # TODO: change these calculations
+        info_offset = self.LANE_WIDTH * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
         if point_info.obj_eigs["Type"] == "Signalering":
@@ -431,11 +431,7 @@ class SvgMaker:
             msi_name = make_name(point_info, nr)
             displacement = info_offset + self.VISUAL_PLAY + (nr - 1) * (self.VISUAL_PLAY + self.MSIBOX_SIZE) + hecto_offset
             box_pos = (coords[0] + displacement, coords[1] - self.MSIBOX_SIZE / 2)
-            square = self.dwg.rect(insert=box_pos,
-                                   size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
-                                   fill="#1e1b17", stroke="black", stroke_width=self.BASE_STROKE,
-                                   onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
-                                   onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+            square = self.draw_msi(box_pos)
             group_msi_row.add(square)
             self.element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -466,12 +462,7 @@ class SvgMaker:
             msi_name = make_name(point_info, nr)
             displacement = self.LANE_WIDTH * (nr - 1) - point_info.verw_eigs.aantal_hoofdstroken * self.LANE_WIDTH / 2
             box_pos = (coords[0] + displacement + play, coords[1] - self.MSIBOX_SIZE / 2)
-            stroke = 0.3
-            square = self.dwg.rect(insert=box_pos,
-                                   size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
-                                   fill="#1e1b17", stroke="black", stroke_width=stroke,
-                                   onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
-                                   onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
+            square = self.draw_msi(box_pos)
             group_msi_row.add(square)
             self.element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -492,6 +483,13 @@ class SvgMaker:
         group_msi_row.add(group_text)
         group_msi_row.rotate(rotate_angle, center=coords)
         self.dwg.add(group_msi_row)
+
+    def draw_msi(self, box_pos):
+        return self.dwg.rect(insert=box_pos,
+                             size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
+                             fill="#1e1b17", stroke="black", stroke_width=self.BASE_STROKE,
+                             onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
+                             onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
 
     def draw_all_legends(self, group_msi_row: svgwrite.container.Group, msi_name: str,
                          box_coords: tuple, center_coords: tuple, box_size: float):
