@@ -129,6 +129,13 @@ class DataFrameLader:
         "data/Rijstrooksignaleringen/strksignaleringn.dbf",
     ]
 
+    __VERGENCE_NAME_MAPPING = {
+        "U": "Uitvoeging",
+        "D": "Splitsing",
+        "C": "Samenvoeging",
+        "I": "Invoeging"
+    }
+
     def __init__(self, input_location: str | dict = None) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
@@ -272,73 +279,63 @@ class DataFrameLader:
         Args:
             name (str): The name of the GeoDataFrame.
         """
+        df = self.data[name]
+
         # Try to convert any MultiLineStrings to LineStrings.
-        self.data[name]["geometry"] = self.data[name]["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
-                                                                        if isinstance(geom, MultiLineString) else geom)
+        df["geometry"] = df["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
+                                              if isinstance(geom, MultiLineString) else geom)
 
-        s1 = len(self.data[name])
+        s1 = len(df)
 
-        # Filter all entries where the geometry column still contains a MultiLineString
-        is_linestring_or_point = self.data[name]["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))
-        self.data[name] = self.data[name][is_linestring_or_point]
+        # Filter so only entries are imported where the geometry column contains a LineString or Point
+        df = df[df["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))]
 
-        s2 = len(self.data[name])
+        s2 = len(df)
 
         if s1 - s2 > 0:
             print(f"[LOG:] Aantal registraties verwijderd: {s1 - s2}")
 
-        # These column variable types should be changed.
-        self.data[name]["WEGNUMMER"] = pd.to_numeric(self.data[name]["WEGNUMMER"], errors="coerce").astype("Int64")
+        df["WEGNUMMER"] = pd.to_numeric(df["WEGNUMMER"], errors="coerce").astype("Int64")
 
         if name == "Rijstroken":
-            self.data[name]["VOLGNRSTRK"] = pd.to_numeric(self.data[name]["VOLGNRSTRK"], errors="raise").astype("Int64")
-
-            mapping_function = lambda row: LANE_MAPPING_H.get(row["OMSCHR"], (0, None)) if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T.get(row["OMSCHR"], (0, None))
-            self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
-
-            # # Remove all unknown entries using a boolean mask.
-            # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
+            df["VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
+            df["LANE_INFO"] = df.apply(self.get_lane_info, args=("OMSCHR",), axis=1)
 
         if name == "Mengstroken":
-            mapping_function = lambda row: LANE_MAPPING_H.get(row["AANT_MSK"], (0, None)) if row["KANTCODE"] == "H" \
-                else LANE_MAPPING_T.get(row["AANT_MSK"], (0, None))
-            self.data[name]["laneInfo"] = self.data[name].apply(mapping_function, axis=1)
-
-            # # Remove all unknown entries using a boolean mask.
-            # self.data[name] = self.data[name][self.data[name]["laneInfo"] != (0, None)]
+            df["LANE_INFO"] = df.apply(self.get_lane_info, args=("AANT_MSK",), axis=1)
 
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
-            is_considered = self.data[name]["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])
-            self.data[name] = self.data[name][is_considered]
+            df = df[df["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])]
 
         if name == "Rijstrooksignaleringen":
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
-            is_kp = self.data[name]["CODE"] == "KP"
-            self.data[name] = self.data[name][is_kp]
-            self.data[name]["Type"] = "Signalering"
+            df = df[df["CODE"] == "KP"]
+            df["Type"] = "Signalering"
 
         # Some registrations don't have BEGINKM. These can be ignored.
         if name == "Wegvakken":
-            self.data[name] = self.data[name].dropna(subset=["BEGINKM"])
-
-        vergence_mapping = {
-            "U": "Uitvoeging",
-            "D": "Splitsing",
-            "C": "Samenvoeging",
-            "I": "Invoeging"
-        }
+            df = df.dropna(subset=["BEGINKM"])
 
         if name == "Convergenties":
-            self.data[name]["Type"] = self.data[name]["TYPE_CONV"].apply(lambda entry: vergence_mapping[entry])
+            df["Type"] = df["TYPE_CONV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
 
         if name == "Divergenties":
-            self.data[name]["Type"] = self.data[name]["TYPE_DIV"].apply(lambda entry: vergence_mapping[entry])
+            df["Type"] = df["TYPE_DIV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
 
         if "stroken" in name:
             # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
-            self.data[name]["VNRWOL"] = pd.to_numeric(self.data[name]["VNRWOL"], errors="coerce").astype("Int64")
+            df["VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
+
+        # Assign dataframe back to original position
+        self.data[name] = df
+
+    @staticmethod
+    def get_lane_info(row, column):
+        if row["KANTCODE"] == "H":
+            return LANE_MAPPING_H.get(row[column], (0, None))
+        else:
+            return LANE_MAPPING_T.get(row[column], (0, None))
 
 
 class WegModel:
@@ -481,7 +478,7 @@ class WegModel:
                 section_info.pos_eigs.km = [row["EINDKM"], row["BEGINKM"]]
 
             first_lane_number = row["VNRWOL"]
-            n_lanes, special = row["laneInfo"]
+            n_lanes, special = row["LANE_INFO"]
 
             # Indicate lane number and type of lane. Example: {1: "Rijstrook", 2: "Rijstrook"}
             for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
@@ -501,7 +498,7 @@ class WegModel:
 
         elif name == "Mengstroken":
             first_lane_number = row["VNRWOL"]
-            n_lanes, special = row["laneInfo"]
+            n_lanes, special = row["LANE_INFO"]
 
             # Indicate lane number and type of lane. Example: {4: "Weefstrook"}
             for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
