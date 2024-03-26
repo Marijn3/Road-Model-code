@@ -26,8 +26,9 @@ class SvgMaker:
         self.outfile = output_filename
         self.size = formaat
         self.onroad = onroad
+        self.element_by_id = {}
 
-        # Visualiser parameters
+        # Visualiser parameters (constants)
         self.LANE_WIDTH = 3.5
 
         if onroad:
@@ -47,12 +48,11 @@ class SvgMaker:
         self.VIEWBOX_HEIGHT = abs(self.TOP_LEFT_Y - self.BOTTOM_RIGHT_Y)
         self.RATIO = self.VIEWBOX_HEIGHT / self.VIEWBOX_WIDTH
 
-        # Dictionary to store squares by ID
-        self.element_by_id = {}
-
         # Create instances for visualisation
-        self.dwg = self.dwg = svgwrite.Drawing(filename=self.outfile, size=(self.size, self.size * self.RATIO),
-                                               profile="full", id="svg5")  # This specific ID tag is used by JvM script
+        self.dwg = svgwrite.Drawing(filename=self.outfile,
+                                    size=(self.size, self.size * self.RATIO),
+                                    profile="full",
+                                    id="svg5")  # This specific ID tag is used by JvM script
         self.g_background = self.dwg.g(id="background")
         self.g_road = self.dwg.g(id="road")
         self.g_msi_relations = self.dwg.g(id="nametags_MSI")  # This tag is used in user interface
@@ -280,7 +280,7 @@ class SvgMaker:
         color = self.get_road_color(section_info.obj_eigs)
         width = self.LANE_WIDTH * n_total_lanes
 
-        self.g_road.add(svgwrite.shapes.Polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
+        self.g_road.add(self.dwg.polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
 
         should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT]
 
@@ -444,7 +444,7 @@ class SvgMaker:
         g_msi_row.rotate(rotate_angle, center=coords)
         self.dwg.add(g_msi_row)
 
-    def display_MSI_onroad(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
+    def display_MSI_onroad(self, point_info: ObjectInfo, coords: tuple, rotate_angle: float):
         g_msi_row = self.dwg.g()
         play = (self.LANE_WIDTH - self.MSIBOX_SIZE)/2
         displacement = 0
@@ -478,11 +478,11 @@ class SvgMaker:
     def draw_msi_text(self, point_info, text_coords, rotate_angle):
         g_text = self.dwg.g()
         anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
-        text = svgwrite.text.Text(make_text_hecto(point_info.pos_eigs.km,
-                                                  point_info.pos_eigs.rijrichting,
-                                                  point_info.pos_eigs.hectoletter),
-                                  insert=text_coords, text_anchor=anchorpoint, font_size=self.TEXT_SIZE,
-                                  fill="white", font_family="Arial", dominant_baseline="central")        
+        text = self.dwg.text(make_text_hecto(point_info.pos_eigs.km,
+                                             point_info.pos_eigs.rijrichting,
+                                             point_info.pos_eigs.hectoletter),
+                             insert=text_coords, text_anchor=anchorpoint, font_size=self.TEXT_SIZE,
+                             fill="white", font_family="Arial", dominant_baseline="central")
         g_text.add(text)
         g_text.rotate(-rotate_angle, center=text_coords)
         return g_text
@@ -496,34 +496,34 @@ class SvgMaker:
         clearance = box_size*0.2
 
         g_50 = g_msi_row.add(self.dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
-        g_50.add(svgwrite.text.Text(
+        g_50.add(self.dwg.text(
             "50", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_70 = g_msi_row.add(self.dwg.g(id=f"g[{msi_name}]", visibility="hidden"))
-        g_70.add(svgwrite.text.Text(
+        g_70.add(self.dwg.text(
             "70", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_80 = g_msi_row.add(self.dwg.g(id=f"h[{msi_name}]", visibility="hidden"))
-        g_80.add(svgwrite.text.Text(
+        g_80.add(self.dwg.text(
             "80", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_90 = g_msi_row.add(self.dwg.g(id=f"i[{msi_name}]", visibility="hidden"))
-        g_90.add(svgwrite.text.Text(
+        g_90.add(self.dwg.text(
             "90", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_100 = g_msi_row.add(self.dwg.g(id=f"j[{msi_name}]", visibility="hidden"))
-        g_100.add(svgwrite.text.Text(
+        g_100.add(self.dwg.text(
             "100", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             letter_spacing="-0.5", text_anchor="middle", dominant_baseline="middle"))
 
         g_overruling_blank = g_msi_row.add(self.dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
         g_overruling_blank.add(self.dwg.rect(insert=box_coords,
-                                            size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
-                                            fill="#1e1b17", stroke="none"))
+                                             size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
+                                             fill="#1e1b17", stroke="none"))
 
         g_red_cross = g_msi_row.add(self.dwg.g(id=f"x[{msi_name}]", visibility="hidden"))
         g_red_cross.add(self.dwg.line(
@@ -621,9 +621,9 @@ class SvgMaker:
     def display_vergence(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
         g_vergence = self.dwg.g()
 
-        text = svgwrite.text.Text(f"{point_info.pos_eigs.km} {point_info.obj_eigs['Type']}",
-                                  insert=(coords[0] + 1 + info_offset, coords[1]),
-                                  fill="white", font_family="Arial", dominant_baseline="central", font_size=4)
+        text = self.dwg.text(f"{point_info.pos_eigs.km} {point_info.obj_eigs['Type']}",
+                             insert=(coords[0] + 1 + info_offset, coords[1]),
+                             fill="white", font_family="Arial", dominant_baseline="central", font_size=4)
 
         g_vergence.add(text)
         g_vergence.rotate(rotate_angle, center=coords)

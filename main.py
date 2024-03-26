@@ -20,7 +20,7 @@ wegmodel = WegModel(dfl)
 MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relaties=True)
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(dfl, wegmodel, MSIs, "Server/Data/WEGGEG/road_visualization.svg")
+SvgMaker(dfl, wegmodel, MSIs, "Server/Data/WEGGEG/road_visualization.svg", 1000, False)
 
 # # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs)
