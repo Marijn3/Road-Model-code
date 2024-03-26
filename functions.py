@@ -229,7 +229,7 @@ class DataFrameLader:
     def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
         """
         Deze functie is nog in aanbouw. De bedoeling is om hier MultiLineString registraties af te vangen.
-        TODO 26: Fix for verbindingsbogen.
+        TODO 26: Fix for verbindingsboog Zonzeel.
         """
         merged = line_merge(geom)
         if isinstance(merged, LineString):
@@ -265,7 +265,8 @@ class DataFrameLader:
 
             return line_merge(MultiLineString([line1, line2]))
 
-        assert False, f"Omzetting naar LineString niet mogelijk voor {geom}"
+        print(f"[Waarschuwing:] Omzetting naar LineString niet mogelijk voor {geom}")
+        return geom
 
     def __edit_columns(self, name: str) -> None:
         """
@@ -2022,10 +2023,12 @@ class MSI(MSILegends):
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
-        if self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]:
+        if (self.lane_nr in self.row.local_road_properties.keys()
+                and self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]):
             self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report Jeroen 2 p67.
 
-        if (self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
+        if (self.lane_nr in self.row.local_road_properties.keys() and
+                self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
                 self.row.n_lanes > self.lane_nr > 1):
             self.properties["Exit_Entry"] = True
 

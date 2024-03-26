@@ -4,9 +4,10 @@ import math
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
-# Verwerkingsfouten : Zonzeel [MultiLineString], Zuidasdok [MSI relations], Bavel [MSI relations]
-# Importfouten : A2VK, Everdingen
-dfl = DataFrameLader("A27")
+# Verwerkingsfouten : [MultiLineString] Zonzeel
+#                     [MSI relations] Zuidasdok, Bavel, Everdingen
+# Importfouten : A2VK
+dfl = DataFrameLader("Vught")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 wegmodel = WegModel(dfl)
