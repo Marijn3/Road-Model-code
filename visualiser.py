@@ -79,8 +79,7 @@ class SvgMaker:
 
     def visualise_msis(self):
         logger.info("Puntdata visualiseren...")
-        points = self.wegmodel.get_points_info("MSI")
-        for point in points:
+        for point in self.wegmodel.get_points_info("MSI"):
             self.svg_add_point(point)
 
         logger.info("MSI-relaties visualiseren...")
@@ -415,7 +414,7 @@ class SvgMaker:
 
         if point_info.obj_eigs["Type"] == "Signalering":
             if self.onroad:
-                self.display_MSI_onroad(point_info, coords, info_offset, rotate_angle)
+                self.display_MSI_onroad(point_info, coords, rotate_angle)
             else:
                 self.display_MSI_roadside(point_info, coords, info_offset, rotate_angle)
         else:
@@ -628,7 +627,6 @@ class SvgMaker:
 
         g_vergence.add(text)
         g_vergence.rotate(rotate_angle, center=coords)
-        self.dwg.add(g_vergence)
 
     def draw_msi_relations(self):
         # Draw primary relations

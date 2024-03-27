@@ -92,8 +92,9 @@ class MSINetwerk:
         self.roadmodel = roadmodel
         self.add_secondary_relations = alle_secundaire_relaties
         self.max_search_distance = maximale_zoekafstand
-        self.construct_msi_network()
+
         self.MSIrows = []
+        self.construct_msi_network()
 
     def construct_msi_network(self):
         logger.info(f"MSI-netwerk opzetten...")
