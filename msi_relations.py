@@ -5,11 +5,11 @@ logger = logging.getLogger(__name__)
 
 
 class MSIRow:
-    def __init__(self, msi_network, msi_row_info: ObjectInfo, local_road_info: ObjectInfo):
+    def __init__(self, msi_network: 'MSINetwerk', msi_row_info: ObjectInfo):
         self.msi_network = msi_network
         self.info = msi_row_info
         self.properties = self.info.obj_eigs
-        self.local_road_info = local_road_info
+        self.local_road_info = self.msi_network.roadmodel.get_one_section_at_point(self.info.pos_eigs.geometrie)
         self.local_road_properties = self.local_road_info.obj_eigs
         self.name = make_MTM_row_name(self.info)
         self.lane_numbers = []
@@ -92,9 +92,13 @@ class MSINetwerk:
         self.roadmodel = roadmodel
         self.add_secondary_relations = alle_secundaire_relaties
         self.max_search_distance = maximale_zoekafstand
+        self.construct_msi_network()
+        self.MSIrows = []
 
-        self.MSIrows = [MSIRow(self, msi_info, self.roadmodel.get_one_section_at_point(msi_info.pos_eigs.geometrie))
-                        for row_numbering, msi_info in enumerate(self.roadmodel.get_points_info("MSI"))]
+    def construct_msi_network(self):
+        logger.info(f"MSI-netwerk opzetten...")
+
+        self.MSIrows = [MSIRow(self, msi_info) for msi_info in self.roadmodel.get_points_info("MSI")]
 
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
@@ -104,13 +108,16 @@ class MSINetwerk:
             msi_row.determine_msi_row_relations()
             msi_row.fill_msi_properties()
 
-        # Print resulting properties once everything has been determined
+        self.log_network()
+
+    def log_network(self):
+        # Log resulting properties once everything has been determined
         for msi_row in self.MSIrows:
             for msi in msi_row.MSIs.values():
                 filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
                 logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}\n")
 
-    def travel_roadmodel(self, msi_row: MSIRow, downstream: bool) -> list:
+    def travel_roadmodel(self, msi_row: 'MSIRow', downstream: bool) -> list:
         """
         Initiates travel through the road model in upstream or downstream direction,
         starting from the indicated MSI row, and finds MSI rows in specified direction.
