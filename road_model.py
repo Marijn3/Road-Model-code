@@ -230,7 +230,7 @@ class DataFrameLader:
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with selected data.
         """
-        data = gpd.read_file(file_path)
+        data = gpd.read_file(file_path)  # TODO: This step takes relatively long! 2 - 10 seconds per layer
         return self.__select_data_in_extent(data)
 
     def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
