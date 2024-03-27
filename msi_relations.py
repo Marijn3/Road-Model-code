@@ -116,7 +116,7 @@ class MSINetwerk:
         for msi_row in self.MSIrows:
             for msi in msi_row.MSIs.values():
                 filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
-                logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}\n")
+                logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
 
     def travel_roadmodel(self, msi_row: 'MSIRow', downstream: bool) -> list:
         """
@@ -704,13 +704,14 @@ class MSI(MSILegends):
             if self.row.msi_network.add_secondary_relations:
                 logger.debug(f"Relatie wordt toegepast.")
                 u_row, desc = next(iter(self.row.upstream.items()))
+                # TODO: Why this check?
                 if (u_row.local_road_info.pos_eigs.hectoletter ==
                         self.row.local_road_info.pos_eigs.hectoletter):
                     highest_msi_number = max([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[highest_msi_number])
                 else:
                     # This should not occur in the Netherlands, but is here for safety.
-                    logger.warning(f"Er wordt een onverwachte relatie toegevoegd.")
+                    logger.warning(f"Er wordt een onverwachte secundaire relatie toegevoegd.")
                     lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
 

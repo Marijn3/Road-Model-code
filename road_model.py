@@ -11,6 +11,10 @@ import logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
 logger = logging.getLogger(__name__)
 
+# Set a higher level for external libraries such as fiona to filter out their debug messages
+external_logger = logging.getLogger('fiona')
+external_logger.setLevel(logging.INFO)
+
 
 class PositieEigenschappen:
     def __init__(self, rijrichting: str = "", wegnummer: str = "", hectoletter: str = "",
@@ -311,7 +315,7 @@ class DataFrameLader:
         if s1 - s2 > 0:
             logger.debug(f"Aantal registraties verwijderd: {s1 - s2}")
 
-        df["WEGNUMMER"] = pd.to_numeric(df["WEGNUMMER"], errors="coerce").astype("Int64")
+        df.loc[:, "WEGNUMMER"] = pd.to_numeric(df["WEGNUMMER"], errors="coerce").astype("Int64")
 
         if name == "Rijstroken":
             df["VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
@@ -535,7 +539,7 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
-            logger.warning(f"{new_section} overlapt niet met eerdere lagen. Deze sectie wordt niet toegevoegd.")
+            logger.warning(f"Sectie overlapt niet met eerdere lagen, dus wordt niet toegevoegd: {new_section.pos_eigs}")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -804,7 +808,7 @@ class WegModel:
         elif isinstance(diff, MultiLineString) and not diff.is_empty:
             diffs = [geom for geom in diff.geoms]
             if get_num_geometries(diff) > 2:
-                logger.warning(f"Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}\n")
+                logger.warning(f"Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}")
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
@@ -902,36 +906,36 @@ class WegModel:
         self.__log_section(self.__section_index, False)
         self.__section_index += 1
 
-    def __add_initial_section(self, new_section_info: ObjectInfo) -> None:
+    def __add_initial_section(self, section_info: ObjectInfo) -> None:
         """
         Adds a section to the sections variable and increases the index.
         Args:
-            new_section_info (ObjectInfo): Initial section info
+            section_info (ObjectInfo): Initial section info
         Prints:
             Newly added section properties.
         """
-        reference_info = self.__get_overlapping_reference_info(new_section_info)
+        reference_info = self.__get_overlapping_reference_info(section_info)
 
         if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            logger.warning(f"{new_section_info} overlapt niet met de referentie. Deze sectie wordt niet toegevoegd.")
+            logger.warning(f"Sectie overlapt niet met referentie, dus wordt niet toegevoegd: {section_info.pos_eigs}")
             return
 
         # Ensure the first geometries are oriented in driving direction according to the reference layer.
-        if same_direction(new_section_info.pos_eigs.geometrie, reference_info.pos_eigs.geometrie):
-            geom = new_section_info.pos_eigs.geometrie
+        if same_direction(section_info.pos_eigs.geometrie, reference_info.pos_eigs.geometrie):
+            geom = section_info.pos_eigs.geometrie
         else:
-            geom = reverse(new_section_info.pos_eigs.geometrie)
+            geom = reverse(section_info.pos_eigs.geometrie)
 
         self.__add_section(
             ObjectInfo(
                 pos_eigs=PositieEigenschappen(
-                    rijrichting=new_section_info.pos_eigs.rijrichting,
+                    rijrichting=section_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
                     hectoletter=reference_info.pos_eigs.hectoletter,
-                    km=new_section_info.pos_eigs.km,
+                    km=section_info.pos_eigs.km,
                     geometrie=geom),
-                obj_eigs=new_section_info.obj_eigs)
+                obj_eigs=section_info.obj_eigs)
         )
 
     def __add_reference(self, reference_info: ObjectInfo) -> None:
