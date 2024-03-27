@@ -375,13 +375,13 @@ class WegModel:
         self.GRID_SIZE = 0.00001
 
         self.dfl = dfl
-        self.__base = {}
-        self.__base_index = 0
+        self.__reference = {}
+        self.__reference_index = 0
         self.sections = {}
         self.__section_index = 0
         self.points = {}
         self.__point_index = 0
-        self.__has_base_layer = False
+        self.__has_reference_layer = False
         self.__has_initial_layer = False
 
         self.__import_dataframes()
@@ -412,8 +412,8 @@ class WegModel:
         for index, row in dataframe.iterrows():
             feature_info = self.__extract_row_properties(row, df_name)
 
-            if not self.__has_base_layer:
-                self.__add_base(feature_info)
+            if not self.__has_reference_layer:
+                self.__add_reference(feature_info)
                 continue
 
             if not self.__has_initial_layer:
@@ -426,7 +426,7 @@ class WegModel:
                 self.__determine_sectioning(feature_info)
 
         if df_name == "Wegvakken":
-            self.__has_base_layer = True
+            self.__has_reference_layer = True
         if df_name == "Rijstroken":
             self.__has_initial_layer = True
 
@@ -914,127 +914,121 @@ class WegModel:
         self.__log_section(self.__section_index, False)
         self.__section_index += 1
 
-    def __add_initial_section(self, new_section: ObjectInfo) -> None:
+    def __add_initial_section(self, new_section_info: ObjectInfo) -> None:
         """
         Adds a section to the sections variable and increases the index.
         Args:
-            new_section (ObjectInfo): Initial section info
+            new_section_info (ObjectInfo): Initial section info
         Prints:
             Newly added section properties.
         """
-        overlap_base = self.__get_overlapping_base(new_section)
+        reference_info = self.__get_overlapping_reference_info(new_section_info)
 
-        if not overlap_base:
-            logger.warning(f"{new_section} overlapt niet met de basis. Deze sectie wordt niet toegevoegd.")
+        if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
+            logger.warning(f"{new_section_info} overlapt niet met de referentie. Deze sectie wordt niet toegevoegd.")
             return
 
-        overlap_info = overlap_base["Section_info"]
-
-        # Ensure the first geometries are oriented in driving direction according to the base layer.
-        if same_direction(new_section.pos_eigs.geometrie, overlap_info.pos_eigs.geometrie):
-            geom = new_section.pos_eigs.geometrie
+        # Ensure the first geometries are oriented in driving direction according to the reference layer.
+        if same_direction(new_section_info.pos_eigs.geometrie, reference_info.pos_eigs.geometrie):
+            geom = new_section_info.pos_eigs.geometrie
         else:
-            geom = reverse(new_section.pos_eigs.geometrie)
+            geom = reverse(new_section_info.pos_eigs.geometrie)
 
         self.__add_section(
             ObjectInfo(
                 pos_eigs=PositieEigenschappen(
-                    rijrichting=new_section.pos_eigs.rijrichting,
-                    wegnummer=overlap_info.pos_eigs.wegnummer,
-                    hectoletter=overlap_info.pos_eigs.hectoletter,
-                    km=new_section.pos_eigs.km,
+                    rijrichting=new_section_info.pos_eigs.rijrichting,
+                    wegnummer=reference_info.pos_eigs.wegnummer,
+                    hectoletter=reference_info.pos_eigs.hectoletter,
+                    km=new_section_info.pos_eigs.km,
                     geometrie=geom),
-                obj_eigs=new_section.obj_eigs)
+                obj_eigs=new_section_info.obj_eigs)
         )
 
-    def __add_base(self, new_section: ObjectInfo) -> None:
+    def __add_reference(self, reference_info: ObjectInfo) -> None:
         """
-        Adds a section to the base variable and increases the index.
+        Adds a feature to the reference variable and increases the index.
         Args:
-            new_section (ObjectInfo): Info of new section to add as base.
+            reference_info (ObjectInfo): Info of new reference feature to add to reference layer.
         Prints:
-            Newly added section properties.
+            Newly added reference feature properties.
         """
-        assert not is_empty(new_section.pos_eigs.geometrie),\
-            f"Poging om een lege lijngeometrie toe te voegen: {new_section}"
+        assert not is_empty(reference_info.pos_eigs.geometrie),\
+            f"Poging om een lege lijngeometrie toe te voegen: {reference_info}"
 
-        self.__base[self.__base_index] = new_section
-        self.__log_base(self.__base_index)
-        self.__base_index += 1
+        self.__reference[self.__reference_index] = reference_info
+        self.__log_reference(self.__reference_index)
+        self.__reference_index += 1
 
-    def __add_point(self, new_point: ObjectInfo) -> None:
+    def __add_point(self, point_info: ObjectInfo) -> None:
         """
         Adds a point to the points variable and increases the index.
         Args:
-            new_point (PointInfo): Point info to be added.
+            point_info (ObjectInfo): Point info to be added.
         Prints:
             Newly added point properties.
         """
-        assert not is_empty(new_point.pos_eigs.geometrie),\
-            f"Poging om een lege puntgeometrie toe te voegen: {new_point}"
+        assert not is_empty(point_info.pos_eigs.geometrie),\
+            f"Poging om een lege puntgeometrie toe te voegen: {point_info}"
 
-        self.points[self.__point_index] = new_point
+        self.points[self.__point_index] = point_info
         self.__log_point(self.__point_index)
         self.__point_index += 1
 
     def __log_point(self, index: int) -> None:
         """
-        Prints addition LOG for point in self.points at given index.
+        Logs addition of point in self.points at given index.
         Args:
             index (int): Index of point to print info for.
         """
         logger.debug(f"Punt {index} toegevoegd: \t"
-                    f"{self.points[index].pos_eigs.km:<7.3f} km \t"
-                    f"{self.points[index].pos_eigs.wegnummer}\t"
-                    f"{self.points[index].pos_eigs.rijrichting}\t"
-                    f"{self.points[index].pos_eigs.hectoletter}\t"
-                    f"{self.points[index].obj_eigs} \n"
-                    f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
+                     f"{self.points[index].pos_eigs.km:<7.3f} km \t"
+                     f"{self.points[index].pos_eigs.wegnummer}\t"
+                     f"{self.points[index].pos_eigs.rijrichting}\t"
+                     f"{self.points[index].pos_eigs.hectoletter}\t"
+                     f"{self.points[index].obj_eigs} \n"
+                     f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
 
-    def __log_base(self, index: int) -> None:
+    def __log_reference(self, index: int) -> None:
         """
-        Prints addition LOG for section in self.base at given index.
+        Logs addition of section in self.__reference at given index.
         Args:
             index (int): Index of section to print info for.
         """
-        logger.debug(f"Basis {index} toegevoegd:  \t"
-                    f"{self.__base[index].pos_eigs.wegnummer}\t"
-                    f"{self.__base[index].pos_eigs.hectoletter}\n"
-                    f"\t\t\t\t\t\t\t\t{set_precision(self.__base[index].pos_eigs.geometrie, 1)}")
+        logger.debug(f"Referentie {index} toegevoegd:  \t"
+                     f"{self.__reference[index].pos_eigs.wegnummer}\t"
+                     f"{self.__reference[index].pos_eigs.hectoletter}\n"
+                     f"\t\t\t\t\t\t\t\t{set_precision(self.__reference[index].pos_eigs.geometrie, 1)}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
         """
-        Prints change LOG for section in self.sections at given index.
+        Logs change or addition for section in self.sections at given index.
         Args:
             index (int): Index of section to print info for.
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
         logger.debug(f"Sectie {index} {wording[changed]}\t"
-                    f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
-                    f"{self.sections[index].pos_eigs.wegnummer}\t"
-                    f"{self.sections[index].pos_eigs.rijrichting}\t"
-                    f"{self.sections[index].pos_eigs.hectoletter}\t"
-                    f"{self.sections[index].obj_eigs} \n"
-                    f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
+                     f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
+                     f"{self.sections[index].pos_eigs.wegnummer}\t"
+                     f"{self.sections[index].pos_eigs.rijrichting}\t"
+                     f"{self.sections[index].pos_eigs.hectoletter}\t"
+                     f"{self.sections[index].obj_eigs} \n"
+                     f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
 
-    def __get_overlapping_base(self, new_section):
-        overlapping_base = []
-        for base_index, base in self.__base.items():
-            if self.get_overlap(new_section.pos_eigs.geometrie, base.pos_eigs.geometrie):
-                overlapping_base.append({"Index": base_index, "Section_info": base})
-                    # TODO: simplify to {index: section_info}
-
-        #     # For the rest of the implementation, sorting in driving direction is assumed.
-        #     # Thus, sections on the left side should be ordered from high to low ranges.
-        #     travel_direction = overlapping_sections[0]["Section_info"].rijrichting
-        #     should_reverse = travel_direction == "L"
-        #     overlapping_sections = sorted(overlapping_sections,
-        #                                   key=lambda x: max(x["Section_info"].km),
-        #                                   reverse=should_reverse)
-        # Return just one of them (works fine for now. TODO: make better?)
-        if overlapping_base:
-            return overlapping_base[0]
+    def __get_overlapping_reference_info(self, section_info: ObjectInfo) -> ObjectInfo | None:
+        """
+        Finds the first overlapping geometry from the reference layer and returns it.
+        Args:
+            section_info (ObjectInfo): Section information for which the reference overlap should be determined.
+        Returns:
+            Feature info from the reference layer. If there is no overlap with the reference,
+            then None is returned instead.
+        """
+        for reference_index, reference_info in self.__reference.items():
+            if self.get_overlap(section_info.pos_eigs.geometrie, reference_info.pos_eigs.geometrie):
+                # Return the first one found (works fine for now).
+                return reference_info
         return None
 
     def __get_overlapping_sections(self, section_a: ObjectInfo) -> list[dict]:
