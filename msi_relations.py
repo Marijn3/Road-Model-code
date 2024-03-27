@@ -447,55 +447,13 @@ class MSINetwerk:
         return None
 
 
-class MSILegends:
-    # All possible legends.
-    CROSS = 210
-    RIGHT_ARROW = 209
-    LEFT_ARROW = 208
-    SPEED_50 = 16
-    SPEED_50_FLASHERS = 15
-    SPEED_50_REDRING = 14
-    SPEED_70 = 13
-    SPEED_70_FLASHERS = 12
-    SPEED_70_REDRING = 11
-    SPEED_80 = 10
-    SPEED_80_FLASHERS = 9
-    SPEED_80_REDRING = 8
-    SPEED_90 = 7
-    SPEED_90_FLASHERS = 6
-    SPEED_90_REDRING = 5
-    SPEED_100 = 4
-    SPEED_ABOVE_100 = 3  # Blank screen
-    GREEN_ARROW = 2
-    END_OF_RESTRICTIONS = 1
-    BLANK = 0
-
-    # Legend set definitions
-    displayset_all = {CROSS,
-                      RIGHT_ARROW,
-                      LEFT_ARROW,
-                      SPEED_50, SPEED_50_FLASHERS, SPEED_50_REDRING,
-                      SPEED_70, SPEED_70_FLASHERS, SPEED_70_REDRING,
-                      SPEED_80, SPEED_80_FLASHERS, SPEED_80_REDRING,
-                      SPEED_90, SPEED_90_FLASHERS, SPEED_90_REDRING,
-                      SPEED_100,
-                      SPEED_ABOVE_100,
-                      GREEN_ARROW,
-                      END_OF_RESTRICTIONS,
-                      BLANK}
-    displayset_leftmost = displayset_all - {LEFT_ARROW}
-    displayset_rightmost = displayset_all - {RIGHT_ARROW}
-
-
-class MSI(MSILegends):
+class MSI:
     def __init__(self, parent_msi_row: MSIRow, lane_nr: int):
         self.row = parent_msi_row
 
         # Store all that is unique to the MSI
         self.lane_nr = lane_nr
 
-        # TODO: Limit displayset based on properties such as being the leftmost or rightmost lane, tunnel presence...
-        self.displayoptions = self.displayset_all
         self.name = f"{self.row.name}:{str(self.lane_nr)}"
 
         self.properties = {
