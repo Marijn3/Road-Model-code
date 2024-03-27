@@ -230,20 +230,7 @@ class DataFrameLader:
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with selected data.
         """
-        data = gpd.read_file(file_path)  # TODO: This step takes relatively long! 2 - 10 seconds per layer
-        return self.__select_data_in_extent(data)
-
-    def __select_data_in_extent(self, data: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        """
-        Select data that intersects the specified extent from the GeoDataFrame.
-        All data that intersects the extent is considered "in the extent".
-        Args:
-            data (gpd.GeoDataFrame): The GeoDataFrame.
-        Returns:
-            gpd.GeoDataFrame: The GeoDataFrame with only data that intersects the extent.
-        """
-        data["inextent"] = data["geometry"].apply(lambda geom: geom.intersects(self.extent))
-        return data[data["inextent"]]
+        return gpd.read_file(file_path, bbox=self.extent)
 
     @staticmethod
     def __get_layer_name(file_path) -> str:
