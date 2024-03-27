@@ -422,7 +422,7 @@ class SvgMaker:
 
     def display_MSI_roadside(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
         g_msi_row = self.dwg.g()
-        hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "f", "h"] else self.LANE_WIDTH * 25
+        hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
         displacement = 0
 
         for nr in point_info.obj_eigs["Rijstrooknummers"]:

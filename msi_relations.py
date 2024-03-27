@@ -702,18 +702,20 @@ class MSI(MSILegends):
             logger.debug(f"{self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if self.row.msi_network.add_secondary_relations:
-                logger.debug(f"Relatie wordt toegepast.")
                 u_row, desc = next(iter(self.row.upstream.items()))
-                # TODO: Why this check?
-                if (u_row.local_road_info.pos_eigs.hectoletter ==
-                        self.row.local_road_info.pos_eigs.hectoletter):
+                if u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
                     highest_msi_number = max([msi_nr for msi_nr in u_row.MSIs.keys()])
+                    logger.debug(f"Relatie wordt toegepast.")
                     self.make_secondary_connection(self, u_row.MSIs[highest_msi_number])
-                else:
+                elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
+                      and self.lane_nr == 1):
                     # This should not occur in the Netherlands, but is here for safety.
-                    logger.warning(f"Er wordt een onverwachte secundaire relatie toegevoegd.")
+                    logger.warning(f"Relatie wordt toegepast (onverwachte situatie).")
                     lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
+                else:
+                    logger.warning(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
+                                   f"omdat dit geval nog niet ingeprogrammeerd is.")
 
     @staticmethod
     def make_secondary_connection(row1, row2):

@@ -7,13 +7,7 @@ from copy import deepcopy
 import math
 import logging
 
-# Initialize the logger
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
 logger = logging.getLogger(__name__)
-
-# Set a higher level for external libraries such as fiona to filter out their debug messages
-external_logger = logging.getLogger('fiona')
-external_logger.setLevel(logging.INFO)
 
 
 class PositieEigenschappen:
@@ -96,9 +90,7 @@ class DataFrameLader:
     """
    A class for loading GeoDataFrames from shapefiles based on a specified location extent.
 
-   Attributes:
-       __LOCATIONS_CSV_PATH (str): The file path for the locations csv file.
-       __FILE_PATHS (list): List of file paths for shapefiles to be loaded.
+   Public attributes:
        data (dict): Dictionary to store GeoDataFrames for each layer.
        extent (box): The extent of the specified location.
    """
@@ -128,7 +120,11 @@ class DataFrameLader:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            input_location (str or dict): The name of the location or a dict of coordinates.
+            input_location (str or dict): The name of the location or a dict of coordinates,
+                indicating the bounding box to the area to be loaded.
+        Example:
+            dfl = DataFrameLader("Everdingen")
+            dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
         """
 
         self.data = {}
@@ -222,7 +218,7 @@ class DataFrameLader:
         """
         for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
-            logger.info(f"Laag {df_layer_name} laden...")
+            logger.info(f"Laag '{df_layer_name}' laden...")
             self.data[df_layer_name] = self.__load_dataframe(file_path)
             self.__edit_columns(df_layer_name)
 
@@ -391,7 +387,7 @@ class WegModel:
                 4) It contains the hectoletter.
         """
         for df_name in self.__LAYER_NAMES:
-            logger.info(f"Laag '{df_name}' wordt geïmporteerd...")
+            logger.info(f"Laag '{df_name}' wordt verwerkt in het wegmodel...")
             self.__import_dataframe(df_name)
 
     def __import_dataframe(self, df_name: str):
@@ -536,6 +532,8 @@ class WegModel:
         Args:
             new_section (ObjectInfo): Information related to the new section.
         """
+        # TODO: Make this function a lot prettier.
+
         overlap_sections = self.__get_overlapping_sections(new_section)
 
         if not overlap_sections:
@@ -591,7 +589,8 @@ class WegModel:
                 other_section_props = overlap_section_info.obj_eigs
                 other_section_geom = overlap_section_info.pos_eigs.geometrie
 
-            assert determine_range_overlap(new_section_range, other_section_range), "Bereiken overlappen niet."
+            assert determine_range_overlap(new_section_range, other_section_range), \
+                f"Bereiken overlappen niet: {new_section_range}, {other_section_range}"
             if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
                 logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_section.pos_eigs.km)} "
                                f"en {new_section.pos_eigs.geometrie.length}")
@@ -665,7 +664,7 @@ class WegModel:
                 if other_ends_equal:
                     if not (equals(new_section_geom, other_section_geom) or (
                             equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
-                        # TODO: refine these conditions
+                        # TODO: refine the above conditions!!
                         logger.warning(f"Geometrieën komen niet helemaal overeen: "
                                        f"{new_section_geom} and {other_section_geom}")
                     self.__update_section(other_section_index,
