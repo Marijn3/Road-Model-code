@@ -82,10 +82,10 @@ class MSIRow:
 class MSINetwerk:
     def __init__(self, roadmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
         """
-        Instantiats an MSI network based on the provided road model and settings.
+        Instantiates an MSI network based on the provided road model and settings.
             roadmodel (WegModel): The road model on which the lane signalling relations will be based.
             maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
-            at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
+                at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
             alle_secundaire_relaties (bool): Indication whether all additionally determined
                 secundary relation types, which are not in the guidelines, should be added.
         """
@@ -521,7 +521,7 @@ class MSI:
             self.properties["DYN_V"] = dyn_v2
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
-        #  This is implemented as a continue-V relation with the upstream RSU’s.
+        #  This is implemented as a continue-V relation with the upstream RSUs.
         #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations.
         self.properties["C_X"] = False
         self.properties["C_V"] = False
