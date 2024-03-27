@@ -1,4 +1,4 @@
-from functions import *
+from msi_relations import *
 import svgwrite
 
 logger = logging.getLogger(__name__)
