@@ -298,7 +298,7 @@ class DataFrameLader:
 
         # Try to convert any MultiLineStrings to LineStrings.
         df["geometry"] = df["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
-                                              if isinstance(geom, MultiLineString) else geom)
+        if isinstance(geom, MultiLineString) else geom)
 
         s1 = len(df)
 
@@ -466,9 +466,9 @@ class WegModel:
             Line info in generalised dict format.
         """
         assert isinstance(row["geometry"], LineString), f"Dit is geen simpele puntgeometrie: {row}"
-        
+
         section_info = ObjectInfo()
-        
+
         section_info.pos_eigs.km = [row["BEGINKM"], row["EINDKM"]]
         section_info.pos_eigs.geometrie = set_precision(row["geometry"], self.GRID_SIZE)
 
@@ -525,18 +525,18 @@ class WegModel:
 
         return section_info
 
-    def __determine_sectioning(self, new_section: ObjectInfo) -> None:
+    def __determine_sectioning(self, new_info: ObjectInfo) -> None:
         """
         Merges the given section with existing sections in self.sections.
         Args:
-            new_section (ObjectInfo): Information related to the new section.
+            new_info (ObjectInfo): Information related to the new section.
         """
         # TODO: Make this function a lot prettier.
 
-        overlap_sections = self.__get_overlapping_sections(new_section)
+        overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.warning(f"Sectie overlapt niet met eerdere lagen, dus wordt niet toegevoegd: {new_section.pos_eigs}")
+            logger.warning(f"Sectie overlapt niet met eerdere lagen, dus wordt niet toegevoegd: {new_info.pos_eigs}")
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
@@ -546,73 +546,48 @@ class WegModel:
                 return
 
         overlap_section = overlap_sections.pop(0)
-
         other_section_index = overlap_section["Index"]
-        overlap_section_info = deepcopy(overlap_section["Section_info"])
-
-        other_section_side = overlap_section_info.pos_eigs.rijrichting
-        other_section_road_number = overlap_section_info.pos_eigs.wegnummer
-        other_section_hectoletter = overlap_section_info.pos_eigs.hectoletter
-        other_section_range = overlap_section_info.pos_eigs.km
-        other_section_geom = overlap_section_info.pos_eigs.geometrie
-        other_section_props = overlap_section_info.obj_eigs
-
-        new_section_range = new_section.pos_eigs.km
+        other_info = deepcopy(overlap_section["Section_info"])
 
         # Align new section range according to existing sections
-        if other_section_side == "L":
-            new_section_range.reverse()
-
-        new_section_props = new_section.obj_eigs
+        if other_info.pos_eigs.rijrichting == "L":
+            new_info.pos_eigs.km.reverse()
 
         # Ensure all new geometries are also oriented in driving direction
-        if same_direction(other_section_geom, new_section.pos_eigs.geometrie):
-            new_section_geom = new_section.pos_eigs.geometrie
-        else:
-            new_section_geom = reverse(new_section.pos_eigs.geometrie)
+        if not same_direction(other_info.pos_eigs.geometrie, new_info.pos_eigs.geometrie):
+            new_info.pos_eigs.geometrie = reverse(new_info.pos_eigs.geometrie)
 
         sections_to_remove = set()
 
         while True:
 
-            if not self.get_overlap(new_section_geom, other_section_geom):
+            if not self.get_overlap(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
                 if not overlap_sections:
                     break
 
                 overlap_section = overlap_sections.pop(0)
-
                 other_section_index = overlap_section["Index"]
-                overlap_section_info = deepcopy(overlap_section["Section_info"])
+                other_info = deepcopy(overlap_section["Section_info"])
 
-                other_section_range = overlap_section_info.pos_eigs.km
-                other_section_props = overlap_section_info.obj_eigs
-                other_section_geom = overlap_section_info.pos_eigs.geometrie
-
-            assert determine_range_overlap(new_section_range, other_section_range), \
-                f"Bereiken overlappen niet: {new_section_range}, {other_section_range}"
-            if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
-                logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_section.pos_eigs.km)} "
-                               f"en {new_section.pos_eigs.geometrie.length}")
+            assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km), \
+                f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
+            if abs(get_km_length(new_info.pos_eigs.km) - new_info.pos_eigs.geometrie.length) > 100:
+                logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_info.pos_eigs.km)} "
+                               f"en {new_info.pos_eigs.geometrie.length}")
 
             # TODO: Fancier implementation making use of the symmetry of the code below.
 
-            right_side = other_section_side == "R"
-            left_side = other_section_side == "L"
+            right_side = other_info.pos_eigs.rijrichting == "R"
+            left_side = other_info.pos_eigs.rijrichting == "L"
 
-            new_section_first = (
-                                    (min(new_section_range) < min(other_section_range) and right_side)
-                                ) or (
-                                    (max(new_section_range) > max(other_section_range) and left_side))
+            new_section_first = (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and right_side) or (
+                                (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and left_side))
 
-            both_sections_first = (
-                                      (min(new_section_range) == min(other_section_range) and right_side)
-                                  ) or (
-                                      (max(new_section_range) == max(other_section_range) and left_side))
+            both_sections_first = (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and right_side) or (
+                                  (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and left_side))
 
-            other_section_first = (
-                                      (min(new_section_range) > min(other_section_range) and right_side)
-                                  ) or (
-                                      (max(new_section_range) < max(other_section_range) and left_side))
+            other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
+                                  (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -620,56 +595,50 @@ class WegModel:
             if new_section_first:
                 # Add section...
                 if right_side:
-                    km_bereik = [min(new_section_range), min(other_section_range)]
+                    km_bereik = [min(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
                 else:
-                    km_bereik = [max(new_section_range), max(other_section_range)]
-                added_geom = self.get_first_remainder(new_section_geom, other_section_geom)
+                    km_bereik = [max(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
+                added_geom = self.get_first_remainder(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
-                            rijrichting=other_section_side,
-                            wegnummer=other_section_road_number,
-                            hectoletter=other_section_hectoletter,
+                            rijrichting=other_info.pos_eigs.rijrichting,
+                            wegnummer=other_info.pos_eigs.wegnummer,
+                            hectoletter=other_info.pos_eigs.hectoletter,
                             km=km_bereik,
                             geometrie=added_geom),
-                        obj_eigs=new_section_props)
+                        obj_eigs=new_info.obj_eigs)
                 )
                 # Trim the new_section range and geometry for next iteration.
                 if right_side:
-                    new_section_range = [min(other_section_range), max(new_section_range)]
+                    new_info.pos_eigs.km = [min(other_info.pos_eigs.km), max(new_info.pos_eigs.km)]
                 else:
-                    new_section_range = [max(other_section_range), min(new_section_range)]
-                new_section_geom = self.get_first_remainder(new_section_geom, added_geom)
+                    new_info.pos_eigs.km = [max(other_info.pos_eigs.km), min(new_info.pos_eigs.km)]
+                new_info.pos_eigs.geometrie = self.get_first_remainder(new_info.pos_eigs.geometrie, added_geom)
 
             # Case B: start is equal.
             elif both_sections_first:
 
-                other_ends_equal = (
-                                       (max(new_section_range) == max(other_section_range) and right_side)
-                                   ) or (
-                                       (min(new_section_range) == min(other_section_range) and left_side))
+                other_ends_equal = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
+                                   (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and left_side))
 
-                other_section_larger = (
-                                           (max(new_section_range) < max(other_section_range) and right_side)
-                                       ) or (
-                                           (min(new_section_range) > min(other_section_range) and left_side))
+                other_section_larger = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
+                                       (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
 
-                new_section_larger = (
-                                         (max(new_section_range) > max(other_section_range) and right_side)
-                                     ) or (
-                                         (min(new_section_range) < min(other_section_range) and left_side))
+                new_section_larger = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
+                                     (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
                 # Update the overlapping section properties
                 if other_ends_equal:
-                    if not (equals(new_section_geom, other_section_geom) or (
-                            equals_exact(new_section_geom, other_section_geom, tolerance=0.1))):
+                    if not (equals(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie) or (
+                            equals_exact(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie, tolerance=0.1))):
                         # TODO: refine the above conditions!!
                         logger.warning(f"Geometrieën komen niet helemaal overeen: "
-                                       f"{new_section_geom} and {other_section_geom}")
+                                       f"{new_info.pos_eigs.geometrie} and {other_info.pos_eigs.geometrie}")
                     self.__update_section(other_section_index,
-                                          new_km=new_section_range,
-                                          new_obj_eigs=new_section_props,
-                                          new_geometrie=other_section_geom)
+                                          new_km=new_info.pos_eigs.km,
+                                          new_obj_eigs=new_info.obj_eigs,
+                                          new_geometrie=other_info.pos_eigs.geometrie)
                     # This is the final iteration.
                     break
 
@@ -680,28 +649,28 @@ class WegModel:
                 # Remove old other_section.
                 elif other_section_larger:
                     if right_side:
-                        km_bereik = [min(new_section_range), max(new_section_range)]
+                        km_bereik = [min(new_info.pos_eigs.km), max(new_info.pos_eigs.km)]
                     else:
-                        km_bereik = [max(new_section_range), min(new_section_range)]
+                        km_bereik = [max(new_info.pos_eigs.km), min(new_info.pos_eigs.km)]
 
-                    added_geom = self.get_overlap(new_section_geom, other_section_geom)
-                    assert added_geom, f"Geen overlap gevonden tussen {new_section_geom} en {other_section_geom}."
-                    both_props = {**other_section_props, **new_section_props}
+                    added_geom = self.get_overlap(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
+                    assert added_geom, f"Geen overlap gevonden tussen {new_info.pos_eigs.geometrie} en {other_info.pos_eigs.geometrie}."
+                    both_props = {**other_info.obj_eigs, **new_info.obj_eigs}
                     self.__add_section(
                         ObjectInfo(
                             pos_eigs=PositieEigenschappen(
-                                rijrichting=other_section_side,
-                                wegnummer=other_section_road_number,
-                                hectoletter=other_section_hectoletter,
+                                rijrichting=other_info.pos_eigs.rijrichting,
+                                wegnummer=other_info.pos_eigs.wegnummer,
+                                hectoletter=other_info.pos_eigs.hectoletter,
                                 km=km_bereik,
                                 geometrie=added_geom),
                             obj_eigs=both_props)
                     )
                     if right_side:
-                        km_remaining = [max(new_section_range), max(other_section_range)]
+                        km_remaining = [max(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
                     else:
-                        km_remaining = [min(new_section_range), min(other_section_range)]
-                    other_geom = self.get_first_remainder(other_section_geom, added_geom)
+                        km_remaining = [min(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
+                    other_geom = self.get_first_remainder(other_info.pos_eigs.geometrie, added_geom)
                     self.__update_section(other_section_index,
                                           new_km=km_remaining,
                                           new_geometrie=other_geom)
@@ -711,17 +680,17 @@ class WegModel:
                 elif new_section_larger:
                     # Add section with both properties
                     if right_side:
-                        km_bereik = [min(new_section_range), max(other_section_range)]
+                        km_bereik = [min(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
                     else:
-                        km_bereik = [max(new_section_range), min(other_section_range)]
-                    added_geom = self.get_overlap(new_section_geom, other_section_geom)
-                    both_props = {**other_section_props, **new_section_props}
+                        km_bereik = [max(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
+                    added_geom = self.get_overlap(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
+                    both_props = {**other_info.obj_eigs, **new_info.obj_eigs}
                     self.__add_section(
                         ObjectInfo(
                             pos_eigs=PositieEigenschappen(
-                                rijrichting=other_section_side,
-                                wegnummer=other_section_road_number,
-                                hectoletter=other_section_hectoletter,
+                                rijrichting=other_info.pos_eigs.rijrichting,
+                                wegnummer=other_info.pos_eigs.wegnummer,
+                                hectoletter=other_info.pos_eigs.hectoletter,
                                 km=km_bereik,
                                 geometrie=added_geom),
                             obj_eigs=both_props)
@@ -730,10 +699,10 @@ class WegModel:
                     sections_to_remove.add(other_section_index)
                     # Trim the new_section range and geometry for another iteration.
                     if right_side:
-                        new_section_range = [max(other_section_range), max(new_section_range)]
+                        new_info.pos_eigs.km = [max(other_info.pos_eigs.km), max(new_info.pos_eigs.km)]
                     else:
-                        new_section_range = [min(other_section_range), min(new_section_range)]
-                    new_section_geom = self.get_first_remainder(new_section_geom, added_geom)
+                        new_info.pos_eigs.km = [min(other_info.pos_eigs.km), min(new_info.pos_eigs.km)]
+                    new_info.pos_eigs.geometrie = self.get_first_remainder(new_info.pos_eigs.geometrie, added_geom)
                     # Determine if there are more overlapping sections to deal with.
                     if overlap_sections:
                         continue
@@ -742,12 +711,12 @@ class WegModel:
                         self.__add_section(
                             ObjectInfo(
                                 pos_eigs=PositieEigenschappen(
-                                    rijrichting=other_section_side,
-                                    wegnummer=other_section_road_number,
-                                    hectoletter=other_section_hectoletter,
-                                    km=new_section_range,
-                                    geometrie=new_section_geom),
-                                obj_eigs=new_section_props)
+                                    rijrichting=other_info.pos_eigs.rijrichting,
+                                    wegnummer=other_info.pos_eigs.wegnummer,
+                                    hectoletter=other_info.pos_eigs.hectoletter,
+                                    km=new_info.pos_eigs.km,
+                                    geometrie=new_info.pos_eigs.geometrie),
+                                obj_eigs=new_info.obj_eigs)
                         )
                         break
 
@@ -760,26 +729,26 @@ class WegModel:
             elif other_section_first:
                 # Add section...
                 if right_side:
-                    km_bereik = [min(other_section_range), min(new_section_range)]
+                    km_bereik = [min(other_info.pos_eigs.km), min(new_info.pos_eigs.km)]
                 else:
-                    km_bereik = [max(other_section_range), max(new_section_range)]
-                added_geom = self.get_first_remainder(other_section_geom, new_section_geom)
+                    km_bereik = [max(other_info.pos_eigs.km), max(new_info.pos_eigs.km)]
+                added_geom = self.get_first_remainder(other_info.pos_eigs.geometrie, new_info.pos_eigs.geometrie)
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
-                            rijrichting=other_section_side,
-                            wegnummer=other_section_road_number,
-                            hectoletter=other_section_hectoletter,
+                            rijrichting=other_info.pos_eigs.rijrichting,
+                            wegnummer=other_info.pos_eigs.wegnummer,
+                            hectoletter=other_info.pos_eigs.hectoletter,
                             km=km_bereik,
                             geometrie=added_geom),
-                        obj_eigs=other_section_props)
+                        obj_eigs=other_info.obj_eigs)
                 )
                 # Trim the other_section range and geometry for next iteration.
                 if right_side:
-                    other_section_range = [min(new_section_range), max(other_section_range)]
+                    other_info.pos_eigs.km = [min(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
                 else:
-                    other_section_range = [max(new_section_range), min(other_section_range)]
-                other_section_geom = self.get_first_remainder(other_section_geom, added_geom)
+                    other_info.pos_eigs.km = [max(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
+                other_info.pos_eigs.geometrie = self.get_first_remainder(other_info.pos_eigs.geometrie, added_geom)
 
             else:
                 raise Exception("Er is iets misgegaan met het bereik.")
@@ -944,7 +913,7 @@ class WegModel:
         Prints:
             Newly added reference feature properties.
         """
-        assert not is_empty(reference_info.pos_eigs.geometrie),\
+        assert not is_empty(reference_info.pos_eigs.geometrie), \
             f"Poging om een lege lijngeometrie toe te voegen: {reference_info}"
 
         self.__reference[self.__reference_index] = reference_info
@@ -959,7 +928,7 @@ class WegModel:
         Prints:
             Newly added point properties.
         """
-        assert not is_empty(point_info.pos_eigs.geometrie),\
+        assert not is_empty(point_info.pos_eigs.geometrie), \
             f"Poging om een lege puntgeometrie toe te voegen: {point_info}"
 
         self.points[self.__point_index] = point_info
@@ -1070,7 +1039,7 @@ class WegModel:
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
-            
+
             skip_start_check = False
             skip_end_check = False
 
@@ -1111,9 +1080,12 @@ class WegModel:
             stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
                        if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
             hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                                  if lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]]
-            strooknummers_links = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
-            strooknummers_rechts = [lane_nr for lane_nr in stroken if hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
+                                  if
+                                  lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]]
+            strooknummers_links = [lane_nr for lane_nr in stroken if
+                                   hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
+            strooknummers_rechts = [lane_nr for lane_nr in stroken if
+                                    hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
 
             section_verw_eigs.aantal_stroken = len(stroken)
             section_verw_eigs.aantal_hoofdstroken = len(hoofdstrooknummers)
@@ -1157,8 +1129,8 @@ class WegModel:
             # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
             if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
                     and not (len(point_verw_eigs.ingaande_secties) == 2) or
-                (point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
-                    and not len(point_verw_eigs.uitgaande_secties) == 2)):
+                    (point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
+                     and not len(point_verw_eigs.uitgaande_secties) == 2)):
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
 
@@ -1340,7 +1312,8 @@ class WegModel:
         Returns:
             dict[int, dict]: Attributes of the (first) road section at the specified kilometer point.
         """
-        return {index: section for index, section in self.sections.items() if dwithin(point, section.pos_eigs.geometrie, self.DISTANCE_TOLERANCE)}
+        return {index: section for index, section in self.sections.items() if
+                dwithin(point, section.pos_eigs.geometrie, self.DISTANCE_TOLERANCE)}
 
     def get_one_section_at_point(self, point: Point) -> ObjectInfo:
         """
