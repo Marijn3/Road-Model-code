@@ -78,7 +78,7 @@ class ObjectInfo:
         self.verw_eigs = None
 
     def __repr__(self):
-        typename = "Sectie" if isinstance(self.pos_eigs.geometrie, LineString) else "Punt"
+        typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
         return (f"{typename}:\n"
                 f"Positie-eigenschappen:\n{self.pos_eigs}\n"
                 f"Objecteigenschappen:\n{self.obj_eigs}\n"
@@ -260,7 +260,7 @@ class DataFrameLader:
         if isinstance(merged, LineString):
             return merged
 
-        # Catching a specific case where there is a slight mismatch in the endpoints of a multilinestring
+        # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
         if get_num_geometries(geom) == 2:
             line1 = geom.geoms[0]
             line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
@@ -414,10 +414,12 @@ class WegModel:
                 self.__add_initial_section(feature_info)
                 continue
 
-            if isinstance(row["geometry"], (Point, MultiPoint)):
+            if isinstance(row["geometry"], Point):
                 self.__add_point(feature_info)
-            else:
+            elif isinstance(row["geometry"], LineString):
                 self.__determine_sectioning(feature_info)
+            else:
+                logger.warning(f"Het volgende wordt niet toegevoegd: {row}")
 
         if df_name == "Wegvakken":
             self.__has_reference_layer = True
@@ -523,7 +525,7 @@ class WegModel:
                 section_info.obj_eigs["Special"] = special
 
         elif name == "Maximum snelheid":
-            if math.isnan(row["BEGINTIJD"]) or row["BEGINTIJD"] == 19:
+            if not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"]) or row["BEGINTIJD"] == 19:
                 section_info.obj_eigs["Maximumsnelheid"] = row["OMSCHR"]
             elif row["BEGINTIJD"] == 6:
                 section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = row["OMSCHR"]
@@ -875,9 +877,6 @@ class WegModel:
             "Als de geometrie wordt aangepast, moet ook het bereik worden bijgewerkt. Dit geldt ook andersom."
 
         if new_km:
-            if abs(get_km_length(new_km) - new_geometrie.length) > 100:
-                logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_km)} "
-                               f"en {new_geometrie.length}")
             self.sections[index].pos_eigs.km = new_km
         if new_obj_eigs:
             self.sections[index].obj_eigs.update(new_obj_eigs)
@@ -890,15 +889,12 @@ class WegModel:
         """
         Adds a section to the sections variable and increases the index.
         Args:
-            - new_section_info (ObjectInfo): Information class for new section.
+            new_section (ObjectInfo): Information class for new section.
         Logs:
             Newly added section properties.
         """
-        assert not is_empty(new_section.pos_eigs.geometrie), \
+        assert new_section.pos_eigs.geometrie and not is_empty(new_section.pos_eigs.geometrie), \
             f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
-        if abs(get_km_length(new_section.pos_eigs.km) - new_section.pos_eigs.geometrie.length) > 100:
-            logger.warning(f"Groot lengteverschil tussen secties: {get_km_length(new_section.pos_eigs.km)} "
-                           f"en {new_section.pos_eigs.geometrie.length}")
 
         self.sections[self.__section_index] = new_section
         self.__log_section(self.__section_index, False)
