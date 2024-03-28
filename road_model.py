@@ -115,11 +115,11 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, input_location: str | dict = None) -> None:
+    def __init__(self, location_specification: str | dict = None) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            input_location (str or dict): The name of the location or a dict of coordinates,
+            location_specification (str or dict): The name of the location or a dict of coordinates,
                 indicating the bounding box to the area to be loaded.
         Example:
             dfl = DataFrameLader("Everdingen")
@@ -130,10 +130,13 @@ class DataFrameLader:
         self.lane_mapping_h = self.construct_lane_mapping("H")
         self.lane_mapping_t = self.construct_lane_mapping("T")
 
-        if isinstance(input_location, str):
-            coords = self.__get_coords_from_csv(input_location)
+        if isinstance(location_specification, str):
+            coords = self.__get_coords_from_csv(location_specification)
+        elif isinstance(location_specification, dict):
+            coords = location_specification
         else:
-            coords = input_location
+            raise NotImplementedError(f"Input of type {type(location_specification)} is not supported. "
+                                      f"Use a str or dict instead.")
 
         self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
         self.__load_dataframes()
@@ -205,7 +208,7 @@ class DataFrameLader:
                             "zuid": float(row["zuid"]),
                             "west": float(row["west"]),
                         }
-            raise ValueError(f"Ongeldige locatie: {location}. Voer een geldige naam van een locatie in.")
+            raise ValueError(f"Ongeldige locatie: '{location}'. Voer een geldige naam van een locatie in.")
         except FileNotFoundError:
             raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
         except csv.Error as e:
@@ -561,7 +564,7 @@ class WegModel:
 
         while True:
 
-            if not self.get_overlap(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
+            if not self.get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
 
@@ -653,8 +656,8 @@ class WegModel:
                     else:
                         km_bereik = [max(new_info.pos_eigs.km), min(new_info.pos_eigs.km)]
 
-                    added_geom = self.get_overlap(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
-                    assert added_geom, f"Geen overlap gevonden tussen {new_info.pos_eigs.geometrie} en {other_info.pos_eigs.geometrie}."
+                    added_geom = self.get_overlap(new_info.pos_eigs, other_info.pos_eigs)
+                    assert added_geom, f"Geen overlap gevonden tussen {new_info.pos_eigs} en {other_info.pos_eigs}."
                     both_props = {**other_info.obj_eigs, **new_info.obj_eigs}
                     self.__add_section(
                         ObjectInfo(
@@ -683,7 +686,7 @@ class WegModel:
                         km_bereik = [min(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
                     else:
                         km_bereik = [max(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
-                    added_geom = self.get_overlap(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
+                    added_geom = self.get_overlap(new_info.pos_eigs, other_info.pos_eigs)
                     both_props = {**other_info.obj_eigs, **new_info.obj_eigs}
                     self.__add_section(
                         ObjectInfo(
@@ -782,12 +785,12 @@ class WegModel:
             raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
                             f"{geom1} en \n{geom2}:\n")
 
-    def get_overlap(self, geom1: LineString, geom2: LineString) -> LineString | None:
+    def get_overlap(self, pos1: PositieEigenschappen, pos2: PositieEigenschappen) -> LineString | None:
         """
         Finds the overlap geometry between two Shapely geometries.
         Args:
-            geom1 (LineString): The first Shapely LineString.
-            geom2 (LineString): The second Shapely LineString.
+            pos1 (PositieEigenschappen): The first section position properties.
+            pos2 (PositieEigenschappen): The second section position properties.
         Returns:
             LineString describing the overlap geometry.
             Returns None if there is no overlap geometry.
@@ -797,7 +800,12 @@ class WegModel:
             If the geometries do not overlap or have only a Point of
             intersection, the function returns None.
         """
-        overlap_geometry = intersection(geom1, geom2, grid_size=self.GRID_SIZE)
+        # First, check whether the sections have an overlapping range at all, which
+        # means the more complex intersection() function doesn't need to be called.
+        if not determine_range_overlap(pos1.km, pos2.km):
+            return None
+
+        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.GRID_SIZE)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             return line_merge(overlap_geometry)
@@ -985,7 +993,7 @@ class WegModel:
             then None is returned instead.
         """
         for reference_index, reference_info in self.__reference.items():
-            if self.get_overlap(section_info.pos_eigs.geometrie, reference_info.pos_eigs.geometrie):
+            if self.get_overlap(section_info.pos_eigs, reference_info.pos_eigs):
                 # Return the first one found (works fine for now).
                 return reference_info
         return None
@@ -1003,13 +1011,10 @@ class WegModel:
         """
         overlapping_sections = []
         for section_b_index, section_b in self.sections.items():
-            # First, dismiss all sections which have a non-overlapping range,
-            # which prevents the more complex get_overlap() function from being called.
-            if determine_range_overlap(section_a.pos_eigs.km, section_b.pos_eigs.km):
-                if self.get_overlap(section_a.pos_eigs.geometrie, section_b.pos_eigs.geometrie):
-                    overlapping_sections.append({"Index": section_b_index,
-                                                 "Section_info": section_b})
-                    # TODO: simplify to {index: section_info}
+            if self.get_overlap(section_a.pos_eigs, section_b.pos_eigs):
+                overlapping_sections.append({"Index": section_b_index,
+                                             "Section_info": section_b})
+                # TODO: simplify to {index: section_info}
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
