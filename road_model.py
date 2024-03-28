@@ -637,11 +637,7 @@ class WegModel:
 
                 # Update the overlapping section properties
                 if other_ends_equal:
-                    if not (equals(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie) or (
-                            equals_exact(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie, tolerance=0.1))):
-                        # TODO: refine the above conditions!!
-                        logger.warning(f"Geometrieën komen niet helemaal overeen: "
-                                       f"{new_info.pos_eigs.geometrie} and {other_info.pos_eigs.geometrie}")
+                    self.check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
                     self.__update_section(other_section_index,
                                           new_km=new_info.pos_eigs.km,
                                           new_obj_eigs=new_info.obj_eigs,
@@ -789,6 +785,30 @@ class WegModel:
             raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
                             f"{geom1} en \n{geom2}:\n")
 
+    def check_geometry_equality(self, geom1: LineString, geom2: LineString) -> None:
+        """
+        Performs various, increasingly rigorous checks to determine whether two LineString geometries are equal.
+        Args:
+            geom1 (LineString): First LineString to be compared.
+            geom2 (LineString): Second LineString to be compared.
+        """
+        # Some geometries are exactly equal.
+        if equals(geom1, geom2):
+            return
+
+        # Some geometries have vertices with very close but not identical coordinates.
+        if equals_exact(geom1, geom2, tolerance=self.DISTANCE_TOLERANCE):
+            return
+
+        # Some geometries have a different amount of vertices, which is fixed by comparing their simplified versions.
+        logger.debug(f"Een gulle gelijkenistest wordt gebruikt voor geometrieën {geom1} en {geom2}")
+        simplified_geom1 = simplify(geom1, 0.1, preserve_topology=False)
+        simplified_geom2 = simplify(geom2, 0.1, preserve_topology=False)
+        if equals_exact(simplified_geom1, simplified_geom2, tolerance=self.DISTANCE_TOLERANCE):
+            return
+
+        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen. Poging script voort te zetten...")
+
     def get_overlap(self, pos1: PositieEigenschappen, pos2: PositieEigenschappen) -> LineString | None:
         """
         Finds the overlap geometry between two sections by their positional properties.
@@ -842,13 +862,12 @@ class WegModel:
                          new_km: list = None, new_obj_eigs: dict = None, new_geometrie: LineString = None) -> None:
         """
         Updates one or more properties of a section at a given index.
-        Prints log of section update.
         Args:
             index (int): Index of section to be updated
             new_km (list[float]): Start and end registration kilometre.
             new_obj_eigs (dict): All properties that belong to the section.
             new_geometrie (LineString): The geometry of the section.
-        Prints:
+        Logs:
             Changed section properties.
         """
         assert any([new_km, new_obj_eigs, new_geometrie]), "Update section aangeroepen, maar er is geen update nodig."
@@ -872,7 +891,7 @@ class WegModel:
         Adds a section to the sections variable and increases the index.
         Args:
             - new_section_info (ObjectInfo): Information class for new section.
-        Prints:
+        Logs:
             Newly added section properties.
         """
         assert not is_empty(new_section.pos_eigs.geometrie), \
@@ -891,7 +910,7 @@ class WegModel:
         Does NOT check for overlap with other features.
         Args:
             section_info (ObjectInfo): Initial section info
-        Prints:
+        Logs:
             Newly added section properties.
         """
         reference_info = self.__get_overlapping_reference_info(section_info)
@@ -923,7 +942,7 @@ class WegModel:
         Adds a feature to the reference variable and increases the index.
         Args:
             reference_info (ObjectInfo): Info of new reference feature to add to reference layer.
-        Prints:
+        Logs:
             Newly added reference feature properties.
         """
         assert not is_empty(reference_info.pos_eigs.geometrie), \
@@ -938,7 +957,7 @@ class WegModel:
         Adds a point to the points variable and increases the index.
         Args:
             point_info (ObjectInfo): Point info to be added.
-        Prints:
+        Logs:
             Newly added point properties.
         """
         assert not is_empty(point_info.pos_eigs.geometrie), \
@@ -952,7 +971,7 @@ class WegModel:
         """
         Logs addition of point in self.points at given index.
         Args:
-            index (int): Index of point to print info for.
+            index (int): Index of point to log info for.
         """
         logger.debug(f"Punt {index} toegevoegd: \t"
                      f"{self.points[index].pos_eigs.km:<7.3f} km \t"
@@ -966,7 +985,7 @@ class WegModel:
         """
         Logs addition of section in self.__reference at given index.
         Args:
-            index (int): Index of section to print info for.
+            index (int): Index of section to log info for.
         """
         logger.debug(f"Referentie {index} toegevoegd:  \t"
                      f"{self.__reference[index].pos_eigs.wegnummer}\t"
@@ -977,7 +996,7 @@ class WegModel:
         """
         Logs change or addition for section in self.sections at given index.
         Args:
-            index (int): Index of section to print info for.
+            index (int): Index of section to log info for.
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
         logger.debug(f"Sectie {index} {wording[changed]}\t"
@@ -1036,7 +1055,7 @@ class WegModel:
         sections_to_remove = set()
         for section_index, section_info in self.sections.items():
             # Throw out sections that do not intersect the final frame.
-            if not section_info.pos_eigs.geometrie.intersects(self.dfl.extent):
+            if not intersection(section_info.pos_eigs.geometrie, self.dfl.extent):
                 sections_to_remove.add(section_index)
                 continue
 
