@@ -172,6 +172,7 @@ class DataFrameLader:
                         else:
                             value = (j, "Rijstrookbeëindiging")
                     mapping[key] = value
+        # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
             mapping["1 -> 1.6"] = (1, "TaperStart")
             mapping["1.6 -> 1"] = (1, "TaperEinde")
@@ -251,8 +252,9 @@ class DataFrameLader:
     @staticmethod
     def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
         """
-        Deze functie is nog in aanbouw. De bedoeling is om hier MultiLineString registraties af te vangen.
-        TODO 26: Fix for verbindingsboog Zonzeel.
+        Deze functie is nog in aanbouw. De bedoeling is om hier zo veel
+        mogelijk MultiLineString registraties af te vangen.
+        TODO 26: Find fix for verbindingsboog Zonzeel.
         """
         merged = line_merge(geom)
         if isinstance(merged, LineString):
@@ -345,7 +347,7 @@ class DataFrameLader:
             # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
             df["VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
 
-        # Assign dataframe back to original position
+        # Assign dataframe back to original data variable.
         self.data[name] = df
 
     def get_lane_info(self, row, column):
@@ -356,9 +358,11 @@ class DataFrameLader:
 
 
 class WegModel:
-    __LAYER_NAMES = ["Wegvakken", "Rijstroken",
-                     "Kantstroken", "Mengstroken", "Maximum snelheid",
-                     "Rijstrooksignaleringen", "Convergenties", "Divergenties"]
+    __LAYER_NAMES = ["Wegvakken",  # Used as 'reference layer'
+                     "Rijstroken",  # Used as 'initial layer'
+                     "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
+                     "Rijstrooksignaleringen", "Convergenties", "Divergenties"  # Contain point geometries
+                     ]
 
     def __init__(self, dfl: DataFrameLader):
         self.DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
@@ -787,7 +791,7 @@ class WegModel:
 
     def get_overlap(self, pos1: PositieEigenschappen, pos2: PositieEigenschappen) -> LineString | None:
         """
-        Finds the overlap geometry between two Shapely geometries.
+        Finds the overlap geometry between two sections by their positional properties.
         Args:
             pos1 (PositieEigenschappen): The first section position properties.
             pos2 (PositieEigenschappen): The second section position properties.
@@ -884,6 +888,7 @@ class WegModel:
     def __add_initial_section(self, section_info: ObjectInfo) -> None:
         """
         Adds a section to the sections variable and increases the index.
+        Does NOT check for overlap with other features.
         Args:
             section_info (ObjectInfo): Initial section info
         Prints:
