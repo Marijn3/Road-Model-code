@@ -548,14 +548,12 @@ class WegModel:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
-        for overlapper in overlap_sections:
-            if overlapper["Section_info"].pos_eigs.geometrie is None:
+        for overlapper_info in overlap_sections.values():
+            if overlapper_info.pos_eigs.geometrie is None:
                 # Do NOT add the section, as there was a reason the geometry is not present.
                 return
 
-        overlap_section = overlap_sections.pop(0)
-        other_section_index = overlap_section["Index"]
-        other_info = deepcopy(overlap_section["Section_info"])
+        other_section_index, other_info = overlap_sections.popitem()
 
         # Align new section range according to existing sections
         if other_info.pos_eigs.rijrichting == "L":
@@ -572,22 +570,19 @@ class WegModel:
             if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
+                other_section_index, other_info = overlap_sections.popitem()
 
-                overlap_section = overlap_sections.pop(0)
-                other_section_index = overlap_section["Index"]
-                other_info = deepcopy(overlap_section["Section_info"])
+            assert (isinstance(new_info.pos_eigs.geometrie, LineString) and
+                   isinstance(other_info.pos_eigs.geometrie, LineString) and
+                    not is_empty(new_info.pos_eigs.geometrie) and
+                    not is_empty(other_info.pos_eigs.geometrie)), "Geometrieën zijn invalide."
 
             assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km), \
                 f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
 
-            assert isinstance(new_info.pos_eigs.geometrie, LineString), "New geometry is not a linestring"
-            assert isinstance(other_info.pos_eigs.geometrie, LineString), "Other geometry is not a linestring"
+            assert self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs), "Geometrieën overlappen niet."
 
-            assert not is_empty(new_info.pos_eigs.geometrie), "New info geom is empty"
-            assert not is_empty(other_info.pos_eigs.geometrie), "Other info geom is empty"
-
-            # TODO: Fancier implementation making use of the symmetry of the code below.
-
+            # TODO: Fancier implementation making use of the symmetry of the code below!!!
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
 
@@ -838,7 +833,6 @@ class WegModel:
         # First, check whether the sections have an overlapping range at all, which
         # means the more complex intersection() function doesn't need to be called.
         if not determine_range_overlap(pos1.km, pos2.km):
-            logger.debug(f"Ranges don't overlap: {pos1.km}, {pos2.km}")
             return None
 
         overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.GRID_SIZE)
@@ -1028,7 +1022,7 @@ class WegModel:
                 return reference_info
         return None
 
-    def __get_overlapping_sections(self, section_a: ObjectInfo) -> list[dict]:
+    def __get_overlapping_sections(self, section_a: ObjectInfo) -> dict:
         """
         Finds all sections within self which overlap with the provided section
         and returns them in a list.
@@ -1039,21 +1033,20 @@ class WegModel:
             the driving direction of one of the other sections, which is assumed
             to be representative for all other sections.
         """
-        overlapping_sections = []
-        for section_b_index, section_b in self.sections.items():
-            if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
-                overlapping_sections.append({"Index": section_b_index,
-                                             "Section_info": section_b})
-                # TODO: simplify to {index: section_info}
+        overlapping_sections = {}
+        for section_b_index, section_b_info in self.sections.items():
+            if self.__get_overlap(section_a.pos_eigs, section_b_info.pos_eigs):
+                overlapping_sections[section_b_index] = section_b_info
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
             # Thus, sections on the left side should be ordered from high to low ranges.
-            travel_direction = overlapping_sections[0]["Section_info"].pos_eigs.rijrichting
+            travel_direction = [info for info in overlapping_sections.values()][0].pos_eigs.rijrichting
             should_reverse = travel_direction == "L"
-            overlapping_sections = sorted(overlapping_sections,
-                                          key=lambda x: max(x["Section_info"].pos_eigs.km),
-                                          reverse=should_reverse)
+            # TODO: Something is wrong with the sorting now.
+            overlapping_sections = dict(sorted(overlapping_sections.items(),
+                                               key=lambda item: max(item[1].pos_eigs.km),
+                                               reverse=should_reverse))
 
         return overlapping_sections
 
