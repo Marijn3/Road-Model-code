@@ -648,8 +648,8 @@ class WegModel:
                                               new_geometrie=other_info.pos_eigs.geometrie)
                     else:
                         logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen.")
-                        raise Exception("Geometrieën komen niet overeen: "
-                                        "{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
+                        # raise Exception(f"Geometrieën komen niet overeen: "
+                        #                 f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
                     # This is the final iteration.
                     break
 

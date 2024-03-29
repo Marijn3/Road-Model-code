@@ -10,7 +10,7 @@ external_logger.setLevel(logging.INFO)
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relations] Zuidasdok, Bavel, Everdingen
+#                     [MSI relations] Bavel, Everdingen, Zuidasdok
 # Importfouten : A2VK
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
