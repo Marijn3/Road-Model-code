@@ -1256,7 +1256,6 @@ class WegModel:
         Returns:
             Local angle in degrees.
         """
-        # TODO: replace overlapping_ids with the info of the overlapping sections.
         overlapping_lines = [line for index, line in self.sections.items() if index in overlapping_ids]
 
         assert overlapping_lines, f"Punt {point_geom} overlapt niet met lijnen in het model."
