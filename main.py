@@ -1,16 +1,20 @@
 from ilp_input_creator import *
 
-# Laad alle bestanden voor een gegeven gebied en bewaar de GeoDataFrames in een class.
+# Initialize the logger
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
+
+# Set a higher level for external libraries such as fiona to filter out their debug messages
+external_logger = logging.getLogger('fiona')
+external_logger.setLevel(logging.INFO)
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relations] Zuidasdok, Bavel, Everdingen
-# Importfouten : A2VK
+#                     [MSI relations] Bavel, Everdingen, Zuidasdok
+# Importfouten : A2VK, Grijsoord, Lankhorst
 
+# Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
 dfl = DataFrameLader("Vught")
-
-# Alternatief: voer eigen coördinaten in.
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
