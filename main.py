@@ -14,7 +14,7 @@ external_logger.setLevel(logging.INFO)
 # Importfouten : A2VK, Grijsoord, Lankhorst
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader("Goirle")
+dfl = DataFrameLader("Vught")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
