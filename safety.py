@@ -60,9 +60,9 @@ class Werkruimte(Oppervlak):
 class Aanvraag(Oppervlak):
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
-                 max_v: int = 70, duur_korter_24h: bool = True, afzetting: str = "Bakens") -> None:
-        assert sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1,\
-            "Specificeer één eis."
+                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: str = "Bakens") -> None:
+        if not sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1:
+            raise InterruptedError("Specificeer één eis.")
         assert not ruimte_links or (ruimte_links and ruimte_links > 0),\
             "Onjuiste aanvraag. Definieer positieve afstanden."
         assert not ruimte_rechts or (ruimte_rechts and ruimte_rechts > 0),\
@@ -74,7 +74,7 @@ class Aanvraag(Oppervlak):
         self.ruimte_midden = ruimte_midden
         self.ruimte_rechts = ruimte_rechts
         self.max_v = max_v
-        self.duur_korter_24h = duur_korter_24h
+        self.korter_dan_24h = korter_dan_24h
         self.afzetting = afzetting
         self.color = "green"
 
@@ -162,16 +162,18 @@ class Aanvraag(Oppervlak):
             else:
                 return self.filter_lanes(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
 
-        condition_tl1 = self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 3.50
+        langer_dan_24h = not self.korter_dan_24h
 
-        condition_tr1 = self.duur_korter_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= self.sphere_of_influence
-        condition_tr2 = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
+        condition_tl1 = self.korter_dan_24h and self.ruimte_links and self.ruimte_links <= 3.50
 
-        condition_ll1 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 0.25
-        condition_ll2 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 0.25
+        condition_tr1 = self.korter_dan_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= self.sphere_of_influence
+        condition_tr2 = self.korter_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
 
-        condition_lr2 = not self.duur_korter_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
-        condition_lr3 = not self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
+        condition_ll1 = langer_dan_24h and self.ruimte_links and self.ruimte_links > 0.25
+        condition_ll2 = langer_dan_24h and self.ruimte_links and self.ruimte_links <= 0.25
+
+        condition_lr2 = langer_dan_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
+        condition_lr3 = langer_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
 
         if condition_tl1:
             return self.lanes_left
