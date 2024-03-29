@@ -54,9 +54,12 @@ class SvgMaker:
                                     size=(self.size, self.size * self.RATIO),
                                     profile="full",
                                     id="svg5")  # This specific ID tag is used by JvM script
-        self.g_background = self.dwg.g(id="background")
-        self.g_road = self.dwg.g(id="road")
-        self.g_msi_relations = self.dwg.g(id="nametags_MSI")  # This tag is used in user interface
+
+        # Determine 'layer' order
+        self.g_background = self.dwg.add(self.dwg.g(id="background"))
+        self.g_road = self.dwg.add(self.dwg.g(id="road"))
+        self.g_msi_relations = self.dwg.add(self.dwg.g(id="nametags_MSI"))  # This tag is for visibility toggle in UI
+        self.g_points = self.dwg.add(self.dwg.g(id="points"))
 
         # Visualise the image part by part
         self.visualise_background()
@@ -69,13 +72,11 @@ class SvgMaker:
         self.g_background.add(
             self.dwg.rect(insert=(self.TOP_LEFT_X, self.TOP_LEFT_Y),
                           size=(self.VIEWBOX_WIDTH, self.VIEWBOX_HEIGHT), fill="green"))
-        self.dwg.add(self.g_background)
 
     def visualise_roads(self):
         logger.info("Sectiedata visualiseren...")
         for section_id, section_info in self.wegmodel.sections.items():
             self.svg_add_section(section_id, section_info)
-        self.dwg.add(self.g_road)
 
     def visualise_msis(self):
         logger.info("Puntdata visualiseren...")
@@ -84,7 +85,6 @@ class SvgMaker:
 
         logger.info("MSI-relaties visualiseren...")
         self.draw_msi_relations()
-        self.dwg.add(self.g_msi_relations)
 
     def save_image(self):
         # Adjust viewbox
@@ -421,7 +421,7 @@ class SvgMaker:
             self.display_vergence(point_info, coords, info_offset, rotate_angle)
 
     def display_MSI_roadside(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
-        g_msi_row = self.dwg.g()
+        g_msi_row = self.g_points.add(self.dwg.g())
         hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
         displacement = 0
 
@@ -442,10 +442,9 @@ class SvgMaker:
         g_msi_text = self.draw_msi_text(point_info, text_coords, rotate_angle)
         g_msi_row.add(g_msi_text)
         g_msi_row.rotate(rotate_angle, center=coords)
-        self.dwg.add(g_msi_row)
 
     def display_MSI_onroad(self, point_info: ObjectInfo, coords: tuple, rotate_angle: float):
-        g_msi_row = self.dwg.g()
+        g_msi_row = self.g_points.add(self.dwg.g())
         play = (self.LANE_WIDTH - self.MSIBOX_SIZE)/2
         displacement = 0
 
@@ -466,7 +465,6 @@ class SvgMaker:
         g_msi_text = self.draw_msi_text(point_info, text_coords, rotate_angle)
         g_msi_row.add(g_msi_text)
         g_msi_row.rotate(rotate_angle, center=coords)
-        self.dwg.add(g_msi_row)
 
     def draw_msi(self, box_pos):
         return self.dwg.rect(insert=box_pos,
@@ -619,7 +617,7 @@ class SvgMaker:
             fill="none", stroke="#FF0000", stroke_width=self.BASE_STROKE))
 
     def display_vergence(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
-        g_vergence = self.dwg.g()
+        g_vergence = self.g_points.add(self.dwg.g())
 
         text = self.dwg.text(f"{point_info.pos_eigs.km} {point_info.obj_eigs['Type']}",
                              insert=(coords[0] + 1 + info_offset, coords[1]),
@@ -661,8 +659,8 @@ class SvgMaker:
     def draw_msi_relation(self, rel_type: str, start_pos: tuple, end_pos: tuple):
         self.g_msi_relations.add(self.dwg.line(start=start_pos, end=end_pos,
                                                stroke=self.__COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
-        self.g_msi_relations.add(self.dwg.circle(center=start_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
-        self.g_msi_relations.add(self.dwg.circle(center=end_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
+        # self.g_msi_relations.add(self.dwg.circle(center=start_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
+        # self.g_msi_relations.add(self.dwg.circle(center=end_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
 
 
 def get_center_coords(element, angle_degrees, origin):
