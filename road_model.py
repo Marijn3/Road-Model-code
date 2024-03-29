@@ -163,14 +163,14 @@ class DataFrameLader:
                         elif i > j:
                             value = (i, "Rijstrookbeëindiging")
                         else:
-                            value = (j, "ExtraRijstrook")
+                            value = (i, "ExtraRijstrook")
                     else:  # For direction "T"
                         if i == j:
                             value = (i, None)
                         elif i > j:
                             value = (i, "ExtraRijstrook")
                         else:
-                            value = (j, "Rijstrookbeëindiging")
+                            value = (i, "Rijstrookbeëindiging")
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
@@ -889,6 +889,13 @@ class WegModel:
         if new_km:
             self.sections[index].pos_eigs.km = new_km
         if new_obj_eigs:
+            orig_lane_numbers = [key for key in self.sections[index].obj_eigs.keys() if isinstance(key, int)]
+            new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
+
+            for new_lane_number in new_lane_numbers:
+                assert new_lane_number not in orig_lane_numbers, \
+                    f"Lane in {new_obj_eigs} already in {self.sections[index]}"
+
             self.sections[index].obj_eigs.update(new_obj_eigs)
         if new_geometrie:
             self.sections[index].pos_eigs.geometrie = new_geometrie
