@@ -22,10 +22,10 @@ class SvgMaker:
     }
     
     def __init__(self, wegmodel: WegModel, netwerk: MSINetwerk,
-                 output_filename: str, formaat: int = 1000, onroad: bool = False):
+                 output_pad: str, formaat: int = 1000, onroad: bool = False):
         self.wegmodel = wegmodel
         self.netwerk = netwerk
-        self.outfile = output_filename
+        self.outfile = output_pad
         self.size = formaat
         self.onroad = onroad
         self.element_by_id = {}

@@ -129,6 +129,6 @@ def make_ILP_input(network: MSINetwerk) -> dict:
     return road_dict
 
 
-def generate_file(dataset: dict, output_filename: str):
-    with open(output_filename, "w") as outfile:
+def generate_file(dataset: dict, output_pad: str):
+    with open(output_pad, "w") as outfile:
         json.dump(dataset, outfile, indent=2)

@@ -110,28 +110,28 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, location_specification: str | dict, locations_csv_path: str) -> None:
+    def __init__(self, locatie: str | dict, locations_csv_pad: str) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            location_specification (str or dict): The name of the location or a dict of coordinates,
+            locatie (str or dict): The name of the location or a dict of coordinates,
                 indicating the bounding box to the area to be loaded.
-            locations_csv_path (str): Path towards csv file defining locations by coordinates.
+            locations_csv_pad (str): Path towards csv file defining locations by coordinates.
         Example:
             dfl = DataFrameLader("Everdingen")
             dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
         """
         self.data = {}
-        self.locations_csv_path = locations_csv_path
+        self.locations_csv_path = locations_csv_pad
         self.lane_mapping_h = self.construct_lane_mapping("H")
         self.lane_mapping_t = self.construct_lane_mapping("T")
 
-        if isinstance(location_specification, str):
-            coords = self.__get_coords_from_csv(location_specification)
-        elif isinstance(location_specification, dict):
-            coords = location_specification
+        if isinstance(locatie, str):
+            coords = self.__get_coords_from_csv(locatie)
+        elif isinstance(locatie, dict):
+            coords = locatie
         else:
-            raise NotImplementedError(f"Input of type {type(location_specification)} is not supported. "
+            raise NotImplementedError(f"Input of type {type(locatie)} is not supported. "
                                       f"Use a str or dict instead.")
 
         self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
