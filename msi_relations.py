@@ -7,7 +7,7 @@ class MSIRow:
         self.msi_network = msi_network
         self.info = msi_row_info
         self.properties = self.info.obj_eigs
-        self.local_road_info = self.msi_network.roadmodel.get_one_section_at_point(self.info.pos_eigs.geometrie)
+        self.local_road_info = self.msi_network.wegmodel.get_one_section_at_point(self.info.pos_eigs.geometrie)
         self.local_road_properties = self.local_road_info.obj_eigs
         self.name = make_MTM_row_name(self.info)
         self.lane_numbers = []
@@ -78,16 +78,16 @@ class MSIRow:
 
 
 class MSINetwerk:
-    def __init__(self, roadmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
+    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
         """
         Instantiates an MSI network based on the provided road model and settings.
-            roadmodel (WegModel): The road model on which the lane signalling relations will be based.
+            wegmodel (WegModel): The road model on which the lane signalling relations will be based.
             maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
                 at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
             alle_secundaire_relaties (bool): Indication whether all additionally determined
                 secundary relation types, which are not in the guidelines, should be added.
         """
-        self.roadmodel = roadmodel
+        self.wegmodel = wegmodel
         self.add_secondary_relations = alle_secundaire_relaties
         self.max_search_distance = maximale_zoekafstand
 
@@ -97,7 +97,7 @@ class MSINetwerk:
     def construct_msi_network(self):
         logger.info(f"MSI-netwerk opzetten...")
 
-        self.MSIrows = [MSIRow(self, msi_info) for msi_info in self.roadmodel.get_points_info("MSI")]
+        self.MSIrows = [MSIRow(self, msi_info) for msi_info in self.wegmodel.get_points_info("MSI")]
 
         for msi_row in self.MSIrows:
             msi_row.fill_row_properties()
@@ -151,7 +151,7 @@ class MSINetwerk:
             Section ID of starting section, considering the MSI row and the
             downstream/upstream search direction.
         """
-        start_sections = self.roadmodel.get_sections_by_point(msi_row.info.pos_eigs.geometrie)
+        start_sections = self.wegmodel.get_sections_by_point(msi_row.info.pos_eigs.geometrie)
 
         if len(start_sections) == 0:  # Nothing found
             raise Exception(f"Geen secties gevonden voor deze MSI locatie: {msi_row.info.pos_eigs}.")
@@ -197,7 +197,7 @@ class MSINetwerk:
         if current_section_id is None:
             return {None: (shift, annotation)}
 
-        current_section = self.roadmodel.sections[current_section_id]
+        current_section = self.wegmodel.sections[current_section_id]
 
         first_iteration = False
         if annotation is None:
@@ -288,7 +288,7 @@ class MSINetwerk:
                     puntstuk_section_id = list(set(other_point.verw_eigs.ingaande_secties) - {current_section_id})[0]
                 else:
                     puntstuk_section_id = list(set(other_point.verw_eigs.uitgaande_secties) - {current_section_id})[0]
-                n_lanes_other, _ = get_n_lanes(self.roadmodel.sections[puntstuk_section_id].obj_eigs)
+                n_lanes_other, _ = get_n_lanes(self.wegmodel.sections[puntstuk_section_id].obj_eigs)
                 shift = shift + n_lanes_other
 
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
@@ -309,7 +309,7 @@ class MSINetwerk:
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
             logger.debug(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
 
-        _, shift_div = get_n_lanes(self.roadmodel.sections[cont_section_id].obj_eigs)
+        _, shift_div = get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
 
         # Store negative value in this direction.
         logger.debug(f"Marking {div_section_id} with -{shift_div}")
@@ -336,20 +336,20 @@ class MSINetwerk:
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             if first_iteration:
-                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                            current_section_id in point_info.verw_eigs.sectie_ids
                                            and point_info.pos_eigs.km < current_km]
             else:
-                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                            current_section_id in point_info.verw_eigs.sectie_ids
                                            and point_info.pos_eigs.km != current_km]
         else:
             if first_iteration:
-                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                            current_section_id in point_info.verw_eigs.sectie_ids
                                            and point_info.pos_eigs.km > current_km]
             else:
-                other_points_on_section = [point_info for point_info in self.roadmodel.get_points_info() if
+                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                            current_section_id in point_info.verw_eigs.sectie_ids
                                            and point_info.pos_eigs.km != current_km]
 

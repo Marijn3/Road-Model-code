@@ -42,8 +42,8 @@ class SvgMaker:
             self.VISUAL_PLAY = self.MSIBOX_SIZE * 0.2
             self.BASE_STROKE = self.MSIBOX_SIZE * 0.05
 
-        self.TOP_LEFT_X, self.TOP_LEFT_Y = get_coordinates(dfl.extent)[2]
-        self.BOTTOM_RIGHT_X, self.BOTTOM_RIGHT_Y = get_coordinates(dfl.extent)[4]
+        self.TOP_LEFT_X, self.TOP_LEFT_Y = get_coordinates(self.wegmodel.dfl.extent)[2]
+        self.BOTTOM_RIGHT_X, self.BOTTOM_RIGHT_Y = get_coordinates(self.wegmodel.dfl.extent)[4]
         self.VIEWBOX_WIDTH = abs(self.TOP_LEFT_X - self.BOTTOM_RIGHT_X)
         self.VIEWBOX_HEIGHT = abs(self.TOP_LEFT_Y - self.BOTTOM_RIGHT_Y)
         self.RATIO = self.VIEWBOX_HEIGHT / self.VIEWBOX_WIDTH

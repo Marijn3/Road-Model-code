@@ -11,9 +11,9 @@ class Oppervlak:
         self.lanes = {lane_nr: lane_type for lane_nr, lane_type in unfiltered_lanes.items() if isinstance(lane_nr, int)}
         self.width = self.get_width()
 
-        self.print_surface()
+        self.log_surface()
 
-    def print_surface(self):
+    def log_surface(self):
         logger.info(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
                     f"van {self.km_start} tot {self.km_end}, met stroken {self.lanes} en breedte {self.width}.")
 
