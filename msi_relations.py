@@ -133,7 +133,8 @@ class MSINetwerk:
         current_km = msi_row.info.pos_eigs.km
         travel_direction = msi_row.local_road_info.pos_eigs.rijrichting
 
-        logger.debug(f"Starting recursive search for {starting_section_id}, {current_km}, {downstream}, {travel_direction}")
+        logger.debug(f"Recursieve functie start met id={starting_section_id}, km={current_km}, "
+                     f"stroomafwaarts={downstream}, rijrichting={travel_direction}")
         msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
 
         if isinstance(msis, dict):
@@ -219,7 +220,8 @@ class MSINetwerk:
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi.pos_eigs.km))
-            logger.debug(f"Meerdere MSIs gevonden bij {current_section_id}. Dichtstbijzijnde: {nearest_msi.pos_eigs.km}")
+            logger.debug(f"Meerdere MSIs gevonden bij {current_section_id}. "
+                         f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km}")
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                              downstream, first_iteration, True)
             return {self.get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
@@ -251,7 +253,7 @@ class MSINetwerk:
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
                 logger.debug(f"It seems that more than one section is connected to {current_section_id}:"
-                            f"{connecting_section_ids}. Stopping.")
+                             f"{connecting_section_ids}. Stopping.")
                 return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section.
@@ -266,6 +268,7 @@ class MSINetwerk:
             f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
 
         # Recursive case 2: *vergence point on the section.
+        other_point = int()
         if len(other_points_on_section) == 1:
             other_point = other_points_on_section[0]
         if len(other_points_on_section) == 2:
@@ -632,19 +635,19 @@ class MSI:
                     # Relation from weefstrook/join lane to normal lane
                     if (this_lane_projected in lane_numbers
                             and annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]):
-                        if (this_lane_projected - 1 in d_row.local_road_properties.keys() and
-                                d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]):
-                            if this_lane_projected - 1 in d_row.MSIs.keys():
-                                logger.debug(f"Cross case 1 with {self.lane_nr}")
-                                self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
+                        if this_lane_projected - 1 in d_row.local_road_properties.keys():
+                            if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
+                                if this_lane_projected - 1 in d_row.MSIs.keys():
+                                    logger.debug(f"Cross case 1 with {self.lane_nr}")
+                                    self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weefstrook/join lane
                     if (this_lane_projected + 1 in lane_numbers
                             and annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]):
-                        if (this_lane_projected + 1 in d_row.local_road_properties.keys() and
-                                d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]):
-                            if this_lane_projected + 1 in d_row.MSIs.keys():
-                                logger.debug(f"Cross case 2 with {self.lane_nr}")
-                                self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
+                        if this_lane_projected + 1 in d_row.local_road_properties.keys():
+                            if d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]:
+                                if this_lane_projected + 1 in d_row.MSIs.keys():
+                                    logger.debug(f"Cross case 2 with {self.lane_nr}")
+                                    self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
         # Remaining upstream primary relations
         if not self.properties["u"]:

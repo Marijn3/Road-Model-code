@@ -244,48 +244,6 @@ class DataFrameLader:
         folder_name = parts[-2]
         return folder_name
 
-    @staticmethod
-    def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
-        """
-        WIP function. This function should attempt to fix as many MultiLineString registrations as possible.
-        """
-        merged = line_merge(geom)
-        if isinstance(merged, LineString):
-            return merged
-
-        # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
-        if get_num_geometries(geom) == 2:
-            line1 = geom.geoms[0]
-            line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
-
-            line2 = geom.geoms[1]
-            line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
-
-            common_points = [point for point in line1_points if point in line2_points]
-            if len(common_points) == 0:
-                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
-                return geom
-
-            assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
-
-            common_point = common_points[0]
-            index_line1 = line1_points.index(common_point)
-            index_line2 = line2_points.index(common_point)
-
-            if index_line1 == 1:
-                line1 = LineString([coord for coord in line1.coords if coord != line1_points[0]])
-            if index_line1 == 2:
-                line1 = LineString([coord for coord in line1.coords if coord != line1_points[-1]])
-            if index_line2 == 1:
-                line2 = LineString([coord for coord in line2.coords if coord != line2_points[0]])
-            if index_line2 == 2:
-                line2 = LineString([coord for coord in line2.coords if coord != line2_points[-1]])
-
-            return line_merge(MultiLineString([line1, line2]))
-
-        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
-        return geom
-
     def __edit_columns(self, name: str) -> None:
         """
         Edits columns of GeoDataFrames in self.data in place.
@@ -350,8 +308,52 @@ class DataFrameLader:
         else:
             return self.lane_mapping_t.get(row[column], (0, None))
 
+    @staticmethod
+    def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
+        """
+        WIP function. This function should attempt to fix as many MultiLineString registrations as possible.
+        """
+        merged = line_merge(geom)
+        if isinstance(merged, LineString):
+            return merged
+
+        # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
+        if get_num_geometries(geom) == 2:
+            line1 = geom.geoms[0]
+            line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
+
+            line2 = geom.geoms[1]
+            line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
+
+            common_points = [point for point in line1_points if point in line2_points]
+            if len(common_points) == 0:
+                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
+                return geom
+
+            assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
+
+            common_point = common_points[0]
+            index_line1 = line1_points.index(common_point)
+            index_line2 = line2_points.index(common_point)
+
+            if index_line1 == 1:
+                line1 = LineString([coord for coord in line1.coords if coord != line1_points[0]])
+            if index_line1 == 2:
+                line1 = LineString([coord for coord in line1.coords if coord != line1_points[-1]])
+            if index_line2 == 1:
+                line2 = LineString([coord for coord in line2.coords if coord != line2_points[0]])
+            if index_line2 == 2:
+                line2 = LineString([coord for coord in line2.coords if coord != line2_points[-1]])
+
+            return line_merge(MultiLineString([line1, line2]))
+
+        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
+        return geom
+
 
 class WegModel:
+    # The order of the layer names given here indicates the loading order. The first two are fixed.
+    # It is important to import all layers with line geometries first, then point geometries.
     __LAYER_NAMES = ["Wegvakken",  # Used as 'reference layer'
                      "Rijstroken",  # Used as 'initial layer'
                      "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
@@ -496,8 +498,8 @@ class WegModel:
 
             # Take note of special circumstances on this feature.
             if special:
-                changing_lane = row["VOLGNRSTRK"]
-                section_info.obj_eigs["Special"] = (special, changing_lane)
+                lane_nr_special = row["VOLGNRSTRK"]
+                section_info.obj_eigs["Special"] = (special, lane_nr_special)
 
         elif name == "Kantstroken":
             # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
@@ -519,7 +521,8 @@ class WegModel:
                 section_info.obj_eigs["Special"] = special
 
         elif name == "Maximum snelheid":
-            if not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"]) or row["BEGINTIJD"] == 19:
+            if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
+                    or row["BEGINTIJD"] == 19):
                 section_info.obj_eigs["Maximumsnelheid"] = row["OMSCHR"]
             elif row["BEGINTIJD"] == 6:
                 section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = row["OMSCHR"]
@@ -744,7 +747,8 @@ class WegModel:
             first_section_info.pos_eigs.km = [min(second_section_info.pos_eigs.km), max(first_section_info.pos_eigs.km)]
         else:
             first_section_info.pos_eigs.km = [max(second_section_info.pos_eigs.km), min(first_section_info.pos_eigs.km)]
-        first_section_info.pos_eigs.geometrie = self.__get_first_remainder(first_section_info.pos_eigs.geometrie, added_geom)
+        first_section_info.pos_eigs.geometrie = (
+            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, added_geom))
 
     @staticmethod
     def run_checks(new_info: ObjectInfo, other_info: ObjectInfo):

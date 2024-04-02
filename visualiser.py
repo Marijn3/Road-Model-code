@@ -172,7 +172,8 @@ class SvgMaker:
                 points_info.append(point_info)
         return points_info
 
-    def get_changed_geometry(self, section_id: int, section_info: ObjectInfo, points_info: list[ObjectInfo]) -> LineString:
+    def get_changed_geometry(self, section_id: int, section_info: ObjectInfo,
+                             points_info: list[ObjectInfo]) -> LineString:
         """
         Get the geometry of the section, where one of the endpoints is displaced if it overlaps with a
         *vergentiepunt point, and it is necessary to move it. Also adds a general property to the section
@@ -190,8 +191,12 @@ class SvgMaker:
             # Case by case analysis of what should be done to the line geometry.
             point_type = point_info.obj_eigs["Type"]
 
-            point_is_at_line_start = dwithin(Point(line_geom.coords[0]), point_info.pos_eigs.geometrie, self.wegmodel.DISTANCE_TOLERANCE)
-            point_is_at_line_end = dwithin(Point(line_geom.coords[-1]), point_info.pos_eigs.geometrie, self.wegmodel.DISTANCE_TOLERANCE)
+            point_is_at_line_start = dwithin(Point(line_geom.coords[0]),
+                                             point_info.pos_eigs.geometrie,
+                                             self.wegmodel.DISTANCE_TOLERANCE)
+            point_is_at_line_end = dwithin(Point(line_geom.coords[-1]),
+                                           point_info.pos_eigs.geometrie,
+                                           self.wegmodel.DISTANCE_TOLERANCE)
 
             if point_type == "Splitsing" and point_is_at_line_start:
                 other_lane_id = list(set(point_info.verw_eigs.uitgaande_secties) - {section_id})[0]
@@ -241,7 +246,8 @@ class SvgMaker:
         elif other_is_continuous:
             n_lanes_a = other_section_info.verw_eigs.aantal_hoofdstroken
             n_lanes_b = this_section_info.verw_eigs.aantal_hoofdstroken
-            displacement = self.LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a) - self.LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b)
+            displacement = (self.LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
+                            - self.LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b))
 
         if change_start:
             point_to_displace = line_geom.coords[0]
@@ -409,8 +415,9 @@ class SvgMaker:
 
     def svg_add_point(self, point_info: ObjectInfo):
         coords = self.get_flipped_coords(point_info.pos_eigs.geometrie)[0]
-        # TODO: change these calculations
-        info_offset = self.LANE_WIDTH * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken - point_info.verw_eigs.aantal_hoofdstroken) / 2
+        # TODO: Update these calculations so they are uniform with the new approach
+        info_offset = self.LANE_WIDTH * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken -
+                                         point_info.verw_eigs.aantal_hoofdstroken) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
         if point_info.obj_eigs["Type"] == "Signalering":
@@ -428,7 +435,8 @@ class SvgMaker:
 
         for nr in point_info.obj_eigs["Rijstrooknummers"]:
             msi_name = make_name(point_info, nr)
-            displacement = info_offset + self.VISUAL_PLAY + (nr - 1) * (self.VISUAL_PLAY + self.MSIBOX_SIZE) + hecto_offset
+            displacement = (info_offset + self.VISUAL_PLAY + (nr - 1) *
+                            (self.VISUAL_PLAY + self.MSIBOX_SIZE) + hecto_offset)
             box_pos = (coords[0] + displacement, coords[1] - self.MSIBOX_SIZE / 2)
             square = self.draw_msi(box_pos)
             g_msi_row.add(square)
@@ -596,13 +604,13 @@ class SvgMaker:
 
         g_flashers = g_msi_row.add(self.dwg.g(id=f"a[{msi_name}]", visibility="hidden"))
         g_flashers.add(self.dwg.circle(center=(box_west + clearance / 2, box_north + clearance / 2),
-                                           r=clearance / 4, fill="yellow"))  # top-left
+                                       r=clearance / 4, fill="yellow"))  # top-left
         g_flashers.add(self.dwg.circle(center=(box_east - clearance / 2, box_north + clearance / 2),
-                                           r=clearance / 4, fill="yellow"))  # top-right
+                                       r=clearance / 4, fill="yellow"))  # top-right
         g_flashers.add(self.dwg.circle(center=(box_west + clearance / 2, box_south - clearance / 2),
-                                           r=clearance / 4, fill="black"))  # bottom-left
+                                       r=clearance / 4, fill="black"))  # bottom-left
         g_flashers.add(self.dwg.circle(center=(box_east - clearance / 2, box_south - clearance / 2),
-                                           r=clearance / 4, fill="black"))  # bottom-right
+                                       r=clearance / 4, fill="black"))  # bottom-right
 
         for circle in g_flashers.elements[:2]:
             circle.add(self.dwg.animate("fill", attributeType="XML", from_="yellow", to="black",
@@ -631,40 +639,38 @@ class SvgMaker:
         # Draw primary relations
         for element_id in self.element_by_id.keys():
             start_element, start_rotation, start_origin = self.element_by_id[element_id]
-            start_pos = get_center_coords(start_element, start_rotation, start_origin)
+            start_pos = get_square_center_coords(start_element, start_rotation, start_origin)
             for row in self.netwerk.MSIrows:
                 for msi in row.MSIs.values():
                     if msi.name == element_id:
                         if msi.properties["d"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["d"]]
-                            end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
                             self.draw_msi_relation("p", start_pos, end_pos)
                         if msi.properties["ds"]:
                             for end_id in msi.properties["ds"]:
                                 end_element, end_rotation, end_origin = self.element_by_id[end_id]
-                                end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                                end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
                                 self.draw_msi_relation("s", start_pos, end_pos)
                         if msi.properties["dt"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["dt"]]
-                            end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
                             self.draw_msi_relation("t", start_pos, end_pos)
                         if msi.properties["db"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["db"]]
-                            end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
                             self.draw_msi_relation("b", start_pos, end_pos)
                         if msi.properties["dn"]:
                             end_element, end_rotation, end_origin = self.element_by_id[msi.properties["dn"]]
-                            end_pos = get_center_coords(end_element, end_rotation, end_origin)
+                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
                             self.draw_msi_relation("n", start_pos, end_pos)
 
     def draw_msi_relation(self, rel_type: str, start_pos: tuple, end_pos: tuple):
         self.g_msi_relations.add(self.dwg.line(start=start_pos, end=end_pos,
                                                stroke=self.__COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
-        # self.g_msi_relations.add(self.dwg.circle(center=start_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
-        # self.g_msi_relations.add(self.dwg.circle(center=end_pos, r=self.BASE_STROKE * 4, fill=self.__COLORMAP[rel_type]))
 
 
-def get_center_coords(element, angle_degrees, origin):
+def get_square_center_coords(element, angle_degrees, origin):
     x = element.attribs["x"] + element.attribs["width"] / 2
     y = element.attribs["y"] + element.attribs["height"] / 2
     return rotate_point((x, y), origin, angle_degrees)
@@ -681,7 +687,8 @@ def rotate_point(draw_point, origin, angle_degrees):
 
 def make_name(point_info, nr) -> str:
     if point_info.pos_eigs.hectoletter:
-        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:{point_info.pos_eigs.km}:{nr}"
+        return (f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:"
+                f"{point_info.pos_eigs.km}:{nr}")
     else:
         return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km}:{nr}"
 
