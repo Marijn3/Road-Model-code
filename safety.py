@@ -1,4 +1,5 @@
-from visualiser import *
+from road_model import WegModel, ObjectInfo
+from utils import *
 logger = logging.getLogger(__name__)
 
 

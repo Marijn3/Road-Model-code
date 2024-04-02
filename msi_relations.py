@@ -1,4 +1,5 @@
-from road_model import *
+from road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen, get_n_lanes
+from utils import *
 logger = logging.getLogger(__name__)
 
 
@@ -271,9 +272,11 @@ class MSINetwerk:
             if (downstream and current_section.pos_eigs.rijrichting == "R" or
                     not downstream and current_section.pos_eigs.rijrichting == "L"):
                 other_point = [point for point in other_points_on_section if point.pos_eigs.km > current_km][0]
-            if (downstream and current_section.pos_eigs.rijrichting == "L" or
+            elif (downstream and current_section.pos_eigs.rijrichting == "L" or
                     not downstream and current_section.pos_eigs.rijrichting == "R"):
                 other_point = [point for point in other_points_on_section if point.pos_eigs.km < current_km][0]
+            else:
+                raise AssertionError("Onverwachte situatie opgetreden.")
 
         downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
         upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]

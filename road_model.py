@@ -1,11 +1,10 @@
+from shapely import *
+
 import geopandas as gpd
 import pandas as pd
-from shapely import *
 import csv
-from copy import deepcopy
-import math
-import logging
 
+from utils import *
 logger = logging.getLogger(__name__)
 
 

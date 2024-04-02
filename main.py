@@ -1,15 +1,8 @@
-from road_model import DataFrameLader, WegModel, logging
+from road_model import DataFrameLader, WegModel
 from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
 from safety import Aanvraag
-
-# Initialize the logger
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
-
-# Set a higher level for external libraries such as fiona to filter out their debug messages
-external_logger = logging.getLogger('fiona')
-external_logger.setLevel(logging.INFO)
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
