@@ -12,7 +12,7 @@ class PositieEigenschappen:
         self.rijrichting = rijrichting
         self.wegnummer = wegnummer
         self.hectoletter = hectoletter
-        self.km = float() if km is None else km
+        self.km = km if km is not None else float()
         self.geometrie = geometrie
 
     def __repr__(self):
@@ -249,9 +249,7 @@ class DataFrameLader:
     @staticmethod
     def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
         """
-        Deze functie is nog in aanbouw. De bedoeling is om hier zo veel
-        mogelijk MultiLineString registraties af te vangen.
-        TODO 26: Find fix for verbindingsboog Zonzeel.
+        WIP function. This function should attempt to fix as many MultiLineString registrations as possible.
         """
         merged = line_merge(geom)
         if isinstance(merged, LineString):
@@ -574,16 +572,7 @@ class WegModel:
                 other_section_index = overlap_section["Index"]
                 other_info = deepcopy(overlap_section["Section_info"])
 
-            assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km), \
-                f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
-
-            assert isinstance(new_info.pos_eigs.geometrie, LineString), "New geometry is not a linestring"
-            assert isinstance(other_info.pos_eigs.geometrie, LineString), "Other geometry is not a linestring"
-
-            assert not is_empty(new_info.pos_eigs.geometrie), "New info geom is empty"
-            assert not is_empty(other_info.pos_eigs.geometrie), "Other info geom is empty"
-
-            # TODO: Fancier implementation making use of the symmetry of the code below.
+            self.run_checks(new_info, other_info)
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -596,6 +585,8 @@ class WegModel:
 
             other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
                                   (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
+
+            # TODO: Fancier implementation making use of the symmetry of the code below.
 
             # Case A: new_section starts earlier.
             # Add section between new_section_start and other_section_start
@@ -763,6 +754,22 @@ class WegModel:
                 raise Exception("Er is iets misgegaan met het bereik.")
 
         self.__remove_sections(sections_to_remove)
+
+
+    @staticmethod
+    def run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
+        assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km),\
+            f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
+
+        assert isinstance(new_info.pos_eigs.geometrie, LineString),\
+            f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}"
+        assert isinstance(other_info.pos_eigs.geometrie, LineString),\
+            f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}"
+
+        assert not is_empty(new_info.pos_eigs.geometrie),\
+            f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}"
+        assert not is_empty(other_info.pos_eigs.geometrie),\
+            f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}"
 
     def __get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
         """
@@ -1048,7 +1055,7 @@ class WegModel:
             if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
                 overlapping_sections.append({"Index": section_b_index,
                                              "Section_info": section_b})
-                # TODO: simplify to {index: section_info} -> Rewriting this is giving issues...
+                # TODO: simplify to {index: section_info} -> Rewriting this is giving sorting issues...
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
@@ -1178,7 +1185,21 @@ class WegModel:
         self.__remove_points(points_to_remove)
 
     @staticmethod
-    def __separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
+    def __separate_main_and_div(connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
+        """
+        When the road model splits into two sections, this function can separate the two
+        connecting sections into the main section and the diverging section.
+        It makes use of the puntstuk registrations and hectoletter difference.
+        Because at this point in effect three sections come together, it is important to specify the
+        section from which the split or merge is approached, so it can be excluded.
+        Args:
+            connecting_sections (dict): Index and object properties of connecting sections.
+            section_index (int): Index of current section (the section which should be excluded).
+            section_info (ObjectInfo): Properties of current section, to compare to.
+        Returns:
+            (main section index, diverging section index) as a tuple. In case there is no
+            such section, the index is instead replaced by None.
+        """
         connected = [index for index in connecting_sections.keys() if index != section_index]
         if len(connected) == 0:
             return None, None
@@ -1217,6 +1238,7 @@ class WegModel:
         section_a_info = adjacent_sections[section_a_id]
         section_b_info = adjacent_sections[section_b_id]
 
+        # TODO: Make separate function for this, remove duplicate code in visualiser.py that achieves the same.
         section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
         section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
 
