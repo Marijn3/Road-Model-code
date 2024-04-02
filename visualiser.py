@@ -1,4 +1,4 @@
-from road_model import WegModel, ObjectInfo, get_n_lanes
+from road_model import WegModel, ObjectInfo
 from msi_relations import MSINetwerk
 import svgwrite
 from shapely import *
@@ -264,7 +264,7 @@ class SvgMaker:
         else:
             geom = section_info.pos_eigs.geometrie
 
-        n_main_lanes, n_total_lanes = get_n_lanes(section_info.obj_eigs)
+        n_main_lanes, n_total_lanes = self.wegmodel.get_n_lanes(section_info.obj_eigs)
 
         n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
         n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links

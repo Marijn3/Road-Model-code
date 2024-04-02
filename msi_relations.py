@@ -1,4 +1,4 @@
-from road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen, get_n_lanes
+from road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
 from utils import *
 logger = logging.getLogger(__name__)
 
@@ -291,7 +291,7 @@ class MSINetwerk:
                     puntstuk_section_id = list(set(other_point.verw_eigs.ingaande_secties) - {current_section_id})[0]
                 else:
                     puntstuk_section_id = list(set(other_point.verw_eigs.uitgaande_secties) - {current_section_id})[0]
-                n_lanes_other, _ = get_n_lanes(self.wegmodel.sections[puntstuk_section_id].obj_eigs)
+                n_lanes_other, _ = self.wegmodel.get_n_lanes(self.wegmodel.sections[puntstuk_section_id].obj_eigs)
                 shift = shift + n_lanes_other
 
             shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
@@ -312,7 +312,7 @@ class MSINetwerk:
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
             logger.debug(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
 
-        _, shift_div = get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
+        _, shift_div = self.wegmodel.get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
 
         # Store negative value in this direction.
         logger.debug(f"Marking {div_section_id} with -{shift_div}")

@@ -1,9 +1,7 @@
-from shapely import *
-
 import geopandas as gpd
 import pandas as pd
 import csv
-
+from shapely import *
 from utils import *
 logger = logging.getLogger(__name__)
 
@@ -1154,18 +1152,18 @@ class WegModel:
             if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
                 point_verw_eigs.uitgaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
 
             if point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
                 point_verw_eigs.uitgaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
             # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
             if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
@@ -1243,6 +1241,22 @@ class WegModel:
 
         # This connection must be an intersection, which will be treated as an end point.
         return None, None
+
+    @staticmethod
+    def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
+        """
+        Determines the number of lanes given road properties.
+        Args:
+            obj_eigs (dict): Road properties to be evaluated.
+        Returns:
+            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
+            2) The number of lanes, exluding "puntstuk" registrations.
+        """
+        main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
+                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+        any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
+                     and lane_type not in ["Puntstuk"]]
+        return len(main_lanes), len(any_lanes)
 
     @staticmethod
     def __get_dif_props(section_props: dict, other_props):
@@ -1396,19 +1410,3 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
         raise Exception(f"same_direction() kan geen richting bepalen met deze lijnafstanden: {linedist_a, linedist_b}")
 
     return linedist_a < linedist_b
-
-
-def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
-    """
-    Determines the number of lanes given road properties.
-    Args:
-        obj_eigs (dict): Road properties to be evaluated.
-    Returns:
-        1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
-        2) The number of lanes, exluding "puntstuk" registrations.
-    """
-    main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                  and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
-    any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                 and lane_type not in ["Puntstuk"]]
-    return len(main_lanes), len(any_lanes)
