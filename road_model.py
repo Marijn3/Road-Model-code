@@ -91,8 +91,6 @@ class DataFrameLader:
        extent (box): The extent of the specified location.
    """
 
-    __LOCATIONS_CSV_PATH = "data/locaties.csv"
-
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
         "data/Wegvakken/wegvakken.dbf",
@@ -112,18 +110,19 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, location_specification: str | dict = None) -> None:
+    def __init__(self, location_specification: str | dict, locations_csv_path: str) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
             location_specification (str or dict): The name of the location or a dict of coordinates,
                 indicating the bounding box to the area to be loaded.
+            locations_csv_path (str): Path towards csv file defining locations by coordinates.
         Example:
             dfl = DataFrameLader("Everdingen")
             dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
         """
-
         self.data = {}
+        self.locations_csv_path = locations_csv_path
         self.lane_mapping_h = self.construct_lane_mapping("H")
         self.lane_mapping_t = self.construct_lane_mapping("T")
 
@@ -182,8 +181,7 @@ class DataFrameLader:
             mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2
         return mapping
 
-    @staticmethod
-    def __get_coords_from_csv(location: str) -> dict[str, float]:
+    def __get_coords_from_csv(self, location: str) -> dict[str, float]:
         """
         Load the extent coordinates of the specified location from the csv file.
         Args:
@@ -196,7 +194,7 @@ class DataFrameLader:
             ValueError: If there is an error reading the csv file.
         """
         try:
-            with open(DataFrameLader.__LOCATIONS_CSV_PATH, "r") as file:
+            with open(self.locations_csv_path, "r") as file:
                 csv_reader = csv.DictReader(file, delimiter=";")
                 for row in csv_reader:
                     if row["locatie"] == location:
@@ -208,7 +206,7 @@ class DataFrameLader:
                         }
             raise ValueError(f"Ongeldige locatie: '{location}'. Voer een geldige naam van een locatie in.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
+            raise FileNotFoundError(f"Bestand niet gevonden: {self.locations_csv_path}")
         except csv.Error as e:
             raise ValueError(f"Fout bij het lezen van het csv bestand: {e}")
 

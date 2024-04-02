@@ -2,7 +2,7 @@ from road_model import DataFrameLader, WegModel
 from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
-from safety import Aanvraag
+# from safety import Aanvraag
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
@@ -11,7 +11,7 @@ from safety import Aanvraag
 # Importfouten : A2VK, Lankhorst
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader("Vught")
+dfl = DataFrameLader("Vught", "data/locaties.csv")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
