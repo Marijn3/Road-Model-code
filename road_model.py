@@ -1356,18 +1356,6 @@ class WegModel:
         raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
 
 
-def get_km_length(km: list[float]) -> int:
-    """
-    Determines the distance (in meters) covered by a range given in km.
-    The order of km1 and km2 does not matter.
-    Args:
-        km (list): Range list of format [km1, km2]
-    Returns:
-        Rounded distance in meters between km1 and km2.
-    """
-    return round(1000 * abs(km[1] - km[0]))
-
-
 def determine_range_overlap(range1: list, range2: list) -> bool:
     """
     Determines whether there is overlap between two ranges.

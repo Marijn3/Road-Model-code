@@ -19,9 +19,8 @@ class SvgMaker:
         "n": "yellow",  # Narrowing
     }
     
-    def __init__(self, dfl: DataFrameLader, wegmodel: WegModel, netwerk: MSINetwerk,
+    def __init__(self, wegmodel: WegModel, netwerk: MSINetwerk,
                  output_filename: str, formaat: int = 1000, onroad: bool = False):
-        self.dfl = dfl
         self.wegmodel = wegmodel
         self.netwerk = netwerk
         self.outfile = output_filename
