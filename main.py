@@ -1,4 +1,8 @@
-from ilp_input_creator import *
+from road_model import DataFrameLader, WegModel, logging
+from msi_relations import MSINetwerk
+from visualiser import SvgMaker
+from ilp_input_creator import make_ILP_input, generate_file
+from safety import Aanvraag
 
 # Initialize the logger
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
@@ -10,8 +14,8 @@ external_logger.setLevel(logging.INFO)
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relations] Bavel, Everdingen, Zuidasdok
-# Importfouten : A2VK, Grijsoord, Lankhorst
+#                     [MSI relations] Bavel, Everdingen, Zuidasdok, Grijsoord
+# Importfouten : A2VK, Lankhorst
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
 dfl = DataFrameLader("Oosterhout")
@@ -26,17 +30,17 @@ MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relaties=
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
 SvgMaker(wegmodel, MSIs, "Server/Data/WEGGEG/road_visualization.svg", 1000, False)
 
-# # Exporteer de MSI-eigenschappen naar een bestand.
+# Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs)
 generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")
 
 # # Instantieer een aanvraag (A27 Oosterhout)
-aanvraag = Aanvraag(wegmodel,
-                    km_start=13.95,
-                    km_end=13.98,
-                    wegkant="R",
-                    korter_dan_24h=True,
-                    # ruimte_links=1,
-                    ruimte_midden=[1],
-                    # ruimte_rechts=1.5,
-                    )
+# aanvraag = Aanvraag(wegmodel,
+#                     km_start=13.95,
+#                     km_end=13.98,
+#                     wegkant="R",
+#                     korter_dan_24h=True,
+#                     # ruimte_links=1,
+#                     ruimte_midden=[1],
+#                     # ruimte_rechts=1.5,
+#                     )
