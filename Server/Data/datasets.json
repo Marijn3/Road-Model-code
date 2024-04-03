@@ -1,11 +1,11 @@
 {
     "0": {
         "name":"WEGGEG-based data",
-        "data_file": "Data/WEGGEG/WEGGEG.json",
+        "data_file": "Data/RoadModel/LSC.json",
         "ilp_file" : "ILP/model.mps",
         "solve_ilp_file": "Solution/model_solved.mps",
         "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/WEGGEG/road_visualization.svg",
+        "SVG_template": "Data/RoadModel/RoadModelVisualisation.svg",
         "json_file" : "Solution/state.json",
         "constraints_list_file" : "Solution/Constraints_list.json"
     },
@@ -16,119 +16,6 @@
         "solve_ilp_file": "Solution/model_solved.mps",
         "debug_ilp_file" : "ILP/model.lp",
         "SVG_template": "Data/Klaverblad_A15_A27/road_template_A15_A27.svg",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "2": {
-        "name":"Apeldoorn Arnhem A50",
-        "data_file": "Data/A50_Apeldoorn_Arnhem/A50_Apeldoorn_Arnhem.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/A50_Apeldoorn_Arnhem/road_template_A15_A27.svg",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "3": {
-        "name":"Test road (4rsu, 2lane)",
-        "data_file": "Data/test/data_test.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/test/road_template_test.svg",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "4": {
-        "name":"Knooppunt Galder",
-        "data_file": "Data/a16_a58/data_a16_a58.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/a16_a58/road_template_A16_A58.svg",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "5": {
-        "name":"Test rush hour lane",
-        "data_file": "Data/test_RHL/data_test_RHL_narrowing.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/test_RHL/road_template_test_RHL.svg",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "6": {
-        "name":"Eight lane road",
-        "data_file": "Data/Large_road/input_data.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "7": {
-        "name":"Eight lanes, two carriageways",
-        "data_file": "Data/Large_road_2/input_data.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "8": {
-        "name":"A15 Tunnel",
-        "data_file": "Data/A15_Tunnel/A15_Tunnel.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "9": {
-        "name":"Circle",
-        "data_file": "Data/circle/input_data.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "10": {
-        "name":"Presentatie",
-        "data_file": "Data/Presentatie/data_presentatie.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },	
-    "11": {
-        "name":"Demo",
-        "data_file": "Data/demo/input_data.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-    "12": {
-        "name":"Demo2",
-        "data_file": "Data/demo2/input_data.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-	"13": {
-        "name":"XXL",
-        "data_file": "Data/Klaverblad_A15_A27_5/Klaverblad_A15_A27.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/Klaverblad_A15_A27_5/road_template_A15_A27.svg",
         "json_file" : "Solution/state.json",
         "constraints_list_file" : "Solution/Constraints_list.json"
     }
