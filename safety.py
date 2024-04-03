@@ -1,4 +1,6 @@
-from visualiser import *
+from road_model import WegModel, ObjectInfo
+from utils import *
+logger = logging.getLogger(__name__)
 
 
 class Oppervlak:
@@ -10,11 +12,11 @@ class Oppervlak:
         self.lanes = {lane_nr: lane_type for lane_nr, lane_type in unfiltered_lanes.items() if isinstance(lane_nr, int)}
         self.width = self.get_width()
 
-        self.print_surface()
+        self.log_surface()
 
-    def print_surface(self):
-        print(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
-              f"van {self.km_start} tot {self.km_end}, met stroken {self.lanes} en breedte {self.width}.")
+    def log_surface(self):
+        logger.info(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
+                    f"van {self.km_start} tot {self.km_end}, met stroken {self.lanes} en breedte {self.width}.")
 
     def get_width(self) -> list:
         lane_numbers = self.lanes.keys()
@@ -27,15 +29,45 @@ class Werkvak(Oppervlak):
     def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict) -> None:
         super().__init__(roadside, km_start, km_end, "Werkvak", lanes)
         self.color = "cyan"
+        self.make_veiligheidsruimte()
+
+    def make_veiligheidsruimte(self):
+        if self.km_start < self.km_end:
+            Veiligheidsruimte(self.roadside, self.km_start-0.1, self.km_end+0.1, self.lanes)
+        else:
+            Veiligheidsruimte(self.roadside, self.km_start+0.1, self.km_end-0.1, self.lanes)
+
+
+class Veiligheidsruimte(Oppervlak):
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict) -> None:
+        super().__init__(roadside, km_start, km_end, "Veiligheidsruimte", lanes)
+        self.color = "yellow"
+        self.make_werkruimte()
+
+    def make_werkruimte(self):
+        # Find next upstream row compared to self.km_start
+        next_upstream_km = 13.5
+        # Find next downstream row compared to self.km_end
+        next_downstream_km = 14.7
+
+        Werkruimte(self.roadside, next_upstream_km, next_downstream_km, self.lanes)
+
+class Werkruimte(Oppervlak):
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict) -> None:
+        super().__init__(roadside, km_start, km_end, "Werkruimte", lanes)
+        self.color = "orange"
 
 
 class Aanvraag(Oppervlak):
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
-                 max_v: int = 70, duur_korter_24h: bool = True, afzetting: str = "Bakens") -> None:
-        assert sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1, "Specificeer één eis."
-        assert not ruimte_links or (ruimte_links and ruimte_links > 0), "Onjuiste aanvraag. Definieer positieve afstanden."
-        assert not ruimte_rechts or (ruimte_rechts and ruimte_rechts > 0), "Onjuiste aanvraag. Definieer positieve afstanden."
+                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: str = "Bakens") -> None:
+        if not sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1:
+            raise InterruptedError("Specificeer één eis.")
+        assert not ruimte_links or (ruimte_links and ruimte_links > 0),\
+            "Onjuiste aanvraag. Definieer positieve afstanden."
+        assert not ruimte_rechts or (ruimte_rechts and ruimte_rechts > 0),\
+            "Onjuiste aanvraag. Definieer positieve afstanden."
 
         self.wegmodel = wegmodel
         self.hectoletter = hectoletter
@@ -43,7 +75,7 @@ class Aanvraag(Oppervlak):
         self.ruimte_midden = ruimte_midden
         self.ruimte_rechts = ruimte_rechts
         self.max_v = max_v
-        self.duur_korter_24h = duur_korter_24h
+        self.korter_dan_24h = korter_dan_24h
         self.afzetting = afzetting
         self.color = "green"
 
@@ -53,6 +85,7 @@ class Aanvraag(Oppervlak):
         self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
                            if isinstance(lane_nr, int) and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
 
+        # TODO: Use verw-eigs??
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
         self.lanes_left = self.filter_lanes(self.lane_nrs_left)
         self.lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
@@ -106,9 +139,9 @@ class Aanvraag(Oppervlak):
         if lanes_werkvak:
             Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
         else:
-            print("Geen afzettingen nodig voor deze aanvraag.")
+            logger.info(f"Geen afzettingen nodig voor deze aanvraag.")
 
-    def __get_lanes_werkvak(self, road_info: dict) -> dict:
+    def __get_lanes_werkvak(self, road_info: ObjectInfo) -> dict:
         if self.ruimte_midden:
             keep_left_open = True  # If False: keep right side open.
 
@@ -130,16 +163,18 @@ class Aanvraag(Oppervlak):
             else:
                 return self.filter_lanes(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
 
-        condition_tl1 = self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 3.50
+        langer_dan_24h = not self.korter_dan_24h
 
-        condition_tr1 = self.duur_korter_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= self.sphere_of_influence
-        condition_tr2 = self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
+        condition_tl1 = self.korter_dan_24h and self.ruimte_links and self.ruimte_links <= 3.50
 
-        condition_ll1 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links > 0.25
-        condition_ll2 = not self.duur_korter_24h and self.ruimte_links and self.ruimte_links <= 0.25
+        condition_tr1 = self.korter_dan_24h and self.ruimte_rechts and 1.10 < self.ruimte_rechts <= self.sphere_of_influence
+        condition_tr2 = self.korter_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
 
-        condition_lr2 = not self.duur_korter_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
-        condition_lr3 = not self.duur_korter_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
+        condition_ll1 = langer_dan_24h and self.ruimte_links and self.ruimte_links > 0.25
+        condition_ll2 = langer_dan_24h and self.ruimte_links and self.ruimte_links <= 0.25
+
+        condition_lr2 = langer_dan_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
+        condition_lr3 = langer_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
 
         if condition_tl1:
             return self.lanes_left
@@ -164,4 +199,3 @@ class Aanvraag(Oppervlak):
 
         else:
             return {}
-

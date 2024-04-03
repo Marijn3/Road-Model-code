@@ -1,11 +1,8 @@
 import geopandas as gpd
 import pandas as pd
-from shapely import *
 import csv
-from copy import deepcopy
-import math
-import logging
-
+from shapely import *
+from utils import *
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +12,7 @@ class PositieEigenschappen:
         self.rijrichting = rijrichting
         self.wegnummer = wegnummer
         self.hectoletter = hectoletter
-        self.km = float() if km is None else km
+        self.km = km if km is not None else float()
         self.geometrie = geometrie
 
     def __repr__(self):
@@ -94,8 +91,6 @@ class DataFrameLader:
        extent (box): The extent of the specified location.
    """
 
-    __LOCATIONS_CSV_PATH = "data/locaties.csv"
-
     # List all data layer files to be loaded. Same structure as WEGGEG.
     __FILE_PATHS = [
         "data/Wegvakken/wegvakken.dbf",
@@ -115,27 +110,28 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, location_specification: str | dict = None) -> None:
+    def __init__(self, locatie: str | dict, locations_csv_pad: str) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            location_specification (str or dict): The name of the location or a dict of coordinates,
+            locatie (str or dict): The name of the location or a dict of coordinates,
                 indicating the bounding box to the area to be loaded.
+            locations_csv_pad (str): Path towards csv file defining locations by coordinates.
         Example:
             dfl = DataFrameLader("Everdingen")
             dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
         """
-
         self.data = {}
+        self.locations_csv_path = locations_csv_pad
         self.lane_mapping_h = self.construct_lane_mapping("H")
         self.lane_mapping_t = self.construct_lane_mapping("T")
 
-        if isinstance(location_specification, str):
-            coords = self.__get_coords_from_csv(location_specification)
-        elif isinstance(location_specification, dict):
-            coords = location_specification
+        if isinstance(locatie, str):
+            coords = self.__get_coords_from_csv(locatie)
+        elif isinstance(locatie, dict):
+            coords = locatie
         else:
-            raise NotImplementedError(f"Input of type {type(location_specification)} is not supported. "
+            raise NotImplementedError(f"Input of type {type(locatie)} is not supported. "
                                       f"Use a str or dict instead.")
 
         self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
@@ -185,8 +181,7 @@ class DataFrameLader:
             mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2
         return mapping
 
-    @staticmethod
-    def __get_coords_from_csv(location: str) -> dict[str, float]:
+    def __get_coords_from_csv(self, location: str) -> dict[str, float]:
         """
         Load the extent coordinates of the specified location from the csv file.
         Args:
@@ -199,7 +194,7 @@ class DataFrameLader:
             ValueError: If there is an error reading the csv file.
         """
         try:
-            with open(DataFrameLader.__LOCATIONS_CSV_PATH, "r") as file:
+            with open(self.locations_csv_path, "r") as file:
                 csv_reader = csv.DictReader(file, delimiter=";")
                 for row in csv_reader:
                     if row["locatie"] == location:
@@ -211,7 +206,7 @@ class DataFrameLader:
                         }
             raise ValueError(f"Ongeldige locatie: '{location}'. Voer een geldige naam van een locatie in.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"Bestand niet gevonden: {DataFrameLader.__LOCATIONS_CSV_PATH}")
+            raise FileNotFoundError(f"Bestand niet gevonden: {self.locations_csv_path}")
         except csv.Error as e:
             raise ValueError(f"Fout bij het lezen van het csv bestand: {e}")
 
@@ -248,50 +243,6 @@ class DataFrameLader:
         parts = file_path.split("/")
         folder_name = parts[-2]
         return folder_name
-
-    @staticmethod
-    def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
-        """
-        Deze functie is nog in aanbouw. De bedoeling is om hier zo veel
-        mogelijk MultiLineString registraties af te vangen.
-        TODO 26: Find fix for verbindingsboog Zonzeel.
-        """
-        merged = line_merge(geom)
-        if isinstance(merged, LineString):
-            return merged
-
-        # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
-        if get_num_geometries(geom) == 2:
-            line1 = geom.geoms[0]
-            line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
-
-            line2 = geom.geoms[1]
-            line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
-
-            common_points = [point for point in line1_points if point in line2_points]
-            if len(common_points) == 0:
-                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
-                return geom
-
-            assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
-
-            common_point = common_points[0]
-            index_line1 = line1_points.index(common_point)
-            index_line2 = line2_points.index(common_point)
-
-            if index_line1 == 1:
-                line1 = LineString([coord for coord in line1.coords if coord != line1_points[0]])
-            if index_line1 == 2:
-                line1 = LineString([coord for coord in line1.coords if coord != line1_points[-1]])
-            if index_line2 == 1:
-                line2 = LineString([coord for coord in line2.coords if coord != line2_points[0]])
-            if index_line2 == 2:
-                line2 = LineString([coord for coord in line2.coords if coord != line2_points[-1]])
-
-            return line_merge(MultiLineString([line1, line2]))
-
-        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
-        return geom
 
     def __edit_columns(self, name: str) -> None:
         """
@@ -357,8 +308,52 @@ class DataFrameLader:
         else:
             return self.lane_mapping_t.get(row[column], (0, None))
 
+    @staticmethod
+    def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
+        """
+        WIP function. This function should attempt to fix as many MultiLineString registrations as possible.
+        """
+        merged = line_merge(geom)
+        if isinstance(merged, LineString):
+            return merged
+
+        # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
+        if get_num_geometries(geom) == 2:
+            line1 = geom.geoms[0]
+            line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
+
+            line2 = geom.geoms[1]
+            line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
+
+            common_points = [point for point in line1_points if point in line2_points]
+            if len(common_points) == 0:
+                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
+                return geom
+
+            assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
+
+            common_point = common_points[0]
+            index_line1 = line1_points.index(common_point)
+            index_line2 = line2_points.index(common_point)
+
+            if index_line1 == 1:
+                line1 = LineString([coord for coord in line1.coords if coord != line1_points[0]])
+            if index_line1 == 2:
+                line1 = LineString([coord for coord in line1.coords if coord != line1_points[-1]])
+            if index_line2 == 1:
+                line2 = LineString([coord for coord in line2.coords if coord != line2_points[0]])
+            if index_line2 == 2:
+                line2 = LineString([coord for coord in line2.coords if coord != line2_points[-1]])
+
+            return line_merge(MultiLineString([line1, line2]))
+
+        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
+        return geom
+
 
 class WegModel:
+    # The order of the layer names given here indicates the loading order. The first two are fixed.
+    # It is important to import all layers with line geometries first, then point geometries.
     __LAYER_NAMES = ["Wegvakken",  # Used as 'reference layer'
                      "Rijstroken",  # Used as 'initial layer'
                      "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
@@ -503,8 +498,8 @@ class WegModel:
 
             # Take note of special circumstances on this feature.
             if special:
-                changing_lane = row["VOLGNRSTRK"]
-                section_info.obj_eigs["Special"] = (special, changing_lane)
+                lane_nr_special = row["VOLGNRSTRK"]
+                section_info.obj_eigs["Special"] = (special, lane_nr_special)
 
         elif name == "Kantstroken":
             # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
@@ -526,7 +521,8 @@ class WegModel:
                 section_info.obj_eigs["Special"] = special
 
         elif name == "Maximum snelheid":
-            if not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"]) or row["BEGINTIJD"] == 19:
+            if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
+                    or row["BEGINTIJD"] == 19):
                 section_info.obj_eigs["Maximumsnelheid"] = row["OMSCHR"]
             elif row["BEGINTIJD"] == 6:
                 section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = row["OMSCHR"]
@@ -577,16 +573,7 @@ class WegModel:
                 other_section_index = overlap_section["Index"]
                 other_info = deepcopy(overlap_section["Section_info"])
 
-            assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km), \
-                f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
-
-            assert isinstance(new_info.pos_eigs.geometrie, LineString), "New geometry is not a linestring"
-            assert isinstance(other_info.pos_eigs.geometrie, LineString), "Other geometry is not a linestring"
-
-            assert not is_empty(new_info.pos_eigs.geometrie), "New info geom is empty"
-            assert not is_empty(other_info.pos_eigs.geometrie), "Other info geom is empty"
-
-            # TODO: Fancier implementation making use of the symmetry of the code below.
+            self.run_checks(new_info, other_info)
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -594,42 +581,28 @@ class WegModel:
             new_section_first = (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and right_side) or (
                                 (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and left_side))
 
-            both_sections_first = (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and right_side) or (
-                                  (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and left_side))
-
             other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
                                   (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
 
-            # Case A: new_section starts earlier.
-            # Add section between new_section_start and other_section_start
-            # with new_section properties and geometry
-            if new_section_first:
-                # Add section...
-                if right_side:
-                    km_bereik = [min(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
-                else:
-                    km_bereik = [max(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
-                added_geom = self.__get_first_remainder(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie)
-                self.__add_section(
-                    ObjectInfo(
-                        pos_eigs=PositieEigenschappen(
-                            rijrichting=other_info.pos_eigs.rijrichting,
-                            wegnummer=other_info.pos_eigs.wegnummer,
-                            hectoletter=other_info.pos_eigs.hectoletter,
-                            km=km_bereik,
-                            geometrie=added_geom),
-                        obj_eigs=new_info.obj_eigs)
-                )
-                # Trim the new_section range and geometry for next iteration.
-                if right_side:
-                    new_info.pos_eigs.km = [min(other_info.pos_eigs.km), max(new_info.pos_eigs.km)]
-                else:
-                    new_info.pos_eigs.km = [max(other_info.pos_eigs.km), min(new_info.pos_eigs.km)]
-                new_info.pos_eigs.geometrie = self.__get_first_remainder(new_info.pos_eigs.geometrie, added_geom)
+            both_sections_first = (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and right_side) or (
+                                  (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and left_side))
 
-            # Case B: start is equal.
+            # Case A: new_section starts earlier.
+            if new_section_first:
+                # Add section between new_section_start and other_section_start
+                # with new_section properties and geometry
+                self.add_trimmed_section_up_to(new_info, other_info, right_side, reference_info=other_info)
+
+            # Case B: new_section starts later.
+            elif other_section_first:
+                # Add section between other_section_start and new_section_start
+                # with other_section properties and geometry.
+                self.add_trimmed_section_up_to(other_info, new_info, right_side, reference_info=other_info)
+
+            # Case C: start of the two sections is equal.
             elif both_sections_first:
 
+                # More subcase checks
                 other_ends_equal = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
                                    (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and left_side))
 
@@ -639,26 +612,23 @@ class WegModel:
                 new_section_larger = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
                                      (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
-                # Update the overlapping section properties
                 if other_ends_equal:
+                    # Update the overlapping section properties
                     if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
                         self.__update_section(other_section_index,
                                               new_km=new_info.pos_eigs.km,
                                               new_obj_eigs=new_info.obj_eigs,
                                               new_geometrie=other_info.pos_eigs.geometrie)
                     else:
-                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen.")
-                        # raise Exception(f"Geometrieën komen niet overeen: "
-                        #                 f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
+                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen:"
+                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
                     # This is the final iteration.
                     break
 
-                # Add section between new_section_min and new_section_max
-                # with both properties and overlapping geometry.
-                # Update other_section range between new_section_max and other_section_max
-                # with and remaining geometry.
-                # Remove old other_section.
                 elif other_section_larger:
+                    # Add section between new_section_min and new_section_max with both properties
+                    # and overlapping geometry. Update other_section range between new_section_max
+                    # and other_section_max and update the remaining geometry. Remove old other_section.
                     if right_side:
                         km_bereik = [min(new_info.pos_eigs.km), max(new_info.pos_eigs.km)]
                     else:
@@ -689,7 +659,6 @@ class WegModel:
                     break
 
                 elif new_section_larger:
-                    logger.debug(f"Ranges: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
                     # Add section with both properties
                     if right_side:
                         km_bereik = [min(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
@@ -707,7 +676,7 @@ class WegModel:
                                 geometrie=added_geom),
                             obj_eigs=both_props)
                     )
-                    # We can remove the old other_section from the road model, since it has now been completely used.
+                    # We can remove the old other_section from the road model, since it has now been completely used up.
                     sections_to_remove.add(other_section_index)
                     # Trim the new_section range and geometry for another iteration.
                     if right_side:
@@ -735,37 +704,66 @@ class WegModel:
                 else:
                     raise Exception("Er is iets misgegaan met het bereik.")
 
-            # Case C: new_section starts later.
-            # Add section between other_section_start and new_section_start
-            # with other_section properties and geometry.
-            elif other_section_first:
-                # Add section...
-                if right_side:
-                    km_bereik = [min(other_info.pos_eigs.km), min(new_info.pos_eigs.km)]
-                else:
-                    km_bereik = [max(other_info.pos_eigs.km), max(new_info.pos_eigs.km)]
-                added_geom = self.__get_first_remainder(other_info.pos_eigs.geometrie, new_info.pos_eigs.geometrie)
-                self.__add_section(
-                    ObjectInfo(
-                        pos_eigs=PositieEigenschappen(
-                            rijrichting=other_info.pos_eigs.rijrichting,
-                            wegnummer=other_info.pos_eigs.wegnummer,
-                            hectoletter=other_info.pos_eigs.hectoletter,
-                            km=km_bereik,
-                            geometrie=added_geom),
-                        obj_eigs=other_info.obj_eigs)
-                )
-                # Trim the other_section range and geometry for next iteration.
-                if right_side:
-                    other_info.pos_eigs.km = [min(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
-                else:
-                    other_info.pos_eigs.km = [max(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
-                other_info.pos_eigs.geometrie = self.__get_first_remainder(other_info.pos_eigs.geometrie, added_geom)
-
             else:
-                raise Exception("Er is iets misgegaan met het bereik.")
+                raise Exception(f"Er is iets misgegaan met de bereiken: "
+                                f"{new_info.pos_eigs.km} {other_info.pos_eigs.km}")
 
         self.__remove_sections(sections_to_remove)
+
+    def add_trimmed_section_up_to(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
+                                  right_side: bool, reference_info: ObjectInfo) -> None:
+        """
+        Adds a trimmed portion of the first provided section to the model. The section is
+        trimmed based on the part that does not appear in the second section. 
+        Then the first section is updated so the trimmed part is cut off.
+        Args:
+            first_section_info: The first section encountered.
+            second_section_info: The other section, that is encountered next.
+            right_side: Whether the section is on the right side or the left side.
+            reference_info: Section info for which the data has been checked before, generally,
+                this is the existing section in the road model.
+        """
+        if right_side:
+            km_bereik = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
+        else:
+            km_bereik = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
+        added_geom = (
+            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, second_section_info.pos_eigs.geometrie))
+
+        self.__add_section(
+            ObjectInfo(
+                pos_eigs=PositieEigenschappen(
+                    rijrichting=reference_info.pos_eigs.rijrichting,
+                    wegnummer=reference_info.pos_eigs.wegnummer,
+                    hectoletter=reference_info.pos_eigs.hectoletter,
+                    km=km_bereik,
+                    geometrie=added_geom),
+                obj_eigs=first_section_info.obj_eigs
+            )
+        )
+
+        # Trim the new_section range and geometry for next iteration.
+        if right_side:
+            first_section_info.pos_eigs.km = [min(second_section_info.pos_eigs.km), max(first_section_info.pos_eigs.km)]
+        else:
+            first_section_info.pos_eigs.km = [max(second_section_info.pos_eigs.km), min(first_section_info.pos_eigs.km)]
+        first_section_info.pos_eigs.geometrie = (
+            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, added_geom))
+
+    @staticmethod
+    def run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
+        assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km),\
+            f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
+
+        assert isinstance(new_info.pos_eigs.geometrie, LineString),\
+            f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}"
+        assert isinstance(other_info.pos_eigs.geometrie, LineString),\
+            f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}"
+
+        assert not is_empty(new_info.pos_eigs.geometrie),\
+            f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}"
+        assert not is_empty(other_info.pos_eigs.geometrie),\
+            f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}"
 
     def __get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
         """
@@ -1051,7 +1049,7 @@ class WegModel:
             if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
                 overlapping_sections.append({"Index": section_b_index,
                                              "Section_info": section_b})
-                # TODO: simplify to {index: section_info} -> Rewriting this is giving issues...
+                # TODO: simplify to {index: section_info} -> Rewriting this is giving sorting issues...
 
         if overlapping_sections:
             # For the rest of the implementation, sorting in driving direction is assumed.
@@ -1155,18 +1153,18 @@ class WegModel:
             if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
                 point_verw_eigs.uitgaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
 
             if point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
                 point_verw_eigs.uitgaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
-                     if get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
+                     if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
             # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
             if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
@@ -1181,7 +1179,21 @@ class WegModel:
         self.__remove_points(points_to_remove)
 
     @staticmethod
-    def __separate_main_and_div(connecting_sections: dict, section_index, section_info) -> tuple:
+    def __separate_main_and_div(connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
+        """
+        When the road model splits into two sections, this function can separate the two
+        connecting sections into the main section and the diverging section.
+        It makes use of the puntstuk registrations and hectoletter difference.
+        Because at this point in effect three sections come together, it is important to specify the
+        section from which the split or merge is approached, so it can be excluded.
+        Args:
+            connecting_sections (dict): Index and object properties of connecting sections.
+            section_index (int): Index of current section (the section which should be excluded).
+            section_info (ObjectInfo): Properties of current section, to compare to.
+        Returns:
+            (main section index, diverging section index) as a tuple. In case there is no
+            such section, the index is instead replaced by None.
+        """
         connected = [index for index in connecting_sections.keys() if index != section_index]
         if len(connected) == 0:
             return None, None
@@ -1220,6 +1232,7 @@ class WegModel:
         section_a_info = adjacent_sections[section_a_id]
         section_b_info = adjacent_sections[section_b_id]
 
+        # TODO: Make separate function for this, remove duplicate code in visualiser.py that achieves the same.
         section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
         section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
 
@@ -1246,6 +1259,22 @@ class WegModel:
         return None, None
 
     @staticmethod
+    def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
+        """
+        Determines the number of lanes given road properties.
+        Args:
+            obj_eigs (dict): Road properties to be evaluated.
+        Returns:
+            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
+            2) The number of lanes, exluding "puntstuk" registrations.
+        """
+        main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
+                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+        any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
+                     and lane_type not in ["Puntstuk"]]
+        return len(main_lanes), len(any_lanes)
+
+    @staticmethod
     def __get_dif_props(section_props: dict, other_props):
         return {lane_nr: lane_type for lane_nr, lane_type in section_props.items()
                 if (lane_nr not in other_props) or (lane_nr in other_props and other_props[lane_nr] != lane_type)}
@@ -1256,7 +1285,6 @@ class WegModel:
         Returns:
             Local angle in degrees.
         """
-        # TODO: replace overlapping_ids with the info of the overlapping sections.
         overlapping_lines = [line for index, line in self.sections.items() if index in overlapping_ids]
 
         assert overlapping_lines, f"Punt {point_geom} overlapt niet met lijnen in het model."
@@ -1357,18 +1385,6 @@ class WegModel:
         raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
 
 
-def get_km_length(km: list[float]) -> int:
-    """
-    Determines the distance (in meters) covered by a range given in km.
-    The order of km1 and km2 does not matter.
-    Args:
-        km (list): Range list of format [km1, km2]
-    Returns:
-        Rounded distance in meters between km1 and km2.
-    """
-    return round(1000 * abs(km[1] - km[0]))
-
-
 def determine_range_overlap(range1: list, range2: list) -> bool:
     """
     Determines whether there is overlap between two ranges.
@@ -1410,19 +1426,3 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
         raise Exception(f"same_direction() kan geen richting bepalen met deze lijnafstanden: {linedist_a, linedist_b}")
 
     return linedist_a < linedist_b
-
-
-def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
-    """
-    Determines the number of lanes given road properties.
-    Args:
-        obj_eigs (dict): Road properties to be evaluated.
-    Returns:
-        1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
-        2) The number of lanes, exluding "puntstuk" registrations.
-    """
-    main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                  and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
-    any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                 and lane_type not in ["Puntstuk"]]
-    return len(main_lanes), len(any_lanes)
