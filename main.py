@@ -4,6 +4,8 @@ from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
 # from safety import Aanvraag
 
+ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
+
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
@@ -22,11 +24,11 @@ wegmodel = WegModel(dfl)
 MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relaties=True)
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(wegmodel, MSIs, "Server/Data/WEGGEG/road_visualization.svg", 1000, False)
+SvgMaker(wegmodel, MSIs, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
 
 # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs)
-generate_file(ilp_input, "Server/Data/WEGGEG/WEGGEG.json")
+generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
 
 # # Instantieer een aanvraag (A27 Oosterhout)
 # aanvraag = Aanvraag(wegmodel,
