@@ -1,15 +1,4 @@
-from Data.A15_Tunnel.svg_A15_tunnel import *
-from Data.A50_Apeldoorn_Arnhem.svg_A50 import *
 from Data.Klaverblad_A15_A27.svg_A15_A27 import *
-from Data.Large_road.svg_eight_lane import *
-from Data.Presentatie.svg_presentatie import *
-from Data.a16_a58.svg_A16_A58 import *
-from Data.circle.svg_circle import *
-from Data.demo.svg_four_lane import *
-from Data.demo2.svg_four_lane import *
-from Data.large_road_2.svg_eight_lane import *
-from Data.test.svg_test import *
-from Data.test_RHL.svg_test_RHL import *
 import xml.etree.ElementTree as ET
 
 DEFS_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -296,19 +285,18 @@ def determine_group_names(name_to_legend: dict) -> list:
 
 def createSVG_roadmodel(model, json_data):
     results, json_data = getMyVars(model, json_data)
-    svg_file = "Server/Data/WEGGEG/road_visualization.svg"
+    svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
     with open(svg_file, "r") as file:
         svg = file.read()
-    # TODO: Adjust svg based on json_data info!
+    # TODO: Adjust svg dynamically based on json_data info!
+    # Don't forget to remove all previous legends first,
+    # or to change (add/remove) only those that do not match with the old svg!
 
-    # Add code for legend visibility toggle here. The dict below is used as id_to_image in that.
     id_to_image = {key: value['State'] for key, value in json_data.items() if value['State'][0] != 'Blank'}
     print("New legends:", id_to_image)
     legends_to_activate = {name: True for name in determine_group_names(id_to_image)}
     toggle_visibility(svg_file, legends_to_activate)
 
-    # Don't forget to remove all previous legends first,
-    # or to change (add/remove) only those that do not match with the old svg!
     return svg, json_data
 
 
