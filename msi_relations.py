@@ -93,9 +93,9 @@ class MSINetwerk:
         self.max_search_distance = maximale_zoekafstand
 
         self.MSIrows = []
-        self.construct_msi_network()
+        self.__construct_msi_network()
 
-    def construct_msi_network(self):
+    def __construct_msi_network(self):
         logger.info(f"MSI-netwerk opzetten...")
 
         self.MSIrows = [MSIRow(self, msi_info) for msi_info in self.wegmodel.get_points_info("MSI")]
@@ -108,9 +108,9 @@ class MSINetwerk:
             msi_row.determine_msi_row_relations()
             msi_row.fill_msi_properties()
 
-        self.log_network()
+        self.__log_network()
 
-    def log_network(self):
+    def __log_network(self):
         # Log resulting properties once everything has been determined
         for msi_row in self.MSIrows:
             for msi in msi_row.MSIs.values():
@@ -135,7 +135,7 @@ class MSINetwerk:
 
         logger.debug(f"Recursieve functie start met id={starting_section_id}, km={current_km}, "
                      f"stroomafwaarts={downstream}, rijrichting={travel_direction}")
-        msis = self.find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
+        msis = self.__find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
 
         if isinstance(msis, dict):
             return [msis]
@@ -172,8 +172,8 @@ class MSINetwerk:
             if section.pos_eigs.km[km_registration_to_equate] == msi_row.info.pos_eigs.km:
                 return section_id
 
-    def find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
-                           shift: int = 0, current_distance: float = 0, annotation: dict = None) -> list | dict:
+    def __find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
+                             shift: int = 0, current_distance: float = 0, annotation: dict = None) -> list | dict:
         """
         This is recursive function, meaning that it calls itself. The function requires
         variables to keep track of where a branch of the recursive search is. These have
@@ -208,23 +208,23 @@ class MSINetwerk:
             annotation = {}
 
         other_points_on_section, msis_on_section = (
-            self.evaluate_section_points(current_section_id, current_km, travel_direction, downstream, first_iteration))
+            self.__evaluate_section_points(current_section_id, current_km, travel_direction, downstream, first_iteration))
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
             logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km}")
-            shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                             downstream, first_iteration, True)
-            return {self.get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
+            shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
+                                                               downstream, first_iteration, True)
+            return {self.__get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
 
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi.pos_eigs.km))
             logger.debug(f"Meerdere MSIs gevonden bij {current_section_id}. "
                          f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km}")
-            shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                             downstream, first_iteration, True)
-            return {self.get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
+            shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
+                                                               downstream, first_iteration, True)
+            return {self.__get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
 
         # Base case 3: Maximum depth reached.
         current_distance += current_section.pos_eigs.geometrie.length
@@ -259,10 +259,10 @@ class MSINetwerk:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 logger.debug(f"Looking for MSI row in the next section, {next_section_id}")
-                shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                                 downstream, first_iteration)
-                return self.find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
-                                               shift, current_distance, annotation)
+                shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
+                                                                   downstream, first_iteration)
+                return self.__find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
+                                                 shift, current_distance, annotation)
 
         assert len(other_points_on_section) == 1 or len(other_points_on_section) == 2, \
             f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
@@ -297,14 +297,14 @@ class MSINetwerk:
                 n_lanes_other, _ = self.wegmodel.get_n_lanes(self.wegmodel.sections[puntstuk_section_id].obj_eigs)
                 shift = shift + n_lanes_other
 
-            shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                             downstream, first_iteration)
+            shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
+                                                               downstream, first_iteration)
 
             logger.debug(f"The *vergence point leads to section {next_section_id}")
             logger.debug(f"Marking {next_section_id} with +{shift}")
 
-            return self.find_msi_recursive(next_section_id, other_point.pos_eigs.km, downstream, travel_direction,
-                                           shift, current_distance, annotation)
+            return self.__find_msi_recursive(next_section_id, other_point.pos_eigs.km, downstream, travel_direction,
+                                             shift, current_distance, annotation)
 
         if upstream_split:
             cont_section_id = current_section.verw_eigs.sectie_stroomopwaarts
@@ -320,16 +320,16 @@ class MSINetwerk:
         # Store negative value in this direction.
         logger.debug(f"Marking {div_section_id} with -{shift_div}")
 
-        shift, annotation = self.update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                         downstream, first_iteration)
+        shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
+                                                           downstream, first_iteration)
 
         # Make it do the recursive function twice. Then return both options as a list.
-        option_continuation = self.find_msi_recursive(cont_section_id, other_point.pos_eigs.km,
-                                                      downstream, travel_direction,
-                                                      shift, current_distance, annotation)
-        option_diversion = self.find_msi_recursive(div_section_id, other_point.pos_eigs.km,
-                                                   downstream, travel_direction,
-                                                   shift - shift_div, current_distance, annotation)
+        option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs.km,
+                                                        downstream, travel_direction,
+                                                        shift, current_distance, annotation)
+        option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs.km,
+                                                     downstream, travel_direction,
+                                                     shift - shift_div, current_distance, annotation)
         if isinstance(option_continuation, list):
             return option_continuation + [option_diversion]
         elif isinstance(option_diversion, list):
@@ -337,8 +337,8 @@ class MSINetwerk:
         else:
             return [option_continuation, option_diversion]
 
-    def evaluate_section_points(self, current_section_id: int, current_km: float,
-                                travel_direction: str, downstream: bool, first_iteration: bool) -> tuple[list, list]:
+    def __evaluate_section_points(self, current_section_id: int, current_km: float,
+                                  travel_direction: str, downstream: bool, first_iteration: bool) -> tuple[list, list]:
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             if first_iteration:
@@ -365,9 +365,9 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def update_shift_annotation(self, shift: int, annotation: dict,
-                                current_section_verw_eigs: LijnVerwerkingsEigenschappen, downstream: bool,
-                                is_first_iteration: bool = False, is_last_iteration: bool = False) -> tuple[int, dict]:
+    def __update_shift_annotation(self, shift: int, annotation: dict,
+                                  current_section_verw_eigs: LijnVerwerkingsEigenschappen, downstream: bool,
+                                  is_first_iteration: bool = False, is_last_iteration: bool = False) -> tuple[int, dict]:
         """
         Adapts the shift and annotation value according to the previous shift and annotation
         and the processing properties of the provided section.
@@ -383,7 +383,7 @@ class MSINetwerk:
         Returns:
             Adjusted shift and annotation.
         """
-        new_annotation = self.get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
+        new_annotation = self.__get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
 
         if not new_annotation:
             return shift, annotation
@@ -399,8 +399,8 @@ class MSINetwerk:
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
 
     @staticmethod
-    def get_annotation(section_verw_eigs: LijnVerwerkingsEigenschappen,
-                       start_skip: bool = False, end_skip: bool = False) -> dict:
+    def __get_annotation(section_verw_eigs: LijnVerwerkingsEigenschappen,
+                         start_skip: bool = False, end_skip: bool = False) -> dict:
         """
         Determines the annotation to be added to the current recursive
         search based on processing properties of the current section.
@@ -437,18 +437,31 @@ class MSINetwerk:
 
         return annotation
 
-    def get_msi_row_by_pos(self, pos_eigs: PositieEigenschappen) -> MSIRow | None:
+    def __get_msi_row_by_pos(self, pos_eigs: PositieEigenschappen) -> MSIRow | None:
         """
-        Find the MSI row in self.MSIrows with the provided km registration and hectoletter.
+        Find the MSI row in self.MSIrows with the provided positional properties.
         Args:
-            pos_eigs (str): Point hectoletter registration to compare to.
+            pos_eigs (str): Point properties to compare to.
         Returns:
-            MSIRow object as specified.
+            MSIRow object matching the specified positional properties.
         """
         for msi_row in self.MSIrows:
             if msi_row.info.pos_eigs == pos_eigs:
                 return msi_row
         return None
+
+    def make_print(self, output_pad: str) -> None:
+        rel_names = {"d": "downstream", "ds": "downstream secondary", "dt": "downstream taper",
+                     "db": "downstream broadening", "dn": "dowstream narrowing",
+                     "u": "upstream", "us": "upstream secondary", "ut": "upstream taper",
+                     "ub": "upstream broadening", "un": "upstream narrowing"}
+        with open(output_pad, "w") as outfile:
+            for msi_row in self.MSIrows:
+                for msi in msi_row.MSIs.values():
+                    for relation, related_msi in msi.properties.items():
+                        if (related_msi is not None
+                                and relation in ["d", "ds", "dt", "db", "dn", "u", "us", "ut", "ub", "un"]):
+                            outfile.write(f"{msi.name} has a {rel_names[relation]} connection with {related_msi}\n")
 
 
 class MSI:
