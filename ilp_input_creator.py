@@ -93,11 +93,11 @@ def make_ILP_input(network: MSINetwerk) -> dict:
     """
     road_dict = {}
 
-    for i_row, row in enumerate(network.MSIrows):
+    for row in network.MSIrows:
         row_name = transform_row_name(row.name)
         road_dict[row_name] = deepcopy(msi_row_dict)
 
-        for i_msi, msi in row.MSIs.items():
+        for msi in row.MSIs.values():
             road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
             road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Primary"] = transform_name(msi.properties["d"])
             road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Secondary"] = transform_name(msi.properties["ds"])
