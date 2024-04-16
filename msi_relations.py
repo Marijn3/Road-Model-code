@@ -535,7 +535,7 @@ class MSI:
         #     self.properties["DYN_V"] = dyn_v1
         # elif dyn_v2:
         #     self.properties["DYN_V"] = dyn_v2
-        
+
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSUs.
         #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations.
