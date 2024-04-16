@@ -451,17 +451,15 @@ class MSINetwerk:
         return None
 
     def make_print(self, output_pad: str) -> None:
-        rel_names = {"d": "downstream", "ds": "downstream secondary", "dt": "downstream taper",
-                     "db": "downstream broadening", "dn": "dowstream narrowing",
-                     "u": "upstream", "us": "upstream secondary", "ut": "upstream taper",
-                     "ub": "upstream broadening", "un": "upstream narrowing"}
+        relation_types = ["d", "ds", "dt", "db", "dn", "u", "us", "ut", "ub", "un"]
         with open(output_pad, "w") as outfile:
             for msi_row in self.MSIrows:
                 for msi in msi_row.MSIs.values():
-                    for relation, related_msi in msi.properties.items():
-                        if (related_msi is not None
-                                and relation in ["d", "ds", "dt", "db", "dn", "u", "us", "ut", "ub", "un"]):
-                            outfile.write(f"{msi.name} has a {rel_names[relation]} connection with {related_msi}\n")
+                    for relation, other_msi in msi.properties.items():
+                        if relation in relation_types and other_msi is not None:
+                            related_msis = other_msi if isinstance(other_msi, list) else [other_msi]
+                            for related_msi in related_msis:
+                                outfile.write(f"{msi.name} {relation} {related_msi}\n")
 
 
 class MSI:
