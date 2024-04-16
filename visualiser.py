@@ -14,17 +14,17 @@ class SvgMaker:
     __C_WHITE = "#faf8f5"
 
     __COLORMAP = {
-        "p": "cyan",  # Primary
+        "d": "cyan", "u": "cyan",  # Primary
         "s": "magenta",  # Secondary
         "t": "red",  # Taper
         "b": "orange",  # Broadening
         "n": "yellow",  # Narrowing
     }
     
-    def __init__(self, wegmodel: WegModel, netwerk: MSINetwerk,
+    def __init__(self, wegmodel: WegModel, relation_file_name: str,
                  output_pad: str, formaat: int = 1000, onroad: bool = False):
         self.wegmodel = wegmodel
-        self.netwerk = netwerk
+        self.relation_file = relation_file_name
         self.outfile = output_pad
         self.size = formaat
         self.onroad = onroad
@@ -636,44 +636,29 @@ class SvgMaker:
         g_vergence.rotate(rotate_angle, center=coords)
 
     def draw_msi_relations(self):
-        # Draw primary relations
-        for element_id in self.element_by_id.keys():
-            start_element, start_rotation, start_origin = self.element_by_id[element_id]
-            start_pos = get_square_center_coords(start_element, start_rotation, start_origin)
-            for row in self.netwerk.MSIrows:
-                for msi in row.MSIs.values():
-                    if msi.name == element_id:
-                        if msi.properties["d"]:
-                            end_element, end_rotation, end_origin = self.element_by_id[msi.properties["d"]]
-                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("p", start_pos, end_pos)
-                        if msi.properties["ds"]:
-                            for end_id in msi.properties["ds"]:
-                                end_element, end_rotation, end_origin = self.element_by_id[end_id]
-                                end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
-                                self.draw_msi_relation("s", start_pos, end_pos)
-                        if msi.properties["dt"]:
-                            end_element, end_rotation, end_origin = self.element_by_id[msi.properties["dt"]]
-                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("t", start_pos, end_pos)
-                        if msi.properties["db"]:
-                            end_element, end_rotation, end_origin = self.element_by_id[msi.properties["db"]]
-                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("b", start_pos, end_pos)
-                        if msi.properties["dn"]:
-                            end_element, end_rotation, end_origin = self.element_by_id[msi.properties["dn"]]
-                            end_pos = get_square_center_coords(end_element, end_rotation, end_origin)
-                            self.draw_msi_relation("n", start_pos, end_pos)
+        with open(self.relation_file, "r") as rel_file:
+            lines = rel_file.readlines()
+
+        for line in lines:
+            start_msi, relation, end_msi = line.strip().split()
+            if start_msi in self.element_by_id.keys() and end_msi in self.element_by_id.keys():
+                start_pos = self.get_square_center_coords(start_msi)
+                end_pos = self.get_square_center_coords(end_msi)
+                rel_type = relation[-1]  # The last letter is enough to distinguish the colors for visualisation.
+
+                # Draw up to the middle of the relation, allowing for visually checking if both directions are the same.
+                mid_pos = ((start_pos[0] + end_pos[0])/2, (start_pos[1] + end_pos[1])/2)
+                self.draw_msi_relation(rel_type, start_pos, mid_pos)
 
     def draw_msi_relation(self, rel_type: str, start_pos: tuple, end_pos: tuple):
         self.g_msi_relations.add(self.dwg.line(start=start_pos, end=end_pos,
                                                stroke=self.__COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
 
-
-def get_square_center_coords(element, angle_degrees, origin):
-    x = element.attribs["x"] + element.attribs["width"] / 2
-    y = element.attribs["y"] + element.attribs["height"] / 2
-    return rotate_point((x, y), origin, angle_degrees)
+    def get_square_center_coords(self, msi: str):
+        element, rotation, origin = self.element_by_id[msi]
+        x = element.attribs["x"] + element.attribs["width"] / 2
+        y = element.attribs["y"] + element.attribs["height"] / 2
+        return rotate_point((x, y), origin, rotation)
 
 
 def rotate_point(draw_point, origin, angle_degrees):
@@ -686,6 +671,9 @@ def rotate_point(draw_point, origin, angle_degrees):
 
 
 def make_name(point_info, nr) -> str:
+    """
+    Makes MSI name using the MTM2 convention.
+    """
     if point_info.pos_eigs.hectoletter:
         return (f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:"
                 f"{point_info.pos_eigs.km}:{nr}")
