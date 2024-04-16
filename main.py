@@ -14,7 +14,7 @@ MSI_RELATIONS_OUTPUT = "msi_relations.txt"
 # Importfouten : A2VK, Lankhorst
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader("Vught", "data/locaties.csv")
+dfl = DataFrameLader("Bavel", "data/locaties.csv")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299},
 #                      "data/locaties.csv")
 
