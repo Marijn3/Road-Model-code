@@ -522,19 +522,20 @@ class MSI:
         if "Maximumsnelheid" in self.row.local_road_properties.keys():
             self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
 
-        # Add DYN_V if it is applied and it is smaller than STAT_V
-        dyn_v1, dyn_v2 = None, None
-        if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
-            dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
-        if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
-            dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
-        if dyn_v1 and dyn_v2:
-            self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
-        elif dyn_v1:
-            self.properties["DYN_V"] = dyn_v1
-        elif dyn_v2:
-            self.properties["DYN_V"] = dyn_v2
-
+        # Code to add DYN_V if it is applied and it is smaller than STAT_V.
+        # The dyn-v property should actually not be added to output, as it is used differently in request handling.
+        # dyn_v1, dyn_v2 = None, None
+        # if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
+        #     dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
+        # if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
+        #     dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
+        # if dyn_v1 and dyn_v2:
+        #     self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
+        # elif dyn_v1:
+        #     self.properties["DYN_V"] = dyn_v1
+        # elif dyn_v2:
+        #     self.properties["DYN_V"] = dyn_v2
+        
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSUs.
         #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations.
