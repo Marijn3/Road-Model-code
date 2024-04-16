@@ -21,7 +21,7 @@ dfl = DataFrameLader("Vught", "data/locaties.csv")
 wegmodel = WegModel(dfl)
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2600, alle_secundaire_relaties=True)
+MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
 MSIs.make_print("msi_relations.txt")
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.

@@ -640,7 +640,7 @@ class SvgMaker:
         for element_id in self.element_by_id.keys():
             start_element, start_rotation, start_origin = self.element_by_id[element_id]
             start_pos = get_square_center_coords(start_element, start_rotation, start_origin)
-            for row in self.netwerk.MSIrows:
+            for row in self.netwerk.MSIrows:  # TODO: This could be based on the (editable) file output of MSI network.
                 for msi in row.MSIs.values():
                     if msi.name == element_id:
                         if msi.properties["d"]:

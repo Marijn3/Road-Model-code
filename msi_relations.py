@@ -452,14 +452,14 @@ class MSINetwerk:
 
     def make_print(self, output_pad: str) -> None:
         relation_types = ["d", "ds", "dt", "db", "dn", "u", "us", "ut", "ub", "un"]
-        with open(output_pad, "w") as outfile:
+        with open(output_pad, "w") as out_file:
             for msi_row in self.MSIrows:
                 for msi in msi_row.MSIs.values():
                     for relation, other_msi in msi.properties.items():
                         if relation in relation_types and other_msi is not None:
                             related_msis = other_msi if isinstance(other_msi, list) else [other_msi]
                             for related_msi in related_msis:
-                                outfile.write(f"{msi.name} {relation} {related_msi}\n")
+                                out_file.write(f"{msi.name} {relation} {related_msi}\n")
 
 
 class MSI:
