@@ -29,7 +29,7 @@ MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=
 SvgMaker(wegmodel, MSI_RELATIONS_OUTPUT, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
 
 # Exporteer de MSI-eigenschappen naar een bestand.
-ilp_input = make_ILP_input(MSIs)
+ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_OUTPUT)
 generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
 
 # # Instantieer een aanvraag (A27 Oosterhout)

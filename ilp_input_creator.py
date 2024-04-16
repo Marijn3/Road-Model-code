@@ -75,7 +75,7 @@ def transform_row_name(name: str) -> list | str | None:
         Row name in the form used by JvM.
     Example:
         transform_row_name("A2R:119.204") = RSU_A2_R_119.204
-        transform_row_name("A2_A:119.204") = RSU_A2_A_119.204
+        transform_row_name("A2_A:119.506") = RSU_A2_A_119.506
     """
     road, km = name.split(":")
     if "_" not in road:
@@ -83,9 +83,9 @@ def transform_row_name(name: str) -> list | str | None:
     return f"RSU_{road}_{km}"
 
 
-def make_ILP_input(network: MSINetwerk) -> dict:
+def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
     """
-    Generates ILP input file dictionary based on framework provided by JvM.
+    Generates ILP input file dictionary based on the framework provided by JvM.
     Args:
         network (MSINetwerk): A network of MSIs with all required properties.
     Returns:
@@ -99,21 +99,8 @@ def make_ILP_input(network: MSINetwerk) -> dict:
 
         for msi in row.MSIs.values():
             road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
-            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Primary"] = transform_name(msi.properties["d"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Secondary"] = transform_name(msi.properties["ds"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Taper"] = transform_name(msi.properties["dt"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Broadening"] = transform_name(msi.properties["db"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Downstream"]["Narrowing"] = transform_name(msi.properties["dn"])
-
-            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Primary"] = transform_name(msi.properties["u"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Secondary"] = transform_name(msi.properties["us"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Taper"] = transform_name(msi.properties["ut"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Broadening"] = transform_name(msi.properties["ub"])
-            road_dict[row_name]["MSI"][msi.lane_nr]["Upstream"]["Narrowing"] = transform_name(msi.properties["un"])
-            
             road_dict[row_name]["MSI"][msi.lane_nr]["Rush_hour_lane"] = msi.properties["RHL"]
             road_dict[row_name]["MSI"][msi.lane_nr]["Exit-Entry"] = msi.properties["Exit_Entry"]
-
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = str(msi.properties["TS_num"])
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Left"] = msi.properties["DIF_V_left"]
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
@@ -125,6 +112,23 @@ def make_ILP_input(network: MSINetwerk) -> dict:
         road_dict[row_name]["Dyn-V"] = msi.properties["DYN_V"]
         road_dict[row_name]["hard_shoulder"]["left"] = msi.properties["Hard_shoulder_left"]
         road_dict[row_name]["hard_shoulder"]["right"] = msi.properties["Hard_shoulder_right"]
+
+    relation_type_name_mapping = {"d": "Primary", "u": "Primary",
+                                  "s": "Secondary", "t": "Taper", "b": "Broadening", "n": "Narrowing"}
+
+    # Extract MSI relations from the (possibly edited) msi relations file.
+    with open(relation_file_name, "r") as rel_file:
+        lines = rel_file.readlines()
+
+    for line in lines:
+        start_msi, relation, end_msi = line.strip().split()
+
+        road_nr, km, msi_nr = start_msi.split(":")
+        row_name = transform_row_name(f"{road_nr}:{km}")
+        direction = "Downstream" if "d" in relation else "Upstream"
+        relation_name = relation_type_name_mapping[relation[-1]]
+
+        road_dict[row_name]["MSI"][int(msi_nr)][direction][relation_name] = transform_name(end_msi)
 
     return road_dict
 
