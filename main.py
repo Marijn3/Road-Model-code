@@ -5,6 +5,7 @@ from ilp_input_creator import make_ILP_input, generate_file
 # from safety import Aanvraag
 
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
+MSI_RELATIONS_OUTPUT = "msi_relations.txt"
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
@@ -22,10 +23,10 @@ wegmodel = WegModel(dfl)
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
 MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
-MSIs.make_print("msi_relations.txt")
+MSIs.make_print(MSI_RELATIONS_OUTPUT)
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(wegmodel, MSIs, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
+SvgMaker(wegmodel, MSI_RELATIONS_OUTPUT, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
 
 # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs)
