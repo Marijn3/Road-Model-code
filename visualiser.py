@@ -644,6 +644,7 @@ class SvgMaker:
             if start_msi in self.element_by_id.keys() and end_msi in self.element_by_id.keys():
                 start_pos = self.get_square_center_coords(start_msi)
                 end_pos = self.get_square_center_coords(end_msi)
+                # Idea: Draw only up to the middle of the relation? To visually check if both sides are the same!
                 # The final letter of the relation type is enough to distinguish the colors for visualisation.
                 self.draw_msi_relation(relation[-1], start_pos, end_pos)
 

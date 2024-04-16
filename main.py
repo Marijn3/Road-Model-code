@@ -23,7 +23,7 @@ wegmodel = WegModel(dfl)
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
 MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
-MSIs.make_print(MSI_RELATIONS_OUTPUT)
+# MSIs.make_print(MSI_RELATIONS_OUTPUT)
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
 SvgMaker(wegmodel, MSI_RELATIONS_OUTPUT, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
