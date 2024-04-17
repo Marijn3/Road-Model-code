@@ -580,7 +580,7 @@ class MSI:
 
         if (self.lane_nr in self.row.local_road_properties.keys()
                 and self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]):
-            self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report Jeroen 2 p67.
+            self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report JvM p67.
 
         if (self.lane_nr in self.row.local_road_properties.keys() and
                 self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
@@ -607,7 +607,10 @@ class MSI:
         # Downstream relations
         for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
+
             this_lane_projected = self.lane_nr + shift
+
+            logger.debug(f"{shift} {annotation} {this_lane_projected}")
 
             # Basic primary
             if this_lane_projected in d_row.MSIs.keys():
@@ -618,53 +621,54 @@ class MSI:
                 lane_numbers = list(annotation.keys())
                 lane_types = list(annotation.values())
 
-                # Broadening
+                # Broadening relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Extra case with {self.lane_nr}")
+                    logger.debug(f"Broadening case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
                     d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
-                # Narrowing
+
+                # Narrowing relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Eindiging case with {self.lane_nr}")
+                    logger.debug(f"Narrowing case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
                     d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
 
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Invoegstrook case with {self.lane_nr}")
+                    logger.debug(f"Invoegstrook case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Uitrijstrook case with {self.lane_nr}")
+                    logger.debug(f"Uitrijstrook case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
                 if ("Samenvoeging" in lane_types or "Weefstrook" in lane_types) and True:
-                    # Relation from weefstrook/join lane to normal lane
+                    # Relation from weave/merge lane to normal lane
                     if (this_lane_projected in lane_numbers
                             and annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]):
                         if this_lane_projected - 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
                                 if this_lane_projected - 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Cross case 1 with {self.lane_nr}")
+                                    logger.debug(f"Cross case 1 between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
-                    # Relation from normal lane to weefstrook/join lane
+                    # Relation from normal lane to weave/merge lane
                     if (this_lane_projected + 1 in lane_numbers
                             and annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]):
                         if this_lane_projected + 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]:
                                 if this_lane_projected + 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Cross case 2 with {self.lane_nr}")
+                                    logger.debug(f"Cross case 2 between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
         # Remaining upstream primary relations
         if not self.properties["u"]:
             for u_row, desc in self.row.upstream.items():
-                shift, _ = desc  # Why is annotation not used here??
+                shift, _ = desc  # TODO: Why is annotation not used here??
                 this_lane_projected = self.lane_nr + shift
                 if this_lane_projected in u_row.MSIs.keys():
                     self.properties["u"] = u_row.MSIs[this_lane_projected].name
@@ -684,7 +688,7 @@ class MSI:
                 elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
                       and self.lane_nr == 1):
                     # This should not occur in the Netherlands, but is here for safety.
-                    logger.warning(f"Relatie wordt toegepast (onverwachte situatie).")
+                    logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
                     lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
                 else:

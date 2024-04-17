@@ -836,7 +836,7 @@ class WegModel:
         # First, check whether the sections have an overlapping range at all, which
         # means the more complex intersection() function doesn't need to be called.
         if not determine_range_overlap(pos1.km, pos2.km):
-            logger.debug(f"Ranges don't overlap: {pos1.km}, {pos2.km}")
+            # logger.debug(f"Ranges don't overlap: {pos1.km}, {pos2.km}")
             return None
 
         overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.GRID_SIZE)
