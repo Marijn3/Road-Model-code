@@ -607,7 +607,6 @@ class MSI:
         # Downstream relations
         for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
-
             this_lane_projected = self.lane_nr + shift
 
             logger.debug(f"{shift} {annotation} {this_lane_projected}")
@@ -667,13 +666,14 @@ class MSI:
                                     logger.debug(f"Cross case 2 between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
-        # Remaining upstream primary relations
-        if not self.properties["u"]:
+        # Remaining upstream primary relations. Not required if upstream primary or secondary is present.
+        if not (self.properties["u"] or self.properties["us"]):
             for u_row, desc in self.row.upstream.items():
-                shift, _ = desc  # TODO: Why is annotation not used here??
+                shift, annotation = desc
                 this_lane_projected = self.lane_nr + shift
                 if this_lane_projected in u_row.MSIs.keys():
-                    logger.debug(f"Adding a primary relation that might be missing between {self.name} - {u_row.MSIs[this_lane_projected].name}")
+                    logger.debug(f"Adding an upstream primary relation between "
+                                 f"{self.name} - {u_row.MSIs[this_lane_projected].name}")
                     self.properties["u"] = u_row.MSIs[this_lane_projected].name
 
     def ensure_upstream_relation(self):
