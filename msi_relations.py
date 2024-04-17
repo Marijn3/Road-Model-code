@@ -613,7 +613,9 @@ class MSI:
             logger.debug(f"{shift} {annotation} {this_lane_projected}")
 
             # Basic primary
-            if this_lane_projected in d_row.MSIs.keys():
+            if (this_lane_projected in d_row.MSIs.keys() and (
+                    # Prevent downstream primary relation being added when lane ends.
+                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
                 self.properties["d"] = d_row.MSIs[this_lane_projected].name
                 d_row.MSIs[this_lane_projected].properties["u"] = self.name
 
@@ -671,6 +673,7 @@ class MSI:
                 shift, _ = desc  # TODO: Why is annotation not used here??
                 this_lane_projected = self.lane_nr + shift
                 if this_lane_projected in u_row.MSIs.keys():
+                    logger.debug(f"Adding a primary relation that might be missing between {self.name} - {u_row.MSIs[this_lane_projected].name}")
                     self.properties["u"] = u_row.MSIs[this_lane_projected].name
 
     def ensure_upstream_relation(self):
