@@ -252,8 +252,8 @@ class MSINetwerk:
                 return {None: (shift, annotation)}
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
-                logger.debug(f"It seems that more than one section is connected to {current_section_id}:"
-                             f"{connecting_section_ids}. Stopping.")
+                logger.debug(f"It seems that more than one section is connected to {current_section_id}, "
+                             f"without a *vergence point: {connecting_section_ids}. Stopping.")
                 return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section.
@@ -272,6 +272,7 @@ class MSINetwerk:
         if len(other_points_on_section) == 1:
             other_point = other_points_on_section[0]
         if len(other_points_on_section) == 2:
+            # TODO: Use geometry endpoints instead of km values being higher or lower.
             if (downstream and current_section.pos_eigs.rijrichting == "R" or
                     not downstream and current_section.pos_eigs.rijrichting == "L"):
                 other_point = [point for point in other_points_on_section if point.pos_eigs.km > current_km][0]
@@ -342,6 +343,8 @@ class MSINetwerk:
         # Only takes points that are upstream/downstream of current point.
         if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
             if first_iteration:
+                # TODO: Fails if first iteration encounters a downstream *vergence point
+                #  with a larger km value (due to being on a different road)
                 other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                            current_section_id in point_info.verw_eigs.sectie_ids
                                            and point_info.pos_eigs.km < current_km]
