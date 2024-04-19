@@ -10,7 +10,8 @@ MSI_RELATIONS_OUTPUT = "msi_relations.txt"
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relations] Bavel, Everdingen, Zuidasdok, Grijsoord
+#                     [Tapers] Bavel
+#                     [MSI relations] Everdingen, Zuidasdok, Grijsoord
 # Importfouten : A2VK, Lankhorst
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
