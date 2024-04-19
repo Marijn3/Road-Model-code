@@ -645,12 +645,15 @@ class MSI:
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.warning(f"UNEXPECTED Invoegstrook case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                    logger.debug(f"Invoegstrook case (registration end before shift) between "
+                                   f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (this_lane_projected in lane_numbers and annotation[this_lane_projected] == "Invoegstrook"
-                        and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Invoegstrook case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                        and this_lane_projected - 1 in d_row.MSIs.keys() and
+                        this_lane_projected - 1 == max([key for key in d_row.MSIs.keys() if isinstance(key, int)])):
+                    logger.debug(f"Invoegstrook case (registration end after shift) between "
+                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook"
