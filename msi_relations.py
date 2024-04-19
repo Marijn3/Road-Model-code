@@ -645,6 +645,11 @@ class MSI:
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
+                    logger.warning(f"UNEXPECTED Invoegstrook case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                    self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
+
+                if (this_lane_projected in lane_numbers and annotation[this_lane_projected] == "Invoegstrook"
+                        and this_lane_projected - 1 in d_row.MSIs.keys()):
                     logger.debug(f"Invoegstrook case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
