@@ -9,6 +9,7 @@ class MSIRow:
         self.msi_network = msi_network
         self.info = msi_row_info
         self.properties = self.info.obj_eigs
+        self.rijstrooknummers = self.info.obj_eigs["Rijstrooknummers"]
         self.local_road_info = self.msi_network.wegmodel.get_one_section_at_point(self.info.pos_eigs.geometrie)
         self.local_road_properties = self.local_road_info.obj_eigs
         self.name = make_MTM_row_name(self.info)
@@ -19,6 +20,8 @@ class MSIRow:
         self.cw = {}
         self.downstream = {}
         self.upstream = {}
+        self.lowest_msi_number = 0
+        self.highest_msi_number = 0
 
     def __repr__(self):
         return self.name
@@ -28,10 +31,13 @@ class MSIRow:
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
                                     if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]])
         self.n_lanes = len(self.lane_numbers)
-        self.n_msis = len(self.properties["Rijstrooknummers"])
+        self.n_msis = len(self.rijstrooknummers)
 
-        # Create all MSIs in row, passing the parent row class as argument
-        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.properties["Rijstrooknummers"]}
+        self.lowest_msi_number = min(self.rijstrooknummers)
+        self.highest_msi_number = max(self.rijstrooknummers)
+
+        # Create all MSIs in row, passing the parent row class as argument (self)
+        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.rijstrooknummers}
 
         # Determine carriageways based on road properties
         self.cw = {}
@@ -41,7 +47,7 @@ class MSIRow:
         for lane_number in self.lane_numbers:
             # Add final lane and stop
             if lane_number == self.n_lanes:
-                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
                 if last_lane:
                     self.cw[cw_index] = last_lane
                 break
@@ -51,7 +57,7 @@ class MSIRow:
             if current_lane == next_lane:
                 lanes_in_current_cw.append(lane_number + 1)
             else:
-                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.MSIs.keys()]
+                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
                 lanes_in_current_cw = [lane_number + 1]
                 cw_index += 1
 
@@ -686,22 +692,21 @@ class MSI:
         # MSIs that do not have any upstream relation, get a secondary relation
         has_upstream_relation = (self.properties["u"] or self.properties["us"]
                                  or self.properties["ub"] or self.properties["un"] or self.properties["ut"])
-        
+
         if self.row.upstream and not has_upstream_relation:
             logger.debug(f"{self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if self.row.msi_network.add_secondary_relations:
                 u_row, desc = next(iter(self.row.upstream.items()))
                 if u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
-                    highest_msi_number = max([msi_nr for msi_nr in u_row.MSIs.keys()])
                     logger.debug(f"Relatie wordt toegepast.")
-                    self.make_secondary_connection(self, u_row.MSIs[highest_msi_number])
+                    self.make_secondary_connection(self, u_row.MSIs[u_row.highest_msi_number])
                 elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
                       and self.lane_nr == 1):
                     # This should not occur in the Netherlands, but is here for safety.
                     logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
-                    lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
-                    self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
+
+                    self.make_secondary_connection(self, u_row.MSIs[u_row.lowest_msi_number])
                 else:
                     logger.warning(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
                                    f"omdat dit geval nog niet ingeprogrammeerd is.")
