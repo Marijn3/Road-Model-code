@@ -70,14 +70,6 @@ class MSIRow:
                     logger.debug(f"Conclusion: {msi_row.name} {desc}")
                     self.upstream[msi_row] = desc
 
-    def fill_msi_properties(self):
-        for msi in self.MSIs.values():
-            msi.determine_properties()
-            msi.determine_relations()
-        # Separate loop to ensure all normal relations are in place before this is called.
-        for msi in self.MSIs.values():
-            msi.ensure_upstream_relation()
-
 
 class MSINetwerk:
     def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
@@ -107,7 +99,14 @@ class MSINetwerk:
         # These can only be called once all msi_rows are initialised.
         for msi_row in self.MSIrows:
             msi_row.determine_msi_row_relations()
-            msi_row.fill_msi_properties()
+            for msi in msi_row.MSIs.values():
+                msi.determine_properties()
+                msi.determine_relations()
+
+        # Separate loop to ensure all normal relations are in place before this is called.
+        for msi_row in self.MSIrows:
+            for msi in msi_row.MSIs.values():
+                msi.ensure_upstream_relation()
 
         self.__log_network()
 
