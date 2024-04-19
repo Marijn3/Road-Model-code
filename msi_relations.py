@@ -181,6 +181,7 @@ class MSINetwerk:
         have to be specfied when calling the function.
         Args:
             current_section_id (int): ID of section in current iteration.
+            current_point_eigs (PositieEigenschappen): Positional properties of the last iteration.
             downstream (bool): Value representing the search direction.
             shift (int): Amount of lanes shifted from the leftmost lane of the
                 original road section so far.
@@ -209,7 +210,7 @@ class MSINetwerk:
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
-            logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km}")
+            logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km} km")
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                downstream, first_iteration, True)
             return {self.__get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
@@ -217,8 +218,8 @@ class MSINetwerk:
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_point_eigs.km - msi.pos_eigs.km))
-            logger.debug(f"Meerdere MSIs gevonden bij {current_section_id}. "
-                         f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km}")
+            logger.debug(f"Meerdere MSI rows gevonden op sectie {current_section_id}. "
+                         f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km} km")
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                downstream, first_iteration, True)
             return {self.__get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
@@ -232,7 +233,7 @@ class MSINetwerk:
 
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
-            logger.debug(f"No other points on {current_section_id}")
+            logger.debug(f"Geen punten vastgelegd op sectie {current_section_id}")
             if downstream:
                 connecting_section_ids = [sid for sid in (current_section.verw_eigs.sectie_stroomafwaarts,
                                                           current_section.verw_eigs.sectie_afbuigend_stroomafwaarts)
@@ -245,17 +246,17 @@ class MSINetwerk:
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
-                logger.debug(f"No connections at all with {current_section_id}")
+                logger.debug(f"Geen andere secties verbonden met {current_section_id}")
                 return {None: (shift, annotation)}
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
-                logger.debug(f"It seems that more than one section is connected to {current_section_id}, "
-                             f"without a *vergence point: {connecting_section_ids}. Stopping.")
+                logger.debug(f"Er lijkt meer dan één sectie verbonden te zijn met sectie {current_section_id}, "
+                             f"zonder een *vergentiepunt: {connecting_section_ids}. Stop zoektocht.")
                 return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
-                logger.debug(f"Looking for MSI row in the next section, {next_section_id}")
+                logger.debug(f"Zoeken in volgende sectie, {next_section_id}")
                 shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                    downstream, first_iteration)
                 if downstream:
@@ -310,8 +311,7 @@ class MSINetwerk:
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                downstream, first_iteration)
 
-            logger.debug(f"*vergence point found, leading to section {next_section_id}")
-            logger.debug(f"Continuing in section {next_section_id} with shift +{shift}")
+            logger.debug(f"*vergentiepunt gevonden, vervolg in sectie {next_section_id} met shift +{shift}")
 
             return self.__find_msi_recursive(next_section_id, other_point.pos_eigs, downstream,
                                              shift, current_distance, annotation)
@@ -319,11 +319,11 @@ class MSINetwerk:
         if upstream_split:
             cont_section_id = current_section.verw_eigs.sectie_stroomopwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomopwaarts
-            logger.debug(f"*vergence point found: an upstream split into {cont_section_id} and {div_section_id}")
+            logger.debug(f"*vergentiepunt gevonden, bovenstroomse splitsing in {cont_section_id} en {div_section_id}")
         else:  # downstream_split = True
             cont_section_id = current_section.verw_eigs.sectie_stroomafwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
-            logger.debug(f"*vergence point found: a downstream split into {cont_section_id} and {div_section_id}")
+            logger.debug(f"*vergentiepunt gevonden, benedenstroomse splitsing in {cont_section_id} en {div_section_id}")
 
         assert cont_section_id is not None and div_section_id is not None,\
             "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
@@ -334,11 +334,11 @@ class MSINetwerk:
                                                            downstream, first_iteration)
 
         # Make it do the recursive function twice.
-        logger.debug(f"Now following {cont_section_id}")
+        logger.debug(f"Zoek nu verder in sectie {cont_section_id}")
         option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs, downstream,
                                                         shift, current_distance, annotation)
 
-        logger.debug(f"Now following {div_section_id} with shift -{shift_div}")
+        logger.debug(f"Zoek nu verder in sectie {div_section_id} met shift -{shift_div}")
         option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs, downstream,
                                                      shift - shift_div, current_distance, annotation)
 
@@ -529,7 +529,7 @@ class MSI:
         if "Maximumsnelheid" in self.row.local_road_properties.keys():
             self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
 
-        # Code to add DYN_V if it is applied and it is smaller than STAT_V.
+        # Code to add DYN_V if it is applied, and it is smaller than STAT_V.
         # The dyn-v property should actually not be added to output, as it is used differently in request handling.
         # dyn_v1, dyn_v2 = None, None
         # if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
@@ -645,7 +645,7 @@ class MSI:
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
                     logger.debug(f"Invoegstrook case (registration end before shift) between "
-                                   f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (this_lane_projected in lane_numbers and annotation[this_lane_projected] == "Invoegstrook"
