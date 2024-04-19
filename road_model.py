@@ -544,10 +544,9 @@ class WegModel:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
-        for overlapper in overlap_sections:
-            if overlapper["Section_info"].pos_eigs.geometrie is None:
-                # Do NOT add the section, as there was a reason the geometry is not present.
-                return
+        if any(overlapper["Section_info"].pos_eigs.geometrie is None for overlapper in overlap_sections):
+            # Do NOT add the section, as there was a reason the geometry is not present.
+            return
 
         overlap_section = overlap_sections.pop(0)
         other_section_index = overlap_section["Index"]
@@ -564,16 +563,14 @@ class WegModel:
         sections_to_remove = set()
 
         while True:
-
             if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
-
                 overlap_section = overlap_sections.pop(0)
                 other_section_index = overlap_section["Index"]
                 other_info = deepcopy(overlap_section["Section_info"])
 
-            self.run_checks(new_info, other_info)
+            self.__run_checks(new_info, other_info)
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -589,19 +586,16 @@ class WegModel:
 
             # Case A: new_section starts earlier.
             if new_section_first:
-                # Add section between new_section_start and other_section_start
-                # with new_section properties and geometry
-                self.add_trimmed_section_up_to(new_info, other_info, right_side, reference_info=other_info)
+                # Add section with new_section properties and geometry
+                self.__add_trimmed_section_up_to(new_info, other_info, right_side, reference_info=other_info)
 
             # Case B: new_section starts later.
             elif other_section_first:
-                # Add section between other_section_start and new_section_start
-                # with other_section properties and geometry.
-                self.add_trimmed_section_up_to(other_info, new_info, right_side, reference_info=other_info)
+                # Add section with other_section properties and geometry.
+                self.__add_trimmed_section_up_to(other_info, new_info, right_side, reference_info=other_info)
 
             # Case C: start of the two sections is equal.
             elif both_sections_first:
-
                 # More subcase checks
                 other_ends_equal = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
                                    (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and left_side))
@@ -710,8 +704,8 @@ class WegModel:
 
         self.__remove_sections(sections_to_remove)
 
-    def add_trimmed_section_up_to(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
-                                  right_side: bool, reference_info: ObjectInfo) -> None:
+    def __add_trimmed_section_up_to(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
+                                    right_side: bool, reference_info: ObjectInfo) -> None:
         """
         Adds a trimmed portion of the first provided section to the model. The section is
         trimmed based on the part that does not appear in the second section. 
@@ -751,7 +745,7 @@ class WegModel:
             self.__get_first_remainder(first_section_info.pos_eigs.geometrie, added_geom))
 
     @staticmethod
-    def run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
+    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
         assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km),\
             f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
 
@@ -1259,22 +1253,6 @@ class WegModel:
         return None, None
 
     @staticmethod
-    def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
-        """
-        Determines the number of lanes given road properties.
-        Args:
-            obj_eigs (dict): Road properties to be evaluated.
-        Returns:
-            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
-            2) The number of lanes, exluding "puntstuk" registrations.
-        """
-        main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
-        any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                     and lane_type not in ["Puntstuk"]]
-        return len(main_lanes), len(any_lanes)
-
-    @staticmethod
     def __get_dif_props(section_props: dict, other_props):
         return {lane_nr: lane_type for lane_nr, lane_type in section_props.items()
                 if (lane_nr not in other_props) or (lane_nr in other_props and other_props[lane_nr] != lane_type)}
@@ -1326,6 +1304,22 @@ class WegModel:
 
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
+
+    @staticmethod
+    def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
+        """
+        Determines the number of lanes given road properties.
+        Args:
+            obj_eigs (dict): Road properties to be evaluated.
+        Returns:
+            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
+            2) The number of lanes, exluding "puntstuk" registrations.
+        """
+        main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
+                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+        any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
+                     and lane_type not in ["Puntstuk"]]
+        return len(main_lanes), len(any_lanes)
 
     def get_points_info(self, specifier: str = None) -> list[ObjectInfo]:
         """
