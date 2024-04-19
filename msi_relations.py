@@ -1,5 +1,6 @@
 from road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
 from utils import *
+from shapely import Point, dwithin, line_locate_point
 logger = logging.getLogger(__name__)
 
 
@@ -69,14 +70,6 @@ class MSIRow:
                     logger.debug(f"Conclusion: {msi_row.name} {desc}")
                     self.upstream[msi_row] = desc
 
-    def fill_msi_properties(self):
-        for msi in self.MSIs.values():
-            msi.determine_properties()
-            msi.determine_relations()
-        # Separate loop to ensure all normal relations are in place before this is called.
-        for msi in self.MSIs.values():
-            msi.ensure_upstream_relation()
-
 
 class MSINetwerk:
     def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
@@ -106,7 +99,14 @@ class MSINetwerk:
         # These can only be called once all msi_rows are initialised.
         for msi_row in self.MSIrows:
             msi_row.determine_msi_row_relations()
-            msi_row.fill_msi_properties()
+            for msi in msi_row.MSIs.values():
+                msi.determine_properties()
+                msi.determine_relations()
+
+        # Separate loop to ensure all normal relations are in place before this is called.
+        for msi_row in self.MSIrows:
+            for msi in msi_row.MSIs.values():
+                msi.ensure_upstream_relation()
 
         self.__log_network()
 
@@ -130,12 +130,11 @@ class MSINetwerk:
             during the travel towards that MSI row from the start MSI row.
         """
         starting_section_id = self.__get_travel_starting_section_id(msi_row, downstream)
-        current_km = msi_row.info.pos_eigs.km
         travel_direction = msi_row.local_road_info.pos_eigs.rijrichting
 
-        logger.debug(f"Recursieve functie start met id={starting_section_id}, km={current_km}, "
+        logger.debug(f"Recursieve functie start met id={starting_section_id}, km={msi_row.info.pos_eigs.km}, "
                      f"stroomafwaarts={downstream}, rijrichting={travel_direction}")
-        msis = self.__find_msi_recursive(starting_section_id, current_km, downstream, travel_direction)
+        msis = self.__find_msi_recursive(starting_section_id, msi_row.info.pos_eigs, downstream)
 
         if isinstance(msis, dict):
             return [msis]
@@ -172,7 +171,7 @@ class MSINetwerk:
             if section.pos_eigs.km[km_registration_to_equate] == msi_row.info.pos_eigs.km:
                 return section_id
 
-    def __find_msi_recursive(self, current_section_id: int, current_km: float, downstream: bool, travel_direction: str,
+    def __find_msi_recursive(self, current_section_id: int, current_point_eigs: PositieEigenschappen, downstream: bool,
                              shift: int = 0, current_distance: float = 0, annotation: dict = None) -> list | dict:
         """
         This is recursive function, meaning that it calls itself. The function requires
@@ -182,9 +181,8 @@ class MSINetwerk:
         have to be specfied when calling the function.
         Args:
             current_section_id (int): ID of section in current iteration.
-            current_km (float): Latest km registration encountered.
+            current_point_eigs (PositieEigenschappen): Positional properties of the last iteration.
             downstream (bool): Value representing the search direction.
-            travel_direction (str): Travel direction of traffic on the road ("L" or "R").
             shift (int): Amount of lanes shifted from the leftmost lane of the
                 original road section so far.
             current_distance (float): Distance travelled through model so far. This is
@@ -208,20 +206,20 @@ class MSINetwerk:
             annotation = {}
 
         other_points_on_section, msis_on_section = (
-            self.__evaluate_section_points(current_section_id, current_km, travel_direction, downstream, first_iteration))
+            self.__evaluate_section_points(current_section_id, current_section, current_point_eigs, downstream))
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
-            logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km}")
+            logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km} km")
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                downstream, first_iteration, True)
             return {self.__get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
 
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
-            nearest_msi = min(msis_on_section, key=lambda msi: abs(current_km - msi.pos_eigs.km))
-            logger.debug(f"Meerdere MSIs gevonden bij {current_section_id}. "
-                         f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km}")
+            nearest_msi = min(msis_on_section, key=lambda msi: abs(current_point_eigs.km - msi.pos_eigs.km))
+            logger.debug(f"Meerdere MSI rows gevonden op sectie {current_section_id}. "
+                         f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km} km")
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                downstream, first_iteration, True)
             return {self.__get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
@@ -235,7 +233,7 @@ class MSINetwerk:
 
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
-            logger.debug(f"No other points on {current_section_id}.")
+            logger.debug(f"Geen punten vastgelegd op sectie {current_section_id}")
             if downstream:
                 connecting_section_ids = [sid for sid in (current_section.verw_eigs.sectie_stroomafwaarts,
                                                           current_section.verw_eigs.sectie_afbuigend_stroomafwaarts)
@@ -248,38 +246,51 @@ class MSINetwerk:
 
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
-                logger.debug(f"No connections at all with {current_section_id}")
+                logger.debug(f"Geen andere secties verbonden met {current_section_id}")
                 return {None: (shift, annotation)}
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
-                logger.debug(f"It seems that more than one section is connected to {current_section_id}:"
-                             f"{connecting_section_ids}. Stopping.")
+                logger.debug(f"Er lijkt meer dan één sectie verbonden te zijn met sectie {current_section_id}, "
+                             f"zonder een *vergentiepunt: {connecting_section_ids}. Stop zoektocht.")
                 return {None: (shift, annotation)}
             else:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
-                logger.debug(f"Looking for MSI row in the next section, {next_section_id}")
+                logger.debug(f"Zoeken in volgende sectie, {next_section_id}")
                 shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                    downstream, first_iteration)
-                return self.__find_msi_recursive(connecting_section_ids[0], current_km, downstream, travel_direction,
+                if downstream:
+                    next_point_geom = Point(current_section.pos_eigs.geometrie.coords[-1])
+                    next_km = current_section.pos_eigs.km[-1]
+                else:  # Upstream
+                    next_point_geom = Point(current_section.pos_eigs.geometrie.coords[0])
+                    next_km = current_section.pos_eigs.km[0]
+
+                next_point_pos_eigs = PositieEigenschappen(
+                    rijrichting=current_section.pos_eigs.rijrichting,
+                    wegnummer=current_section.pos_eigs.wegnummer,
+                    hectoletter=current_section.pos_eigs.hectoletter,
+                    km=next_km,
+                    geometrie=next_point_geom
+                )
+
+                return self.__find_msi_recursive(connecting_section_ids[0], next_point_pos_eigs, downstream,
                                                  shift, current_distance, annotation)
 
         assert len(other_points_on_section) == 1 or len(other_points_on_section) == 2, \
             f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
 
         # Recursive case 2: *vergence point on the section.
-        other_point = int()
+        other_point = ObjectInfo()
         if len(other_points_on_section) == 1:
             other_point = other_points_on_section[0]
         if len(other_points_on_section) == 2:
-            if (downstream and current_section.pos_eigs.rijrichting == "R" or
-                    not downstream and current_section.pos_eigs.rijrichting == "L"):
-                other_point = [point for point in other_points_on_section if point.pos_eigs.km > current_km][0]
-            elif (downstream and current_section.pos_eigs.rijrichting == "L" or
-                    not downstream and current_section.pos_eigs.rijrichting == "R"):
-                other_point = [point for point in other_points_on_section if point.pos_eigs.km < current_km][0]
-            else:
-                raise AssertionError("Onverwachte situatie opgetreden.")
+            if downstream:
+                location = Point(current_section.pos_eigs.geometrie.coords[-1])  # Use end of geometry
+            else:  # Upstream
+                location = Point(current_section.pos_eigs.geometrie.coords[0])  # Use start of geometry
+
+            other_point = [point for point in other_points_on_section if dwithin(point.pos_eigs.geometrie, location, 0.2)][0]
 
         downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
         upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
@@ -300,36 +311,38 @@ class MSINetwerk:
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                                downstream, first_iteration)
 
-            logger.debug(f"The *vergence point leads to section {next_section_id}")
-            logger.debug(f"Marking {next_section_id} with +{shift}")
+            logger.debug(f"*vergentiepunt gevonden, vervolg in sectie {next_section_id} met shift +{shift}")
 
-            return self.__find_msi_recursive(next_section_id, other_point.pos_eigs.km, downstream, travel_direction,
+            return self.__find_msi_recursive(next_section_id, other_point.pos_eigs, downstream,
                                              shift, current_distance, annotation)
 
         if upstream_split:
             cont_section_id = current_section.verw_eigs.sectie_stroomopwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomopwaarts
-            logger.debug(f"The *vergence point is an upstream split into {cont_section_id} and {div_section_id}")
-        else:
+            logger.debug(f"*vergentiepunt gevonden, bovenstroomse splitsing in {cont_section_id} en {div_section_id}")
+        else:  # downstream_split = True
             cont_section_id = current_section.verw_eigs.sectie_stroomafwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
-            logger.debug(f"The *vergence point is a downstream split into {cont_section_id} and {div_section_id}")
+            logger.debug(f"*vergentiepunt gevonden, benedenstroomse splitsing in {cont_section_id} en {div_section_id}")
+
+        assert cont_section_id is not None and div_section_id is not None,\
+            "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
 
         _, shift_div = self.wegmodel.get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
-
-        # Store negative value in this direction.
-        logger.debug(f"Marking {div_section_id} with -{shift_div}")
 
         shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                            downstream, first_iteration)
 
-        # Make it do the recursive function twice. Then return both options as a list.
-        option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs.km,
-                                                        downstream, travel_direction,
+        # Make it do the recursive function twice.
+        logger.debug(f"Zoek nu verder in sectie {cont_section_id}")
+        option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs, downstream,
                                                         shift, current_distance, annotation)
-        option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs.km,
-                                                     downstream, travel_direction,
+
+        logger.debug(f"Zoek nu verder in sectie {div_section_id} met shift -{shift_div}")
+        option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs, downstream,
                                                      shift - shift_div, current_distance, annotation)
+
+        # Combine both options as one list, without nesting.
         if isinstance(option_continuation, list):
             return option_continuation + [option_diversion]
         elif isinstance(option_diversion, list):
@@ -337,27 +350,21 @@ class MSINetwerk:
         else:
             return [option_continuation, option_diversion]
 
-    def __evaluate_section_points(self, current_section_id: int, current_km: float,
-                                  travel_direction: str, downstream: bool, first_iteration: bool) -> tuple[list, list]:
+    def __evaluate_section_points(self, current_section_id: int, current_section: ObjectInfo,
+                                  current_pos_eigs: PositieEigenschappen, downstream: bool) -> tuple[list, list]:
         # Only takes points that are upstream/downstream of current point.
-        if (travel_direction == "L" and downstream) or (travel_direction == "R" and not downstream):
-            if first_iteration:
-                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
-                                           current_section_id in point_info.verw_eigs.sectie_ids
-                                           and point_info.pos_eigs.km < current_km]
-            else:
-                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
-                                           current_section_id in point_info.verw_eigs.sectie_ids
-                                           and point_info.pos_eigs.km != current_km]
-        else:
-            if first_iteration:
-                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
-                                           current_section_id in point_info.verw_eigs.sectie_ids
-                                           and point_info.pos_eigs.km > current_km]
-            else:
-                other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
-                                           current_section_id in point_info.verw_eigs.sectie_ids
-                                           and point_info.pos_eigs.km != current_km]
+        line_geom = current_section.pos_eigs.geometrie
+        current_location_on_geometry = round(line_locate_point(line_geom, current_pos_eigs.geometrie, normalized=True), 3)
+        if downstream:
+            other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
+                                       current_section_id in point_info.verw_eigs.sectie_ids
+                                       and round(line_locate_point(line_geom, point_info.pos_eigs.geometrie,
+                                                                   normalized=True), 3) > current_location_on_geometry]
+        else:  # Upstream
+            other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
+                                       current_section_id in point_info.verw_eigs.sectie_ids
+                                       and round(line_locate_point(line_geom, point_info.pos_eigs.geometrie,
+                                                                   normalized=True), 3) < current_location_on_geometry]
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if
@@ -522,7 +529,7 @@ class MSI:
         if "Maximumsnelheid" in self.row.local_road_properties.keys():
             self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
 
-        # Code to add DYN_V if it is applied and it is smaller than STAT_V.
+        # Code to add DYN_V if it is applied, and it is smaller than STAT_V.
         # The dyn-v property should actually not be added to output, as it is used differently in request handling.
         # dyn_v1, dyn_v2 = None, None
         # if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
@@ -580,7 +587,7 @@ class MSI:
 
         if (self.lane_nr in self.row.local_road_properties.keys()
                 and self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"]):
-            self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report Jeroen 2 p67.
+            self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report JvM p67.
 
         if (self.lane_nr in self.row.local_road_properties.keys() and
                 self.row.local_road_properties[self.lane_nr] in ["Spitsstrook", "Plusstrook"] and
@@ -610,7 +617,9 @@ class MSI:
             this_lane_projected = self.lane_nr + shift
 
             # Basic primary
-            if this_lane_projected in d_row.MSIs.keys():
+            if (this_lane_projected in d_row.MSIs.keys() and (
+                    # Prevent downstream primary relation being added when lane ends.
+                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
                 self.properties["d"] = d_row.MSIs[this_lane_projected].name
                 d_row.MSIs[this_lane_projected].properties["u"] = self.name
 
@@ -618,55 +627,66 @@ class MSI:
                 lane_numbers = list(annotation.keys())
                 lane_types = list(annotation.values())
 
-                # Broadening
+                # Broadening relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Extra case with {self.lane_nr}")
+                    logger.debug(f"Broadening case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
                     d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
-                # Narrowing
+
+                # Narrowing relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Eindiging case with {self.lane_nr}")
+                    logger.debug(f"Narrowing case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
                     d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
 
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Invoegstrook case with {self.lane_nr}")
+                    logger.debug(f"Invoegstrook case (registration end before shift) between "
+                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                    self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
+
+                if (this_lane_projected in lane_numbers and annotation[this_lane_projected] == "Invoegstrook"
+                        and this_lane_projected - 1 in d_row.MSIs.keys() and
+                        this_lane_projected - 1 == max([key for key in d_row.MSIs.keys() if isinstance(key, int)])):
+                    logger.debug(f"Invoegstrook case (registration end after shift) between "
+                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Uitrijstrook case with {self.lane_nr}")
+                    logger.debug(f"Uitrijstrook case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
                 if ("Samenvoeging" in lane_types or "Weefstrook" in lane_types) and True:
-                    # Relation from weefstrook/join lane to normal lane
+                    # Relation from weave/merge lane to normal lane
                     if (this_lane_projected in lane_numbers
                             and annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]):
                         if this_lane_projected - 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
                                 if this_lane_projected - 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Cross case 1 with {self.lane_nr}")
+                                    logger.debug(f"Cross case 1 between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
-                    # Relation from normal lane to weefstrook/join lane
+                    # Relation from normal lane to weave/merge lane
                     if (this_lane_projected + 1 in lane_numbers
                             and annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]):
                         if this_lane_projected + 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]:
                                 if this_lane_projected + 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Cross case 2 with {self.lane_nr}")
+                                    logger.debug(f"Cross case 2 between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
-        # Remaining upstream primary relations
-        if not self.properties["u"]:
+        # Remaining upstream primary relations. Not required if upstream primary or secondary is present.
+        if not (self.properties["u"] or self.properties["us"]):
             for u_row, desc in self.row.upstream.items():
-                shift, _ = desc  # Why is annotation not used here??
+                shift, annotation = desc
                 this_lane_projected = self.lane_nr + shift
                 if this_lane_projected in u_row.MSIs.keys():
+                    logger.debug(f"Adding an upstream primary relation between "
+                                 f"{self.name} - {u_row.MSIs[this_lane_projected].name}")
                     self.properties["u"] = u_row.MSIs[this_lane_projected].name
 
     def ensure_upstream_relation(self):
@@ -684,7 +704,7 @@ class MSI:
                 elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
                       and self.lane_nr == 1):
                     # This should not occur in the Netherlands, but is here for safety.
-                    logger.warning(f"Relatie wordt toegepast (onverwachte situatie).")
+                    logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
                     lowest_msi_number = min([msi_nr for msi_nr in u_row.MSIs.keys()])
                     self.make_secondary_connection(self, u_row.MSIs[lowest_msi_number])
                 else:

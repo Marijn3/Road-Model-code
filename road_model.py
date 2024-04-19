@@ -836,7 +836,7 @@ class WegModel:
         # First, check whether the sections have an overlapping range at all, which
         # means the more complex intersection() function doesn't need to be called.
         if not determine_range_overlap(pos1.km, pos2.km):
-            logger.debug(f"Ranges don't overlap: {pos1.km}, {pos2.km}")
+            # logger.debug(f"Ranges don't overlap: {pos1.km}, {pos2.km}")
             return None
 
         overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.GRID_SIZE)
@@ -1331,6 +1331,9 @@ class WegModel:
         """
         Obtain a list of all point registrations in the road model.
         The type can be specified as "MSI", to return only MSI data.
+        Args:
+            specifier (str): Type specifier. Use "MSI" for msi-only
+                data, and "*vergentie" for vergence point data.
         Returns:
             List of all point information.
         """
@@ -1340,6 +1343,19 @@ class WegModel:
             return [point for point in self.points.values() if point.obj_eigs["Type"] != "Signalering"]
         else:
             return [point for point in self.points.values()]
+
+    # TODO: Use this function in the rest of the code
+    def get_point_info_by_geom(self, geom: Point) -> ObjectInfo | None:
+        """
+        Obtain a point registration in the road model by its position.
+        Returns:
+            The point information.
+        """
+        for point in self.points.values():
+            if dwithin(point.pos_eigs.geometrie, geom, 0.5):  # TODO: Use general distance tolerance
+                return point
+        logger.warning(f"Geen punt gevonden bij {geom}")
+        return None
 
     def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> ObjectInfo:
         """
