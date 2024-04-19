@@ -620,8 +620,9 @@ class MSI:
             if (this_lane_projected in d_row.MSIs.keys() and (
                     # Prevent downstream primary relation being added when lane ends.
                     self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
-                self.properties["d"] = d_row.MSIs[this_lane_projected].name
-                d_row.MSIs[this_lane_projected].properties["u"] = self.name
+                # self.properties["d"] = d_row.MSIs[this_lane_projected].name
+                # d_row.MSIs[this_lane_projected].properties["u"] = self.name
+                self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:
                 lane_numbers = list(annotation.keys())
@@ -631,15 +632,17 @@ class MSI:
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
                     logger.debug(f"Broadening case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
-                    self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
-                    d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
+                    # self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
+                    # d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
+                    self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
 
                 # Narrowing relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
                     logger.debug(f"Narrowing case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
-                    self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
-                    d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
+                    # self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
+                    # d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
+                    self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "n")
 
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
@@ -679,20 +682,12 @@ class MSI:
                                     logger.debug(f"Cross case 2 between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
-        # Remaining upstream primary relations. Not required if upstream primary or secondary is present.
-        if not (self.properties["u"] or self.properties["us"]):
-            for u_row, desc in self.row.upstream.items():
-                shift, annotation = desc
-                this_lane_projected = self.lane_nr + shift
-                if this_lane_projected in u_row.MSIs.keys():
-                    logger.debug(f"Adding an upstream primary relation between "
-                                 f"{self.name} - {u_row.MSIs[this_lane_projected].name}")
-                    self.properties["u"] = u_row.MSIs[this_lane_projected].name
-
     def ensure_upstream_relation(self):
         # MSIs that do not have any upstream relation, get a secondary relation
-        if (self.row.upstream and not (self.properties["u"] or self.properties["us"]
-                                       or self.properties["ub"] or self.properties["un"] or self.properties["ut"])):
+        has_upstream_relation = (self.properties["u"] or self.properties["us"]
+                                 or self.properties["ub"] or self.properties["un"] or self.properties["ut"])
+        
+        if self.row.upstream and not has_upstream_relation:
             logger.debug(f"{self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if self.row.msi_network.add_secondary_relations:
@@ -710,6 +705,14 @@ class MSI:
                 else:
                     logger.warning(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
                                    f"omdat dit geval nog niet ingeprogrammeerd is.")
+
+    @staticmethod
+    def make_connection(row1, row2, rel_type_letter: str = ""):
+        """
+        First entry is the row that should have an upstream relation to the second entry.
+        """
+        row1.properties[f"u{rel_type_letter}"] = row2.name
+        row2.properties[f"d{rel_type_letter}"] = row1.name
 
     @staticmethod
     def make_secondary_connection(row1, row2):
