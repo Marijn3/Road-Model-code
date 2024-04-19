@@ -139,7 +139,6 @@ class MSINetwerk:
 
         if isinstance(msis, dict):
             return [msis]
-        logger.debug(f"Check out: {msis}")
         return msis
 
     def __get_travel_starting_section_id(self, msi_row: MSIRow, downstream: bool) -> int:
@@ -208,8 +207,6 @@ class MSINetwerk:
 
         other_points_on_section, msis_on_section = (
             self.__evaluate_section_points(current_section_id, current_section, current_point_eigs, downstream))
-
-        logger.debug(f"Points on section: {other_points_on_section}")
 
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
@@ -315,7 +312,7 @@ class MSINetwerk:
                                                                downstream, first_iteration)
 
             logger.debug(f"*vergence point found, leading to section {next_section_id}")
-            logger.debug(f"Marking section {next_section_id} with +{shift}")
+            logger.debug(f"Continuing in section {next_section_id} with shift +{shift}")
 
             return self.__find_msi_recursive(next_section_id, other_point.pos_eigs, downstream,
                                              shift, current_distance, annotation)
@@ -329,23 +326,24 @@ class MSINetwerk:
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
             logger.debug(f"*vergence point found: a downstream split into {cont_section_id} and {div_section_id}")
 
-        assert cont_section_id is not None and div_section_id is not None, "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
+        assert cont_section_id is not None and div_section_id is not None,\
+            "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
 
         _, shift_div = self.wegmodel.get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
-
-        # Store negative value in this direction.
-        logger.debug(f"Marking section {div_section_id} with -{shift_div}")
 
         shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
                                                            downstream, first_iteration)
 
-        # Make it do the recursive function twice. Then return both options as a list.
+        # Make it do the recursive function twice.
         logger.debug(f"Now following {cont_section_id}")
         option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs, downstream,
                                                         shift, current_distance, annotation)
-        logger.debug(f"Now following {div_section_id}")
+
+        logger.debug(f"Now following {div_section_id} with shift -{shift_div}")
         option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs, downstream,
                                                      shift - shift_div, current_distance, annotation)
+
+        # Combine both options as one list, without nesting.
         if isinstance(option_continuation, list):
             return option_continuation + [option_diversion]
         elif isinstance(option_diversion, list):
