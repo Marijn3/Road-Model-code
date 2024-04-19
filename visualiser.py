@@ -1,4 +1,4 @@
-from road_model import WegModel, ObjectInfo
+from road_model import WegModel, ObjectInfo, PositieEigenschappen
 from msi_relations import MSINetwerk
 import svgwrite
 from shapely import *
@@ -485,9 +485,7 @@ class SvgMaker:
     def draw_msi_text(self, point_info, text_coords, rotate_angle):
         g_text = self.dwg.g()
         anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
-        text = self.dwg.text(make_text_hecto(point_info.pos_eigs.km,
-                                             point_info.pos_eigs.rijrichting,
-                                             point_info.pos_eigs.hectoletter),
+        text = self.dwg.text(make_msi_text(point_info.pos_eigs),
                              insert=text_coords, text_anchor=anchorpoint, font_size=self.TEXT_SIZE,
                              fill="white", font_family="Arial", dominant_baseline="central")
         g_text.add(text)
@@ -658,16 +656,16 @@ class SvgMaker:
         element, rotation, origin = self.element_by_id[msi]
         x = element.attribs["x"] + element.attribs["width"] / 2
         y = element.attribs["y"] + element.attribs["height"] / 2
-        return rotate_point((x, y), origin, rotation)
+        return self.rotate_point((x, y), origin, rotation)
 
-
-def rotate_point(draw_point, origin, angle_degrees):
-    angle_rad = math.radians(angle_degrees)
-    x, y = draw_point
-    ox, oy = origin
-    qx = ox + math.cos(angle_rad) * (x - ox) - math.sin(angle_rad) * (y - oy)
-    qy = oy + math.sin(angle_rad) * (x - ox) + math.cos(angle_rad) * (y - oy)
-    return qx, qy
+    @staticmethod
+    def rotate_point(draw_point, origin, angle_degrees):
+        angle_rad = math.radians(angle_degrees)
+        x, y = draw_point
+        ox, oy = origin
+        qx = ox + math.cos(angle_rad) * (x - ox) - math.sin(angle_rad) * (y - oy)
+        qy = oy + math.sin(angle_rad) * (x - ox) + math.cos(angle_rad) * (y - oy)
+        return qx, qy
 
 
 def make_name(point_info, nr) -> str:
@@ -681,7 +679,15 @@ def make_name(point_info, nr) -> str:
         return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km}:{nr}"
 
 
-def make_text_hecto(km: float, rijrichting: str, letter: str | None) -> str:
-    if letter:
-        return f"{km} {letter}"
-    return f"{km} {rijrichting}"
+def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
+    """
+    Generates the text for display next to an MSI row.
+    Args:
+        pos_eigs (PositieEigenschappen): Point properties of the MSI registration.
+    Returns:
+        Name for display, based on point info, containing road number,
+        kilometer and driving direction (replaced by hectoletter if present).
+    """
+    if pos_eigs.hectoletter:
+        return f"{pos_eigs.wegnummer} {pos_eigs.km} {pos_eigs.hectoletter}"
+    return f"{pos_eigs.wegnummer}  {pos_eigs.km} {pos_eigs.rijrichting}"
