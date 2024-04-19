@@ -1,5 +1,6 @@
 from road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
 from utils import *
+from shapely import Point, dwithin
 logger = logging.getLogger(__name__)
 
 
@@ -272,15 +273,12 @@ class MSINetwerk:
         if len(other_points_on_section) == 1:
             other_point = other_points_on_section[0]
         if len(other_points_on_section) == 2:
-            # TODO: Use geometry endpoints instead of km values being higher or lower.
-            if (downstream and current_section.pos_eigs.rijrichting == "R" or
-                    not downstream and current_section.pos_eigs.rijrichting == "L"):
-                other_point = [point for point in other_points_on_section if point.pos_eigs.km > current_km][0]
-            elif (downstream and current_section.pos_eigs.rijrichting == "L" or
-                    not downstream and current_section.pos_eigs.rijrichting == "R"):
-                other_point = [point for point in other_points_on_section if point.pos_eigs.km < current_km][0]
-            else:
-                raise AssertionError("Onverwachte situatie opgetreden.")
+            if downstream:
+                location = Point(current_section.pos_eigs.geometrie.coords[-1])  # Use end of geometry
+            else:  # Upstream
+                location = Point(current_section.pos_eigs.geometrie.coords[0])  # Use start of geometry
+
+            other_point = [point for point in other_points_on_section if dwithin(point.pos_eigs.geometrie, location, 0.5)][0]
 
         downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
         upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
