@@ -533,31 +533,29 @@ class WegModel:
 
     @staticmethod
     def __get_next_section(sections: dict) -> tuple[int, ObjectInfo, dict]:
-        # TODO: Fix error resulting from this recent change.
-
         travel_direction = next(iter(sections.values())).pos_eigs.rijrichting
 
         next_section_id = None
         next_section_info = None
 
         if travel_direction == "L":
-            current_km = 999999999
+            current_km = -1
             for section_id, section_info in sections.items():
-                if max(section_info.pos_eigs.km) < current_km:
+                if max(section_info.pos_eigs.km) > current_km:
                     current_km = max(section_info.pos_eigs.km)
                     next_section_id = section_id
                     next_section_info = section_info
         else:
-            current_km = -1
+            current_km = 999999999
             for section_id, section_info in sections.items():
-                if min(section_info.pos_eigs.km) > current_km:
+                if min(section_info.pos_eigs.km) < current_km:
                     current_km = min(section_info.pos_eigs.km)
                     next_section_id = section_id
                     next_section_info = section_info
 
         sections.pop(next_section_id)
 
-        return next_section_id, deepcopy(next_section_
+        return next_section_id, deepcopy(next_section_info), sections
 
     def __merge_section(self, new_info: ObjectInfo) -> None:
         """
