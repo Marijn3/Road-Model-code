@@ -890,7 +890,9 @@ class WegModel:
 
             for new_lane_number in new_lane_numbers:
                 assert new_lane_number not in orig_lane_numbers, \
-                    (f"Een strook in {new_obj_eigs} bestaat al in {self.sections[index]}.\n"
+                    (f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
+                     f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
+                     f"{self.sections[index].obj_eigs}\n"
                      f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties?")
 
             self.sections[index].obj_eigs.update(new_obj_eigs)
