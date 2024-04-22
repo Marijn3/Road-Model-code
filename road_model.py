@@ -173,12 +173,12 @@ class DataFrameLader:
             mapping["1 -> 1.6"] = (1, "TaperStart")
             mapping["1.6 -> 1"] = (1, "TaperEinde")
             mapping["2 -> 1.6"] = (2, "TaperStart")
-            mapping["1.6 -> 2"] = (1, "TaperEinde")  # verwacht 2
+            mapping["1.6 -> 2"] = (1, "TaperEinde")  # verwacht 2?
         if direction == "T":
             mapping["1 -> 1.6"] = (1, "TaperEinde")
             mapping["1.6 -> 1"] = (1, "TaperStart")
             mapping["2 -> 1.6"] = (2, "TaperEinde")
-            mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2
+            mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2?
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
@@ -358,6 +358,8 @@ class WegModel:
                      "Rijstroken",  # Used as 'initial layer'
                      "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
                      "Rijstrooksignaleringen", "Convergenties", "Divergenties"]  # Contain point geometries
+
+    MAIN_LANE_TYPES = ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]
 
     def __init__(self, dfl: DataFrameLader):
         self.dfl = dfl
@@ -888,7 +890,9 @@ class WegModel:
 
             for new_lane_number in new_lane_numbers:
                 assert new_lane_number not in orig_lane_numbers, \
-                    (f"Een strook in {new_obj_eigs} bestaat al in {self.sections[index]}.\n"
+                    (f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
+                     f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
+                     f"{self.sections[index].obj_eigs}\n"
                      f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties?")
 
             self.sections[index].obj_eigs.update(new_obj_eigs)
@@ -1107,7 +1111,7 @@ class WegModel:
                        if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
             hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
                                   if
-                                  lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]]
+                                  lane_type in self.MAIN_LANE_TYPES]
             strooknummers_links = [lane_nr for lane_nr in stroken if
                                    hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
             strooknummers_rechts = [lane_nr for lane_nr in stroken if
@@ -1125,6 +1129,11 @@ class WegModel:
             point_verw_eigs = PuntVerwerkingsEigenschappen()
 
             overlapping_sections = self.get_sections_by_point(point_info.pos_eigs.geometrie)
+
+            if not overlapping_sections:
+                points_to_remove.add(point_index)
+                continue
+
             sections_near_point = [section_id for section_id in overlapping_sections.keys()]
             point_verw_eigs.sectie_ids = sections_near_point
 
@@ -1297,8 +1306,7 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    @staticmethod
-    def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
+    def get_n_lanes(self, obj_eigs: dict) -> tuple[int, int]:
         """
         Determines the number of lanes given road properties.
         Args:
@@ -1308,7 +1316,7 @@ class WegModel:
             2) The number of lanes, exluding "puntstuk" registrations.
         """
         main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+                      and lane_type in self.MAIN_LANE_TYPES]
         any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                      and lane_type not in ["Puntstuk"]]
         return len(main_lanes), len(any_lanes)

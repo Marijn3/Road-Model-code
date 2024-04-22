@@ -11,11 +11,12 @@ MSI_RELATIONS_OUTPUT = "msi_relations.txt"
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
 #                     [Tapers] Bavel
-#                     [MSI relations] Grijsoord
-# Importfouten : A2VK, Lankhorst, Everdingen, Zuidasdok
+#                     [MSI relations] Grijsoord*, Zuidasdok*, Everdingen*
+# Importfouten : A2VK, Lankhorst
+# * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader("Vught", "data/locaties.csv")
+dfl = DataFrameLader("Lankhorst", "data/locaties.csv")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299},
 #                      "data/locaties.csv")
 
