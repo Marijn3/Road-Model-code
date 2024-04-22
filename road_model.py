@@ -614,19 +614,19 @@ class WegModel:
                                   (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and left_side))
 
             if new_section_first:
-                self.__add_trimmed_section_up_to(new_info, other_info, right_side, reference_info=other_info)
+                self.__add_difference_part(new_info, other_info, right_side, reference_info=other_info)
 
             elif other_section_first:
-                self.__add_trimmed_section_up_to(other_info, new_info, right_side, reference_info=other_info)
+                self.__add_difference_part(other_info, new_info, right_side, reference_info=other_info)
 
             elif both_sections_first:
                 both_sections_last = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
                                      (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and left_side))
 
-                other_section_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
+                other_section_ends_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
                                      (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
 
-                new_section_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
+                new_section_ends_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
                                    (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
                 if both_sections_last:
@@ -640,31 +640,24 @@ class WegModel:
                                        f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
                     break
 
-                elif other_section_last:
-                    added_geom = self.__add_common_section(new_info, other_info, right_side, first_ending_info=new_info)
-
-                    # TODO: also move into function above?
-                    if right_side:
-                        km_remaining = [max(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
-                    else:
-                        km_remaining = [min(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
-                    other_geom = self.__get_first_remainder(other_info.pos_eigs.geometrie, added_geom)
+                elif other_section_ends_last:
+                    remaining_km, remaining_geom = (
+                        self.__add_overlapping_part(new_info, other_info, right_side,
+                                                    reference_info=other_info, first_ending_info=new_info))
 
                     self.__update_section(other_section_index,
-                                          new_km=km_remaining,
-                                          new_geometrie=other_geom)
+                                          new_km=remaining_km,
+                                          new_geometrie=remaining_geom)
                     # This is the final iteration.
                     break
 
-                elif new_section_last:
-                    added_geom = self.__add_common_section(new_info, other_info, right_side, first_ending_info=other_info)
+                elif new_section_ends_last:
+                    remaining_km, remaining_geom = (
+                        self.__add_overlapping_part(other_info, new_info, right_side,
+                                                    reference_info=other_info, first_ending_info=other_info))
 
-                    # TODO: also move into function above?
-                    if right_side:
-                        new_info.pos_eigs.km = [max(other_info.pos_eigs.km), max(new_info.pos_eigs.km)]
-                    else:
-                        new_info.pos_eigs.km = [min(other_info.pos_eigs.km), min(new_info.pos_eigs.km)]
-                    new_info.pos_eigs.geometrie = self.__get_first_remainder(new_info.pos_eigs.geometrie, added_geom)
+                    new_info.pos_eigs.km = remaining_km
+                    new_info.pos_eigs.geometrie = remaining_geom
 
                     # We can remove the old other_section from the road model, since it has now been completely used up.
                     sections_to_remove.add(other_section_index)
@@ -695,8 +688,8 @@ class WegModel:
 
         self.__remove_sections(sections_to_remove)
 
-    def __add_trimmed_section_up_to(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
-                                    right_side: bool, reference_info: ObjectInfo) -> None:
+    def __add_difference_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
+                              right_side: bool, reference_info: ObjectInfo) -> None:
         """
         Adds a trimmed portion of the first provided section to the model.
         A new section is made and added to the road model, which contains only the part
@@ -735,39 +728,45 @@ class WegModel:
         first_section_info.pos_eigs.geometrie = (
             self.__get_first_remainder(first_section_info.pos_eigs.geometrie, difference_geom))
 
-    def __add_common_section(self, new_section_info: ObjectInfo, other_section_info: ObjectInfo,
-                             right_side: bool, first_ending_info: ObjectInfo) -> LineString:
+    def __add_overlapping_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo, right_side: bool,
+                               reference_info: ObjectInfo, first_ending_info: ObjectInfo) -> tuple[list, LineString]:
         """
         Creates a section covering the common part between the provided sections.
         Both object properties are applied, other positional properties are copied
-        from the 'other' section that is provided.
+        from the reference section that is provided.
         Args:
-            new_section_info:
-            other_section_info:
+            first_section_info:
+            second_section_info:
             right_side:
+            reference_info:
             first_ending_info:
         Returns:
              Added geometry, for trimming a section.
         """
         if right_side:
-            km_bereik = [min(new_section_info.pos_eigs.km), max(first_ending_info.pos_eigs.km)]
+            km_bereik = [min(first_section_info.pos_eigs.km), max(first_ending_info.pos_eigs.km)]
         else:
-            km_bereik = [max(new_section_info.pos_eigs.km), min(first_ending_info.pos_eigs.km)]
+            km_bereik = [max(first_section_info.pos_eigs.km), min(first_ending_info.pos_eigs.km)]
+        overlapping_geom = self.__get_overlap(first_section_info.pos_eigs, second_section_info.pos_eigs)
 
-        added_geom = self.__get_overlap(new_section_info.pos_eigs, other_section_info.pos_eigs)
-
-        both_props = {**other_section_info.obj_eigs, **new_section_info.obj_eigs}
         self.__add_section(
             ObjectInfo(
                 pos_eigs=PositieEigenschappen(
-                    rijrichting=other_section_info.pos_eigs.rijrichting,
-                    wegnummer=other_section_info.pos_eigs.wegnummer,
-                    hectoletter=other_section_info.pos_eigs.hectoletter,
+                    rijrichting=reference_info.pos_eigs.rijrichting,
+                    wegnummer=reference_info.pos_eigs.wegnummer,
+                    hectoletter=reference_info.pos_eigs.hectoletter,
                     km=km_bereik,
-                    geometrie=added_geom),
-                obj_eigs=both_props)
+                    geometrie=overlapping_geom),
+                obj_eigs={**second_section_info.obj_eigs, **first_section_info.obj_eigs})
         )
-        return added_geom
+
+        if right_side:
+            km_remaining = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
+        else:
+            km_remaining = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
+        other_geom = self.__get_first_remainder(second_section_info.pos_eigs.geometrie, overlapping_geom)
+
+        return km_remaining, other_geom
 
     @staticmethod
     def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
