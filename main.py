@@ -16,7 +16,7 @@ MSI_RELATIONS_OUTPUT = "msi_relations.txt"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader("Everdingen", "data/locaties.csv")
+dfl = DataFrameLader("Lankhorst", "data/locaties.csv")
 # dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299},
 #                      "data/locaties.csv")
 
