@@ -532,7 +532,7 @@ class WegModel:
         return section_info
 
     @staticmethod
-    def __get_next_section(sections: dict) -> tuple[int, ObjectInfo, dict]:
+    def __extract_next_section(sections: dict) -> tuple[int, ObjectInfo, dict]:
         """
         Obtains the next section from a dict of (ObjectInfo) sections. Uses the
         "L" or "R" driving direction to determine which section is next. Removes
@@ -570,19 +570,13 @@ class WegModel:
 
     def __merge_section(self, new_info: ObjectInfo) -> None:
         """
-        Merges the given section with existing sections in self.sections.
+        Merges the given section with existing sections in self.sections, by iteratively
+        partioning the geometry and km-registrations and applying the relevant properties.
         Args:
             new_info (ObjectInfo): Information related to the new section.
         """
         overlap_sections = self.__get_overlapping_sections(new_info)
-
-        # TODO: Determine whether this check is (still) necessary.
-        if not overlap_sections:
-            logger.warning(f"Sectie overlapt niet met eerdere lagen. Hierdoor kan de richting van de geometrie "
-                           f"niet worden bepaald, dus wordt deze sectie wordt niet toegevoegd: {new_info.pos_eigs}")
-            return
-
-        other_section_index, other_info, overlap_sections = self.__get_next_section(overlap_sections)
+        other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
         # Align new section range and geometry according to other section. This only needs to be done once,
         # assuming that all other sections in overlap_sections have the same orientation (which they do).
@@ -597,7 +591,7 @@ class WegModel:
             if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
-                other_section_index, other_info, overlap_sections = self.__get_next_section(overlap_sections)
+                other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
             self.__run_checks(new_info, other_info)
 
@@ -611,12 +605,12 @@ class WegModel:
                                   (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
 
             if new_section_first:
-                self.__add_difference_part(new_info, other_info, right_side, reference_info=other_info)
+                self.__add_differering_part(new_info, other_info, right_side, reference_info=other_info)
 
             elif other_section_first:
-                self.__add_difference_part(other_info, new_info, right_side, reference_info=other_info)
+                self.__add_differering_part(other_info, new_info, right_side, reference_info=other_info)
 
-            else:  # Both sections have the same starting km registration
+            else:  # Both sections have the same starting km registration.
                 other_section_ends_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
                                           (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
 
@@ -624,8 +618,7 @@ class WegModel:
                                         (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
                 if other_section_ends_last:
-                    remaining_km, remaining_geom = (
-                        self.__add_overlapping_part(new_info, other_info, right_side,
+                    remaining_km, remaining_geom = (self.__add_overlapping_part(new_info, other_info, right_side,
                                                     reference_info=other_info, first_ending_info=new_info))
 
                     self.__update_section(other_section_index,
@@ -634,33 +627,32 @@ class WegModel:
                     break  # This is the final iteration.
 
                 elif new_section_ends_last:
-                    remaining_km, remaining_geom = (
-                        self.__add_overlapping_part(other_info, new_info, right_side,
+                    remaining_km, remaining_geom = (self.__add_overlapping_part(other_info, new_info, right_side,
                                                     reference_info=other_info, first_ending_info=other_info))
 
                     new_info.pos_eigs.km = remaining_km
                     new_info.pos_eigs.geometrie = remaining_geom
 
-                    # We can remove the old other_section from the road model, since it has now been completely used up.
+                    # The old other_section can be removed from the road model. It has now been completely 'used up'.
                     sections_to_remove.add(other_section_index)
 
-                    # Determine if there are more overlapping sections to deal with.
+                    # Continue iteration if there are more overlapping sections to deal with.
                     if overlap_sections:
                         continue
-                    else:
-                        self.__add_section(
-                            ObjectInfo(
-                                pos_eigs=PositieEigenschappen(
-                                    rijrichting=other_info.pos_eigs.rijrichting,
-                                    wegnummer=other_info.pos_eigs.wegnummer,
-                                    hectoletter=other_info.pos_eigs.hectoletter,
-                                    km=new_info.pos_eigs.km,
-                                    geometrie=new_info.pos_eigs.geometrie),
-                                obj_eigs=new_info.obj_eigs)
-                        )
-                        break  # This is the final iteration.
 
-                else:  # Both sections have the same ending km registration
+                    self.__add_section(
+                        ObjectInfo(
+                            pos_eigs=PositieEigenschappen(
+                                rijrichting=other_info.pos_eigs.rijrichting,
+                                wegnummer=other_info.pos_eigs.wegnummer,
+                                hectoletter=other_info.pos_eigs.hectoletter,
+                                km=new_info.pos_eigs.km,
+                                geometrie=new_info.pos_eigs.geometrie),
+                            obj_eigs=new_info.obj_eigs)
+                    )
+                    break  # This is the final iteration.
+
+                else:  # Both sections have the same ending km registration.
                     if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
                         self.__update_section(other_section_index,
                                               new_km=new_info.pos_eigs.km,
@@ -673,8 +665,8 @@ class WegModel:
 
         self.__remove_sections(sections_to_remove)
 
-    def __add_difference_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
-                              right_side: bool, reference_info: ObjectInfo) -> None:
+    def __add_differering_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
+                               right_side: bool, reference_info: ObjectInfo) -> None:
         """
         Adds a trimmed portion of the first provided section to the model.
         A new section is made and added to the road model, which contains only the part
@@ -691,7 +683,7 @@ class WegModel:
             km_bereik = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
         else:
             km_bereik = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
-        difference_geom = (
+        differering_geom = (
             self.__get_first_remainder(first_section_info.pos_eigs.geometrie, second_section_info.pos_eigs.geometrie))
 
         self.__add_section(
@@ -701,17 +693,17 @@ class WegModel:
                     wegnummer=reference_info.pos_eigs.wegnummer,
                     hectoletter=reference_info.pos_eigs.hectoletter,
                     km=km_bereik,
-                    geometrie=difference_geom),
+                    geometrie=differering_geom),
                 obj_eigs=first_section_info.obj_eigs)
         )
 
-        # Trim the km range and geometry for next iteration
+        # Trim the km-registration and geometry for next iteration
         if right_side:
             first_section_info.pos_eigs.km = [min(second_section_info.pos_eigs.km), max(first_section_info.pos_eigs.km)]
         else:
             first_section_info.pos_eigs.km = [max(second_section_info.pos_eigs.km), min(first_section_info.pos_eigs.km)]
         first_section_info.pos_eigs.geometrie = (
-            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, difference_geom))
+            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, differering_geom))
 
     def __add_overlapping_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo, right_side: bool,
                                reference_info: ObjectInfo, first_ending_info: ObjectInfo) -> tuple[list, LineString]:
@@ -720,11 +712,12 @@ class WegModel:
         Both object properties are applied, other positional properties are copied
         from the reference section that is provided.
         Args:
-            first_section_info:
-            second_section_info:
-            right_side:
-            reference_info:
-            first_ending_info:
+            first_section_info (ObjectInfo): The first section encountered.
+            second_section_info (ObjectInfo): The other section, that is encountered next.
+            right_side (bool): Indicates whether the section is on the right side or the left side.
+            reference_info (ObjectInfo): Section info for which the data has been checked before.
+                Generally, this is the section already existing in the road model.
+            first_ending_info (ObjectInfo): Section info of the section which ends first.
         Returns:
              Added geometry, for trimming a section.
         """
@@ -745,6 +738,7 @@ class WegModel:
                 obj_eigs={**second_section_info.obj_eigs, **first_section_info.obj_eigs})
         )
 
+        # Determine the remaining km-registration and geometry
         if right_side:
             km_remaining = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
         else:
@@ -1051,6 +1045,7 @@ class WegModel:
         for section_b_index, section_b in self.sections.items():
             if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
                 overlapping_sections[section_b_index] = section_b
+        assert overlapping_sections, f"Sectie {section_b.pos_eigs} heeft geen overlap met het wegmodel."
         return overlapping_sections
 
     def __post_process_data(self) -> None:
