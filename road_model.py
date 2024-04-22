@@ -533,23 +533,34 @@ class WegModel:
 
     @staticmethod
     def __get_next_section(sections: dict) -> tuple[int, ObjectInfo, dict]:
+        """
+        Obtains the next section from a dict of (ObjectInfo) sections. Uses the
+        "L" or "R" driving direction to determine which section is next. Removes
+        the section from the provided dict.
+        Args:
+            sections (dict): All sections, in the format {id: ObjectInfo}.
+        Returns:
+            Section id, section information and adapted dictionary.
+        """
         travel_direction = next(iter(sections.values())).pos_eigs.rijrichting
 
         next_section_id = None
         next_section_info = None
 
         if travel_direction == "L":
-            current_km = -1
+            reference_km = -float('inf')
             for section_id, section_info in sections.items():
-                if max(section_info.pos_eigs.km) > current_km:
-                    current_km = max(section_info.pos_eigs.km)
+                max_km = max(section_info.pos_eigs.km)
+                if max_km > reference_km:
+                    reference_km = max_km
                     next_section_id = section_id
                     next_section_info = section_info
-        else:
-            current_km = 999999999
+        else:  # travel direction = R
+            reference_km = float('inf')
             for section_id, section_info in sections.items():
-                if min(section_info.pos_eigs.km) < current_km:
-                    current_km = min(section_info.pos_eigs.km)
+                min_km = min(section_info.pos_eigs.km)
+                if min_km < reference_km:
+                    reference_km = min_km
                     next_section_id = section_id
                     next_section_info = section_info
 
