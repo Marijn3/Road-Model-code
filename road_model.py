@@ -557,7 +557,7 @@ class WegModel:
 
         sections.pop(next_section_id)
 
-        return next_section_id, next_section_info, sections
+        return next_section_id, deepcopy(next_section_
 
     def __merge_section(self, new_info: ObjectInfo) -> None:
         """
