@@ -1125,6 +1125,11 @@ class WegModel:
             point_verw_eigs = PuntVerwerkingsEigenschappen()
 
             overlapping_sections = self.get_sections_by_point(point_info.pos_eigs.geometrie)
+
+            if not overlapping_sections:
+                points_to_remove.add(point_index)
+                continue
+
             sections_near_point = [section_id for section_id in overlapping_sections.keys()]
             point_verw_eigs.sectie_ids = sections_near_point
 
