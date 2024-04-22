@@ -173,12 +173,12 @@ class DataFrameLader:
             mapping["1 -> 1.6"] = (1, "TaperStart")
             mapping["1.6 -> 1"] = (1, "TaperEinde")
             mapping["2 -> 1.6"] = (2, "TaperStart")
-            mapping["1.6 -> 2"] = (1, "TaperEinde")  # verwacht 2
+            mapping["1.6 -> 2"] = (1, "TaperEinde")  # verwacht 2?
         if direction == "T":
             mapping["1 -> 1.6"] = (1, "TaperEinde")
             mapping["1.6 -> 1"] = (1, "TaperStart")
             mapping["2 -> 1.6"] = (2, "TaperEinde")
-            mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2
+            mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2?
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
