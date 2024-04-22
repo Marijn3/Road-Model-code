@@ -610,37 +610,20 @@ class WegModel:
             other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
                                   (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
 
-            both_sections_first = (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and right_side) or (
-                                  (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and left_side))
-
             if new_section_first:
                 self.__add_difference_part(new_info, other_info, right_side, reference_info=other_info)
 
             elif other_section_first:
                 self.__add_difference_part(other_info, new_info, right_side, reference_info=other_info)
 
-            elif both_sections_first:
-                both_sections_last = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
-                                     (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and left_side))
-
+            else:  # Both sections have the same starting km registration
                 other_section_ends_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
-                                     (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
+                                          (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
 
                 new_section_ends_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
-                                   (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
+                                        (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
-                if both_sections_last:
-                    if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
-                        self.__update_section(other_section_index,
-                                              new_km=new_info.pos_eigs.km,
-                                              new_obj_eigs=new_info.obj_eigs,
-                                              new_geometrie=other_info.pos_eigs.geometrie)
-                    else:
-                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen: "
-                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
-                    break
-
-                elif other_section_ends_last:
+                if other_section_ends_last:
                     remaining_km, remaining_geom = (
                         self.__add_overlapping_part(new_info, other_info, right_side,
                                                     reference_info=other_info, first_ending_info=new_info))
@@ -648,8 +631,7 @@ class WegModel:
                     self.__update_section(other_section_index,
                                           new_km=remaining_km,
                                           new_geometrie=remaining_geom)
-                    # This is the final iteration.
-                    break
+                    break  # This is the final iteration.
 
                 elif new_section_ends_last:
                     remaining_km, remaining_geom = (
@@ -666,7 +648,6 @@ class WegModel:
                     if overlap_sections:
                         continue
                     else:
-                        # This is the final iteration
                         self.__add_section(
                             ObjectInfo(
                                 pos_eigs=PositieEigenschappen(
@@ -677,14 +658,18 @@ class WegModel:
                                     geometrie=new_info.pos_eigs.geometrie),
                                 obj_eigs=new_info.obj_eigs)
                         )
-                        break
+                        break  # This is the final iteration.
 
-                else:
-                    raise Exception("Er is iets misgegaan met het bereik.")
-
-            else:
-                raise Exception(f"Er is iets misgegaan met de bereiken: "
-                                f"{new_info.pos_eigs.km} {other_info.pos_eigs.km}")
+                else:  # Both sections have the same ending km registration
+                    if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
+                        self.__update_section(other_section_index,
+                                              new_km=new_info.pos_eigs.km,
+                                              new_obj_eigs=new_info.obj_eigs,
+                                              new_geometrie=other_info.pos_eigs.geometrie)
+                    else:
+                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen: "
+                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
+                    break  # This is the final iteration.
 
         self.__remove_sections(sections_to_remove)
 
