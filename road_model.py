@@ -359,6 +359,8 @@ class WegModel:
                      "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
                      "Rijstrooksignaleringen", "Convergenties", "Divergenties"]  # Contain point geometries
 
+    MAIN_LANE_TYPES = ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]
+
     def __init__(self, dfl: DataFrameLader):
         self.dfl = dfl
         self.DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
@@ -1107,7 +1109,7 @@ class WegModel:
                        if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
             hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
                                   if
-                                  lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]]
+                                  lane_type in self.MAIN_LANE_TYPES]
             strooknummers_links = [lane_nr for lane_nr in stroken if
                                    hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
             strooknummers_rechts = [lane_nr for lane_nr in stroken if
@@ -1302,8 +1304,7 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    @staticmethod
-    def get_n_lanes(obj_eigs: dict) -> tuple[int, int]:
+    def get_n_lanes(self, obj_eigs: dict) -> tuple[int, int]:
         """
         Determines the number of lanes given road properties.
         Args:
@@ -1313,7 +1314,7 @@ class WegModel:
             2) The number of lanes, exluding "puntstuk" registrations.
         """
         main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                      and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+                      and lane_type in self.MAIN_LANE_TYPES]
         any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                      and lane_type not in ["Puntstuk"]]
         return len(main_lanes), len(any_lanes)
