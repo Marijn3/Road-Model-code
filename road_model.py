@@ -576,22 +576,18 @@ class WegModel:
         """
         overlap_sections = self.__get_overlapping_sections(new_info)
 
+        # TODO: Determine whether this check is (still) necessary.
         if not overlap_sections:
-            logger.warning(f"Sectie overlapt niet met eerdere lagen, dus wordt niet toegevoegd: {new_info.pos_eigs}")
-            # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            return
-
-        if any(overlapper.pos_eigs.geometrie is None for overlapper in overlap_sections.values()):
-            # Do NOT add the section, as there was a reason the geometry is not present.
+            logger.warning(f"Sectie overlapt niet met eerdere lagen. Hierdoor kan de richting van de geometrie "
+                           f"niet worden bepaald, dus wordt deze sectie wordt niet toegevoegd: {new_info.pos_eigs}")
             return
 
         other_section_index, other_info, overlap_sections = self.__get_next_section(overlap_sections)
 
-        # Align new section range according to existing sections
+        # Align new section range and geometry according to other section. This only needs to be done once,
+        # assuming that all other sections in overlap_sections have the same orientation (which they do).
         if other_info.pos_eigs.rijrichting == "L":
             new_info.pos_eigs.km.reverse()
-
-        # Ensure all new geometries are also oriented in driving direction
         if not same_direction(other_info.pos_eigs.geometrie, new_info.pos_eigs.geometrie):
             new_info.pos_eigs.geometrie = reverse(new_info.pos_eigs.geometrie)
 
@@ -617,42 +613,34 @@ class WegModel:
             both_sections_first = (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and right_side) or (
                                   (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and left_side))
 
-            # Case A: new_section starts earlier.
             if new_section_first:
-                # Add section with new_section properties and geometry
                 self.__add_trimmed_section_up_to(new_info, other_info, right_side, reference_info=other_info)
 
-            # Case B: new_section starts later.
             elif other_section_first:
-                # Add section with other_section properties and geometry.
                 self.__add_trimmed_section_up_to(other_info, new_info, right_side, reference_info=other_info)
 
-            # Case C: start of the two sections is equal.
             elif both_sections_first:
-                # More subcase checks
-                other_ends_equal = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
+                both_sections_last = (max(new_info.pos_eigs.km) == max(other_info.pos_eigs.km) and right_side) or (
                                    (min(new_info.pos_eigs.km) == min(other_info.pos_eigs.km) and left_side))
 
-                other_section_larger = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
+                other_section_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
                                        (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
 
-                new_section_larger = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
+                new_section_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
                                      (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
-                if other_ends_equal:
-                    # Update the overlapping section properties
+                if both_sections_last:
                     if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
                         self.__update_section(other_section_index,
                                               new_km=new_info.pos_eigs.km,
                                               new_obj_eigs=new_info.obj_eigs,
                                               new_geometrie=other_info.pos_eigs.geometrie)
                     else:
-                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen:"
+                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen: "
                                        f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
-                    # This is the final iteration.
                     break
 
-                elif other_section_larger:
+                elif other_section_last:
                     # Add section between new_section_min and new_section_max with both properties
                     # and overlapping geometry. Update other_section range between new_section_max
                     # and other_section_max and update the remaining geometry. Remove old other_section.
@@ -685,12 +673,13 @@ class WegModel:
                     # This is the final iteration.
                     break
 
-                elif new_section_larger:
+                elif new_section_last:
                     # Add section with both properties
                     if right_side:
                         km_bereik = [min(new_info.pos_eigs.km), max(other_info.pos_eigs.km)]
                     else:
                         km_bereik = [max(new_info.pos_eigs.km), min(other_info.pos_eigs.km)]
+
                     added_geom = self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs)
                     both_props = {**other_info.obj_eigs, **new_info.obj_eigs}
                     self.__add_section(
@@ -740,21 +729,22 @@ class WegModel:
     def __add_trimmed_section_up_to(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
                                     right_side: bool, reference_info: ObjectInfo) -> None:
         """
-        Adds a trimmed portion of the first provided section to the model. The section is
-        trimmed based on the part that does not appear in the second section. 
-        Then the first section is updated so the trimmed part is cut off.
+        Adds a trimmed portion of the first provided section to the model.
+        A new section is made and added to the road model, which contains only the part
+        that does not appear in the second section. Then the first section is trimmed down.
+        Note that the first section is edited in place.
         Args:
-            first_section_info: The first section encountered.
-            second_section_info: The other section, that is encountered next.
-            right_side: Whether the section is on the right side or the left side.
-            reference_info: Section info for which the data has been checked before, generally,
-                this is the existing section in the road model.
+            first_section_info (ObjectInfo): The first section encountered.
+            second_section_info (ObjectInfo): The other section, that is encountered next.
+            right_side (bool): Indicates whether the section is on the right side or the left side.
+            reference_info (ObjectInfo): Section info for which the data has been checked before.
+                Generally, this is the section already existing in the road model.
         """
         if right_side:
             km_bereik = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
         else:
             km_bereik = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
-        added_geom = (
+        difference_geom = (
             self.__get_first_remainder(first_section_info.pos_eigs.geometrie, second_section_info.pos_eigs.geometrie))
 
         self.__add_section(
@@ -764,18 +754,17 @@ class WegModel:
                     wegnummer=reference_info.pos_eigs.wegnummer,
                     hectoletter=reference_info.pos_eigs.hectoletter,
                     km=km_bereik,
-                    geometrie=added_geom),
-                obj_eigs=first_section_info.obj_eigs
-            )
+                    geometrie=difference_geom),
+                obj_eigs=first_section_info.obj_eigs)
         )
 
-        # Trim the new_section range and geometry for next iteration.
+        # Trim the km range and geometry for next iteration
         if right_side:
             first_section_info.pos_eigs.km = [min(second_section_info.pos_eigs.km), max(first_section_info.pos_eigs.km)]
         else:
             first_section_info.pos_eigs.km = [max(second_section_info.pos_eigs.km), min(first_section_info.pos_eigs.km)]
         first_section_info.pos_eigs.geometrie = (
-            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, added_geom))
+            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, difference_geom))
 
     @staticmethod
     def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
@@ -827,7 +816,7 @@ class WegModel:
             geom1 (LineString): First LineString to be compared.
             geom2 (LineString): Second LineString to be compared.
         Returns:
-            Boolean indicating whether the geometries are equal.
+            Boolean indicating whether the geometries can be considered equal.
         """
         # Some geometries are exactly equal.
         if equals(geom1, geom2):
@@ -837,7 +826,8 @@ class WegModel:
         if equals_exact(geom1, geom2, tolerance=self.DISTANCE_TOLERANCE):
             return True
 
-        # Some geometries have a different amount of vertices, which is fixed by comparing their simplified versions.
+        # Some geometries have a different amount of vertices,
+        # which can be taken into account by comparing their simplified versions.
         simplified_geom1 = simplify(geom1, 0.1, preserve_topology=False)
         simplified_geom2 = simplify(geom2, 0.1, preserve_topology=False)
         if equals_exact(simplified_geom1, simplified_geom2, tolerance=self.DISTANCE_TOLERANCE):
@@ -855,15 +845,13 @@ class WegModel:
             LineString describing the overlap geometry.
             Returns None if there is no overlap geometry.
         Note:
-            The function uses the `intersection` method from Shapely to
-            compute the overlap between the two LineString geometries.
-            If the geometries do not overlap or have only a Point of
+            The function uses the `intersection` method from Shapely to compute the overlap between
+            the two LineString geometries. If the geometries do not overlap or have only a Point of
             intersection, the function returns None.
         """
         # First, check whether the sections have an overlapping range at all, which
         # means the more complex intersection() function doesn't need to be called.
         if not determine_range_overlap(pos1.km, pos2.km):
-            # logger.debug(f"Ranges don't overlap: {pos1.km}, {pos2.km}")
             return None
 
         overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.GRID_SIZE)
@@ -919,7 +907,8 @@ class WegModel:
 
             for new_lane_number in new_lane_numbers:
                 assert new_lane_number not in orig_lane_numbers, \
-                    f"Lane in {new_obj_eigs} already in {self.sections[index]}"
+                    (f"Een strook in {new_obj_eigs} bestaat al in {self.sections[index]}.\n"
+                     f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties?")
 
             self.sections[index].obj_eigs.update(new_obj_eigs)
         if new_geometrie:
