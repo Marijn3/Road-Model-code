@@ -531,6 +531,34 @@ class WegModel:
 
         return section_info
 
+    @staticmethod
+    def __get_next_section(sections: dict) -> tuple[int, ObjectInfo, dict]:
+        # TODO: Fix error resulting from this recent change.
+
+        travel_direction = next(iter(sections.values())).pos_eigs.rijrichting
+
+        next_section_id = None
+        next_section_info = None
+
+        if travel_direction == "L":
+            current_km = 999999999
+            for section_id, section_info in sections.items():
+                if max(section_info.pos_eigs.km) < current_km:
+                    current_km = max(section_info.pos_eigs.km)
+                    next_section_id = section_id
+                    next_section_info = section_info
+        else:
+            current_km = -1
+            for section_id, section_info in sections.items():
+                if min(section_info.pos_eigs.km) > current_km:
+                    current_km = min(section_info.pos_eigs.km)
+                    next_section_id = section_id
+                    next_section_info = section_info
+
+        sections.pop(next_section_id)
+
+        return next_section_id, next_section_info, sections
+
     def __merge_section(self, new_info: ObjectInfo) -> None:
         """
         Merges the given section with existing sections in self.sections.
@@ -544,13 +572,11 @@ class WegModel:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
             return
 
-        if any(overlapper["Section_info"].pos_eigs.geometrie is None for overlapper in overlap_sections):
+        if any(overlapper.pos_eigs.geometrie is None for overlapper in overlap_sections.values()):
             # Do NOT add the section, as there was a reason the geometry is not present.
             return
 
-        overlap_section = overlap_sections.pop(0)
-        other_section_index = overlap_section["Index"]
-        other_info = deepcopy(overlap_section["Section_info"])
+        other_section_index, other_info, overlap_sections = self.__get_next_section(overlap_sections)
 
         # Align new section range according to existing sections
         if other_info.pos_eigs.rijrichting == "L":
@@ -566,9 +592,7 @@ class WegModel:
             if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
-                overlap_section = overlap_sections.pop(0)
-                other_section_index = overlap_section["Index"]
-                other_info = deepcopy(overlap_section["Section_info"])
+                other_section_index, other_info, overlap_sections = self.__get_next_section(overlap_sections)
 
             self.__run_checks(new_info, other_info)
 
@@ -1027,7 +1051,7 @@ class WegModel:
                 return reference_info
         return None
 
-    def __get_overlapping_sections(self, section_a: ObjectInfo) -> list[dict]:
+    def __get_overlapping_sections(self, section_a: ObjectInfo) -> dict:
         """
         Finds all sections within self which overlap with the provided section
         and returns them in a list.
@@ -1038,22 +1062,10 @@ class WegModel:
             the driving direction of one of the other sections, which is assumed
             to be representative for all other sections.
         """
-        overlapping_sections = []
+        overlapping_sections = {}
         for section_b_index, section_b in self.sections.items():
             if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
-                overlapping_sections.append({"Index": section_b_index,
-                                             "Section_info": section_b})
-                # TODO: simplify to {index: section_info} -> Rewriting this is giving sorting issues...
-
-        if overlapping_sections:
-            # For the rest of the implementation, sorting in driving direction is assumed.
-            # Thus, sections on the left side should be ordered from high to low ranges.
-            travel_direction = overlapping_sections[0]["Section_info"].pos_eigs.rijrichting
-            should_reverse = travel_direction == "L"
-            overlapping_sections = sorted(overlapping_sections,
-                                          key=lambda x: max(x["Section_info"].pos_eigs.km),
-                                          reverse=should_reverse)
-
+                overlapping_sections[section_b_index] = section_b
         return overlapping_sections
 
     def __post_process_data(self) -> None:
