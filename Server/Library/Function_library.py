@@ -1,9 +1,6 @@
 from typing import Set
 import gurobipy as gp
 from Library.svg_library import *
-from Library.svg_library import createSVG_roadmodel, createSVG_A16_A58, createSVG_A50, createSVG_test_RHL, createSVG_Klaverblad_A15_A27, \
-    createSVG_Eight_Lane, createSVG_Eight_Lane_2, createSVG_A15_Tunnel, createSVG_Circle, createSVG_Presentatie, \
-    createSVG_Demo, createSVG_Demo2
 
 
 def initModel(road_topology):
@@ -298,30 +295,6 @@ def createJSON(all_data, MSI_data):
 def postprocess(data_set, model, msi_data):
     if data_set["name"] == "WEGGEG-based data":
         svg, msi_data = createSVG_roadmodel(model, msi_data)
-    elif data_set["name"] == "Knooppunt Galder":
-        svg, msi_data = createSVG_A16_A58(model, msi_data)
-    elif data_set["name"] == "Apeldoorn Arnhem A50":
-        svg, msi_data = createSVG_A50(model, msi_data)
-    elif data_set["name"] == "Test rush hour lane":
-        svg, msi_data = createSVG_test_RHL(model, msi_data)
-    elif data_set["name"] == "XXL":
-        svg, msi_data = createSVG_Klaverblad_A15_A27(model, msi_data)
-    elif data_set["name"] == "Klaverblad A15 A27":
-        svg, msi_data = createSVG_Klaverblad_A15_A27(model, msi_data)
-    elif data_set["name"] == "Eight lane road":
-        svg, msi_data = createSVG_Eight_Lane(model, msi_data)
-    elif data_set["name"] == "Eight lanes, two carriageways":
-        svg, msi_data = createSVG_Eight_Lane_2(model, msi_data)
-    elif data_set["name"] == "A15 Tunnel":
-        svg, msi_data = createSVG_A15_Tunnel(model, msi_data)
-    elif data_set["name"] == "Circle":
-        svg, msi_data = createSVG_Circle(model, msi_data)
-    elif data_set["name"] == "Presentatie":
-        svg, msi_data = createSVG_Presentatie(model, msi_data)
-    elif data_set["name"] == "Demo":
-        svg, msi_data = createSVG_Demo(model, msi_data)
-    elif data_set["name"] == "Demo2":
-        svg, msi_data = createSVG_Demo2(model, msi_data)
     else:
         raise LookupError("create SVG function not found.")
     return svg, msi_data
