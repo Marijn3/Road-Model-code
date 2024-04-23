@@ -4,6 +4,9 @@ logger = logging.getLogger(__name__)
 
 
 class Oppervlak:
+
+    __WIDTH_ADJUSTMENT = {"Aanvraag": 0.5, "Werkvak": 0.5, "Veiligheidsruimte": 0.2, "Werkruimte": 0}
+
     def __init__(self, roadside: str, km_start: float, km_end: float, surf_type: str, unfiltered_lanes: dict) -> None:
         self.roadside = roadside
         self.km_start = km_start
@@ -21,7 +24,7 @@ class Oppervlak:
     def get_width(self) -> list:
         lane_numbers = self.lanes.keys()
         min_width = min((lane - 1) * 3.5 for lane in lane_numbers)
-        max_width = max(lane * 3.5 for lane in lane_numbers)
+        max_width = max(lane * 3.5 - self.__WIDTH_ADJUSTMENT[self.surf_type] for lane in lane_numbers)
         return [min_width, max_width]
 
 
@@ -87,41 +90,38 @@ class Aanvraag(Oppervlak):
         self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
                            if isinstance(lane_nr, int) and lane_type in self.wegmodel.MAIN_LANE_TYPES]
 
-        # TODO: Use verw-eigs??
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
-        self.lanes_left = self.filter_lanes(self.lane_nrs_left)
+        self.lanes_left = self.get_lane_dict(self.lane_nrs_left)
         self.lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
-        self.lanes_right = self.filter_lanes(self.lane_nrs_right)
+        self.lanes_right = self.get_lane_dict(self.lane_nrs_right)
 
         # if self.ruimte_links and not self.lane_nrs_left: ...
 
         self.lane_nrs_right_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
-        self.lanes_right_tr2 = self.filter_lanes(self.lane_nrs_right)
+        self.lanes_right_tr2 = self.get_lane_dict(self.lane_nrs_right)
 
         self.request_lanes = self.determine_request_lanes()
 
         super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes)
 
-        self.n_lanes = len(self.all_lanes)
+        self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
 
         self.__make_werkvak()
 
-    def filter_lanes(self, lane_nrs: list) -> dict:
+    def get_lane_dict(self, lane_nrs: list) -> dict:
         return {lane_nr: lane_type for lane_nr, lane_type in self.road_info.obj_eigs.items()
                 if lane_nr in lane_nrs and lane_type not in ["Puntstuk"]}
 
     def get_road_info(self) -> ObjectInfo:
         """Obtain surrounding geometry and road properties."""
-        road_info = self.wegmodel.get_section_info_by_bps(km=self.bereik,
-                                                          side=self.wegkant,
-                                                          hectoletter=self.hectoletter)
+        road_info = self.wegmodel.get_section_info_by_bps(km=self.bereik, side=self.wegkant, hecto=self.hectoletter)
 
         if not road_info:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
                             f"{self.bereik} {self.wegkant} {self.hectoletter}")
 
-        # Temporary assumption: only one section below request (first section)
+        # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
         return road_info[0]
 
     def determine_request_lanes(self) -> dict:
@@ -130,7 +130,7 @@ class Aanvraag(Oppervlak):
         if self.ruimte_midden:
             assert all(lane_nr in self.main_lanes for lane_nr in self.ruimte_midden), \
                 "Een aangevraagde rijstrook hoort niet bij de hoofdstroken."
-            return self.filter_lanes(self.ruimte_midden)
+            return self.get_lane_dict(self.ruimte_midden)
         if self.ruimte_rechts:
             return self.lanes_right
 
@@ -162,9 +162,9 @@ class Aanvraag(Oppervlak):
                 keep_left_open = True
 
             if keep_left_open:
-                return self.filter_lanes(list(range(min(self.ruimte_midden), self.n_lanes + 1)))  # Case TR3 or LR4
+                return self.get_lane_dict(list(range(min(self.ruimte_midden), self.n_lanes + 1)))  # Case TR3 or LR4
             else:
-                return self.filter_lanes(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
+                return self.get_lane_dict(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
 
         langer_dan_24h = not self.korter_dan_24h
 
