@@ -16,8 +16,10 @@ class PositieEigenschappen:
         self.geometrie = geometrie
 
     def __repr__(self):
-        return f"Rijrichting='{self.rijrichting}', Wegnummer='{self.wegnummer}', " \
-               f"Hectoletter='{self.hectoletter}', Km={self.km}, Geometrie={self.geometrie}"
+        if self.hectoletter:
+            return f"{self.wegnummer}, {self.rijrichting}, {self.hectoletter}, {self.km} km"
+        else:
+            return f"{self.wegnummer}, {self.rijrichting}, {self.km} km"
 
 
 class LijnVerwerkingsEigenschappen:
@@ -35,20 +37,6 @@ class LijnVerwerkingsEigenschappen:
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
 
-    def __repr__(self):
-        return (f"Vergentiepunt_start={self.vergentiepunt_start}, "
-                f"Vergentiepunt_einde={self.vergentiepunt_einde}, "
-                f"Sectie_stroomopwaarts={self.sectie_stroomopwaarts}, "
-                f"Sectie_stroomafwaarts={self.sectie_stroomafwaarts}, "
-                f"Sectie_afbuigend_stroomopwaarts={self.sectie_afbuigend_stroomopwaarts}, "
-                f"Sectie_afbuigend_stroomafwaarts={self.sectie_afbuigend_stroomafwaarts}, "
-                f"Start_kenmerk={self.start_kenmerk}, "
-                f"Einde_kenmerk={self.einde_kenmerk}, "
-                f"Aantal_stroken={self.aantal_stroken}, "
-                f"Aantal_hoofdstroken={self.aantal_hoofdstroken}, "
-                f"Aantal_rijstroken_links={self.aantal_rijstroken_links}, "
-                f"Aantal_rijstroken_rechts={self.aantal_rijstroken_rechts}")
-
 
 class PuntVerwerkingsEigenschappen:
     def __init__(self):
@@ -59,14 +47,6 @@ class PuntVerwerkingsEigenschappen:
         self.aantal_stroken = None
         self.lokale_hoek = None
 
-    def __repr__(self):
-        return (f"Sectie_ids={self.sectie_ids}, "
-                f"Ingaande_secties={self.ingaande_secties}, "
-                f"Uitgaande_secties={self.uitgaande_secties}, "
-                f"Aantal_hoofdstroken={self.aantal_hoofdstroken}, "
-                f"Aantal_stroken={self.aantal_stroken}, "
-                f"Lokale_hoek={self.lokale_hoek}")
-
 
 class ObjectInfo:
     def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None):
@@ -76,10 +56,8 @@ class ObjectInfo:
 
     def __repr__(self):
         typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
-        return (f"{typename}:\n"
-                f"Positie-eigenschappen:\n{self.pos_eigs}\n"
-                f"Objecteigenschappen:\n{self.obj_eigs}\n"
-                f"Verwerkingseigenschappen:\n{self.verw_eigs}\n")
+        return (f"{typename} op positie {self.pos_eigs} en eigenschappen:\n"
+                f"{self.obj_eigs}\n")
 
 
 class DataFrameLader:
@@ -1351,22 +1329,23 @@ class WegModel:
         logger.warning(f"Geen punt gevonden bij {geom}")
         return None
 
-    def get_section_info_by_bps(self, km: float, side: str, hectoletter: str = "") -> ObjectInfo:
+    def get_section_info_by_bps(self, km: list, side: str, hectoletter: str = "") -> list:
         """
         Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
-            km (float): Kilometer point to retrieve the road section properties for.
+            km (list): Kilometer range to retrieve the road section properties for.
             side (str): Side of the road to retrieve the road section properties for.
             hectoletter (str): Letter that gives further specification for connecting roads.
         Returns:
-            dict: Attributes of the road section at the specified kilometer point and hectoletter.
+            List of section information
         """
+        sections = []
         for section in self.sections.values():
-            if (section.pos_eigs.rijrichting == side and
-                    min(section.pos_eigs.km) <= km <= max(section.pos_eigs.km) and
-                    section.pos_eigs.hectoletter == hectoletter):
-                return section
-        raise ReferenceError(f"Geen sectie gevonden met {km}, {side} en {hectoletter}.")
+            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hectoletter == hectoletter and
+                    (min(section.pos_eigs.km) <= km[0] <= max(section.pos_eigs.km) or
+                     min(section.pos_eigs.km) <= km[1] <= max(section.pos_eigs.km))):
+                sections.append(section)
+        return sections
 
     def get_sections_by_point(self, point: Point) -> dict[int: dict]:
         """
