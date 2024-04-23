@@ -337,7 +337,7 @@ class WegModel:
                      "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
                      "Rijstrooksignaleringen", "Convergenties", "Divergenties"]  # Contain point geometries
 
-    MAIN_LANE_TYPES = ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook"]
+    MAIN_LANE_TYPES = ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook", "Weefstrook"]
 
     def __init__(self, dfl: DataFrameLader):
         self.dfl = dfl
@@ -1329,19 +1329,19 @@ class WegModel:
         logger.warning(f"Geen punt gevonden bij {geom}")
         return None
 
-    def get_section_info_by_bps(self, km: list, side: str, hectoletter: str = "") -> list:
+    def get_section_info_by_bps(self, km: list, side: str, hecto: str = "") -> list:
         """
         Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
             km (list): Kilometer range to retrieve the road section properties for.
             side (str): Side of the road to retrieve the road section properties for.
-            hectoletter (str): Letter that gives further specification for connecting roads.
+            hecto (str): Letter that gives further specification for connecting roads.
         Returns:
             List of section information
         """
         sections = []
         for section in self.sections.values():
-            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hectoletter == hectoletter and
+            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hectoletter == hecto and
                     (min(section.pos_eigs.km) <= km[0] <= max(section.pos_eigs.km) or
                      min(section.pos_eigs.km) <= km[1] <= max(section.pos_eigs.km))):
                 sections.append(section)
