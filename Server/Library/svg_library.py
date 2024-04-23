@@ -270,19 +270,17 @@ def toggle_visibility(svg_file, groups_to_activate):
     tree = ET.parse(svg_file)
     root = tree.getroot()
 
-    # Iterate over all groups in the SVG
     for group in root.findall(".//{http://www.w3.org/2000/svg}g"):
         group_id = group.attrib.get("id")
 
         if group_id is not None:
             if group_id in groups_to_activate:
-                # Set visibility based on the value in groups_to_activate
                 group.attrib["visibility"] = "visible"
             elif group_id[-1] == "]":
                 # If the group ID is not in groups_to_activate, but contains a legend, default to hidden
                 group.attrib["visibility"] = "hidden"
 
-    # Specify that namespaces (ns0) should not be written out
+    # Specify that namespaces (ns0) should not be written out in the svg file
     ET.register_namespace('', 'http://www.w3.org/2000/svg')
     tree.write(svg_file, xml_declaration=True, method='xml', encoding='utf-8')
 
@@ -292,9 +290,8 @@ def createSVG_roadmodel(model, json_data):
     svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
 
     id_to_image = {key: value["State"] for key, value in json_data.items()}
-    print("New legends:", id_to_image)
+    # print("New legends:", id_to_image)
     legends_to_activate = [name for name in determine_group_names(id_to_image)]
-    print("To activate:", legends_to_activate)
     toggle_visibility(svg_file, legends_to_activate)
 
     with open(svg_file, "r") as file:
