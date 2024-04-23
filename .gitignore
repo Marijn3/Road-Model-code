@@ -22,3 +22,5 @@ Server/Solution/
 .idea/
 
 msi_relations.txt
+stacked_bar.py
+vis-matplot.py
