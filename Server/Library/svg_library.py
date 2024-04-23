@@ -290,17 +290,15 @@ def toggle_visibility(svg_file, groups_to_activate):
 def createSVG_roadmodel(model, json_data):
     results, json_data = getMyVars(model, json_data)
     svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
-    with open(svg_file, "r") as file:
-        svg = file.read()
-    # TODO: Adjust svg dynamically based on json_data info!
-    # Don't forget to remove all previous legends first,
-    # or to change (add/remove) only those that do not match with the old svg!
 
     id_to_image = {key: value["State"] for key, value in json_data.items()}
     print("New legends:", id_to_image)
     legends_to_activate = [name for name in determine_group_names(id_to_image)]
     print("To activate:", legends_to_activate)
     toggle_visibility(svg_file, legends_to_activate)
+
+    with open(svg_file, "r") as file:
+        svg = file.read()
 
     return svg, json_data
 
