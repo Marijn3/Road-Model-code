@@ -77,13 +77,15 @@ class Aanvraag(Oppervlak):
         self.max_v = max_v
         self.korter_dan_24h = korter_dan_24h
         self.afzetting = afzetting
-        self.color = "green"
+        self.bereik = [km_start, km_end]
+        self.wegkant = wegkant
+        self.color = "brown"
 
-        self.road_info = self.get_road_info(km_start, wegkant, hectoletter)
+        self.road_info = self.get_road_info()
 
         self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
         self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
-                           if isinstance(lane_nr, int) and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
+                           if isinstance(lane_nr, int) and lane_type in self.wegmodel.MAIN_LANE_TYPES]
 
         # TODO: Use verw-eigs??
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
@@ -109,17 +111,18 @@ class Aanvraag(Oppervlak):
         return {lane_nr: lane_type for lane_nr, lane_type in self.road_info.obj_eigs.items()
                 if lane_nr in lane_nrs and lane_type not in ["Puntstuk"]}
 
-    def get_road_info(self, km_start, roadside, hectoletter) -> ObjectInfo:
-        # Obtain surrounding geometry and road properties
-        # Temporary assumption: only one section below request, section identified by km_start
-        road_info = self.wegmodel.get_section_info_by_bps(km=km_start,
-                                                          side=roadside,
-                                                          hectoletter=hectoletter)
+    def get_road_info(self) -> ObjectInfo:
+        """Obtain surrounding geometry and road properties."""
+        road_info = self.wegmodel.get_section_info_by_bps(km=self.bereik,
+                                                          side=self.wegkant,
+                                                          hectoletter=self.hectoletter)
 
         if not road_info:
-            raise Exception("Combinatie van km, wegkant en hectoletter niet gevonden!")
+            raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
+                            f"{self.bereik} {self.wegkant} {self.hectoletter}")
 
-        return road_info
+        # Temporary assumption: only one section below request (first section)
+        return road_info[0]
 
     def determine_request_lanes(self) -> dict:
         if self.ruimte_links:
