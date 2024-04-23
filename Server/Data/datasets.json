@@ -8,15 +8,5 @@
         "SVG_template": "Data/RoadModel/RoadModelVisualisation.svg",
         "json_file" : "Solution/state.json",
         "constraints_list_file" : "Solution/Constraints_list.json"
-    },
-	"1": {
-        "name":"Klaverblad A15 A27",
-        "data_file": "Data/Klaverblad_A15_A27/Klaverblad_A15_A27.json",
-        "ilp_file" : "ILP/model.mps",
-        "solve_ilp_file": "Solution/model_solved.mps",
-        "debug_ilp_file" : "ILP/model.lp",
-        "SVG_template": "Data/Klaverblad_A15_A27/road_template_A15_A27.svg",
-        "json_file" : "Solution/state.json",
-        "constraints_list_file" : "Solution/Constraints_list.json"
     }
 }
