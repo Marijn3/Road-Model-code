@@ -1,11 +1,10 @@
 from road_model import WegModel, ObjectInfo
 from utils import *
+from shapely import *
 logger = logging.getLogger(__name__)
 
 
 class Oppervlak:
-
-    __WIDTH_ADJUSTMENT = {"Aanvraag": 0.5, "Werkvak": 0.5, "Veiligheidsruimte": 0.2, "Werkruimte": 0}
 
     def __init__(self, roadside: str, km_start: float, km_end: float, surf_type: str, unfiltered_lanes: dict) -> None:
         self.roadside = roadside
