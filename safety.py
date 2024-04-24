@@ -6,15 +6,29 @@ logger = logging.getLogger(__name__)
 
 class Oppervlak:
 
-    def __init__(self, roadside: str, km_start: float, km_end: float, surf_type: str, unfiltered_lanes: dict) -> None:
+    __BREEDTE_BARRIER = 0.40  # Schatting
+    __BREEDTE_BAKENS = 0.20  # Schatting
+
+    __WIDTHS = {
+        "Bakens": {"Veiligheidsruimte": __BREEDTE_BAKENS / 2, "Werkruimte": 0.60},
+        "Barrier lager 0.8m": {"Veiligheidsruimte": __BREEDTE_BARRIER / 2, "Werkruimte": 0.60},
+        "Barrier hoger 0.8m": {"Veiligheidsruimte": __BREEDTE_BARRIER / 2, "Werkruimte": 0},
+    }
+
+    def __init__(self, roadside: str, km_start: float, km_end: float,
+                 surf_type: str, unfiltered_lanes: dict, afzetting: str) -> None:
         self.roadside = roadside
         self.km_start = km_start
         self.km_end = km_end
         self.surf_type = surf_type
+        self.afzetting = afzetting
         self.lanes = {lane_nr: lane_type for lane_nr, lane_type in unfiltered_lanes.items() if isinstance(lane_nr, int)}
         self.width = self.get_width()
 
         self.log_surface()
+
+        self.width_safety_distances = self.__WIDTHS.get(self.afzetting, None)
+        self.width_offset = self.width_safety_distances.get(self.surf_type, None)
 
     def log_surface(self):
         logger.info(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
@@ -23,40 +37,40 @@ class Oppervlak:
     def get_width(self) -> list:
         lane_numbers = self.lanes.keys()
         min_width = min((lane - 1) * 3.5 for lane in lane_numbers)
-        max_width = max(lane * 3.5 - self.__WIDTH_ADJUSTMENT[self.surf_type] for lane in lane_numbers)
+        max_width = max(lane * 3.5 - self.width_safety_distances[self.surf_type] for lane in lane_numbers)
         return [min_width, max_width]
 
 
 class Werkvak(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict) -> None:
-        super().__init__(roadside, km_start, km_end, "Werkvak", lanes)
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting) -> None:
+        super().__init__(roadside, km_start, km_end, "Werkvak", lanes, afzetting)
         self.color = "cyan"
-        self.make_veiligheidsruimte()
+        self.make_veiligheidsruimte(afzetting)
 
-    def make_veiligheidsruimte(self):
+    def make_veiligheidsruimte(self, afzetting):
         if self.km_start < self.km_end:
-            Veiligheidsruimte(self.roadside, self.km_start-0.1, self.km_end+0.1, self.lanes)
+            Veiligheidsruimte(self.roadside, self.km_start-0.1, self.km_end+0.1, self.lanes, afzetting)
         else:
-            Veiligheidsruimte(self.roadside, self.km_start+0.1, self.km_end-0.1, self.lanes)
+            Veiligheidsruimte(self.roadside, self.km_start+0.1, self.km_end-0.1, self.lanes, afzetting)
 
 
 class Veiligheidsruimte(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict) -> None:
-        super().__init__(roadside, km_start, km_end, "Veiligheidsruimte", lanes)
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting: str) -> None:
+        super().__init__(roadside, km_start, km_end, "Veiligheidsruimte", lanes, afzetting)
         self.color = "yellow"
-        self.make_werkruimte()
+        self.make_werkruimte(afzetting)
 
-    def make_werkruimte(self):
+    def make_werkruimte(self, afzetting):
         # Find next upstream row compared to self.km_start
         next_upstream_km = 13.5
         # Find next downstream row compared to self.km_end
         next_downstream_km = 14.7
 
-        Werkruimte(self.roadside, next_upstream_km, next_downstream_km, self.lanes)
+        Werkruimte(self.roadside, next_upstream_km, next_downstream_km, self.lanes, afzetting)
 
 class Werkruimte(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict) -> None:
-        super().__init__(roadside, km_start, km_end, "Werkruimte", lanes)
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting: str) -> None:
+        super().__init__(roadside, km_start, km_end, "Werkruimte", lanes, afzetting)
         self.color = "orange"
 
 
@@ -72,6 +86,7 @@ class Aanvraag(Oppervlak):
         70: 6,
         50: 4.5
     }
+
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
                  max_v: int = 70, korter_dan_24h: bool = True, afzetting: str = "Bakens") -> None:
@@ -94,53 +109,72 @@ class Aanvraag(Oppervlak):
         self.wegkant = wegkant
         self.color = "brown"
 
-        self.road_info = self.get_road_info()
+        self.sections = self.__get_road_info()
+
+        # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
+        self.road_info = self.sections[0]
+
+        self.geometry = self.__combine_and_trim_geoms()
 
         self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
         self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
                            if isinstance(lane_nr, int) and lane_type in self.wegmodel.MAIN_LANE_TYPES]
 
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
-        self.lanes_left = self.get_lane_dict(self.lane_nrs_left)
+        self.lanes_left = self.__get_lane_dict(self.lane_nrs_left)
         self.lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
-        self.lanes_right = self.get_lane_dict(self.lane_nrs_right)
+        self.lanes_right = self.__get_lane_dict(self.lane_nrs_right)
 
         # if self.ruimte_links and not self.lane_nrs_left: ...
 
         self.lane_nrs_right_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
-        self.lanes_right_tr2 = self.get_lane_dict(self.lane_nrs_right)
+        self.lanes_right_tr2 = self.__get_lane_dict(self.lane_nrs_right)
 
-        self.request_lanes = self.determine_request_lanes()
+        self.request_lanes = self.__determine_request_lanes()
 
-        super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes)
+        super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes, self.afzetting)
 
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
 
         self.__make_werkvak()
 
-    def get_lane_dict(self, lane_nrs: list) -> dict:
+    def __get_lane_dict(self, lane_nrs: list) -> dict:
         return {lane_nr: lane_type for lane_nr, lane_type in self.road_info.obj_eigs.items()
                 if lane_nr in lane_nrs and lane_type not in ["Puntstuk"]}
 
-    def get_road_info(self) -> ObjectInfo:
+    def __get_road_info(self) -> list:
         """Obtain surrounding geometry and road properties."""
-        road_info = self.wegmodel.get_section_info_by_bps(km=self.bereik, side=self.wegkant, hecto=self.hectoletter)
+        sections = self.wegmodel.get_section_info_by_bps(km=self.bereik, side=self.wegkant, hecto=self.hectoletter)
 
-        if not road_info:
+        if not sections:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
                             f"{self.bereik} {self.wegkant} {self.hectoletter}")
 
-        # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
-        return road_info[0]
+        return sections
 
-    def determine_request_lanes(self) -> dict:
+    def __combine_and_trim_geoms(self) -> LineString:
+        for section in self.sections:
+            measure_start = self.bereik[0]
+            measure_end = self.bereik[1]
+            section_start = section.pos_eigs.km[0]
+            section_end = section.pos_eigs.km[1]
+            distance_start_normalized = (measure_start - section_start) / (section_end - section_start)
+            distance_end_normalized = (measure_end - section_start) / (section_end - section_start)
+            point1 = line_interpolate_point(section.pos_eigs.geometrie, distance_start_normalized)
+            point2 = line_interpolate_point(section.pos_eigs.geometrie, distance_end_normalized)
+
+            return LineString([point1, point2])
+        # TODO: Combine multiple trimmed geoms if necessary
+        # return combined_trimmed_geom
+
+    def __determine_request_lanes(self) -> dict:
         if self.ruimte_links:
             return self.lanes_left
         if self.ruimte_midden:
             assert all(lane_nr in self.main_lanes for lane_nr in self.ruimte_midden), \
                 "Een aangevraagde rijstrook hoort niet bij de hoofdstroken."
-            return self.get_lane_dict(self.ruimte_midden)
+            return self.__get_lane_dict(self.ruimte_midden)
         if self.ruimte_rechts:
             return self.lanes_right
 
@@ -150,7 +184,7 @@ class Aanvraag(Oppervlak):
 
         # Initialise werkvak
         if lanes_werkvak:
-            Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
+            Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak, self.afzetting)
         else:
             logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
@@ -172,9 +206,9 @@ class Aanvraag(Oppervlak):
                 keep_left_open = True
 
             if keep_left_open:
-                return self.get_lane_dict(list(range(min(self.ruimte_midden), self.n_lanes + 1)))  # Case TR3 or LR4
+                return self.__get_lane_dict(list(range(min(self.ruimte_midden), self.n_lanes + 1)))  # Case TR3 or LR4
             else:
-                return self.get_lane_dict(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
+                return self.__get_lane_dict(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
 
         langer_dan_24h = not self.korter_dan_24h
 
