@@ -2,7 +2,7 @@ from road_model import DataFrameLader, WegModel
 from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
-from safety import Aanvraag
+from safety import *
 
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations.txt"
@@ -34,13 +34,14 @@ SvgMaker(wegmodel, MSI_RELATIONS_FILE, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisuali
 ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
 generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
 
-# # Instantieer een aanvraag (A27 Oosterhout)
+# Instantieer een aanvraag (A27 Oosterhout)
 aanvraag = Aanvraag(wegmodel,
                     km_start=13.95,
                     km_end=13.98,
                     wegkant="R",
                     korter_dan_24h=True,
                     # ruimte_links=1,
-                    ruimte_midden=[1],
-                    # ruimte_rechts=1.5,
+                    # ruimte_midden=[1],
+                    ruimte_rechts=6,
+                    afzetting=AFZETTING_BAKENS,
                     )

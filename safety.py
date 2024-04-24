@@ -8,9 +8,9 @@ WERKVAK = 201
 VEILIGHEIDSRUIMTE = 202
 WERKRUIMTE = 203
 
-BAKENS = 300
-BARRIER_LAGER_DAN_80CM = 301
-BARRIER_HOGER_DAN_80CM = 302
+AFZETTING_BAKENS = 300
+AFZETTING_BARRIER_LAGER_DAN_80CM = 301
+AFZETTING_BARRIER_HOGER_DAN_80CM = 302
 
 
 class Oppervlak:
@@ -19,9 +19,9 @@ class Oppervlak:
     __BREEDTE_BAKENS = 0.20  # Schatting
 
     __WIDTHS = {
-        BAKENS: {VEILIGHEIDSRUIMTE: __BREEDTE_BAKENS / 2, WERKRUIMTE: 0.60},
-        BARRIER_LAGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0.60},
-        BARRIER_HOGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0},
+        AFZETTING_BAKENS: {VEILIGHEIDSRUIMTE: __BREEDTE_BAKENS / 2, WERKRUIMTE: 0.60},
+        AFZETTING_BARRIER_LAGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0.60},
+        AFZETTING_BARRIER_HOGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0},
     }
 
     def __init__(self, roadside: str, km_start: float, km_end: float,
@@ -99,7 +99,7 @@ class Aanvraag(Oppervlak):
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
-                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: int = BAKENS) -> None:
+                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
         if not sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1:
             raise InterruptedError("Specificeer één eis.")
         assert not ruimte_links or (ruimte_links and ruimte_links > 0),\
