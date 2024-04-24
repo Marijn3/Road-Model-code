@@ -3,6 +3,15 @@ from utils import *
 from shapely import *
 logger = logging.getLogger(__name__)
 
+AANVRAAG = 200
+WERKVAK = 201
+VEILIGHEIDSRUIMTE = 202
+WERKRUIMTE = 203
+
+BAKENS = 300
+BARRIER_LAGER_DAN_80CM = 301
+BARRIER_HOGER_DAN_80CM = 302
+
 
 class Oppervlak:
 
@@ -10,25 +19,26 @@ class Oppervlak:
     __BREEDTE_BAKENS = 0.20  # Schatting
 
     __WIDTHS = {
-        "Bakens": {"Veiligheidsruimte": __BREEDTE_BAKENS / 2, "Werkruimte": 0.60},
-        "Barrier lager 0.8m": {"Veiligheidsruimte": __BREEDTE_BARRIER / 2, "Werkruimte": 0.60},
-        "Barrier hoger 0.8m": {"Veiligheidsruimte": __BREEDTE_BARRIER / 2, "Werkruimte": 0},
+        BAKENS: {VEILIGHEIDSRUIMTE: __BREEDTE_BAKENS / 2, WERKRUIMTE: 0.60},
+        BARRIER_LAGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0.60},
+        BARRIER_HOGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0},
     }
 
     def __init__(self, roadside: str, km_start: float, km_end: float,
-                 surf_type: str, unfiltered_lanes: dict, afzetting: str) -> None:
+                 surf_type: int, unfiltered_lanes: dict, afzetting: int) -> None:
         self.roadside = roadside
         self.km_start = km_start
         self.km_end = km_end
         self.surf_type = surf_type
         self.afzetting = afzetting
         self.lanes = {lane_nr: lane_type for lane_nr, lane_type in unfiltered_lanes.items() if isinstance(lane_nr, int)}
+
+        self.width_safety_distances = self.__WIDTHS.get(self.afzetting, None)
+        self.width_offset = self.width_safety_distances.get(self.surf_type, 0)
+
         self.width = self.get_width()
 
         self.log_surface()
-
-        self.width_safety_distances = self.__WIDTHS.get(self.afzetting, None)
-        self.width_offset = self.width_safety_distances.get(self.surf_type, None)
 
     def log_surface(self):
         logger.info(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
@@ -37,13 +47,13 @@ class Oppervlak:
     def get_width(self) -> list:
         lane_numbers = self.lanes.keys()
         min_width = min((lane - 1) * 3.5 for lane in lane_numbers)
-        max_width = max(lane * 3.5 - self.width_safety_distances[self.surf_type] for lane in lane_numbers)
+        max_width = max(lane * 3.5 - self.width_offset for lane in lane_numbers)
         return [min_width, max_width]
 
 
 class Werkvak(Oppervlak):
     def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting) -> None:
-        super().__init__(roadside, km_start, km_end, "Werkvak", lanes, afzetting)
+        super().__init__(roadside, km_start, km_end, WERKVAK, lanes, afzetting)
         self.color = "cyan"
         self.make_veiligheidsruimte(afzetting)
 
@@ -55,8 +65,8 @@ class Werkvak(Oppervlak):
 
 
 class Veiligheidsruimte(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting: str) -> None:
-        super().__init__(roadside, km_start, km_end, "Veiligheidsruimte", lanes, afzetting)
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting: int) -> None:
+        super().__init__(roadside, km_start, km_end, VEILIGHEIDSRUIMTE, lanes, afzetting)
         self.color = "yellow"
         self.make_werkruimte(afzetting)
 
@@ -69,8 +79,8 @@ class Veiligheidsruimte(Oppervlak):
         Werkruimte(self.roadside, next_upstream_km, next_downstream_km, self.lanes, afzetting)
 
 class Werkruimte(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting: str) -> None:
-        super().__init__(roadside, km_start, km_end, "Werkruimte", lanes, afzetting)
+    def __init__(self, roadside: str, km_start: float, km_end: float, lanes: dict, afzetting: int) -> None:
+        super().__init__(roadside, km_start, km_end, WERKRUIMTE, lanes, afzetting)
         self.color = "orange"
 
 
@@ -89,7 +99,7 @@ class Aanvraag(Oppervlak):
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
-                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: str = "Bakens") -> None:
+                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: int = BAKENS) -> None:
         if not sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1:
             raise InterruptedError("Specificeer één eis.")
         assert not ruimte_links or (ruimte_links and ruimte_links > 0),\
@@ -132,7 +142,7 @@ class Aanvraag(Oppervlak):
 
         self.request_lanes = self.__determine_request_lanes()
 
-        super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes, self.afzetting)
+        super().__init__(wegkant, km_start, km_end, AANVRAAG, self.request_lanes, self.afzetting)
 
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
