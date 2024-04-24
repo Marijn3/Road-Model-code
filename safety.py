@@ -86,6 +86,8 @@ class Aanvraag(Oppervlak):
 
         self.color = "brown"
 
+        super().__init__(self)
+
         self.sections = self.wegmodel.get_section_info_by_bps(km=self.bereik, side=self.wegkant, hecto=self.hectoletter)
         if not self.sections:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
@@ -95,20 +97,6 @@ class Aanvraag(Oppervlak):
 
         # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
         self.road_info = self.sections[0]
-        self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
-                                      if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
-        self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int)
-                           and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
-
-        self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
-        self.lanes_left = self.__get_lane_dict(self.lane_nrs_left)
-        self.lane_nrs_right = self.all_lanes[self.all_lanes.index(self.main_lanes[-1])+1:]
-        self.lanes_right = self.__get_lane_dict(self.lane_nrs_right)
-
-        self.lane_nrs_right_for_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
-        self.lanes_right_for_tr2 = self.__get_lane_dict(self.lane_nrs_right)
-
-        super().__init__(self)
 
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
@@ -140,11 +128,24 @@ class Aanvraag(Oppervlak):
 
         # Initialise werkvak
         if lanes_werkvak:
-            Werkvak(self.wegkant, self.bereik, self.afzetting, lanes_werkvak)
+            Werkvak(self)
         else:
             logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
     def __get_lanes_werkvak(self, road_info: ObjectInfo) -> dict:
+        all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
+                                      if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
+        main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int)
+                           and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
+
+        lane_nrs_left = all_lanes[:all_lanes.index(main_lanes[0])]
+        lanes_left = self.__get_lane_dict(lane_nrs_left)
+        lane_nrs_right = all_lanes[all_lanes.index(main_lanes[-1])+1:]
+        lanes_right = self.__get_lane_dict(lane_nrs_right)
+
+        lane_nrs_right_for_tr2 = all_lanes[all_lanes.index(main_lanes[-1]):]
+        lanes_right_for_tr2 = self.__get_lane_dict(lane_nrs_right_for_tr2)
+
         if self.stroken:
             keep_left_open = True  # If False: keep right side open.
 
@@ -166,6 +167,7 @@ class Aanvraag(Oppervlak):
             else:
                 return self.__get_lane_dict(list(range(1, max(self.stroken) + 1)))  # Case TL2 or LL3
 
+
         langer_dan_24h = not self.korter_dan_24h
 
         condition_tl1 = self.korter_dan_24h and self.ruimte_links and self.ruimte_links <= 3.50
@@ -181,25 +183,25 @@ class Aanvraag(Oppervlak):
         condition_lr3 = langer_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
 
         if condition_tl1:
-            return self.lanes_left
+            return lanes_left
 
         elif condition_tr1:
-            return self.lanes_right
+            return lanes_right
 
         elif condition_tr2:
-            return self.lanes_right_for_tr2
+            return lanes_right_for_tr2
 
         elif condition_ll1:
-            return self.lanes_left
+            return lanes_left
 
         elif condition_ll2:
-            return self.lanes_left  # And lane narrowing
+            return lanes_left  # And lane narrowing
 
         elif condition_lr2:
-            return self.lanes_right
+            return lanes_right
 
         elif condition_lr3:
-            return self.lanes_right  # And lane narrowing
+            return lanes_right  # And lane narrowing
 
         else:
             return {}
