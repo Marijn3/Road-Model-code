@@ -24,24 +24,43 @@ class Oppervlak:
         AFZETTING_BARRIER_HOGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0},
     }
 
-    def __init__(self, roadside: str, km_start: float, km_end: float,
-                 surf_type: int, afzetting: int, left_edge, right_edge) -> None:
-        self.roadside = roadside
-        self.km_start = km_start
-        self.km_end = km_end
+    __SURFACE_NAMES = {
+        AANVRAAG: "Aanvraag",
+        WERKVAK: "Werkvak",
+        VEILIGHEIDSRUIMTE: "Veiligheidsruimte",
+        WERKRUIMTE: "Werkruimte",
+    }
+
+    def __init__(self, surf_type: int,
+                 roadside: str, hectoletter: str, km_range: list,
+                 left_edge: tuple, right_edge: tuple,
+                 afzetting: int) -> None:
+
         self.surf_type = surf_type
+
+        self.roadside = roadside
+        self.hectoletter = hectoletter
+        self.km_range = km_range
+
+        self.left_edge = left_edge
+        self.right_edge = right_edge
         self.afzetting = afzetting
 
         self.width_offset = self.__WIDTH_OFFSET.get(self.afzetting, None).get(self.surf_type, 0)
-
-        self.width = self.get_width()
+        self.width = self.__get_width()
 
         self.log_surface()
 
     def log_surface(self):
-        logger.info(f"Oppervlak '{self.surf_type}' gemaakt aan kant {self.roadside}, "
-                    f"van {self.km_start} tot {self.km_end}, met stroken {self.lanes} en breedte {self.width}.")
+        logger.info(f"Oppervlak '{self.__SURFACE_NAMES.get(self.surf_type, 'ONBEKEND')}' gemaakt "
+                    f"aan kant {self.roadside}, "
+                    f"van {self.km_range[0]} tot {self.km_range[1]}, "
+                    f"met breedte {self.width}.")
 
+    def __get_width(self) -> list:
+        left_edge_meter = (self.left_edge[0] - 1) * 3.5 + self.left_edge[1]
+        right_edge_meter = (self.right_edge[0]) * 3.5 + self.right_edge[1]
+        return [left_edge_meter, right_edge_meter]
 
 class Werkvak(Oppervlak):
     def __init__(self, roadside: str, km_start: float, km_end: float, afzetting: int, left_edge, right_edge) -> None:
@@ -154,7 +173,10 @@ class Aanvraag(Oppervlak):
         self.lane_nrs_right_for_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
         self.lanes_right_for_tr2 = self.__get_lane_dict(self.lane_nrs_right)
 
-        super().__init__(wegkant, km_start, km_end, AANVRAAG, self.afzetting, self.left_edge, self.right_edge)
+        super().__init__(AANVRAAG,
+                         self.wegkant, self.hectoletter, self.bereik,
+                         self.left_edge, self.right_edge,
+                         self.afzetting)
 
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
@@ -186,7 +208,7 @@ class Aanvraag(Oppervlak):
 
         # Initialise werkvak
         if lanes_werkvak:
-            Werkvak(self.roadside, self.km_start, self.km_end, self.afzetting, lanes_werkvak)
+            Werkvak(self.roadside, self.km_range, self.afzetting, lanes_werkvak)
         else:
             logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
