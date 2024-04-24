@@ -62,6 +62,17 @@ class Werkruimte(Oppervlak):
 
 
 class Aanvraag(Oppervlak):
+
+    # Source: WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat
+    __SPHERE_OF_INFLUENCE = {
+        130: 13,  # maximum velocity in km/h -> sphere of influence in m
+        120: 13,
+        100: 10,
+        90: 10,
+        80: 6,
+        70: 6,
+        50: 4.5
+    }
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
                  max_v: int = 70, korter_dan_24h: bool = True, afzetting: str = "Bakens") -> None:
@@ -105,7 +116,7 @@ class Aanvraag(Oppervlak):
         super().__init__(wegkant, km_start, km_end, "Aanvraag", self.request_lanes)
 
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
-        self.sphere_of_influence = 8.00  # Alpha: invloedssfeer van de weg TODO: Make dependent on road.
+        self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
 
         self.__make_werkvak()
 
@@ -142,7 +153,7 @@ class Aanvraag(Oppervlak):
         if lanes_werkvak:
             Werkvak(self.roadside, self.km_start, self.km_end, lanes_werkvak)
         else:
-            logger.info(f"Geen afzettingen nodig voor deze aanvraag.")
+            logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
     def __get_lanes_werkvak(self, road_info: ObjectInfo) -> dict:
         if self.ruimte_midden:
