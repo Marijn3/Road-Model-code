@@ -31,69 +31,24 @@ class Oppervlak:
         WERKRUIMTE: "Werkruimte",
     }
 
-    def __init__(self, surf_type: int,
-                 roadside: str, hectoletter: str, km_range: list,
-                 left_edge: tuple, right_edge: tuple,
-                 afzetting: int) -> None:
+    def __init__(self, parent) -> None:
+        self.parent = parent
 
-        self.surf_type = surf_type
-
-        self.roadside = roadside
-        self.hectoletter = hectoletter
-        self.km_range = km_range
-
-        self.left_edge = left_edge
-        self.right_edge = right_edge
-        self.afzetting = afzetting
-
-        self.width_offset = self.__WIDTH_OFFSET.get(self.afzetting, None).get(self.surf_type, 0)
+        self.width_offset = self.__WIDTH_OFFSET.get(self.parent.afzetting, None).get(self.parent.surf_type, 0)
         self.width = self.__get_width()
 
         self.log_surface()
 
-    def log_surface(self):
-        logger.info(f"Oppervlak '{self.__SURFACE_NAMES.get(self.surf_type, 'ONBEKEND')}' gemaakt "
-                    f"aan kant {self.roadside}, "
-                    f"van {self.km_range[0]} tot {self.km_range[1]}, "
-                    f"met breedte {self.width}.")
-
     def __get_width(self) -> list:
-        left_edge_meter = (self.left_edge[0] - 1) * 3.5 + self.left_edge[1]
-        right_edge_meter = (self.right_edge[0]) * 3.5 + self.right_edge[1]
+        left_edge_meter = (self.parent.edge_left[0] - 1) * 3.5 + self.parent.edge_left[1]
+        right_edge_meter = (self.parent.edge_right[0]) * 3.5 + self.parent.edge_right[1]
         return [left_edge_meter, right_edge_meter]
 
-class Werkvak(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, afzetting: int, left_edge, right_edge) -> None:
-        super().__init__(roadside, km_start, km_end, WERKVAK, afzetting, left_edge, right_edge)
-        self.color = "cyan"
-        self.make_veiligheidsruimte(afzetting, left_edge, right_edge)
-
-    def make_veiligheidsruimte(self, afzetting, left_edge, right_edge):
-        if self.km_start < self.km_end:
-            Veiligheidsruimte(self.roadside, self.km_start-0.1, self.km_end+0.1, afzetting, left_edge, right_edge)
-        else:
-            Veiligheidsruimte(self.roadside, self.km_start+0.1, self.km_end-0.1, afzetting, left_edge, right_edge)
-
-
-class Veiligheidsruimte(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, afzetting: int, lanes: dict) -> None:
-        super().__init__(roadside, km_start, km_end, VEILIGHEIDSRUIMTE, afzetting, lanes)
-        self.color = "yellow"
-        self.make_werkruimte(afzetting)
-
-    def make_werkruimte(self, afzetting, left_edge, right_edge):
-        # Find next upstream row compared to self.km_start
-        next_upstream_km = 13.5
-        # Find next downstream row compared to self.km_end
-        next_downstream_km = 14.7
-
-        Werkruimte(self.roadside, next_upstream_km, next_downstream_km, afzetting, left_edge, right_edge)
-
-
-class Werkruimte(Oppervlak):
-    def __init__(self, roadside: str, km_start: float, km_end: float, afzetting: int, lanes: dict) -> None:
-        super().__init__(roadside, km_start, km_end, WERKRUIMTE, afzetting, lanes)
-        self.color = "orange"
+    def log_surface(self):
+        logger.info(f"Oppervlak '{self.__SURFACE_NAMES.get(self.parent.surf_type, 'ONBEKEND')}' gemaakt "
+                    f"aan kant {self.parent.wegkant}, "
+                    f"van {self.parent.bereik[0]} tot {self.parent.bereik[1]}, "
+                    f"met breedte {self.parent.width}.")
 
 
 class Aanvraag(Oppervlak):
@@ -110,46 +65,26 @@ class Aanvraag(Oppervlak):
     }
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
-                 ruimte_over_links: float = None, stroken: list = None, ruimte_over_rechts: float = None,
-                 max_v: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
+                 rand_links: tuple = None, rand_rechts: tuple = None,
+                 maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
 
-        if not sum(1 for v in [ruimte_over_links, stroken, ruimte_over_rechts] if v is not None) > 0:
-            raise InterruptedError("Specificeer minstens één eis.")
+        assert rand_links or rand_rechts, "Specificeer minstens één eis."
 
-        if ruimte_over_links is None:
-            ruimte_over_links = +1.0  # Estimated basic value (right is positive, left is negative)
-        if ruimte_over_rechts is None:
-            ruimte_over_rechts = -1.0  # Estimated basic value (right is positive, left is negative)
-        if stroken is None:
-            stroken = []
+        self.surf_type = AANVRAAG
 
         self.wegmodel = wegmodel
         self.wegkant = wegkant
         self.bereik = [km_start, km_end]
         self.hectoletter = hectoletter
 
-        self.ruimte_links = ruimte_over_links
-        self.stroken = stroken
-        self.ruimte_rechts = ruimte_over_rechts
+        self.edge_left = rand_links
+        self.edge_right = rand_rechts
 
-        self.max_v = max_v
+        self.max_v = maximumsnelheid
         self.korter_dan_24h = korter_dan_24h
         self.afzetting = afzetting
 
         self.color = "brown"
-
-        if stroken:
-            # Make a surface
-            self.left_edge = (min(stroken), ruimte_over_links)
-            self.right_edge = (max(stroken), ruimte_over_rechts)
-        elif ruimte_over_links and not stroken:
-            # Make a line
-            self.left_edge = ([], ruimte_over_links)
-            self.right_edge = ([], ruimte_over_links)
-        elif ruimte_over_rechts and not stroken:
-            # Make a line
-            self.left_edge = ([], ruimte_over_rechts)
-            self.right_edge = ([], ruimte_over_rechts)
 
         self.sections = self.wegmodel.get_section_info_by_bps(km=self.bereik, side=self.wegkant, hecto=self.hectoletter)
         if not self.sections:
@@ -173,10 +108,7 @@ class Aanvraag(Oppervlak):
         self.lane_nrs_right_for_tr2 = self.all_lanes[self.all_lanes.index(self.main_lanes[-1]):]
         self.lanes_right_for_tr2 = self.__get_lane_dict(self.lane_nrs_right)
 
-        super().__init__(AANVRAAG,
-                         self.wegkant, self.hectoletter, self.bereik,
-                         self.left_edge, self.right_edge,
-                         self.afzetting)
+        super().__init__(self)
 
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
@@ -208,7 +140,7 @@ class Aanvraag(Oppervlak):
 
         # Initialise werkvak
         if lanes_werkvak:
-            Werkvak(self.roadside, self.km_range, self.afzetting, lanes_werkvak)
+            Werkvak(self.wegkant, self.bereik, self.afzetting, lanes_werkvak)
         else:
             logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
@@ -271,3 +203,49 @@ class Aanvraag(Oppervlak):
 
         else:
             return {}
+
+
+class Werkvak(Oppervlak):
+    def __init__(self, aanvraag: Aanvraag) -> None:
+        self.aanvraag = aanvraag
+        self.surf_type = WERKVAK
+        self.color = "cyan"
+        
+        super().__init__(self)
+        
+        self.make_veiligheidsruimte()
+
+    def make_veiligheidsruimte(self):
+        # if self.bereik[0] < self.bereik[1]:
+        #
+        # else:
+        Veiligheidsruimte(self.aanvraag)
+
+
+class Veiligheidsruimte(Oppervlak):
+    def __init__(self, aanvraag: Aanvraag) -> None:
+        self.aanvraag = aanvraag
+        self.surf_type = VEILIGHEIDSRUIMTE
+        self.color = "yellow"
+        
+        super().__init__(self)
+        
+        self.make_werkruimte()
+
+    def make_werkruimte(self):
+        # Find next upstream row compared to self.km_start
+        next_upstream_km = 13.5
+        # Find next downstream row compared to self.km_end
+        next_downstream_km = 14.7
+
+        Werkruimte(self.aanvraag)
+
+
+class Werkruimte(Oppervlak):
+    def __init__(self, aanvraag: Aanvraag) -> None:
+        self.aanvraag = aanvraag
+        self.surf_type = AANVRAAG
+        self.color = "orange"
+
+        super().__init__(self)
+
