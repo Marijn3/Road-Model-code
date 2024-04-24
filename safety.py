@@ -18,7 +18,7 @@ class Oppervlak:
     __BREEDTE_BARRIER = 0.40  # Schatting
     __BREEDTE_BAKENS = 0.20  # Schatting
 
-    __WIDTHS = {
+    __WIDTH_OFFSET = {
         AFZETTING_BAKENS: {VEILIGHEIDSRUIMTE: __BREEDTE_BAKENS / 2, WERKRUIMTE: 0.60},
         AFZETTING_BARRIER_LAGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0.60},
         AFZETTING_BARRIER_HOGER_DAN_80CM: {VEILIGHEIDSRUIMTE: __BREEDTE_BARRIER / 2, WERKRUIMTE: 0},
@@ -33,8 +33,7 @@ class Oppervlak:
         self.afzetting = afzetting
         self.lanes = {lane_nr: lane_type for lane_nr, lane_type in unfiltered_lanes.items() if isinstance(lane_nr, int)}
 
-        self.width_safety_distances = self.__WIDTHS.get(self.afzetting, None)
-        self.width_offset = self.width_safety_distances.get(self.surf_type, 0)
+        self.width_offset = self.__WIDTH_OFFSET.get(self.afzetting, None).get(self.surf_type, 0)
 
         self.width = self.get_width()
 
@@ -98,10 +97,13 @@ class Aanvraag(Oppervlak):
     }
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
-                 ruimte_links: float = None, ruimte_midden: list = None, ruimte_rechts: float = None,
+                 ruimte_links: float = +1.0, stroken: list = None, ruimte_rechts: float = -1.0,
                  max_v: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
-        if not sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1:
-            raise InterruptedError("Specificeer één eis.")
+        if stroken is None:
+            stroken = []
+
+        # if not sum(1 for v in [ruimte_links, ruimte_midden, ruimte_rechts] if v is not None) == 1:
+        #     raise InterruptedError("Specificeer één eis.")
         assert not ruimte_links or (ruimte_links and ruimte_links > 0),\
             "Onjuiste aanvraag. Definieer positieve afstanden."
         assert not ruimte_rechts or (ruimte_rechts and ruimte_rechts > 0),\
@@ -110,7 +112,7 @@ class Aanvraag(Oppervlak):
         self.wegmodel = wegmodel
         self.hectoletter = hectoletter
         self.ruimte_links = ruimte_links
-        self.ruimte_midden = ruimte_midden
+        self.stroken = stroken
         self.ruimte_rechts = ruimte_rechts
         self.max_v = max_v
         self.korter_dan_24h = korter_dan_24h
@@ -128,7 +130,7 @@ class Aanvraag(Oppervlak):
 
         self.all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
         self.main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
-                           if isinstance(lane_nr, int) and lane_type in self.wegmodel.MAIN_LANE_TYPES]
+                           if isinstance(lane_nr, int) and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging"]]
 
         self.lane_nrs_left = self.all_lanes[:self.all_lanes.index(self.main_lanes[0])]
         self.lanes_left = self.__get_lane_dict(self.lane_nrs_left)
@@ -181,10 +183,10 @@ class Aanvraag(Oppervlak):
     def __determine_request_lanes(self) -> dict:
         if self.ruimte_links:
             return self.lanes_left
-        if self.ruimte_midden:
-            assert all(lane_nr in self.main_lanes for lane_nr in self.ruimte_midden), \
+        if self.stroken:
+            assert all(lane_nr in self.main_lanes for lane_nr in self.stroken), \
                 "Een aangevraagde rijstrook hoort niet bij de hoofdstroken."
-            return self.__get_lane_dict(self.ruimte_midden)
+            return self.__get_lane_dict(self.stroken)
         if self.ruimte_rechts:
             return self.lanes_right
 
@@ -199,11 +201,11 @@ class Aanvraag(Oppervlak):
             logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
     def __get_lanes_werkvak(self, road_info: ObjectInfo) -> dict:
-        if self.ruimte_midden:
+        if self.stroken:
             keep_left_open = True  # If False: keep right side open.
 
-            n_main_lanes_left = min(self.ruimte_midden) - 1
-            n_main_lanes_right = self.n_lanes - max(self.ruimte_midden)
+            n_main_lanes_left = min(self.stroken) - 1
+            n_main_lanes_right = self.n_lanes - max(self.stroken)
             if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
             elif n_main_lanes_left == n_main_lanes_right:
@@ -216,9 +218,9 @@ class Aanvraag(Oppervlak):
                 keep_left_open = True
 
             if keep_left_open:
-                return self.__get_lane_dict(list(range(min(self.ruimte_midden), self.n_lanes + 1)))  # Case TR3 or LR4
+                return self.__get_lane_dict(list(range(min(self.stroken), self.n_lanes + 1)))  # Case TR3 or LR4
             else:
-                return self.__get_lane_dict(list(range(1, max(self.ruimte_midden) + 1)))  # Case TL2 or LL3
+                return self.__get_lane_dict(list(range(1, max(self.stroken) + 1)))  # Case TL2 or LL3
 
         langer_dan_24h = not self.korter_dan_24h
 
