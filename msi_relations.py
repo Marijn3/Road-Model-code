@@ -296,7 +296,8 @@ class MSINetwerk:
             else:  # Upstream
                 location = Point(current_section.pos_eigs.geometrie.coords[0])  # Use start of geometry
 
-            other_point = [point for point in other_points_on_section if dwithin(point.pos_eigs.geometrie, location, 0.2)][0]
+            other_point = [point for point in other_points_on_section
+                           if dwithin(point.pos_eigs.geometrie, location, 0.2)][0]
 
         downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
         upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
@@ -360,17 +361,18 @@ class MSINetwerk:
                                   current_pos_eigs: PositieEigenschappen, downstream: bool) -> tuple[list, list]:
         # Only takes points that are upstream/downstream of current point.
         line_geom = current_section.pos_eigs.geometrie
-        current_location_on_geometry = round(line_locate_point(line_geom, current_pos_eigs.geometrie, normalized=True), 3)
+        current_pos_on_geometry = round(line_locate_point(line_geom, current_pos_eigs.geometrie, normalized=True), 3)
+
         if downstream:
             other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                        current_section_id in point_info.verw_eigs.sectie_ids
                                        and round(line_locate_point(line_geom, point_info.pos_eigs.geometrie,
-                                                                   normalized=True), 3) > current_location_on_geometry]
+                                                                   normalized=True), 3) > current_pos_on_geometry]
         else:  # Upstream
             other_points_on_section = [point_info for point_info in self.wegmodel.get_points_info() if
                                        current_section_id in point_info.verw_eigs.sectie_ids
                                        and round(line_locate_point(line_geom, point_info.pos_eigs.geometrie,
-                                                                   normalized=True), 3) < current_location_on_geometry]
+                                                                   normalized=True), 3) < current_pos_on_geometry]
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if
@@ -396,11 +398,12 @@ class MSINetwerk:
         Returns:
             Adjusted shift and annotation.
         """
-        new_annotation = self.__get_annotation(current_section_verw_eigs, is_first_iteration, is_last_iteration)
+        new_annotation = self.__get_annotation(current_section_verw_eigs, shift, is_first_iteration, is_last_iteration)
 
         if not new_annotation:
             return shift, annotation
 
+        # Adjust shift in case of (dis)appearing lane
         if (downstream and "ExtraRijstrook" in new_annotation.values()
                 or not downstream and "Rijstrookbeeindiging" in new_annotation.values()):
             shift = shift + 1
@@ -412,7 +415,7 @@ class MSINetwerk:
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
 
     @staticmethod
-    def __get_annotation(section_verw_eigs: LijnVerwerkingsEigenschappen,
+    def __get_annotation(section_verw_eigs: LijnVerwerkingsEigenschappen, shift: int,
                          start_skip: bool = False, end_skip: bool = False) -> dict:
         """
         Determines the annotation to be added to the current recursive
@@ -425,23 +428,24 @@ class MSINetwerk:
             Dict indicating the lane number and the annotation - the type of special case encountered.
         """
         annotation = {}
+        logger.debug(shift)
 
         if not start_skip:
             if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
-                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                    section_verw_eigs.start_kenmerk.items() if lane_type == "Uitrijstrook"})
 
             if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
-                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                    section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
 
             if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
-                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                    section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
 
         if not end_skip:
             if "Invoegstrook" in section_verw_eigs.einde_kenmerk.values():
-                annotation.update({lane_nr: lane_type for lane_nr, lane_type in
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                    section_verw_eigs.einde_kenmerk.items() if lane_type == "Invoegstrook"})
 
             if "Special" in section_verw_eigs.einde_kenmerk.keys():
@@ -637,15 +641,13 @@ class MSI:
                 # Broadening relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Broadening case between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
-                    # self.properties["db"] = d_row.MSIs[this_lane_projected - 1].name
-                    # d_row.MSIs[this_lane_projected - 1].properties["ub"] = self.name
+                    logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
 
                 # Narrowing relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Narrowing case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                    logger.debug(f"Versmallingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     # self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
                     # d_row.MSIs[this_lane_projected + 1].properties["un"] = self.name
                     self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "n")
@@ -653,39 +655,32 @@ class MSI:
                 # Secondary
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Invoegstrook case (registration end before shift) between "
-                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
-                    self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
-
-                if (this_lane_projected in lane_numbers and annotation[this_lane_projected] == "Invoegstrook"
-                        and this_lane_projected - 1 in d_row.MSIs.keys() and
-                        this_lane_projected - 1 == max([key for key in d_row.MSIs.keys() if isinstance(key, int)])):
-                    logger.debug(f"Invoegstrook case (registration end after shift) between "
-                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                    logger.debug(f"Invoegstrook tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
 
                 if (self.lane_nr + 1 in lane_numbers and annotation[self.lane_nr + 1] == "Uitrijstrook"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Uitrijstrook case between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                    logger.debug(f"Uitrijstrook tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
                 if ("Samenvoeging" in lane_types or "Weefstrook" in lane_types) and True:
                     # Relation from weave/merge lane to normal lane
-                    if (this_lane_projected in lane_numbers
-                            and annotation[this_lane_projected] in ["Samenvoeging", "Weefstrook"]):
+                    if self.lane_nr in lane_numbers and annotation[self.lane_nr] in ["Samenvoeging", "Weefstrook"]:
                         if this_lane_projected - 1 in d_row.local_road_properties.keys():
-                            if d_row.local_road_properties[this_lane_projected - 1] != annotation[this_lane_projected]:
+                            if d_row.local_road_properties[this_lane_projected - 1] != annotation[self.lane_nr]:
                                 if this_lane_projected - 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Cross case 1 between {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                                    logger.debug(f"Kruisrelatie tussen "
+                                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weave/merge lane
-                    if (this_lane_projected + 1 in lane_numbers
-                            and annotation[this_lane_projected + 1] in ["Samenvoeging", "Weefstrook"]):
-                        if this_lane_projected + 1 in d_row.local_road_properties.keys():
-                            if d_row.local_road_properties[this_lane_projected] != annotation[this_lane_projected + 1]:
+                    if (self.lane_nr + 1 in lane_numbers
+                            and annotation[self.lane_nr + 1] in ["Samenvoeging", "Weefstrook"]):
+                        if self.lane_nr + 1 in d_row.local_road_properties.keys():
+                            if d_row.local_road_properties[self.lane_nr] != annotation[self.lane_nr + 1]:
                                 if this_lane_projected + 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Cross case 2 between {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                                    logger.debug(f"Kruisrelatie tussen "
+                                                 f"{self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
     def ensure_upstream_relation(self):
