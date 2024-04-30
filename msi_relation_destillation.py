@@ -33,36 +33,36 @@ def determine_relation_type(relation_line: str) -> str | None:
 
 with open(CGGTOP_FOLDER, "r") as cggtop_file:
     row_name = ""
+    relation_type = None
     for original_line in cggtop_file.readlines():
         line = original_line.strip()
 
-        if line == "!SECTION DESCRIPTION CLOSED":
-            # Do things to finish this section
-            # print("Ending this section.")
+        # Catch section start by specific header line.
+        if not line == "!SECTION DESCRIPTION CLOSED" and line.startswith("!SECTION DESCRIPTION "):
+            # Determine the roadnumber for this section.
+            roadnumber = line.replace("!SECTION DESCRIPTION ", "").strip()
+            continue
 
-        elif line.startswith("!SECTION DESCRIPTION"):
-            # Determine the roadnumber for this section
-            roadnumber = line.strip("!SECTION DESCRIPTION ").rstrip()
-            # print(f"Starting this section: {roadnumber}")
-
-        if original_line[0:2] == " !":  # This indentation indicates a new onderstation
+        # Catch onderstation start by indentation.
+        if original_line[0:2] == " !":
             km_text = line.split(sep=" ")[0][1:]
             km = float(km_text.replace(",", "."))
             # roadnumber = onderstation_data[3]
             row_name = f"{roadnumber}:{km:.3f}"
             print(f"This is row {row_name}")
+            continue
 
         if line.startswith("!DETSTN=") or line.startswith("!VLUCHTSTROOK"):
             # We're done with this onderstation. No more relations are given in the file.
             row_name = None
 
         if row_name:
-            relation_type = determine_relation_type(line)
+            if original_line.startswith("   !"):
+                relation_type = determine_relation_type(line)
             if relation_type:
                 print(f"I have primary {relation_type} relations with:")
 
                 msi_network.append(f"{row_name}:NR_HERE {relation_type} OTHER_MSI_HERE")
-
 
 
 print(msi_network)
