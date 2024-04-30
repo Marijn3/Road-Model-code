@@ -15,9 +15,7 @@ with open(CGGTOP_FOLDER, "r") as cggtop_file:
             onderstation_data = line.strip().split(sep=" ")
             km_text = onderstation_data[0][1:]
             km = float(km_text.replace(",", "."))
-            roadnumber = onderstation_data[3]
-            print(roadnumber, ":", km)
-
-
+            # roadnumber = onderstation_data[3]
+            print(f"{roadnumber}:{km:.3f}")
 
 
