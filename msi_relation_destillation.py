@@ -76,3 +76,6 @@ with open(CGGTOP_FOLDER, "r") as cggtop_file:
                 msi_nr, other_msi_name = get_msis_from_line(line)
                 msi_network.append(f"{row_name}:{msi_nr} {relation_type} {other_msi_name}")
 
+with open(MSI_RELATIONS_OUTPUT, "w") as outfile:
+    for entry in msi_network:
+        outfile.write(f"{entry}\n")
