@@ -31,6 +31,19 @@ def determine_relation_type(relation_line: str) -> str | None:
         return None
 
 
+def get_msis_from_line(msi_line: str) -> tuple[str, str]:
+    msi_line = msi_line.strip().replace("/", "")
+
+    if "=" in msi_line:
+        msi_line = msi_line.split("=")[1]
+
+    msi_nr_part = msi_line[0]
+    msi_name_part = msi_line[2:]
+
+    msi_name_part = msi_name_part.replace(",", ".")
+    return msi_nr_part, msi_name_part
+
+
 with open(CGGTOP_FOLDER, "r") as cggtop_file:
     row_name = ""
     relation_type = None
@@ -49,7 +62,7 @@ with open(CGGTOP_FOLDER, "r") as cggtop_file:
             km = float(km_text.replace(",", "."))
             # roadnumber = onderstation_data[3]
             row_name = f"{roadnumber}:{km:.3f}"
-            print(f"This is row {row_name}")
+            # print(f"This is row {row_name}")
             continue
 
         if line.startswith("!DETSTN=") or line.startswith("!VLUCHTSTROOK"):
@@ -60,9 +73,6 @@ with open(CGGTOP_FOLDER, "r") as cggtop_file:
             if original_line.startswith("   !"):
                 relation_type = determine_relation_type(line)
             if relation_type:
-                print(f"I have primary {relation_type} relations with:")
+                msi_nr, other_msi_name = get_msis_from_line(line)
+                msi_network.append(f"{row_name}:{msi_nr} {relation_type} {other_msi_name}")
 
-                msi_network.append(f"{row_name}:NR_HERE {relation_type} OTHER_MSI_HERE")
-
-
-print(msi_network)
