@@ -15,8 +15,8 @@ AFZETTING_BARRIER_HOGER_DAN_80CM = 302
 
 class Oppervlak:
 
-    __BREEDTE_BARRIER = 0.40  # Schatting
-    __BREEDTE_BAKENS = 0.20  # Schatting
+    __BREEDTE_BARRIER = 0.50  # Schatting
+    __BREEDTE_BAKENS = 0.30  # Schatting
 
     __WIDTH_OFFSET = {
         AFZETTING_BAKENS: {VEILIGHEIDSRUIMTE: __BREEDTE_BAKENS / 2, WERKRUIMTE: 0.60},
@@ -34,26 +34,31 @@ class Oppervlak:
     def __init__(self, parent) -> None:
         self.parent = parent
 
-        self.width_offset = self.__WIDTH_OFFSET.get(self.parent.afzetting, None).get(self.parent.surf_type, 0)
+        if self.parent.request:
+            self.request = self.parent.request
+        else:
+            self.request = self.parent
+
+        self.width_offset = self.__WIDTH_OFFSET.get(self.request.demarcation, None).get(self.parent.surf_type, 0)
         self.width = self.__get_width()
 
         self.log_surface()
 
     def __get_width(self) -> list:
-        left_edge_meter = (self.parent.edge_left[0] - 1) * 3.5 + self.parent.edge_left[1]
-        right_edge_meter = (self.parent.edge_right[0]) * 3.5 + self.parent.edge_right[1]
+        left_edge_meter = (self.request.edge_left[0] - 1) * 3.5 + self.request.edge_left[1]
+        right_edge_meter = (self.request.edge_right[0]) * 3.5 + self.request.edge_right[1]
         return [left_edge_meter, right_edge_meter]
 
     def log_surface(self):
         logger.info(f"Oppervlak '{self.__SURFACE_NAMES.get(self.parent.surf_type, 'ONBEKEND')}' gemaakt "
-                    f"aan kant {self.parent.wegkant}, "
-                    f"van {self.parent.bereik[0]} tot {self.parent.bereik[1]}, "
-                    f"met breedte {self.parent.width}.")
+                    f"aan kant {self.request.roadside}, "
+                    f"van {self.request.km[0]} tot {self.request.km[1]}, "
+                    f"met breedte {self.request.width}.")
 
 
 class Aanvraag(Oppervlak):
 
-    # Source: WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat
+    # Source: "WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat"
     __SPHERE_OF_INFLUENCE = {
         130: 13,  # maximum velocity in km/h -> sphere of influence in m
         120: 13,
@@ -70,28 +75,28 @@ class Aanvraag(Oppervlak):
 
         assert rand_links or rand_rechts, "Specificeer minstens één eis."
 
+        self.request = None
         self.surf_type = AANVRAAG
+        self.color = "brown"
 
-        self.wegmodel = wegmodel
-        self.wegkant = wegkant
-        self.bereik = [km_start, km_end]
+        self.roadmodel = wegmodel
+        self.roadside = wegkant
+        self.km = [km_start, km_end]
         self.hectoletter = hectoletter
 
         self.edge_left = rand_links
         self.edge_right = rand_rechts
 
         self.max_v = maximumsnelheid
-        self.korter_dan_24h = korter_dan_24h
-        self.afzetting = afzetting
-
-        self.color = "brown"
+        self.under_24h = korter_dan_24h
+        self.demarcation = afzetting
 
         super().__init__(self)
 
-        self.sections = self.wegmodel.get_section_info_by_bps(km=self.bereik, side=self.wegkant, hecto=self.hectoletter)
+        self.sections = self.roadmodel.get_section_info_by_bps(km=self.km, side=self.roadside, hecto=self.hectoletter)
         if not self.sections:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
-                            f"{self.bereik} {self.wegkant} {self.hectoletter}")
+                            f"{self.km} {self.roadside} {self.hectoletter}")
 
         self.geometry = self.__combine_and_trim_geoms()
 
@@ -101,6 +106,10 @@ class Aanvraag(Oppervlak):
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
 
+        if not self.sphere_of_influence:
+            logger.warning(f"Sphere of influence not defined for following speed: "
+                           f"{self.road_info.obj_eigs['Maximumsnelheid']}")
+
         self.__make_werkvak()
 
     def __get_lane_dict(self, lane_nrs: list) -> dict:
@@ -109,8 +118,8 @@ class Aanvraag(Oppervlak):
 
     def __combine_and_trim_geoms(self) -> LineString:
         for section in self.sections:
-            measure_start = self.bereik[0]
-            measure_end = self.bereik[1]
+            measure_start = self.km[0]
+            measure_end = self.km[1]
             section_start = section.pos_eigs.km[0]
             section_end = section.pos_eigs.km[1]
             distance_start_normalized = (measure_start - section_start) / (section_end - section_start)
@@ -128,59 +137,64 @@ class Aanvraag(Oppervlak):
 
         # Initialise werkvak
         if lanes_werkvak:
-            Werkvak(self)
+            Werkvak(self, lanes_werkvak)
         else:
             logger.info(f"Voor deze werkzaamheden worden geen tijdelijke verkeersmaatregelen voorgeschreven.")
 
     def __get_lanes_werkvak(self, road_info: ObjectInfo) -> dict:
-        all_lanes = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
-                                      if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
-        main_lanes = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int)
-                           and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
+        all_lane_nrs = list(sorted([lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items()
+                                    if isinstance(lane_nr, int) and lane_type not in "Puntstuk"]))
+        main_lane_nrs = [lane_nr for lane_nr, lane_type in self.road_info.obj_eigs.items() if isinstance(lane_nr, int)
+                         and lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
 
-        lane_nrs_left = all_lanes[:all_lanes.index(main_lanes[0])]
-        lanes_left = self.__get_lane_dict(lane_nrs_left)
-        lane_nrs_right = all_lanes[all_lanes.index(main_lanes[-1])+1:]
-        lanes_right = self.__get_lane_dict(lane_nrs_right)
+        lane_nrs_left = all_lane_nrs[:all_lane_nrs.index(main_lane_nrs[0])]
+        lane_nrs_right = all_lane_nrs[all_lane_nrs.index(main_lane_nrs[-1])+1:]
 
-        lane_nrs_right_for_tr2 = all_lanes[all_lanes.index(main_lanes[-1]):]
-        lanes_right_for_tr2 = self.__get_lane_dict(lane_nrs_right_for_tr2)
+        left_request_lane_nr = self.edge_left[0]
+        right_request_lane_nr = self.edge_right[0]
 
-        if self.stroken:
+        # Request is defined on two sides
+        if left_request_lane_nr and right_request_lane_nr:
             keep_left_open = True  # If False: keep right side open.
 
-            n_main_lanes_left = min(self.stroken) - 1
-            n_main_lanes_right = self.n_lanes - max(self.stroken)
+            n_main_lanes_left = left_request_lane_nr - 1
+            n_main_lanes_right = max(main_lane_nrs) - right_request_lane_nr
+
             if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
-            elif n_main_lanes_left == n_main_lanes_right:
+            elif n_main_lanes_left > n_main_lanes_right:
+                keep_left_open = True
+            else:
+                # Check if leftmost or rightmost lanes are lane types that are generally smaller.
+                # Desired result: if vluchtstrook on both sides, then left side should be open.
                 if road_info.obj_eigs[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = False
                 if road_info.obj_eigs[self.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
                     keep_left_open = True
-                # Desired result: if vluchtstrook on both sides and space equal, then left side should be open.
-            else:
-                keep_left_open = True
 
             if keep_left_open:
-                return self.__get_lane_dict(list(range(min(self.stroken), self.n_lanes + 1)))  # Case TR3 or LR4
+                return self.__get_lane_dict(list(range(min(all_lane_nrs), self.n_lanes + 1)))  # Case TR3 or LR4
             else:
-                return self.__get_lane_dict(list(range(1, max(self.stroken) + 1)))  # Case TL2 or LL3
+                return self.__get_lane_dict(list(range(1, max(all_lane_nrs) + 1)))  # Case TL2 or LL3
 
+        # Request is only defined on one side
+        lanes_left = self.__get_lane_dict(lane_nrs_left)
+        lanes_right = self.__get_lane_dict(lane_nrs_right)
+        over_24h = not self.under_24h
+        left_request_space = self.edge_left[1]
+        right_request_space = self.edge_right[1]
 
-        langer_dan_24h = not self.korter_dan_24h
+        condition_tl1 = self.under_24h and left_request_space and left_request_space <= 3.50
 
-        condition_tl1 = self.korter_dan_24h and self.ruimte_links and self.ruimte_links <= 3.50
+        condition_tr1 = (self.under_24h and right_request_space
+                         and 1.10 < right_request_space <= self.sphere_of_influence)
+        condition_tr2 = self.under_24h and right_request_space and right_request_space <= 1.10
 
-        condition_tr1 = (self.korter_dan_24h and self.ruimte_rechts
-                         and 1.10 < self.ruimte_rechts <= self.sphere_of_influence)
-        condition_tr2 = self.korter_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.10
+        condition_ll1 = over_24h and left_request_space and left_request_space > 0.25
+        condition_ll2 = over_24h and left_request_space and left_request_space <= 0.25
 
-        condition_ll1 = langer_dan_24h and self.ruimte_links and self.ruimte_links > 0.25
-        condition_ll2 = langer_dan_24h and self.ruimte_links and self.ruimte_links <= 0.25
-
-        condition_lr2 = langer_dan_24h and self.ruimte_rechts and 1.50 < self.ruimte_rechts <= 2.50
-        condition_lr3 = langer_dan_24h and self.ruimte_rechts and self.ruimte_rechts <= 1.50
+        condition_lr2 = over_24h and right_request_space and 1.50 < right_request_space <= 2.50
+        condition_lr3 = over_24h and right_request_space and right_request_space <= 1.50
 
         if condition_tl1:
             return lanes_left
@@ -189,7 +203,7 @@ class Aanvraag(Oppervlak):
             return lanes_right
 
         elif condition_tr2:
-            return lanes_right_for_tr2
+            return {**lanes_right, **self.__get_lane_dict([max(main_lane_nrs)])}
 
         elif condition_ll1:
             return lanes_left
@@ -198,18 +212,19 @@ class Aanvraag(Oppervlak):
             return lanes_left  # And lane narrowing
 
         elif condition_lr2:
-            return lanes_right
+            return lanes_right  # And lane narrowing
 
         elif condition_lr3:
-            return lanes_right  # And lane narrowing
+            return lanes_right
 
         else:
             return {}
 
 
 class Werkvak(Oppervlak):
-    def __init__(self, aanvraag: Aanvraag) -> None:
-        self.aanvraag = aanvraag
+    def __init__(self, request: Aanvraag, lanes: dict) -> None:
+        self.request = request
+        self.lanes = lanes
         self.surf_type = WERKVAK
         self.color = "cyan"
         
@@ -221,12 +236,12 @@ class Werkvak(Oppervlak):
         # if self.bereik[0] < self.bereik[1]:
         #
         # else:
-        Veiligheidsruimte(self.aanvraag)
+        Veiligheidsruimte(self.request)
 
 
 class Veiligheidsruimte(Oppervlak):
-    def __init__(self, aanvraag: Aanvraag) -> None:
-        self.aanvraag = aanvraag
+    def __init__(self, request: Aanvraag) -> None:
+        self.request = request
         self.surf_type = VEILIGHEIDSRUIMTE
         self.color = "yellow"
         
@@ -240,13 +255,13 @@ class Veiligheidsruimte(Oppervlak):
         # Find next downstream row compared to self.km_end
         next_downstream_km = 14.7
 
-        Werkruimte(self.aanvraag)
+        Werkruimte(self.request)
 
 
 class Werkruimte(Oppervlak):
-    def __init__(self, aanvraag: Aanvraag) -> None:
-        self.aanvraag = aanvraag
-        self.surf_type = AANVRAAG
+    def __init__(self, request: Aanvraag) -> None:
+        self.request = request
+        self.surf_type = WERKRUIMTE
         self.color = "orange"
 
         super().__init__(self)

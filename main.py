@@ -24,15 +24,15 @@ dfl = DataFrameLader("Oosterhout", "data/locaties.csv")
 wegmodel = WegModel(dfl)
 
 # # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-# MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
-# MSIs.make_print(MSI_RELATIONS_FILE)
+MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
+MSIs.make_print(MSI_RELATIONS_FILE)
 
-# # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-# SvgMaker(wegmodel, MSI_RELATIONS_FILE, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
-#
-# # Exporteer de MSI-eigenschappen naar een bestand.
-# ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
-# generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
+# Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
+SvgMaker(wegmodel, MSI_RELATIONS_FILE, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
+
+# Exporteer de MSI-eigenschappen naar een bestand.
+ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
+generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
 
 # Instantieer een aanvraag (A27 Oosterhout)
 aanvraag = Aanvraag(wegmodel,
@@ -41,6 +41,6 @@ aanvraag = Aanvraag(wegmodel,
                     wegkant="R",
                     korter_dan_24h=True,
                     rand_links=(1, 0.0),
-                    rand_rechts=(1, -1.0),
+                    rand_rechts=(1, -0.8),
                     afzetting=AFZETTING_BAKENS,
                     )
