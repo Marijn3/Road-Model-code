@@ -674,9 +674,9 @@ def make_name(point_info, nr) -> str:
     """
     if point_info.pos_eigs.hectoletter:
         return (f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:"
-                f"{point_info.pos_eigs.km}:{nr}")
+                f"{point_info.pos_eigs.km:.3f}:{nr}")
     else:
-        return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km}:{nr}"
+        return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km:.3f}:{nr}"
 
 
 def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
