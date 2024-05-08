@@ -148,28 +148,44 @@ class Werkruimte:
 
         assert left_request_space and right_request_space, "Specificeer hoeveelheid overgebleven ruimte in de aanvraag."
 
-        condition_tl1 = self.request.under_24h and left_request_space >= -3.50
+        # Case TL1:
+        if self.request.under_24h and left_request_space >= -3.50:
+            self.edge_right = (min(main_lane_nrs), -1.0)
+            return
 
-        condition_tr1 = self.request.under_24h and 1.10 < right_request_space <= self.request.sphere_of_influence
-        condition_tr2 = self.request.under_24h and right_request_space <= 1.10
+        # Case TR1:
+        if self.request.under_24h and 1.10 < right_request_space <= self.request.sphere_of_influence:
+            self.edge_left = (None, +1.0)
+            return
 
-        condition_ll1 = over_24h and left_request_space < -0.25
-        condition_ll2 = over_24h and  left_request_space >= -0.25
+        # Case LL1:
+        if over_24h and left_request_space < -0.25:
+            self.edge_right = (None, -1.0)
+            return
 
-        condition_lr2 = over_24h and 1.50 < right_request_space <= 2.50
-        condition_lr3 = over_24h and right_request_space <= 1.50
+        # Case TR2:
+        if self.request.under_24h and right_request_space <= 1.10:
+            self.edge_left = (max(main_lane_nrs), 1.0)
+            return
 
-        if condition_tl1:
-            self.edge_right = (min(main_lane_nrs), 0.0)
+        # Case LL2:
+        if over_24h and left_request_space >= -0.25:
+            self.edge_right = (None, -1.0)
+            # And lane narrowing.
+            return
 
-        if condition_tr1:
-            self.edge_left = (None, +0.0)
+        # Case LR1:
+        if over_24h and 1.50 < right_request_space <= 2.50:
+            self.edge_left = (None, +1.0)
+            return
 
-        if condition_ll1:
-            self.edge_right = (None, -0.0)
+        # Case LR2:
+        if over_24h and right_request_space <= 1.50:
+            self.edge_left = (max(main_lane_nrs), 1.0)
+            # And lane narrowing.
+            return
 
-        self.edge_left =
-        self.edge_right =
+        logger.debug("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
         return
 
     def adjust_edges_to_veiligheidsruimte(self):
