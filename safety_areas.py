@@ -60,10 +60,12 @@ class Aanvraag:
         self.werkvak = Werkvak(self)
 
         self.step_1_determine_minimal_werkruimte()
-        self.step_2_determine_area_sizes()
-        self.step_3_determine_legend_request()
-        self.step_4_solve_legend_request()
-        self.step_5_adjust_area_sizes()
+        # self.step_2_determine_area_sizes()
+        # self.step_3_determine_legend_request()
+        # self.step_4_solve_legend_request()
+        # self.step_5_adjust_area_sizes()
+
+        self.report_request()
 
     def step_1_determine_minimal_werkruimte(self):
         self.werkruimte.determine_minimal_werkruimte_size()
@@ -92,6 +94,13 @@ class Aanvraag:
     def step_5_adjust_area_sizes(self):
         return  # TODO
 
+    def report_request(self):
+        logger.info(f"Aanvraag aangemaakt met L={self.edge_left} en R={self.edge_right}")
+        logger.info(f"Werkruimte aangemaakt met L={self.werkruimte.edge_left} en R={self.werkruimte.edge_right}")
+        logger.info(f"Veiligheidsruimte aangemaakt met L={self.veiligheidsruimte.edge_left} "
+                    f"en R={self.veiligheidsruimte.edge_right}")
+        logger.info(f"Werkvak aangemaakt met L={self.werkvak.edge_left} en R={self.werkvak.edge_right}")
+
 
 class Werkruimte:
     def __init__(self, request: Aanvraag) -> None:
@@ -104,14 +113,16 @@ class Werkruimte:
     def determine_minimal_werkruimte_size(self):
         left_request_lane_nr = self.request.edge_left[0]
         right_request_lane_nr = self.request.edge_right[0]
+
+        lanes = self.request.road_info.obj_eigs
+        all_lane_nrs = [lane_nr for lane_nr, lane_type in lanes.items() if isinstance(lane_nr, int) and
+                        lane_type not in ["Puntstuk"]]
         main_lane_nrs = [lane_nr for lane_nr, lane_type in lanes.items() if isinstance(lane_nr, int) and
                          lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
 
         # In case the request is defined in terms of lanes on both sides...
         if left_request_lane_nr and right_request_lane_nr:
             keep_left_open = True  # If False: keep right side open.
-
-            lanes = self.request.road_info.obj_eigs
 
             n_main_lanes_left = left_request_lane_nr - min(main_lane_nrs)
             n_main_lanes_right = max(main_lane_nrs) - right_request_lane_nr
@@ -131,9 +142,11 @@ class Werkruimte:
                     keep_left_open = True
 
             if keep_left_open:
-                self.edge_right = ... # Adjust to right side of road # Case TR3 or LR4
+                # Adjust to far right side of road. Case TR3 or LR4
+                self.edge_right = (max(all_lane_nrs), 0.0)
             else:
-                self.edge_left = ... # Adjust to left side of road Case TL2 or LL3
+                # Adjust to far left side of road. Case TL2 or LL3
+                self.edge_left = (min(all_lane_nrs), 0.0)
             return
 
         # In case the request is defined in lanes on one side
