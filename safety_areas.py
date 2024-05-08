@@ -12,6 +12,18 @@ AFZETTING_BAKENS = 300
 AFZETTING_BARRIER_LAGER_DAN_80CM = 301
 AFZETTING_BARRIER_HOGER_DAN_80CM = 302
 
+TL1 = 400
+TL2 = 401
+TR1 = 402
+TR2 = 403
+TR3 = 404
+LL1 = 405
+LL2 = 406
+LL3 = 407
+LR1 = 408
+LR2 = 409
+LR3 = 410
+
 
 class Aanvraag:
 
@@ -165,51 +177,49 @@ class Werkruimte:
             return
 
         # In case the request is not defined in lanes on either side
-        over_24h = not self.request.under_24h
-        left_request_space = self.edge_left[1]
-        right_request_space = self.edge_right[1]
+        category = self.determine_request_category()
 
-        assert left_request_space or right_request_space, "Specificeer hoeveelheid overgebleven ruimte in de aanvraag."
-
-        # Case TL1:
-        if self.request.under_24h and left_request_space and left_request_space >= -3.50:
+        if category == TL1:
             self.edge_right = (min(main_lane_nrs), -1.01)
-            return
-
-        # Case TR1:
-        if self.request.under_24h and right_request_space and 1.10 < right_request_space <= self.request.sphere_of_influence:
-            self.edge_left = (None, +1.01)
-            return
-
-        # Case LL1:
-        if over_24h and left_request_space and left_request_space < -0.25:
+        elif category == LL1:
             self.edge_right = (None, -1.01)
-            return
-
-        # Case TR2:
-        if self.request.under_24h and right_request_space and 0.0 <= right_request_space <= 1.10:
-            self.edge_left = (max(main_lane_nrs), +1.01)
-            return
-
-        # Case LL2:
-        if over_24h and left_request_space and 0.0 >= left_request_space >= -0.25:
+        elif category == LL2:
             self.edge_right = (None, -1.01)
             # And lane narrowing.
-            return
-
-        # Case LR1:
-        if over_24h and right_request_space and 1.50 < right_request_space <= 2.50:
+        elif category == TR1:
             self.edge_left = (None, +1.01)
-            return
-
-        # Case LR2:
-        if over_24h and right_request_space and 0.0 <= right_request_space <= 1.50:
+        elif category == TR2:
+            self.edge_left = (max(main_lane_nrs), +1.01)
+        elif category == LR1:
+            self.edge_left = (None, +1.01)
+        elif category == LR2:
             self.edge_left = (max(main_lane_nrs), +1.0)
             # And lane narrowing.
-            return
+        else:
+            logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op weg).")
 
-        logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effact op weg).")
-        return
+    def determine_request_category(self) -> int:
+        left_space = self.edge_left[1]
+        right_space = self.edge_right[1]
+        assert left_space or right_space, "Specificeer hoeveelheid overgebleven ruimte in de aanvraag."
+
+        if self.request.under_24h and left_space and left_space >= -3.50:
+            return TL1
+        elif self.request.under_24h and right_space and 1.10 < right_space <= self.request.sphere_of_influence:
+            return TR1
+        elif self.request.under_24h and right_space and 0.0 <= right_space <= 1.10:
+            return TR2
+        elif not self.request.under_24h and left_space and left_space < -0.25:
+            return LL1
+        elif not self.request.under_24h and left_space and 0.0 >= left_space >= -0.25:
+            return LL2
+        elif not self.request.under_24h and right_space and 1.50 < right_space <= 2.50:
+            return LR1
+        elif not self.request.under_24h and right_space and 0.0 <= right_space <= 1.50:
+            return LR2
+        else:
+            logger.warning("Geen passende categorie gevonden voor gegeven aanvraag.")
+            return 0
 
     def adjust_edges_to_veiligheidsruimte(self):
         return  # TODO
