@@ -131,17 +131,24 @@ class Werkruimte:
                         lane_type not in ["Puntstuk"]]
         main_lane_nrs = [lane_nr for lane_nr, lane_type in lanes.items() if isinstance(lane_nr, int) and
                          lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
+        first_lane_nr = min(all_lane_nrs)
+        last_lane_nr = max(all_lane_nrs)
 
         # In case the request is defined in terms of lanes on both sides...
         if left_request_lane_nr and right_request_lane_nr:
+            # Sanity checks for request in this case.
             assert left_request_lane_nr in main_lane_nrs, \
-                ("Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken.")
+                "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
             assert right_request_lane_nr in main_lane_nrs, \
-                ("Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken.")
+                "Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken."
+            assert self.request.edge_left[1] >= 0, \
+                "Geef een positieve afstand voor de linkerrand op."
+            assert self.request.edge_right[1] <= 0, \
+                "Geef een negatieve afstand voor de rechterand op."
 
             # Determine if expansion is necessary
-            if (min(all_lane_nrs) in [left_request_lane_nr, right_request_lane_nr]
-                    or max(all_lane_nrs) in [left_request_lane_nr, right_request_lane_nr]):
+            if (first_lane_nr in [left_request_lane_nr, right_request_lane_nr]
+                    or last_lane_nr in [left_request_lane_nr, right_request_lane_nr]):
                 # The request goes all the way up to a side of the road. Expansion does not need to be determined.
                 logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
                 return
@@ -165,10 +172,10 @@ class Werkruimte:
 
             if keep_left_open:
                 # Adjust to far right side of road. Case TR3 or LR3
-                self.edge_right = (max(all_lane_nrs), 0.0)
+                self.edge_right = (last_lane_nr, 0.0)
             else:
                 # Adjust to far left side of road. Case TL2 or LL3
-                self.edge_left = (min(all_lane_nrs), 0.0)
+                self.edge_left = (first_lane_nr, 0.0)
             return
 
         # In case the request is defined in lanes on one side
@@ -218,7 +225,7 @@ class Werkruimte:
         elif not self.request.under_24h and right_space and 0.0 <= right_space <= 1.50:
             return LR2
         else:
-            logger.warning("Geen passende categorie gevonden voor gegeven aanvraag.")
+            logger.warning("Geen passende categorie gevonden voor de gegeven aanvraag.")
             return 0
 
     def adjust_edges_to_veiligheidsruimte(self):
