@@ -38,6 +38,15 @@ class Aanvraag:
         50: 4.5
     }
 
+    __BREEDTE_BARRIER = 0.60  # Estimate, in meters
+    __BREEDTE_BAKENS = 0.40  # Estimate, in meters
+
+    __TUSSENRUIMTE = {
+        AFZETTING_BAKENS: {WERKVAK: 0.5 * __BREEDTE_BAKENS + 0.60, VEILIGHEIDSRUIMTE: 0.60},
+        AFZETTING_BARRIER_LAGER_DAN_80CM: {WERKVAK: 0.5 * __BREEDTE_BARRIER + 0.60, VEILIGHEIDSRUIMTE: 0.60},
+        AFZETTING_BARRIER_HOGER_DAN_80CM: {WERKVAK: 0.5 * __BREEDTE_BARRIER + 0.0, VEILIGHEIDSRUIMTE: 0.0},
+    }
+
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str = "",
                  rand_links: tuple = None, rand_rechts: tuple = None,
                  maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
@@ -180,25 +189,25 @@ class Werkruimte:
 
         # In case the request is defined in lanes on one side
         if left_request_lane_nr or right_request_lane_nr:
-            logger.warning("Deze situatie is nog niet uitgewerkt. Er wordt geen maatregel toegepast.")
+            logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
             return
 
         # In case the request is not defined in lanes on either side
         category = self.determine_request_category()
 
         if category == TL1:
-            self.edge_right = (min(main_lane_nrs), -1.01)
+            self.edge_right = (min(main_lane_nrs), -0.91)
         elif category == LL1:
-            self.edge_right = (None, -1.01)
+            self.edge_right = (None, -0.91)
         elif category == LL2:
-            self.edge_right = (None, -1.01)
+            self.edge_right = (None, -0.91)
             # And lane narrowing.
         elif category == TR1:
-            self.edge_left = (None, +1.01)
+            self.edge_left = (None, +0.91)
         elif category == TR2:
-            self.edge_left = (max(main_lane_nrs), +1.01)
+            self.edge_left = (max(main_lane_nrs), +0.91)
         elif category == LR1:
-            self.edge_left = (None, +1.01)
+            self.edge_left = (None, +0.91)
         elif category == LR2:
             self.edge_left = (max(main_lane_nrs), +1.0)
             # And lane narrowing.
