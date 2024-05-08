@@ -26,13 +26,21 @@ LR3 = 410
 
 
 class Rand:
-    def __init__(self, kant: str, rijstrook: int, afstand: float):
-        self.side = kant
+    def __init__(self, rijstrook: int | None, afstand: float):
         self.lane = rijstrook
         self.distance = afstand
 
     def __repr__(self) -> str:
-        return f"{self.side}: {self.lane}, {self.distance}"
+        if self.lane:
+            if self.distance >= 0:
+                return f"Rijstrook {self.lane} +{self.distance}"
+            else:
+                return f"Rijstrook {self.lane} {self.distance}"
+        else:
+            if self.distance >= 0:
+                return f"+{self.distance}"
+            else:
+                return f"{self.distance}"
 
 
 class Aanvraag:
@@ -58,7 +66,7 @@ class Aanvraag:
     }
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
-                 randen: list[Rand],
+                 randen: dict[str: Rand] | None,
                  maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
         assert 0 < len(randen) <= 2, "Specificeer één of twee randen."
 
@@ -67,8 +75,7 @@ class Aanvraag:
         self.km = [km_start, km_end]
         self.hectoletter = hectoletter
 
-        self.edge_left = randen[0]
-        self.edge_right = randen[1]
+        self.edges = randen
 
         self.max_v = maximumsnelheid
         self.under_24h = korter_dan_24h
@@ -126,25 +133,20 @@ class Aanvraag:
         return  # TODO
 
     def report_request(self):
-        logger.info(f"Aanvraag aangemaakt met {self.edge_left} en {self.edge_right}")
-        logger.info(f"Werkruimte aangemaakt met {self.werkruimte.edge_left} en {self.werkruimte.edge_right}")
-        # logger.info(f"Veiligheidsruimte aangemaakt met {self.veiligheidsruimte.edge_left} "
-        #             f"en {self.veiligheidsruimte.edge_right}")
-        # logger.info(f"Werkvak aangemaakt met {self.werkvak.edge_left} en {self.werkvak.edge_right}")
+        logger.info(f"Aanvraag aangemaakt met randen: {self.edges}")
+        logger.info(f"Werkruimte aangemaakt met randen: {self.werkruimte.edges}")
+        # logger.info(f"Veiligheidsruimte aangemaakt met randen: {self.veiligheidsruimte.edges}")
+        # logger.info(f"Werkvak aangemaakt met randen: {self.werkvak.edges}")
 
 
 class Werkruimte:
     def __init__(self, request: Aanvraag) -> None:
         self.surface_type = WERKRUIMTE
         self.request = request
-        self.edge_left = request.edge_left
-        self.edge_right = request.edge_right
+        self.edges = deepcopy(request.edges)  # RIGHT HERE
         self.km = request.km
 
     def determine_minimal_werkruimte_size(self):
-        left_request_lane_nr = self.request.edge_left.lane
-        right_request_lane_nr = self.request.edge_right.lane
-
         lanes = self.request.road_info.obj_eigs
         all_lane_nrs = [lane_nr for lane_nr, lane_type in lanes.items() if isinstance(lane_nr, int) and
                         lane_type not in ["Puntstuk"]]
@@ -153,29 +155,34 @@ class Werkruimte:
         first_lane_nr = min(all_lane_nrs)
         last_lane_nr = max(all_lane_nrs)
 
-        # In case the request is defined in terms of lanes on both sides...
-        if left_request_lane_nr and right_request_lane_nr:
+        # In case the request is defined in terms of two edges...
+        if self.request.edges['L'] and self.request.edges['R']:
             # Sanity checks for request in this case.
-            assert left_request_lane_nr in main_lane_nrs, \
+            assert self.request.edges['L'].lane is None or self.request.edges['L'].lane in main_lane_nrs, \
                 "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
-            assert right_request_lane_nr in main_lane_nrs, \
+            assert self.request.edges['R'].lane is None or self.request.edges['R'].lane in main_lane_nrs, \
                 "Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken."
-            assert self.request.edge_left.distance >= 0, \
+            assert self.request.edges['L'].distance is None or self.request.edges['L'].distance >= 0, \
                 "Geef een positieve afstand voor de linkerrand op."
-            assert self.request.edge_right.distance <= 0, \
-                "Geef een negatieve afstand voor de rechterand op."
+            assert self.request.edges['R'].distance is None or self.request.edges['R'].distance <= 0, \
+                "Geef een negatieve afstand voor de rechterrand op."
 
             # Determine if expansion is necessary
-            if (first_lane_nr in [left_request_lane_nr, right_request_lane_nr]
-                    or last_lane_nr in [left_request_lane_nr, right_request_lane_nr]):
+            if (first_lane_nr in [(self.request.edges['L'].lane), (self.request.edges['R'].lane)]
+                    or last_lane_nr in [(self.request.edges['L'].lane), (self.request.edges['R'].lane)]):
                 # The request goes all the way up to a side of the road. Expansion does not need to be determined.
                 logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
                 return
 
+            # In case the request is defined in lanes on one side...
+            # if self.request.edges['L'] or self.request.edges['R']:
+            #     logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
+            #     return
+
             keep_left_open = True  # If False: keep right side open.
 
-            n_main_lanes_left = left_request_lane_nr - min(main_lane_nrs)
-            n_main_lanes_right = max(main_lane_nrs) - right_request_lane_nr
+            n_main_lanes_left = self.request.edges['L'].lane - min(main_lane_nrs)
+            n_main_lanes_right = max(main_lane_nrs) - self.request.edges['R'].lane
 
             if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
@@ -191,42 +198,38 @@ class Werkruimte:
 
             if keep_left_open:
                 # Adjust to far right side of road. Case TR3 or LR3
-                self.edge_right = Rand("R", last_lane_nr, 0.0)
+                self.edges['R'] = Rand(rijstrook=last_lane_nr, afstand=0.0)
             else:
                 # Adjust to far left side of road. Case TL2 or LL3
-                self.edge_left = Rand("L", first_lane_nr, 0.0)
+                self.edges['L'] = Rand(rijstrook=first_lane_nr, afstand=0.0)
             return
 
-        # In case the request is defined in lanes on one side
-        if left_request_lane_nr or right_request_lane_nr:
-            logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
-            return
-
-        # In case the request is not defined in lanes on either side
+        # In case the request is defined in terms of one edge.
         category = self.determine_request_category()
+        logger.info(f"Deze situatie valt onder categorienummer {category}.")
 
         if category == TL1:
-            self.edge_right = Rand("R", min(main_lane_nrs), -0.91)
+            self.edges['R'] = Rand(rijstrook=min(main_lane_nrs), afstand=-0.91)
         elif category == LL1:
-            self.edge_right = Rand("R", None, -0.91)
+            self.edges['R'] = Rand(rijstrook=None, afstand=-0.91)
         elif category == LL2:
-            self.edge_right = Rand("R", None, -0.91)
+            self.edges['R'] = Rand(rijstrook=None, afstand=-0.91)
             # And lane narrowing.
         elif category == TR1:
-            self.edge_left = Rand("L", None, +0.91)
+            self.edges['L'] = Rand(rijstrook=None, afstand=+0.91)
         elif category == TR2:
-            self.edge_left = Rand("L", max(main_lane_nrs), +0.91)
+            self.edges['L'] = Rand(rijstrook=max(main_lane_nrs), afstand=+0.91)
         elif category == LR1:
-            self.edge_left = Rand("L", None, +0.91)
+            self.edges['L'] = Rand(rijstrook=None, afstand=+0.91)
         elif category == LR2:
-            self.edge_left = Rand("L", max(main_lane_nrs), +1.0)
+            self.edges['L'] = Rand(rijstrook=max(main_lane_nrs), afstand=+1.0)
             # And lane narrowing.
         else:
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op weg).")
 
     def determine_request_category(self) -> int:
-        left_space = self.edge_left.distance
-        right_space = self.edge_right.distance
+        left_space = self.edges['L'].distance if self.edges['L'] else None
+        right_space = self.edges['R'].distance if self.edges['R'] else None
         assert left_space or right_space, "Specificeer hoeveelheid overgebleven ruimte in de aanvraag."
 
         if self.request.under_24h and left_space and left_space >= -3.50:
@@ -258,8 +261,7 @@ class Veiligheidsruimte:
     def __init__(self, request: Aanvraag) -> None:
         self.surface_type = VEILIGHEIDSRUIMTE
         self.request = request
-        self.edge_left = request.edge_left
-        self.edge_right = request.edge_right
+        self.edges = deepcopy(request.edges)
         self.km = request.km
 
     def adjust_edges_to_werkruimte(self):
@@ -276,8 +278,7 @@ class Werkvak:
     def __init__(self, request: Aanvraag) -> None:
         self.surface_type = WERKVAK
         self.request = request
-        self.edge_left = request.edge_left
-        self.edge_right = request.edge_right
+        self.edges = deepcopy(request.edges)
         self.km = request.km
 
     def adjust_edges_to_veiligheidsruimte(self):
