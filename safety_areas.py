@@ -104,15 +104,14 @@ class Werkruimte:
     def determine_minimal_werkruimte_size(self):
         left_request_lane_nr = self.request.edge_left[0]
         right_request_lane_nr = self.request.edge_right[0]
+        main_lane_nrs = [lane_nr for lane_nr, lane_type in lanes.items() if isinstance(lane_nr, int) and
+                         lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
 
         # In case the request is defined in terms of lanes on both sides...
         if left_request_lane_nr and right_request_lane_nr:
             keep_left_open = True  # If False: keep right side open.
 
             lanes = self.request.road_info.obj_eigs
-
-            main_lane_nrs = [lane_nr for lane_nr, lane_type in lanes.items() if isinstance(lane_nr, int) and
-                             lane_type in ["Rijstrook", "Splitsing", "Samenvoeging", "Weefstrook"]]
 
             n_main_lanes_left = left_request_lane_nr - min(main_lane_nrs)
             n_main_lanes_right = max(main_lane_nrs) - right_request_lane_nr
@@ -151,7 +150,7 @@ class Werkruimte:
 
         condition_tl1 = self.request.under_24h and left_request_space >= -3.50
 
-        condition_tr1 = (self.request.under_24h and 1.10 < right_request_space <= self.request.sphere_of_influence)
+        condition_tr1 = self.request.under_24h and 1.10 < right_request_space <= self.request.sphere_of_influence
         condition_tr2 = self.request.under_24h and right_request_space <= 1.10
 
         condition_ll1 = over_24h and left_request_space < -0.25
@@ -159,6 +158,15 @@ class Werkruimte:
 
         condition_lr2 = over_24h and 1.50 < right_request_space <= 2.50
         condition_lr3 = over_24h and right_request_space <= 1.50
+
+        if condition_tl1:
+            self.edge_right = (min(main_lane_nrs), 0.0)
+
+        if condition_tr1:
+            self.edge_left = (None, +0.0)
+
+        if condition_ll1:
+            self.edge_right = (None, -0.0)
 
         self.edge_left =
         self.edge_right =
