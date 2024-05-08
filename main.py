@@ -41,6 +41,6 @@ aanvraag = Aanvraag(wegmodel,
                     wegkant="R",
                     korter_dan_24h=True,
                     rand_links=(1, 0.0),
-                    rand_rechts=(1, -0.8),
+                    rand_rechts=(2, -0.8),
                     afzetting=AFZETTING_BAKENS,
                     )

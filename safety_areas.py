@@ -97,9 +97,9 @@ class Aanvraag:
     def report_request(self):
         logger.info(f"Aanvraag aangemaakt met L={self.edge_left} en R={self.edge_right}")
         logger.info(f"Werkruimte aangemaakt met L={self.werkruimte.edge_left} en R={self.werkruimte.edge_right}")
-        logger.info(f"Veiligheidsruimte aangemaakt met L={self.veiligheidsruimte.edge_left} "
-                    f"en R={self.veiligheidsruimte.edge_right}")
-        logger.info(f"Werkvak aangemaakt met L={self.werkvak.edge_left} en R={self.werkvak.edge_right}")
+        # logger.info(f"Veiligheidsruimte aangemaakt met L={self.veiligheidsruimte.edge_left} "
+        #             f"en R={self.veiligheidsruimte.edge_right}")
+        # logger.info(f"Werkvak aangemaakt met L={self.werkvak.edge_left} en R={self.werkvak.edge_right}")
 
 
 class Werkruimte:
@@ -122,12 +122,22 @@ class Werkruimte:
 
         # In case the request is defined in terms of lanes on both sides...
         if left_request_lane_nr and right_request_lane_nr:
+            assert left_request_lane_nr in main_lane_nrs, \
+                ("Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken.")
+            assert right_request_lane_nr in main_lane_nrs, \
+                ("Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken.")
+
+            # Determine if expansion is necessary
+            if (min(all_lane_nrs) in [left_request_lane_nr, right_request_lane_nr]
+                    or max(all_lane_nrs) in [left_request_lane_nr, right_request_lane_nr]):
+                # The request goes all the way up to a side of the road. Expansion does not need to be determined.
+                logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
+                return
+
             keep_left_open = True  # If False: keep right side open.
 
             n_main_lanes_left = left_request_lane_nr - min(main_lane_nrs)
             n_main_lanes_right = max(main_lane_nrs) - right_request_lane_nr
-
-            assert n_main_lanes_left >= 0, "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
 
             if n_main_lanes_left < n_main_lanes_right:
                 keep_left_open = False
@@ -142,7 +152,7 @@ class Werkruimte:
                     keep_left_open = True
 
             if keep_left_open:
-                # Adjust to far right side of road. Case TR3 or LR4
+                # Adjust to far right side of road. Case TR3 or LR3
                 self.edge_right = (max(all_lane_nrs), 0.0)
             else:
                 # Adjust to far left side of road. Case TL2 or LL3
@@ -159,46 +169,46 @@ class Werkruimte:
         left_request_space = self.edge_left[1]
         right_request_space = self.edge_right[1]
 
-        assert left_request_space and right_request_space, "Specificeer hoeveelheid overgebleven ruimte in de aanvraag."
+        assert left_request_space or right_request_space, "Specificeer hoeveelheid overgebleven ruimte in de aanvraag."
 
         # Case TL1:
-        if self.request.under_24h and left_request_space >= -3.50:
-            self.edge_right = (min(main_lane_nrs), -1.0)
+        if self.request.under_24h and left_request_space and left_request_space >= -3.50:
+            self.edge_right = (min(main_lane_nrs), -1.01)
             return
 
         # Case TR1:
-        if self.request.under_24h and 1.10 < right_request_space <= self.request.sphere_of_influence:
-            self.edge_left = (None, +1.0)
+        if self.request.under_24h and right_request_space and 1.10 < right_request_space <= self.request.sphere_of_influence:
+            self.edge_left = (None, +1.01)
             return
 
         # Case LL1:
-        if over_24h and left_request_space < -0.25:
-            self.edge_right = (None, -1.0)
+        if over_24h and left_request_space and left_request_space < -0.25:
+            self.edge_right = (None, -1.01)
             return
 
         # Case TR2:
-        if self.request.under_24h and right_request_space <= 1.10:
-            self.edge_left = (max(main_lane_nrs), 1.0)
+        if self.request.under_24h and right_request_space and 0.0 <= right_request_space <= 1.10:
+            self.edge_left = (max(main_lane_nrs), +1.01)
             return
 
         # Case LL2:
-        if over_24h and left_request_space >= -0.25:
-            self.edge_right = (None, -1.0)
+        if over_24h and left_request_space and 0.0 >= left_request_space >= -0.25:
+            self.edge_right = (None, -1.01)
             # And lane narrowing.
             return
 
         # Case LR1:
-        if over_24h and 1.50 < right_request_space <= 2.50:
-            self.edge_left = (None, +1.0)
+        if over_24h and right_request_space and 1.50 < right_request_space <= 2.50:
+            self.edge_left = (None, +1.01)
             return
 
         # Case LR2:
-        if over_24h and right_request_space <= 1.50:
-            self.edge_left = (max(main_lane_nrs), 1.0)
+        if over_24h and right_request_space and 0.0 <= right_request_space <= 1.50:
+            self.edge_left = (max(main_lane_nrs), +1.0)
             # And lane narrowing.
             return
 
-        logger.debug("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
+        logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effact op weg).")
         return
 
     def adjust_edges_to_veiligheidsruimte(self):
