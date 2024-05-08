@@ -2,7 +2,7 @@ from road_model import DataFrameLader, WegModel
 from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
-from safety import *
+from safety_areas import *
 
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations.txt"
