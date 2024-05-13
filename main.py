@@ -16,9 +16,8 @@ MSI_RELATIONS_FILE = "msi_relations.txt"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader("Oosterhout", "data/locaties.csv")
-# dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299},
-#                      "data/locaties.csv")
+locatie = "Vught"  # {"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299}
+dfl = DataFrameLader(locatie, "data/locaties.csv")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
@@ -35,13 +34,13 @@ ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
 generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
 
 # Instantieer een aanvraag (A27 Oosterhout)
-aanvraag = Aanvraag(wegmodel,
-                    km_start=13.95,
-                    km_end=13.98,
-                    wegkant="R",
-                    hectoletter="",
-                    korter_dan_24h=True,
-                    randen={"L": Rand(rijstrook=1, afstand=0.0),
-                            "R": Rand(rijstrook=1, afstand=0.0)},
-                    afzetting=AFZETTING_BAKENS,
-                    )
+# aanvraag = Aanvraag(wegmodel,
+#                     km_start=13.95,
+#                     km_end=13.98,
+#                     wegkant="R",
+#                     hectoletter="",
+#                     korter_dan_24h=True,
+#                     randen={"L": Rand(rijstrook=1, afstand=0.0),
+#                             "R": Rand(rijstrook=1, afstand=0.0)},
+#                     afzetting=AFZETTING_BAKENS,
+#                     )
