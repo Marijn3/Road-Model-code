@@ -173,7 +173,7 @@ class MSINetwerk:
         if len(start_sections) == 1:  # Obtain first (and only) ID in dict.
             return next(iter(start_sections.keys()))
 
-        logger.warning(f"Meer dan één sectie gevonden op MSI locatie. Keuze op basis van zoekrichting.")
+        logger.debug(f"Meer dan één sectie gevonden op MSI locatie {msi_row.name}. Keuze op basis van zoekrichting.")
         if ((downstream and msi_row.local_road_info.pos_eigs.rijrichting == "L")
                 or (not downstream and msi_row.local_road_info.pos_eigs.rijrichting == "R")):
             km_registration_to_equate = 1

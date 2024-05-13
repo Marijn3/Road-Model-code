@@ -17,7 +17,7 @@ MSI_RELATIONS_FILE = "msi_relations.txt"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-locatie = "Oosterhout"  # {"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299}
+locatie = "Vught"  # {"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299}
 dfl = DataFrameLader(locatie, "data/locaties.csv")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
