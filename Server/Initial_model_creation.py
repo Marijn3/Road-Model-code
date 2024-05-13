@@ -11,6 +11,10 @@ def create_model(model_number):
     start_time = time.time()
 
     dirname = os.path.dirname(__file__)
+
+    if not os.path.exists(f"{dirname}/Solution"):
+        os.makedirs(f"{dirname}/Solution")
+
     datasets = read_json_file(f"{dirname}/{DATASETS_FILE}")
     filenames = datasets[model_number]
 
