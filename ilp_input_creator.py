@@ -88,11 +88,13 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
     Generates ILP input file dictionary based on the framework provided by JvM.
     Args:
         network (MSINetwerk): A network of MSIs with all required properties.
+        relation_file_name (str): File containing latest version of MSI relations.
     Returns:
         dictionary with required elements. Unspecified elements will contain None.
     """
     road_dict = {}
 
+    # Extract road-related properties of the MSIs.
     for row in network.MSIrows:
         row_name = transform_row_name(row.name)
         road_dict[row_name] = deepcopy(msi_row_dict)
@@ -106,6 +108,7 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
             road_dict[row_name]["MSI"][msi.lane_nr]["Carriageway"] = str(msi.properties["CW_num"])
 
+        # These properties are the same for the entire row, so the value taken from the last iteration.
         road_dict[row_name]["Continue-V"] = msi.properties["C_V"]
         road_dict[row_name]["Continue-X"] = msi.properties["C_X"]
         road_dict[row_name]["Stat-V"] = msi.properties["STAT_V"]

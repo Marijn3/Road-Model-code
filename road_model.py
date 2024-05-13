@@ -556,6 +556,10 @@ class WegModel:
             new_info (ObjectInfo): Information related to the new section.
         """
         overlap_sections = self.__get_overlapping_sections(new_info)
+        if not overlap_sections:
+            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
+            return
+
         other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
         # Align new section range and geometry according to other section. This only needs to be done once,
@@ -1027,7 +1031,6 @@ class WegModel:
         for section_b_index, section_b in self.sections.items():
             if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
                 overlapping_sections[section_b_index] = section_b
-        assert overlapping_sections, f"Sectie {section_b.pos_eigs} heeft geen overlap met het wegmodel."
         return overlapping_sections
 
     def __post_process_data(self) -> None:

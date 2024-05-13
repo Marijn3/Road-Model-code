@@ -499,30 +499,31 @@ class SvgMaker:
         box_east = box_west + box_size
         box_south = box_north + box_size
         clearance = box_size*0.2
+        text_center_coords = (center_coords[0], center_coords[1] + box_size*0.06)
 
         g_50 = g_msi_row.add(self.dwg.g(id=f"e[{msi_name}]", visibility="hidden"))
         g_50.add(self.dwg.text(
-            "50", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+            "50", insert=text_center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_70 = g_msi_row.add(self.dwg.g(id=f"g[{msi_name}]", visibility="hidden"))
         g_70.add(self.dwg.text(
-            "70", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+            "70", insert=text_center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_80 = g_msi_row.add(self.dwg.g(id=f"h[{msi_name}]", visibility="hidden"))
         g_80.add(self.dwg.text(
-            "80", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+            "80", insert=text_center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_90 = g_msi_row.add(self.dwg.g(id=f"i[{msi_name}]", visibility="hidden"))
         g_90.add(self.dwg.text(
-            "90", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+            "90", insert=text_center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             text_anchor="middle", dominant_baseline="middle"))
 
         g_100 = g_msi_row.add(self.dwg.g(id=f"j[{msi_name}]", visibility="hidden"))
         g_100.add(self.dwg.text(
-            "100", insert=center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
+            "100", insert=text_center_coords, fill="white", font_family="Arial narrow", font_size=box_size*0.60,
             letter_spacing="-0.5", text_anchor="middle", dominant_baseline="middle"))
 
         g_overruling_blank = g_msi_row.add(self.dwg.g(id=f"o[{msi_name}]", visibility="hidden"))
