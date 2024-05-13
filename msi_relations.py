@@ -45,8 +45,9 @@ class MSIRow:
         lanes_in_current_cw = [1]
 
         for lane_number in self.lane_numbers:
-            # Add final lane and stop
+
             if lane_number == self.n_lanes:
+                # Add final lane and stop
                 last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
                 if last_lane:
                     self.cw[cw_index] = last_lane
@@ -56,6 +57,12 @@ class MSIRow:
             next_lane = self.local_road_properties[lane_number + 1]
             if current_lane == next_lane:
                 lanes_in_current_cw.append(lane_number + 1)
+            elif next_lane in ["Spitsstrook", "Vluchtstrook"]:
+                # Add final lane and stop
+                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
+                if last_lane:
+                    self.cw[cw_index] = last_lane
+                break
             else:
                 self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
                 lanes_in_current_cw = [lane_number + 1]
@@ -504,7 +511,7 @@ class MSI:
             "un": None,  # MSI upstream narrowing (rijstrookbeëindiging)
 
             "STAT_V": None,  # Static maximum speed
-            "DYN_V": None,  # Static maximum speed
+            "DYN_V": None,  # Dynamic maximum speed
             "C_V": None,  # True if continue-V relation
             "C_X": None,  # True if continue-X relation
 
@@ -530,7 +537,6 @@ class MSI:
             "RHL": None,  # [V] True if MSI in RHL. (Any lane that is open sometimes)
             "Exit_Entry": None,  # True if MSI in RHL and normal lanes left and right.
             "RHL_neighbor": None,  # [V] True if RHL in row.
-
             "Hard_shoulder_right": None,  # [V] True if hard shoulder directly to the right.
             "Hard_shoulder_left": None,  # [V] True if hard shoulder directly to the left.
         }
