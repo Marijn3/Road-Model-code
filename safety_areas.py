@@ -334,10 +334,10 @@ class Werkvak:
         return
 
     def adjust_edges_to_road(self):
-        if self.request.open_side == "L" and 0.0 <= self.edges["L"].distance <= 1.0:
+        if self.request.open_side == "L":
             self.edges["L"].distance = 0.0
-        if self.request.open_side == "R" and 0.0 <= self.edges["R"].distance <= 1.0:
-            self.edges["R"].distance = 0.0
+        if self.request.open_side == "R":
+            self.edges["R"].distance = -0.0
         return
 
     def adjust_length_to_msis(self):

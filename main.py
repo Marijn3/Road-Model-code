@@ -45,3 +45,13 @@ if locatie == "Oosterhout":
                                 "R": Rand(rijstrook=None, afstand=3.5)},
                         afzetting=AFZETTING_BAKENS,
                         )
+    aanvraag = Aanvraag(wegmodel=wegmodel,
+                        km_start=13.95,
+                        km_end=13.98,
+                        wegkant="R",
+                        hectoletter="",
+                        korter_dan_24h=True,
+                        randen={"L": Rand(rijstrook=2, afstand=0.9),
+                                "R": Rand(rijstrook=2, afstand=-0.3)},
+                        afzetting=AFZETTING_BAKENS,
+                        )
