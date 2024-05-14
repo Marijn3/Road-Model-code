@@ -38,6 +38,7 @@ class Rand:
     def __init__(self, rijstrook: int | None, afstand: float):
         self.lane = rijstrook
         self.distance = afstand
+        # TODO: introduce common function to add a distance in any direction
 
     def __repr__(self) -> str:
         position = f"Rijstrook {self.lane}" if self.lane else f"Naast weg"
@@ -271,7 +272,12 @@ class Werkruimte:
             return 0
 
     def adjust_edges_to_veiligheidsruimte(self):
-        return  # TODO
+        self.edges = deepcopy(self.request.veiligheidsruimte.edges)
+        if self.request.open_side == "L":
+            self.edges["L"].distance = round(self.edges["L"].distance + TUSSENRUIMTE[self.request.demarcation][VEILIGHEIDSRUIMTE], 2)
+        if self.request.open_side == "R":
+            self.edges["R"].distance = round(self.edges["R"].distance + TUSSENRUIMTE[self.request.demarcation][VEILIGHEIDSRUIMTE], 2)
+        return
 
     def adjust_length_to_veiligheidsruimte(self):
         return  # TODO
@@ -297,7 +303,12 @@ class Veiligheidsruimte:
         return
 
     def adjust_edges_to_werkvak(self):
-        return  # TODO
+        self.edges = deepcopy(self.request.werkvak.edges)
+        if self.request.open_side == "L":
+            self.edges["L"].distance = round(self.edges["L"].distance + TUSSENRUIMTE[self.request.demarcation][WERKVAK], 2)
+        if self.request.open_side == "R":
+            self.edges["R"].distance = round(self.edges["R"].distance + TUSSENRUIMTE[self.request.demarcation][WERKVAK], 2)
+        return
 
     def adjust_length_to_werkvak(self):
         return  # TODO
@@ -313,13 +324,21 @@ class Werkvak:
     def adjust_edges_to_veiligheidsruimte(self):
         self.edges = deepcopy(self.request.veiligheidsruimte.edges)
         if self.request.open_side == "L":
+            if self.edges["L"].distance < TUSSENRUIMTE[self.request.demarcation][self.surface_type]:
+                self.edges["L"].lane = self.request.last_lane_nr if self.edges["L"].lane is None else self.edges["L"].lane - 1
             self.edges["L"].distance = round(self.edges["L"].distance - TUSSENRUIMTE[self.request.demarcation][self.surface_type], 2)
         if self.request.open_side == "R":
+            if self.edges["R"].distance > TUSSENRUIMTE[self.request.demarcation][self.surface_type]:
+                self.edges["R"].lane = self.request.first_lane_nr if self.edges["L"].lane is None else self.edges["L"].lane + 1
             self.edges["R"].distance = round(self.edges["R"].distance + TUSSENRUIMTE[self.request.demarcation][self.surface_type], 2)
         return
 
     def adjust_edges_to_road(self):
-        return  # TODO
+        if self.request.open_side == "L" and 0.0 <= self.edges["L"].distance <= 1.0:
+            self.edges["L"].distance = 0.0
+        if self.request.open_side == "R" and 0.0 <= self.edges["R"].distance <= 1.0:
+            self.edges["R"].distance = 0.0
+        return
 
     def adjust_length_to_msis(self):
         return  # TODO
