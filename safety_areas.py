@@ -53,7 +53,7 @@ class Rand:
             self.distance = round(self.distance - move_distance, 2)
         elif side == "R":
             if self.distance < -move_distance:  # The edge will cross 0
-                self.lane = self.lane + 1 if self.lane else 1
+                self.lane = self.lane + 1 if self.lane else -99
             self.distance = round(self.distance + move_distance, 2)
         else:
             raise Exception("Onjuiste kantletter gebruik in de code.")
@@ -112,11 +112,7 @@ class Aanvraag:
         self.veiligheidsruimte = Veiligheidsruimte(self)
         self.werkvak = Werkvak(self)
 
-        logger.info("Step 1:")
         self.step_1_determine_minimal_werkruimte()
-        self.report_request()
-
-        logger.info("Step 2:")
         self.step_2_determine_area_sizes()
         # self.step_3_determine_legend_request()
         # self.step_4_solve_legend_request()
@@ -160,6 +156,7 @@ class Aanvraag:
         return  # TODO
 
     def report_request(self):
+        logger.info("")
         logger.info(f"Aanvraag aangemaakt met randen: {self.edges}")
         logger.info(f"Werkruimte aangemaakt met randen: {self.werkruimte.edges}")
         logger.info(f"Veiligheidsruimte aangemaakt met randen: {self.veiligheidsruimte.edges}")
@@ -212,11 +209,11 @@ class Werkruimte:
 
             if keep_left_open:
                 # Adjust to far right side of road. Case TR3 or LR3
-                self.edges["R"] = Rand(rijstrook=self.request.last_lane_nr, afstand=-0.0)
+                self.edges["R"] = Rand(rijstrook=None, afstand=-0.0)
                 self.request.open_side = "L"
             else:
                 # Adjust to far left side of road. Case TL2 or LL3
-                self.edges["L"] = Rand(rijstrook=self.request.first_lane_nr, afstand=+0.0)
+                self.edges["L"] = Rand(rijstrook=None, afstand=+0.0)
                 self.request.open_side = "R"
             return
 
