@@ -40,13 +40,13 @@ generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
 
 # Instantieer een aanvraag (A27 Oosterhout)
 if locatie == "Oosterhout":
-    aanvraag = Aanvraag(wegmodel,
+    aanvraag = Aanvraag(wegmodel=wegmodel,
                         km_start=13.95,
                         km_end=13.98,
                         wegkant="R",
                         hectoletter="",
                         korter_dan_24h=True,
-                        randen={"L": Rand(rijstrook=None, afstand=0.6),
-                                "R": Rand(rijstrook=None, afstand=2.5)},
+                        randen={"L": Rand(rijstrook=None, afstand=1.2),
+                                "R": Rand(rijstrook=None, afstand=3.5)},
                         afzetting=AFZETTING_BAKENS,
                         )
