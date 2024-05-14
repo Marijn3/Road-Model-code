@@ -31,16 +31,11 @@ class Rand:
         self.distance = afstand
 
     def __repr__(self) -> str:
-        if self.lane:
-            if self.distance >= 0:
-                return f"Rijstrook {self.lane} +{self.distance}m"
-            else:
-                return f"Rijstrook {self.lane} {self.distance}m"
+        position = f"Rijstrook {self.lane}" if self.lane else f"Naast weg"
+        if self.distance > 0:
+            return f"{position} +{self.distance}m"
         else:
-            if self.distance >= 0:
-                return f"Buiten weg +{self.distance}m"
-            else:
-                return f"Naast weg {self.distance}m"
+            return f"{position} {self.distance}m"
 
 
 class Aanvraag:
@@ -219,7 +214,7 @@ class Werkruimte:
         elif category == LL1:
             self.edges['R'] = Rand(rijstrook=None, afstand=-0.91)
         elif category == LL2:
-            self.edges['R'] = Rand(rijstrook=None, afstand=-0.91)
+            self.edges['R'] = Rand(rijstrook=None, afstand=-0.0)
             self.request.requires_lane_narrowing = True
         elif category == TR1:
             self.edges['L'] = Rand(rijstrook=None, afstand=+0.91)
@@ -235,7 +230,7 @@ class Werkruimte:
 
     def determine_request_category_roadside(self) -> int:
         if abs(self.edges["L"].distance) < abs(self.edges["R"].distance):
-            crit_dist = self.edges["L"].distance  # space_closest_to_road
+            crit_dist = self.edges["L"].distance  # Space closest to road
         else:
             crit_dist = self.edges["R"].distance
 
@@ -245,8 +240,6 @@ class Werkruimte:
             side_of_road = "L"
         else:
             raise Exception("Deze combinatie van randen is niet toegestaan.")
-
-        logger.info(f"Crit dist: {crit_dist}, kant: {side_of_road}")
 
         if self.request.under_24h and side_of_road == "L" and crit_dist >= -3.50:
             return TL1
@@ -260,7 +253,7 @@ class Werkruimte:
             return LL2
         elif not self.request.under_24h and side_of_road == "R" and 1.50 < crit_dist <= 2.50:
             return LR1
-        elif not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.50:
+        elif not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.50:  # defined as 0.25-1.50m
             return LR2
         else:
             logger.warning("Geen passende categorie gevonden voor de gegeven aanvraag.")
