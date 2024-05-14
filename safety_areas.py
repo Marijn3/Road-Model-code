@@ -24,6 +24,15 @@ LR1 = 408
 LR2 = 409
 LR3 = 410
 
+BREEDTE_BARRIER = 0.60  # Estimate, in meters
+BREEDTE_BAKENS = 0.40  # Estimate, in meters
+
+TUSSENRUIMTE = {
+    AFZETTING_BAKENS: {WERKVAK: 0.5 * BREEDTE_BAKENS, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTING_BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTING_BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.0},
+}
+
 
 class Rand:
     def __init__(self, rijstrook: int | None, afstand: float):
@@ -51,15 +60,6 @@ class Aanvraag:
         50: 4.5
     }
 
-    __BREEDTE_BARRIER = 0.60  # Estimate, in meters
-    __BREEDTE_BAKENS = 0.40  # Estimate, in meters
-
-    __TUSSENRUIMTE = {
-        AFZETTING_BAKENS: {WERKVAK: 0.5 * __BREEDTE_BAKENS + 0.60, VEILIGHEIDSRUIMTE: 0.60},
-        AFZETTING_BARRIER_ONDER_80CM: {WERKVAK: 0.5 * __BREEDTE_BARRIER + 0.60, VEILIGHEIDSRUIMTE: 0.60},
-        AFZETTING_BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * __BREEDTE_BARRIER + 0.0, VEILIGHEIDSRUIMTE: 0.0},
-    }
-
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
                  randen: dict[str: Rand],
                  maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
@@ -76,6 +76,7 @@ class Aanvraag:
 
         self.surface_type = AANVRAAG
         self.requires_lane_narrowing = False
+        self.open_side = None
 
         self.sections = self.roadmodel.get_section_info_by_bps(self.km, self.roadside, self.hecto_character)
         if not self.sections:
@@ -92,7 +93,10 @@ class Aanvraag:
         self.werkvak = Werkvak(self)
 
         self.step_1_determine_minimal_werkruimte()
-        # self.step_2_determine_area_sizes()
+
+        self.report_request()
+
+        self.step_2_determine_area_sizes()
         # self.step_3_determine_legend_request()
         # self.step_4_solve_legend_request()
         # self.step_5_adjust_area_sizes()
@@ -137,8 +141,8 @@ class Aanvraag:
     def report_request(self):
         logger.info(f"Aanvraag aangemaakt met randen: {self.edges}")
         logger.info(f"Werkruimte aangemaakt met randen: {self.werkruimte.edges}")
-        # logger.info(f"Veiligheidsruimte aangemaakt met randen: {self.veiligheidsruimte.edges}")
-        # logger.info(f"Werkvak aangemaakt met randen: {self.werkvak.edges}")
+        logger.info(f"Veiligheidsruimte aangemaakt met randen: {self.veiligheidsruimte.edges}")
+        logger.info(f"Werkvak aangemaakt met randen: {self.werkvak.edges}")
 
 
 class Werkruimte:
@@ -195,14 +199,16 @@ class Werkruimte:
 
             if keep_left_open:
                 # Adjust to far right side of road. Case TR3 or LR3
-                self.edges['R'] = Rand(rijstrook=last_lane_nr, afstand=0.0)
+                self.edges["R"] = Rand(rijstrook=last_lane_nr, afstand=0.0)
+                self.request.open_side = "L"
             else:
                 # Adjust to far left side of road. Case TL2 or LL3
-                self.edges['L'] = Rand(rijstrook=first_lane_nr, afstand=0.0)
+                self.edges["L"] = Rand(rijstrook=first_lane_nr, afstand=0.0)
+                self.request.open_side = "R"
             return
 
         # In case the request is defined in lanes on only one edge...
-        if self.request.edges['L'].lane or self.request.edges['R'].lane:
+        if self.request.edges["L"].lane or self.request.edges["R"].lane:
             # TODO: Uitwerken wat er in deze situatie moet gebeuren.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
             return
@@ -238,8 +244,10 @@ class Werkruimte:
 
         if self.edges["L"].distance >= 0 and self.edges["R"].distance >= 0:
             side_of_road = "R"
+            self.request.open_side = "L"
         elif self.edges["L"].distance <= 0 and self.edges["R"].distance <= 0:
             side_of_road = "L"
+            self.request.open_side = "R"
         else:
             raise Exception("Deze combinatie van randen is niet toegestaan.")
 
@@ -275,8 +283,13 @@ class Veiligheidsruimte:
         self.edges = deepcopy(request.edges)
         self.km = request.km
 
-    def adjust_edges_to_werkruimte(self):
-        return  # TODO
+    def adjust_edges_to_werkruimte(self) -> None:
+        self.edges = deepcopy(self.request.werkruimte.edges)
+        if self.request.open_side == "L":
+            self.edges["L"].distance = round(self.edges["L"].distance - TUSSENRUIMTE[self.request.demarcation][self.surface_type], 2)
+        if self.request.open_side == "R":
+            self.edges["R"].distance = round(self.edges["R"].distance + TUSSENRUIMTE[self.request.demarcation][self.surface_type], 2)
+        return
 
     def adjust_edges_to_werkvak(self):
         return  # TODO
@@ -293,7 +306,12 @@ class Werkvak:
         self.km = request.km
 
     def adjust_edges_to_veiligheidsruimte(self):
-        return  # TODO
+        self.edges = deepcopy(self.request.veiligheidsruimte.edges)
+        if self.request.open_side == "L":
+            self.edges["L"].distance = round(self.edges["L"].distance - TUSSENRUIMTE[self.request.demarcation][self.surface_type], 2)
+        if self.request.open_side == "R":
+            self.edges["R"].distance = round(self.edges["R"].distance + TUSSENRUIMTE[self.request.demarcation][self.surface_type], 2)
+        return
 
     def adjust_edges_to_road(self):
         return  # TODO
