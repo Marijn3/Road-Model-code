@@ -61,28 +61,26 @@ class Aanvraag:
     }
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
-                 randen: dict[str: Rand] | None,
+                 randen: dict[str: Rand],
                  maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
-        self.run_sanity_checks(randen)
-
         self.roadmodel = wegmodel
         self.roadside = wegkant
         self.km = [km_start, km_end]
-        self.hectoletter = hectoletter
-
+        self.hecto_character = hectoletter
         self.edges = randen
-
         self.max_v = maximumsnelheid
         self.under_24h = korter_dan_24h
         self.demarcation = afzetting
 
+        self.run_sanity_checks()
+
         self.surface_type = AANVRAAG
         self.requires_lane_narrowing = False
 
-        self.sections = self.roadmodel.get_section_info_by_bps(km=self.km, side=self.roadside, hecto=self.hectoletter)
+        self.sections = self.roadmodel.get_section_info_by_bps(self.km, self.roadside, self.hecto_character)
         if not self.sections:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
-                            f"{self.km} {self.roadside} {self.hectoletter}")
+                            f"{self.km} {self.roadside} {self.hecto_character}")
 
         # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
         self.road_info = self.sections[0]
@@ -101,10 +99,13 @@ class Aanvraag:
 
         self.report_request()
 
-    def run_sanity_checks(self, edges):
-        assert len(edges) == 2, "Specificeer beide randen."
-        assert edges['L'].distance and edges['R'].distance, "Specificeer afstand vanaf belijning in de aanvraag."
-        assert abs(edges["L"].distance) != abs(edges["R"].distance), "Specificeer ongelijke afstanden."
+    def run_sanity_checks(self):
+        assert len(self.edges) == 2, \
+            "Specificeer beide randen."
+        assert self.edges['L'].distance and self.edges['R'].distance, \
+            "Specificeer afstand vanaf belijning in de aanvraag."
+        assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
+            "Specificeer ongelijke afstanden."
 
     def step_1_determine_minimal_werkruimte(self):
         self.werkruimte.determine_minimal_werkruimte_size()
@@ -144,7 +145,7 @@ class Werkruimte:
     def __init__(self, request: Aanvraag) -> None:
         self.surface_type = WERKRUIMTE
         self.request = request
-        self.edges = deepcopy(request.edges)  # RIGHT HERE
+        self.edges = deepcopy(request.edges)
         self.km = request.km
 
     def determine_minimal_werkruimte_size(self):
@@ -158,7 +159,7 @@ class Werkruimte:
 
         # In case the request is defined in terms of lanes for both edges...
         if self.request.edges['L'].lane and self.request.edges['R'].lane:
-            # Sanity checks for request in this case.
+            # Additional sanity checks for request in this case.
             assert self.request.edges['L'].lane is None or self.request.edges['L'].lane in main_lane_nrs, \
                 "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
             assert self.request.edges['R'].lane is None or self.request.edges['R'].lane in main_lane_nrs, \
@@ -202,6 +203,7 @@ class Werkruimte:
 
         # In case the request is defined in lanes on only one edge...
         if self.request.edges['L'].lane or self.request.edges['R'].lane:
+            # TODO: Uitwerken wat er in deze situatie moet gebeuren.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
             return
 
