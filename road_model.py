@@ -11,13 +11,13 @@ class PositieEigenschappen:
                  km: list = None, geometrie: Point | LineString = None):
         self.rijrichting = rijrichting
         self.wegnummer = wegnummer
-        self.hectoletter = hectoletter
+        self.hecto_character = hectoletter
         self.km = km if km is not None else float()
         self.geometrie = geometrie
 
     def __repr__(self):
-        if self.hectoletter:
-            return f"{self.wegnummer}, {self.rijrichting}, {self.hectoletter}, {self.km} km"
+        if self.hecto_character:
+            return f"{self.wegnummer}, {self.rijrichting}, {self.hecto_character}, {self.km} km"
         else:
             return f"{self.wegnummer}, {self.rijrichting}, {self.km} km"
 
@@ -430,7 +430,7 @@ class WegModel:
         section_info = self.get_one_section_at_point(row["geometry"])
         point_info.pos_eigs.rijrichting = section_info.pos_eigs.rijrichting
         point_info.pos_eigs.wegnummer = section_info.pos_eigs.wegnummer
-        point_info.pos_eigs.hectoletter = section_info.pos_eigs.hectoletter
+        point_info.pos_eigs.hecto_character = section_info.pos_eigs.hecto_character
 
         point_info.pos_eigs.km = row["KMTR"]
         point_info.pos_eigs.geometrie = row["geometry"]
@@ -460,7 +460,7 @@ class WegModel:
         if name == "Wegvakken":
             section_info.pos_eigs.wegnummer = row["WEGNR_HMP"]
             if row["HECTO_LTTR"]:
-                section_info.pos_eigs.hectoletter = row["HECTO_LTTR"]
+                section_info.pos_eigs.hecto_character = row["HECTO_LTTR"]
 
         elif name == "Rijstroken":
             section_info.pos_eigs.rijrichting = row["IZI_SIDE"]
@@ -629,7 +629,7 @@ class WegModel:
                             pos_eigs=PositieEigenschappen(
                                 rijrichting=other_info.pos_eigs.rijrichting,
                                 wegnummer=other_info.pos_eigs.wegnummer,
-                                hectoletter=other_info.pos_eigs.hectoletter,
+                                hectoletter=other_info.pos_eigs.hecto_character,
                                 km=new_info.pos_eigs.km,
                                 geometrie=new_info.pos_eigs.geometrie),
                             obj_eigs=new_info.obj_eigs)
@@ -675,7 +675,7 @@ class WegModel:
                 pos_eigs=PositieEigenschappen(
                     rijrichting=reference_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hectoletter,
+                    hectoletter=reference_info.pos_eigs.hecto_character,
                     km=km_bereik,
                     geometrie=differering_geom),
                 obj_eigs=first_section_info.obj_eigs)
@@ -716,7 +716,7 @@ class WegModel:
                 pos_eigs=PositieEigenschappen(
                     rijrichting=reference_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hectoletter,
+                    hectoletter=reference_info.pos_eigs.hecto_character,
                     km=km_bereik,
                     geometrie=overlapping_geom),
                 obj_eigs={**second_section_info.obj_eigs, **first_section_info.obj_eigs})
@@ -925,7 +925,7 @@ class WegModel:
                 pos_eigs=PositieEigenschappen(
                     rijrichting=section_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hectoletter,
+                    hectoletter=reference_info.pos_eigs.hecto_character,
                     km=section_info.pos_eigs.km,
                     geometrie=geom),
                 obj_eigs=section_info.obj_eigs)
@@ -971,7 +971,7 @@ class WegModel:
                      f"{self.points[index].pos_eigs.km:<7.3f} km \t"
                      f"{self.points[index].pos_eigs.wegnummer}\t"
                      f"{self.points[index].pos_eigs.rijrichting}\t"
-                     f"{self.points[index].pos_eigs.hectoletter}\t"
+                     f"{self.points[index].pos_eigs.hecto_character}\t"
                      f"{self.points[index].obj_eigs} \n"
                      f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
 
@@ -983,7 +983,7 @@ class WegModel:
         """
         logger.debug(f"Referentie {index} toegevoegd:  \t"
                      f"{self.__reference[index].pos_eigs.wegnummer}\t"
-                     f"{self.__reference[index].pos_eigs.hectoletter}\n"
+                     f"{self.__reference[index].pos_eigs.hecto_character}\n"
                      f"\t\t\t\t\t\t\t\t{set_precision(self.__reference[index].pos_eigs.geometrie, 1)}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
@@ -997,7 +997,7 @@ class WegModel:
                      f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
                      f"{self.sections[index].pos_eigs.wegnummer}\t"
                      f"{self.sections[index].pos_eigs.rijrichting}\t"
-                     f"{self.sections[index].pos_eigs.hectoletter}\t"
+                     f"{self.sections[index].pos_eigs.hecto_character}\t"
                      f"{self.sections[index].obj_eigs} \n"
                      f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
 
@@ -1183,7 +1183,7 @@ class WegModel:
         this_section_max_lane_nr = max([key for key in section_info.obj_eigs.keys() if isinstance(key, int)])
         if section_info.obj_eigs[this_section_max_lane_nr] == "Puntstuk":
             connected = [index for index, section in adjacent_sections.items() if
-                         section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
+                         section_info.pos_eigs.hecto_character == section.pos_eigs.hecto_character]
             # If all hectoletters are the same, use the km registration.
             if len(connected) > 1:
                 if section_info.pos_eigs.rijrichting == "L":
@@ -1224,9 +1224,9 @@ class WegModel:
 
         # If neither other section had puntstuk, return the one section with same hectoletter
         connected = [index for index, section in adjacent_sections.items() if
-                     section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
+                     section_info.pos_eigs.hecto_character == section.pos_eigs.hecto_character]
         diverging = [index for index, section in adjacent_sections.items() if
-                     section_info.pos_eigs.hectoletter != section.pos_eigs.hectoletter]
+                     section_info.pos_eigs.hecto_character != section.pos_eigs.hecto_character]
 
         if len(connected) == 1:
             return connected[0], diverging[0]
@@ -1344,7 +1344,7 @@ class WegModel:
         """
         sections = []
         for section in self.sections.values():
-            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hectoletter == hecto and
+            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hecto_character == hecto and
                     (min(section.pos_eigs.km) <= km[0] <= max(section.pos_eigs.km) or
                      min(section.pos_eigs.km) <= km[1] <= max(section.pos_eigs.km))):
                 sections.append(section)

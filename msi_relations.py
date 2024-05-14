@@ -282,7 +282,7 @@ class MSINetwerk:
                 next_point_pos_eigs = PositieEigenschappen(
                     rijrichting=current_section.pos_eigs.rijrichting,
                     wegnummer=current_section.pos_eigs.wegnummer,
-                    hectoletter=current_section.pos_eigs.hectoletter,
+                    hectoletter=current_section.pos_eigs.hecto_character,
                     km=next_km,
                     geometrie=next_point_geom
                 )
@@ -699,10 +699,10 @@ class MSI:
 
             if self.row.msi_network.add_secondary_relations:
                 u_row, desc = next(iter(self.row.upstream.items()))
-                if u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
+                if u_row.local_road_info.pos_eigs.hecto_character == self.row.local_road_info.pos_eigs.hecto_character:
                     logger.debug(f"Relatie wordt toegepast.")
                     self.make_secondary_connection(self, u_row.MSIs[u_row.highest_msi_number])
-                elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
+                elif (u_row.local_road_info.pos_eigs.hecto_character != self.row.local_road_info.pos_eigs.hecto_character
                       and self.lane_nr == 1):
                     # This should not occur in the Netherlands, but is here for safety.
                     logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
@@ -733,7 +733,7 @@ class MSI:
 
 
 def make_MTM_row_name(point_info: ObjectInfo) -> str:
-    if point_info.pos_eigs.hectoletter:
-        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:{point_info.pos_eigs.km:.3f}"
+    if point_info.pos_eigs.hecto_character:
+        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hecto_character.upper()}:{point_info.pos_eigs.km:.3f}"
     else:
         return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km:.3f}"
