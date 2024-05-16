@@ -19,6 +19,7 @@ with open(msi_rel_file, "r") as file:
         msi1, relation, msi2 = line.strip().split(" ")
         roadnumber1, km1, lanenumber1 = msi1.split(":")
         roadnumber2, km2, lanenumber2 = msi2.split(":")
+        # determine km window by min and max value encountered 
         roadnumbers_in_roadmodel_dataset.add(roadnumber1)
         roadnumbers_in_roadmodel_dataset.add(roadnumber2)
         roadmodel_msi_relations[roadmodel_index] = {"roadnumber1": roadnumber1, "km1": km1, "lanenumber1": lanenumber1,
