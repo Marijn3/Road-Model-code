@@ -1,7 +1,7 @@
 {
     "0": {
         "name":"WEGGEG-based data",
-        "data_file": "Data/RoadModel/LSC.json",
+        "data_file": "Data/RoadModel/RoadModelMSINetwork.json",
         "ilp_file" : "ILP/model.mps",
         "solve_ilp_file": "Solution/model_solved.mps",
         "debug_ilp_file" : "ILP/model.lp",
