@@ -17,9 +17,9 @@ class PositieEigenschappen:
 
     def __repr__(self):
         if self.hecto_character:
-            return f"{self.wegnummer}, {self.rijrichting}, {self.hecto_character}, {self.km} km"
+            return f"{self.wegnummer}{self.rijrichting} {self.hecto_character}, {self.km} km"
         else:
-            return f"{self.wegnummer}, {self.rijrichting}, {self.km} km"
+            return f"{self.wegnummer}{self.rijrichting} {self.km} km"
 
 
 class LijnVerwerkingsEigenschappen:
@@ -572,18 +572,16 @@ class WegModel:
         sections_to_remove = set()
 
         while True:
-
-            logger.debug(f"{new_info} {other_info}")
-
-            bad_section = self.__run_checks(new_info, other_info)
-
-            if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs) or bad_section:
+            if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
                 else:
                     other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
                     continue
 
+            self.__run_checks(new_info, other_info)
+
+            logger.debug(f"Gebaseerd op:\n{new_info}{other_info}")
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -772,7 +770,7 @@ class WegModel:
         """
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
-        # assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
+        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
         diff = difference(geom1, geom2, grid_size=self.GRID_SIZE)
 
         if isinstance(diff, LineString) and not diff.is_empty:
