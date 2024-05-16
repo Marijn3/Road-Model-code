@@ -27,3 +27,5 @@ vis-matplot.py
 *.00295
 
 msi_relations_mtm.txt
+
+relation_comparison_log.txt
