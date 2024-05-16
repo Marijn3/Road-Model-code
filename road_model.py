@@ -251,12 +251,12 @@ class DataFrameLader:
             df["VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
             df["LANE_INFO"] = df.apply(self.get_lane_info, args=("OMSCHR",), axis=1)
 
-        if name == "Mengstroken":
-            df["LANE_INFO"] = df.apply(self.get_lane_info, args=("AANT_MSK",), axis=1)
-
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
             df = df[df["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])]
+
+        if name == "Mengstroken":
+            df["LANE_INFO"] = df.apply(self.get_lane_info, args=("AANT_MSK",), axis=1)
 
         if name == "Rijstrooksignaleringen":
             # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
