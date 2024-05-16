@@ -1,6 +1,8 @@
 from msi_relations import MSINetwerk
 import json
+import os
 from utils import *
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,6 +138,10 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
     return road_dict
 
 
-def generate_file(dataset: dict, output_pad: str):
-    with open(output_pad, "w") as outfile:
+def generate_file(dataset: dict, output_folder: str):
+    # Generate road model output folder if it does not exist.
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    with open(f"{output_folder}/RoadModelMSINetwork.json", "w") as outfile:
         json.dump(dataset, outfile, indent=2)

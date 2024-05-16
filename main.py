@@ -3,7 +3,6 @@ from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
 from safety_areas import Rand, Aanvraag, AFZETTING_BAKENS, AFZETTING_BARRIER_ONDER_80CM, AFZETTING_BARRIER_BOVEN_80CM
-import os
 
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
@@ -23,20 +22,16 @@ dfl = DataFrameLader(locatie, "data/locaties.csv")
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
 
-# # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
+# Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel (deze regels weglaten bij handmatig aanpassen bestand).
 MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
 MSIs.make_print(MSI_RELATIONS_FILE)
 
-# Maak wegmodel folder aan indien deze niet bestaat.
-if not os.path.exists(ILP_ROADMODEL_FOLDER):
-    os.makedirs(ILP_ROADMODEL_FOLDER)
-
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(wegmodel, MSI_RELATIONS_FILE, f"{ILP_ROADMODEL_FOLDER}/RoadModelVisualisation.svg", 1000, False)
+SvgMaker(wegmodel, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
 
 # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
-generate_file(ilp_input, f"{ILP_ROADMODEL_FOLDER}/LSC.json")
+generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
 
 # Instantieer een aanvraag (A27 Oosterhout)
 if locatie == "Oosterhout":

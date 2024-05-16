@@ -1,8 +1,9 @@
 from road_model import WegModel, ObjectInfo, PositieEigenschappen
-from msi_relations import MSINetwerk
 import svgwrite
+import os
 from shapely import *
 from utils import *
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,13 +23,17 @@ class SvgMaker:
     }
     
     def __init__(self, wegmodel: WegModel, relation_file_name: str,
-                 output_pad: str, formaat: int = 1000, onroad: bool = False):
+                 output_folder: str, formaat: int = 1000, onroad: bool = False):
         self.wegmodel = wegmodel
         self.relation_file = relation_file_name
-        self.outfile = output_pad
+        self.outfile = f"{output_folder}/RoadModelVisualisation.svg"
         self.size = formaat
         self.onroad = onroad
         self.element_by_id = {}
+
+        # Generate road model output folder if it does not exist.
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
 
         # Visualiser parameters (constants)
         self.LANE_WIDTH = 3.5
