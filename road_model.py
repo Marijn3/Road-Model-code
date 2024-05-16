@@ -342,7 +342,7 @@ class WegModel:
     def __init__(self, dfl: DataFrameLader):
         self.dfl = dfl
         self.DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
-        self.GRID_SIZE = 0.000001
+        self.GRID_SIZE = 0.00001
 
         self.__reference = {}
         self.__reference_index = 0
@@ -577,7 +577,6 @@ class WegModel:
                     break
                 else:
                     other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
-                    continue
 
             self.__run_checks(new_info, other_info)
 
