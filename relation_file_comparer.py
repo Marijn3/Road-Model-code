@@ -66,13 +66,9 @@ for cggtop_index, cggtop_msi_relation in cggtop_msi_relations.items():
         eq6 = km2_difference <= 0.035
 
         if all([eq1, eq2, eq3, eq4, eq5, eq6]):
-            found_relations_log.append(f"{original_cggtop_lines[cggtop_index].strip()}"
-                                       f"   \t<->    "
-                                       f"{original_roadmodel_lines[roadmodel_index].strip()}"
-                                       f"    \t(difference: "
-                                       f"{int(km1_difference * 1000)}m"
-                                       f" and "
-                                       f"{int(km2_difference * 1000)}m)")
+            found_relations_log.append(f"{original_cggtop_lines[cggtop_index].strip()}   \t<->    "
+                                       f"{original_roadmodel_lines[roadmodel_index].strip()}    \t(difference: "
+                                       f"{int(km1_difference * 1000)}m and {int(km2_difference * 1000)}m)")
             roadmodel_line_numbers_found.append(roadmodel_index)
             cggtop_line_numbers_found.append(cggtop_index)
             break
@@ -107,7 +103,8 @@ else:
 # --------------------------------------------
 
 with open("relation_comparison_log.txt", "w") as outfile:
-    outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\nand {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
+    outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
+                  f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
     outfile.write(f"Road numbers in road model dataset: {roadnumbers_in_roadmodel_dataset}\n")
     outfile.write(f"Found matches: {len(found_relations_log)}\n")
     outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
@@ -125,8 +122,8 @@ with open("relation_comparison_log.txt", "w") as outfile:
     for line in found_relations_log:
         outfile.write(f"{line}\n")
 
-    # outfile.write(f"\nCGGTOP UNMATCHED LINES (FILTERED BY ROAD NUMBER):\n")
-    # if not cggtop_lines_filtered:
-    #     outfile.write(f"-\n")
-    # for line in cggtop_lines_filtered:
-    #     outfile.write(f"{line.strip()}\n")
+    outfile.write(f"\nCGGTOP UNMATCHED LINES (FILTERED BY ROAD NUMBER):\n")
+    if not cggtop_lines_filtered:
+        outfile.write(f"-\n")
+    for line in cggtop_lines_filtered:
+        outfile.write(f"{line.strip()}\n")

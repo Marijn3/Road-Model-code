@@ -1,4 +1,3 @@
-from copy import deepcopy
 
 CGGTOP_FOLDER = "data/ZUIDNEDERLAND.00295"
 MSI_RELATIONS_OUTPUT = "msi_relations_cggtop.txt"
@@ -60,13 +59,11 @@ with open(CGGTOP_FOLDER, "r") as cggtop_file:
         if original_line[0:2] == " !":
             km_text = line.split(sep=" ")[0][1:]
             km = float(km_text.replace(",", "."))
-            # roadnumber = onderstation_data[3]
             row_name = f"{roadnumber}:{km:.3f}"
-            # print(f"This is row {row_name}")
             continue
 
         if line.startswith("!DETSTN=") or line.startswith("!VLUCHTSTROOK"):
-            # We're done with this onderstation. No more relations are given in the file.
+            # We're done with this onderstation. No more relations are given in the file after this line.
             row_name = None
 
         if row_name:
