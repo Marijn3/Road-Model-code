@@ -87,6 +87,11 @@ cggtop_lines = original_cggtop_lines.copy()
 for i in cggtop_line_numbers_found:
     cggtop_lines.pop(i)
 
+original_cggtop_lines_filtered = list()
+for line in original_cggtop_lines:
+    if any(roadnr in line for roadnr in tuple(roadnumbers_in_roadmodel_dataset)):
+        original_cggtop_lines_filtered.append(line)
+
 cggtop_lines_filtered = list()
 for line in cggtop_lines:
     if any(roadnr in line for roadnr in tuple(roadnumbers_in_roadmodel_dataset)):
@@ -102,10 +107,12 @@ else:
 # --------------------------------------------
 
 with open("relation_comparison_log.txt", "w") as outfile:
-    outfile.write(f"Relation comparison log between {msi_rel_file} and {cggtop_rel_file}.\n\n")
+    outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\nand {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
+    outfile.write(f"Road numbers in road model dataset: {roadnumbers_in_roadmodel_dataset}\n")
     outfile.write(f"Found matches: {len(found_relations_log)}\n")
     outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
-    outfile.write(f"Relations from CGGTOP without match: {len(cggtop_lines_filtered)}/{len(original_cggtop_lines)}\n")
+    outfile.write(f"Relations from CGGTOP without match: "
+                  f"{len(cggtop_lines_filtered)}/{len(original_cggtop_lines_filtered)} (filtered by road numbers)\n")
 
     outfile.write(f"\nROAD MODEL UNMATCHED LINES:\n")
     if not roadmodel_lines:
@@ -118,8 +125,8 @@ with open("relation_comparison_log.txt", "w") as outfile:
     for line in found_relations_log:
         outfile.write(f"{line}\n")
 
-    outfile.write(f"\nCGGTOP UNMATCHED LINES (FILTERED BY ROAD NUMBER):\n")
-    if not cggtop_lines_filtered:
-        outfile.write(f"-\n")
-    for line in cggtop_lines_filtered:
-        outfile.write(f"{line.strip()}\n")
+    # outfile.write(f"\nCGGTOP UNMATCHED LINES (FILTERED BY ROAD NUMBER):\n")
+    # if not cggtop_lines_filtered:
+    #     outfile.write(f"-\n")
+    # for line in cggtop_lines_filtered:
+    #     outfile.write(f"{line.strip()}\n")
