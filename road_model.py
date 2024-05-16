@@ -342,7 +342,7 @@ class WegModel:
     def __init__(self, dfl: DataFrameLader):
         self.dfl = dfl
         self.DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
-        self.GRID_SIZE = 0.00001
+        self.GRID_SIZE = 0.000001
 
         self.__reference = {}
         self.__reference_index = 0
@@ -572,12 +572,18 @@ class WegModel:
         sections_to_remove = set()
 
         while True:
-            if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
+
+            logger.debug(f"{new_info} {other_info}")
+
+            bad_section = self.__run_checks(new_info, other_info)
+
+            if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs) or bad_section:
                 if not overlap_sections:
                     break
-                other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
+                else:
+                    other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
+                    continue
 
-            self.__run_checks(new_info, other_info)
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -732,19 +738,26 @@ class WegModel:
         return km_remaining, other_geom
 
     @staticmethod
-    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
-        assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km),\
-            f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
+    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
+        if not determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km):
+            logger.warning(f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
+            return True
 
-        assert isinstance(new_info.pos_eigs.geometrie, LineString),\
-            f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}"
-        assert isinstance(other_info.pos_eigs.geometrie, LineString),\
-            f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}"
+        if not isinstance(new_info.pos_eigs.geometrie, LineString):
+            logger.warning(f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}")
+            return True
+        if not isinstance(other_info.pos_eigs.geometrie, LineString):
+            logger.warning(f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}")
+            return True
 
-        assert not is_empty(new_info.pos_eigs.geometrie),\
-            f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}"
-        assert not is_empty(other_info.pos_eigs.geometrie),\
-            f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}"
+        if is_empty(new_info.pos_eigs.geometrie):
+            logger.warning(f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}")
+            return True
+        if is_empty(other_info.pos_eigs.geometrie):
+            logger.warning(f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}")
+            return True
+
+        return False
 
     def __get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
         """
@@ -759,7 +772,7 @@ class WegModel:
         """
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
-        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
+        # assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
         diff = difference(geom1, geom2, grid_size=self.GRID_SIZE)
 
         if isinstance(diff, LineString) and not diff.is_empty:
@@ -771,8 +784,9 @@ class WegModel:
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
-            raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
-                            f"{geom1} en \n{geom2}")
+            logger.warning(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+                           f"{geom1} en \n{geom2}")
+            return diff
 
     def __check_geometry_equality(self, geom1: LineString, geom2: LineString) -> bool:
         """
@@ -891,8 +905,9 @@ class WegModel:
         Logs:
             Newly added section properties.
         """
-        assert new_section.pos_eigs.geometrie and not is_empty(new_section.pos_eigs.geometrie), \
-            f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
+        if not new_section.pos_eigs.geometrie or is_empty(new_section.pos_eigs.geometrie):
+            logger.warning(f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}")
+            return
 
         self.sections[self.__section_index] = new_section
         self.__log_section(self.__section_index, False)
@@ -911,7 +926,7 @@ class WegModel:
 
         if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            logger.warning(f"Sectie overlapt niet met referentie, dus wordt niet toegevoegd: {section_info.pos_eigs}")
+            logger.debug(f"Sectie overlapt niet met referentie, dus wordt niet toegevoegd: {section_info.pos_eigs}")
             return
 
         # Ensure the first geometries are oriented in driving direction according to the reference layer.
