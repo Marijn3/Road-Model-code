@@ -42,7 +42,10 @@ class MSIRow:
         self.determine_carriageways()
 
     def get_msi_names(self, lane_numbers: set) -> list:
-        return [self.MSIs[i].name for i in lane_numbers if i in self.rijstrooknummers]
+        if self.local_road_properties[1] in ["Vluchtstrook"]:  # All MSI registrations should move 1 lane in this case.
+            return [self.MSIs[i-1].name for i in lane_numbers if i-1 in self.rijstrooknummers]
+        else:
+            return [self.MSIs[i].name for i in lane_numbers if i in self.rijstrooknummers]
 
     def determine_carriageways(self):
         """
@@ -53,11 +56,16 @@ class MSIRow:
         cw_index = 1
 
         for lane_number in self.lane_numbers:
-            if lane_number == self.n_lanes:
-                self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
-                break
 
             current_lane = self.local_road_properties[lane_number]
+
+            if lane_number == max(self.lane_numbers):
+                if current_lane not in ["Vluchtstrook"]:
+                    lanes_in_current_cw.add(lane_number)
+                if lanes_in_current_cw:
+                    self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
+                break
+
             next_lane = self.local_road_properties[lane_number + 1]
 
             if current_lane == next_lane or current_lane in ["Plusstrook"] or next_lane in ["Spitsstrook"]:
@@ -72,6 +80,8 @@ class MSIRow:
             self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
             lanes_in_current_cw = set()
             cw_index += 1
+
+        logger.info(f"{self.name}: {self.cw}")
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
