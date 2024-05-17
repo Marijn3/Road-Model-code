@@ -55,10 +55,19 @@ class MSIRow:
 
             current_lane = self.local_road_properties[lane_number]
             next_lane = self.local_road_properties[lane_number + 1]
+
+            # TODO: Fix and improve this part.
             if current_lane == next_lane:
                 lanes_in_current_cw.append(lane_number + 1)
-            elif next_lane in ["Spitsstrook", "Vluchtstrook"]:
+            elif next_lane in ["Spitsstrook"]:
                 # Add final lane and stop
+                lanes_in_current_cw.append(lane_number + 1)
+                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
+                if last_lane:
+                    self.cw[cw_index] = last_lane
+                break
+            elif next_lane in ["Vluchtstrook"]:
+                # Don't add final lane and stop
                 last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
                 if last_lane:
                     self.cw[cw_index] = last_lane
@@ -67,6 +76,7 @@ class MSIRow:
                 self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
                 lanes_in_current_cw = [lane_number + 1]
                 cw_index += 1
+        logger.info(f"{self.name}: {self.cw}")
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
