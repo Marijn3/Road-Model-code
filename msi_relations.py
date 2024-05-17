@@ -39,34 +39,49 @@ class MSIRow:
         # Create all MSIs in row, passing the parent row class as argument (self)
         self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.rijstrooknummers}
 
-        # Determine carriageways based on road properties
-        self.cw = {}
+        self.determine_carriageways()
+
+    def get_msi_names(self, lane_numbers: set) -> list:
+        if self.local_road_properties[1] in ["Vluchtstrook"]:  # All MSI registrations should move 1 lane in this case.
+            return [self.MSIs[i-1].name for i in lane_numbers if i-1 in self.rijstrooknummers]
+        else:
+            return [self.MSIs[i].name for i in lane_numbers if i in self.rijstrooknummers]
+
+    def determine_carriageways(self):
+        """
+        Determine carriageways based on road properties.
+        In WEGGEG, Spitsstrook links -> Plusstrook, Spitsstrook rechts -> Spitsstrook.
+        """
+        lanes_in_current_cw = set()
         cw_index = 1
-        lanes_in_current_cw = [1]
 
         for lane_number in self.lane_numbers:
 
-            if lane_number == self.n_lanes:
-                # Add final lane and stop
-                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
-                if last_lane:
-                    self.cw[cw_index] = last_lane
+            current_lane = self.local_road_properties[lane_number]
+
+            if lane_number == max(self.lane_numbers):
+                if current_lane not in ["Vluchtstrook"]:
+                    lanes_in_current_cw.add(lane_number)
+                if lanes_in_current_cw:
+                    self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
                 break
 
-            current_lane = self.local_road_properties[lane_number]
             next_lane = self.local_road_properties[lane_number + 1]
-            if current_lane == next_lane:
-                lanes_in_current_cw.append(lane_number + 1)
-            elif next_lane in ["Spitsstrook", "Vluchtstrook"]:
-                # Add final lane and stop
-                last_lane = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
-                if last_lane:
-                    self.cw[cw_index] = last_lane
-                break
-            else:
-                self.cw[cw_index] = [self.MSIs[i].name for i in lanes_in_current_cw if i in self.rijstrooknummers]
-                lanes_in_current_cw = [lane_number + 1]
-                cw_index += 1
+
+            if current_lane == next_lane or current_lane in ["Plusstrook"] or next_lane in ["Spitsstrook"]:
+                lanes_in_current_cw.add(lane_number)
+                lanes_in_current_cw.add(lane_number + 1)
+                continue  # Carriageway hasn't yet ended
+            elif current_lane in ["Vluchtstrook"]:
+                continue  # Skip
+            elif next_lane in ["Vluchtstrook"]:
+                lanes_in_current_cw.add(lane_number)  # Continue, add these lanes to (final) cw.
+
+            self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
+            lanes_in_current_cw = set()
+            cw_index += 1
+
+        logger.info(f"{self.name}: {self.cw}")
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
@@ -282,7 +297,7 @@ class MSINetwerk:
                 next_point_pos_eigs = PositieEigenschappen(
                     rijrichting=current_section.pos_eigs.rijrichting,
                     wegnummer=current_section.pos_eigs.wegnummer,
-                    hectoletter=current_section.pos_eigs.hecto_character,
+                    hectoletter=current_section.pos_eigs.hectoletter,
                     km=next_km,
                     geometrie=next_point_geom
                 )
@@ -699,10 +714,10 @@ class MSI:
 
             if self.row.msi_network.add_secondary_relations:
                 u_row, desc = next(iter(self.row.upstream.items()))
-                if u_row.local_road_info.pos_eigs.hecto_character == self.row.local_road_info.pos_eigs.hecto_character:
+                if u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
                     logger.debug(f"Relatie wordt toegepast.")
                     self.make_secondary_connection(self, u_row.MSIs[u_row.highest_msi_number])
-                elif (u_row.local_road_info.pos_eigs.hecto_character != self.row.local_road_info.pos_eigs.hecto_character
+                elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
                       and self.lane_nr == 1):
                     # This should not occur in the Netherlands, but is here for safety.
                     logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
@@ -733,7 +748,7 @@ class MSI:
 
 
 def make_MTM_row_name(point_info: ObjectInfo) -> str:
-    if point_info.pos_eigs.hecto_character:
-        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hecto_character.upper()}:{point_info.pos_eigs.km:.3f}"
+    if point_info.pos_eigs.hectoletter:
+        return f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:{point_info.pos_eigs.km:.3f}"
     else:
         return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km:.3f}"

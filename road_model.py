@@ -11,15 +11,15 @@ class PositieEigenschappen:
                  km: list = None, geometrie: Point | LineString = None):
         self.rijrichting = rijrichting
         self.wegnummer = wegnummer
-        self.hecto_character = hectoletter
+        self.hectoletter = hectoletter
         self.km = km if km is not None else float()
         self.geometrie = geometrie
 
     def __repr__(self):
-        if self.hecto_character:
-            return f"{self.wegnummer}, {self.rijrichting}, {self.hecto_character}, {self.km} km"
+        if self.hectoletter:
+            return f"{self.wegnummer}{self.rijrichting} {self.hectoletter}, {self.km} km"
         else:
-            return f"{self.wegnummer}, {self.rijrichting}, {self.km} km"
+            return f"{self.wegnummer}{self.rijrichting} {self.km} km"
 
 
 class LijnVerwerkingsEigenschappen:
@@ -430,7 +430,7 @@ class WegModel:
         section_info = self.get_one_section_at_point(row["geometry"])
         point_info.pos_eigs.rijrichting = section_info.pos_eigs.rijrichting
         point_info.pos_eigs.wegnummer = section_info.pos_eigs.wegnummer
-        point_info.pos_eigs.hecto_character = section_info.pos_eigs.hecto_character
+        point_info.pos_eigs.hectoletter = section_info.pos_eigs.hectoletter
 
         point_info.pos_eigs.km = row["KMTR"]
         point_info.pos_eigs.geometrie = row["geometry"]
@@ -460,7 +460,7 @@ class WegModel:
         if name == "Wegvakken":
             section_info.pos_eigs.wegnummer = row["WEGNR_HMP"]
             if row["HECTO_LTTR"]:
-                section_info.pos_eigs.hecto_character = row["HECTO_LTTR"]
+                section_info.pos_eigs.hectoletter = row["HECTO_LTTR"]
 
         elif name == "Rijstroken":
             section_info.pos_eigs.rijrichting = row["IZI_SIDE"]
@@ -575,9 +575,12 @@ class WegModel:
             if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
                 if not overlap_sections:
                     break
-                other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
+                else:
+                    other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
             self.__run_checks(new_info, other_info)
+
+            logger.debug(f"Gebaseerd op:\n{new_info}{other_info}")
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -629,7 +632,7 @@ class WegModel:
                             pos_eigs=PositieEigenschappen(
                                 rijrichting=other_info.pos_eigs.rijrichting,
                                 wegnummer=other_info.pos_eigs.wegnummer,
-                                hectoletter=other_info.pos_eigs.hecto_character,
+                                hectoletter=other_info.pos_eigs.hectoletter,
                                 km=new_info.pos_eigs.km,
                                 geometrie=new_info.pos_eigs.geometrie),
                             obj_eigs=new_info.obj_eigs)
@@ -675,7 +678,7 @@ class WegModel:
                 pos_eigs=PositieEigenschappen(
                     rijrichting=reference_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hecto_character,
+                    hectoletter=reference_info.pos_eigs.hectoletter,
                     km=km_bereik,
                     geometrie=differering_geom),
                 obj_eigs=first_section_info.obj_eigs)
@@ -716,7 +719,7 @@ class WegModel:
                 pos_eigs=PositieEigenschappen(
                     rijrichting=reference_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hecto_character,
+                    hectoletter=reference_info.pos_eigs.hectoletter,
                     km=km_bereik,
                     geometrie=overlapping_geom),
                 obj_eigs={**second_section_info.obj_eigs, **first_section_info.obj_eigs})
@@ -732,19 +735,26 @@ class WegModel:
         return km_remaining, other_geom
 
     @staticmethod
-    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo):
-        assert determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km),\
-            f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}"
+    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
+        if not determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km):
+            logger.warning(f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
+            return True
 
-        assert isinstance(new_info.pos_eigs.geometrie, LineString),\
-            f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}"
-        assert isinstance(other_info.pos_eigs.geometrie, LineString),\
-            f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}"
+        if not isinstance(new_info.pos_eigs.geometrie, LineString):
+            logger.warning(f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}")
+            return True
+        if not isinstance(other_info.pos_eigs.geometrie, LineString):
+            logger.warning(f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}")
+            return True
 
-        assert not is_empty(new_info.pos_eigs.geometrie),\
-            f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}"
-        assert not is_empty(other_info.pos_eigs.geometrie),\
-            f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}"
+        if is_empty(new_info.pos_eigs.geometrie):
+            logger.warning(f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}")
+            return True
+        if is_empty(other_info.pos_eigs.geometrie):
+            logger.warning(f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}")
+            return True
+
+        return False
 
     def __get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
         """
@@ -771,8 +781,9 @@ class WegModel:
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
-            raise Exception(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
-                            f"{geom1} en \n{geom2}")
+            logger.warning(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+                           f"{geom1} en \n{geom2}")
+            return diff
 
     def __check_geometry_equality(self, geom1: LineString, geom2: LineString) -> bool:
         """
@@ -891,8 +902,9 @@ class WegModel:
         Logs:
             Newly added section properties.
         """
-        assert new_section.pos_eigs.geometrie and not is_empty(new_section.pos_eigs.geometrie), \
-            f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}"
+        if not new_section.pos_eigs.geometrie or is_empty(new_section.pos_eigs.geometrie):
+            logger.warning(f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}")
+            return
 
         self.sections[self.__section_index] = new_section
         self.__log_section(self.__section_index, False)
@@ -911,7 +923,7 @@ class WegModel:
 
         if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            logger.warning(f"Sectie overlapt niet met referentie, dus wordt niet toegevoegd: {section_info.pos_eigs}")
+            logger.debug(f"Sectie overlapt niet met referentie, dus wordt niet toegevoegd: {section_info.pos_eigs}")
             return
 
         # Ensure the first geometries are oriented in driving direction according to the reference layer.
@@ -925,7 +937,7 @@ class WegModel:
                 pos_eigs=PositieEigenschappen(
                     rijrichting=section_info.pos_eigs.rijrichting,
                     wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hecto_character,
+                    hectoletter=reference_info.pos_eigs.hectoletter,
                     km=section_info.pos_eigs.km,
                     geometrie=geom),
                 obj_eigs=section_info.obj_eigs)
@@ -971,7 +983,7 @@ class WegModel:
                      f"{self.points[index].pos_eigs.km:<7.3f} km \t"
                      f"{self.points[index].pos_eigs.wegnummer}\t"
                      f"{self.points[index].pos_eigs.rijrichting}\t"
-                     f"{self.points[index].pos_eigs.hecto_character}\t"
+                     f"{self.points[index].pos_eigs.hectoletter}\t"
                      f"{self.points[index].obj_eigs} \n"
                      f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
 
@@ -983,7 +995,7 @@ class WegModel:
         """
         logger.debug(f"Referentie {index} toegevoegd:  \t"
                      f"{self.__reference[index].pos_eigs.wegnummer}\t"
-                     f"{self.__reference[index].pos_eigs.hecto_character}\n"
+                     f"{self.__reference[index].pos_eigs.hectoletter}\n"
                      f"\t\t\t\t\t\t\t\t{set_precision(self.__reference[index].pos_eigs.geometrie, 1)}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
@@ -997,7 +1009,7 @@ class WegModel:
                      f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
                      f"{self.sections[index].pos_eigs.wegnummer}\t"
                      f"{self.sections[index].pos_eigs.rijrichting}\t"
-                     f"{self.sections[index].pos_eigs.hecto_character}\t"
+                     f"{self.sections[index].pos_eigs.hectoletter}\t"
                      f"{self.sections[index].obj_eigs} \n"
                      f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
 
@@ -1183,7 +1195,7 @@ class WegModel:
         this_section_max_lane_nr = max([key for key in section_info.obj_eigs.keys() if isinstance(key, int)])
         if section_info.obj_eigs[this_section_max_lane_nr] == "Puntstuk":
             connected = [index for index, section in adjacent_sections.items() if
-                         section_info.pos_eigs.hecto_character == section.pos_eigs.hecto_character]
+                         section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
             # If all hectoletters are the same, use the km registration.
             if len(connected) > 1:
                 if section_info.pos_eigs.rijrichting == "L":
@@ -1224,9 +1236,9 @@ class WegModel:
 
         # If neither other section had puntstuk, return the one section with same hectoletter
         connected = [index for index, section in adjacent_sections.items() if
-                     section_info.pos_eigs.hecto_character == section.pos_eigs.hecto_character]
+                     section_info.pos_eigs.hectoletter == section.pos_eigs.hectoletter]
         diverging = [index for index, section in adjacent_sections.items() if
-                     section_info.pos_eigs.hecto_character != section.pos_eigs.hecto_character]
+                     section_info.pos_eigs.hectoletter != section.pos_eigs.hectoletter]
 
         if len(connected) == 1:
             return connected[0], diverging[0]
@@ -1344,7 +1356,7 @@ class WegModel:
         """
         sections = []
         for section in self.sections.values():
-            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hecto_character == hecto and
+            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hectoletter == hecto and
                     (min(section.pos_eigs.km) <= km[0] <= max(section.pos_eigs.km) or
                      min(section.pos_eigs.km) <= km[1] <= max(section.pos_eigs.km))):
                 sections.append(section)

@@ -16,7 +16,7 @@ MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-locatie = "Vught"  # {"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299}
+locatie = "A2VK"  # {"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299}
 dfl = DataFrameLader(locatie, "data/locaties.csv")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
@@ -29,19 +29,19 @@ MSIs.make_print(MSI_RELATIONS_FILE)
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
 SvgMaker(wegmodel, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
 
-# Exporteer de MSI-eigenschappen naar een bestand.
-ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
-generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
-
-# Instantieer een aanvraag (A27 Oosterhout)
-if locatie == "Oosterhout":
-    aanvraag = Aanvraag(wegmodel,
-                        km_start=13.95,
-                        km_end=13.98,
-                        wegkant="R",
-                        hectoletter="",
-                        korter_dan_24h=True,
-                        randen={"L": Rand(rijstrook=None, afstand=0.6),
-                                "R": Rand(rijstrook=None, afstand=2.5)},
-                        afzetting=AFZETTING_BAKENS,
-                        )
+# # Exporteer de MSI-eigenschappen naar een bestand.
+# ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
+# generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
+#
+# # Instantieer een aanvraag (A27 Oosterhout)
+# if locatie == "Oosterhout":
+#     aanvraag = Aanvraag(wegmodel,
+#                         km_start=13.95,
+#                         km_end=13.98,
+#                         wegkant="R",
+#                         hectoletter="",
+#                         korter_dan_24h=True,
+#                         randen={"L": Rand(rijstrook=None, afstand=0.6),
+#                                 "R": Rand(rijstrook=None, afstand=2.5)},
+#                         afzetting=AFZETTING_BAKENS,
+#                         )
