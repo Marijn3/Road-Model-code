@@ -435,7 +435,7 @@ class SvgMaker:
 
     def display_MSI_roadside(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
         g_msi_row = self.g_points.add(self.dwg.g())
-        hecto_offset = 0 if point_info.pos_eigs.hecto_character in ["", "w", "h"] else self.LANE_WIDTH * 25
+        hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
         displacement = 0
 
         for nr in point_info.obj_eigs["Rijstrooknummers"]:
@@ -678,8 +678,8 @@ def make_name(point_info, nr) -> str:
     """
     Makes MSI name using the MTM2 convention.
     """
-    if point_info.pos_eigs.hecto_character:
-        return (f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hecto_character.upper()}:"
+    if point_info.pos_eigs.hectoletter:
+        return (f"{point_info.pos_eigs.wegnummer}_{point_info.pos_eigs.hectoletter.upper()}:"
                 f"{point_info.pos_eigs.km:.3f}:{nr}")
     else:
         return f"{point_info.pos_eigs.wegnummer}{point_info.pos_eigs.rijrichting}:{point_info.pos_eigs.km:.3f}:{nr}"
@@ -694,6 +694,6 @@ def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
         Name for display, based on point info, containing road number,
         kilometer and driving direction (replaced by hectoletter if present).
     """
-    if pos_eigs.hecto_character:
-        return f"{pos_eigs.wegnummer} {pos_eigs.km} {pos_eigs.hecto_character}"
+    if pos_eigs.hectoletter:
+        return f"{pos_eigs.wegnummer} {pos_eigs.km} {pos_eigs.hectoletter}"
     return f"{pos_eigs.wegnummer}  {pos_eigs.km} {pos_eigs.rijrichting}"
