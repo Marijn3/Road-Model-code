@@ -29,19 +29,29 @@ MSIs.make_print(MSI_RELATIONS_FILE)
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
 SvgMaker(wegmodel, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
 
-# # Exporteer de MSI-eigenschappen naar een bestand.
-# ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
-# generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
-#
-# # Instantieer een aanvraag (A27 Oosterhout)
-# if locatie == "Oosterhout":
-#     aanvraag = Aanvraag(wegmodel,
-#                         km_start=13.95,
-#                         km_end=13.98,
-#                         wegkant="R",
-#                         hectoletter="",
-#                         korter_dan_24h=True,
-#                         randen={"L": Rand(rijstrook=None, afstand=0.6),
-#                                 "R": Rand(rijstrook=None, afstand=2.5)},
-#                         afzetting=AFZETTING_BAKENS,
-#                         )
+# Exporteer de MSI-eigenschappen naar een bestand.
+ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
+generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
+
+# Instantieer een aanvraag (A27 Oosterhout)
+if locatie == "Oosterhout":
+    aanvraag1 = Aanvraag(wegmodel=wegmodel,
+                         km_start=13.95,
+                         km_end=13.98,
+                         wegkant="R",
+                         hectoletter="",
+                         korter_dan_24h=True,
+                         randen={"L": Rand(rijstrook=None, afstand=1.2),
+                                 "R": Rand(rijstrook=None, afstand=3.5)},
+                         afzetting=AFZETTING_BAKENS,
+                         )
+    aanvraag2 = Aanvraag(wegmodel=wegmodel,
+                         km_start=13.95,
+                         km_end=13.98,
+                         wegkant="R",
+                         hectoletter="",
+                         korter_dan_24h=True,
+                         randen={"L": Rand(rijstrook=2, afstand=0.9),
+                                 "R": Rand(rijstrook=2, afstand=-0.3)},
+                         afzetting=AFZETTING_BAKENS,
+                         )
