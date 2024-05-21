@@ -1,11 +1,14 @@
 msi_rel_file = "msi_relations_roadmodel.txt"
 cggtop_rel_file = "msi_relations_cggtop.txt"
 
+ALLOWED_KM_DIFFERENCE = 0.035
+
 roadmodel_dataset_extent = dict()
+found_relations_log = list()
+
 roadmodel_msi_relations = dict()
 cggtop_msi_relations = dict()
 
-found_relations_log = list()
 roadmodel_line_numbers_found = list()
 cggtop_line_numbers_found = list()
 
@@ -55,7 +58,8 @@ with open(cggtop_rel_file, "r") as file:
             roadnumber2, km2, lanenumber2 = msi2.split(":")
             km_min1, km_max1 = roadmodel_dataset_extent.get(roadnumber1, (0.0, 0.0))
             km_min2, km_max2 = roadmodel_dataset_extent.get(roadnumber2, (0.0, 0.0))
-            if km_min1 <= float(km1) <= km_max1 and km_min2 <= float(km2) <= km_max2:
+            if (km_min1 - ALLOWED_KM_DIFFERENCE <= float(km1) <= km_max1 + ALLOWED_KM_DIFFERENCE
+                and km_min2 - ALLOWED_KM_DIFFERENCE <= float(km2) <= km_max2 + ALLOWED_KM_DIFFERENCE):
                 cggtop_msi_relations[cggtop_index] = {
                     "roadnumber1": roadnumber1, "km1": km1, "lanenumber1": lanenumber1,
                     "rel": relation,
@@ -83,8 +87,8 @@ for cggtop_index, cggtop_msi_relation in cggtop_msi_relations.items():
         km1_difference = round(abs(float(cggtop_msi_relation["km1"]) - float(roadmodel_msi_relation["km1"])), 3)
         km2_difference = round(abs(float(cggtop_msi_relation["km2"]) - float(roadmodel_msi_relation["km2"])), 3)
 
-        eq5 = km1_difference <= 0.035
-        eq6 = km2_difference <= 0.035
+        eq5 = km1_difference <= ALLOWED_KM_DIFFERENCE
+        eq6 = km2_difference <= ALLOWED_KM_DIFFERENCE
 
         if all([eq1, eq2, eq3, eq4, eq5, eq6]):
             found_relations_log.append(f"{original_cggtop_lines[cggtop_index].strip()}   \t<->    "
@@ -112,7 +116,8 @@ for line in cggtop_lines:
         roadnumber2, km2, lanenumber2 = msi2.split(":")
         km_min1, km_max1 = roadmodel_dataset_extent.get(roadnumber1, (0.0, 0.0))
         km_min2, km_max2 = roadmodel_dataset_extent.get(roadnumber2, (0.0, 0.0))
-        if km_min1 <= float(km1) <= km_max1 and km_min2 <= float(km2) <= km_max2:
+        if (km_min1 - ALLOWED_KM_DIFFERENCE <= float(km1) <= km_max1 + ALLOWED_KM_DIFFERENCE
+                and km_min2 - ALLOWED_KM_DIFFERENCE <= float(km2) <= km_max2 + ALLOWED_KM_DIFFERENCE):
             cggtop_lines_filtered.append(line)
 
 if len(roadmodel_lines) == 0:
@@ -127,7 +132,7 @@ else:
 with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
                   f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
-    outfile.write(f"Road numbers in road model dataset: {roadmodel_dataset_extent.keys()}\n")
+    outfile.write(f"Road numbers in road model dataset: {list(roadmodel_dataset_extent.keys())}\n")
     outfile.write(f"Found matches: {len(found_relations_log)}\n")
     outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
     outfile.write(f"Relations from CGGTOP without match: "
