@@ -150,13 +150,13 @@ class DataFrameLader:
         if direction == "H":
             mapping["1 -> 1.6"] = (1, None)  # "Taper opkomst start")
             mapping["1.6 -> 1"] = (1, None)  # "Taper afloop einde")
-            mapping["2 -> 1.6"] = (2, "Taper afloop start")  # wel 2 stroken breed, want 2 breed bij start
-            mapping["1.6 -> 2"] = (1, "Taper opkomst einde")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["2 -> 1.6"] = (2, "TaperAfloop")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "TaperOpkomst")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         if direction == "T":
             mapping["1 -> 1.6"] = (1, None)  # "Taper afloop einde")
             mapping["1.6 -> 1"] = (1, None)  # "Taper opkomst start")
-            mapping["2 -> 1.6"] = (2, "Taper opkomst einde")  # wel 2 stroken breed, want 2 breed bij start
-            mapping["1.6 -> 2"] = (1, "Taper afloop start")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["2 -> 1.6"] = (2, "TaperOpkomst")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "TaperAfloop")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
@@ -1062,15 +1062,21 @@ class WegModel:
         # Special code to fill in registration gaps in the case of taper registrations.
         for section_index, section_info in self.sections.items():
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
+
+            if "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
+                special_lane_nr = section_info.obj_eigs["Special"][1]
+                if special_lane_nr + 1 not in section_info.obj_eigs.keys():
+                    # Section has a registration gap
+                    section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
+                elif section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
+                    # Section has a singular lane registered for the taper
+                    for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
+                        section_info.obj_eigs[lane_number + 1] = section_info.obj_eigs[lane_number]
+
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                if ("Special" in section_info.obj_eigs.keys()
-                        and "Taper" in section_info.obj_eigs["Special"][0]
-                        and gap_number == section_info.obj_eigs["Special"][1] + 1):
-                    section_info.obj_eigs[gap_number] = section_info.obj_eigs[gap_number - 1]
-                else:
-                    logger.warning(f"Sectie heeft gat in registratie rijstroken.\n"
-                                   f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
+                logger.warning(f"Sectie heeft een gat in registratie rijstroken.\n"
+                               f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
