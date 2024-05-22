@@ -8,10 +8,6 @@ WERKRUIMTE = 201
 VEILIGHEIDSRUIMTE = 202
 WERKVAK = 203
 
-AFZETTING_BAKENS = 300
-AFZETTING_BARRIER_ONDER_80CM = 301
-AFZETTING_BARRIER_BOVEN_80CM = 302
-
 TL1 = 400
 TL2 = 401
 TR1 = 402
@@ -27,10 +23,17 @@ LR3 = 410
 BREEDTE_BARRIER = 0.60  # Estimate, in meters
 BREEDTE_BAKENS = 0.40  # Estimate, in meters
 
+
+class AFZETTINGEN:
+    BAKENS = 300
+    BARRIER_ONDER_80CM = 301
+    BARRIER_BOVEN_80CM = 302
+
+
 TUSSENRUIMTE = {
-    AFZETTING_BAKENS: {WERKVAK: 0.5 * BREEDTE_BAKENS, VEILIGHEIDSRUIMTE: 0.60},
-    AFZETTING_BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.60},
-    AFZETTING_BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.0},
+    AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE_BAKENS, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTINGEN.BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTINGEN.BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.0},
 }
 
 
@@ -74,7 +77,7 @@ class Aanvraag:
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
                  randen: dict[str: Rand],
-                 maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTING_BAKENS) -> None:
+                 maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
         self.roadmodel = wegmodel
         self.roadside = wegkant
         self.km = [km_start, km_end]
@@ -338,4 +341,3 @@ class Werkvak:
 
     def adjust_length_to_msis(self):
         return  # TODO
-

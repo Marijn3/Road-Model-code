@@ -2,7 +2,7 @@ from road_model import DataFrameLader, WegModel
 from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
-from safety_areas import Rand, Aanvraag, AFZETTING_BAKENS, AFZETTING_BARRIER_ONDER_80CM, AFZETTING_BARRIER_BOVEN_80CM
+from safety_areas import Rand, Aanvraag, AFZETTINGEN
 
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
@@ -43,7 +43,7 @@ if locatie == "Oosterhout":
                          korter_dan_24h=True,
                          randen={"L": Rand(rijstrook=None, afstand=1.2),
                                  "R": Rand(rijstrook=None, afstand=3.5)},
-                         afzetting=AFZETTING_BAKENS,
+                         afzetting=AFZETTINGEN.BAKENS,
                          )
     aanvraag2 = Aanvraag(wegmodel=wegmodel,
                          km_start=13.95,
@@ -53,5 +53,5 @@ if locatie == "Oosterhout":
                          korter_dan_24h=True,
                          randen={"L": Rand(rijstrook=2, afstand=0.9),
                                  "R": Rand(rijstrook=2, afstand=-0.3)},
-                         afzetting=AFZETTING_BAKENS,
+                         afzetting=AFZETTINGEN.BAKENS,
                          )
