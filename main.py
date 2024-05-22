@@ -11,12 +11,12 @@ MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
 #                     [Tapers] Bavel
-#                     [MSI relations] Grijsoord*, Zuidasdok*, Everdingen*, A2VK
+#                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*
 # Importfouten : Lankhorst
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-locatie = "Vught"  # {"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299}
+locatie = "A2VK"
 dfl = DataFrameLader(locatie, "data/locaties.csv")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
