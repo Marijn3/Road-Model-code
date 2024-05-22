@@ -3,6 +3,8 @@ from utils import *
 from shapely import *
 logger = logging.getLogger(__name__)
 
+# This is an old version of the file.
+
 AANVRAAG = 200
 WERKVAK = 201
 VEILIGHEIDSRUIMTE = 202
