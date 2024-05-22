@@ -54,11 +54,6 @@ class MSIRow:
         """
         lanes_in_current_cw = set()
         cw_index = 1
-        special_lane_number = int()
-
-        if "Special" in self.local_road_properties.keys():
-            if self.local_road_properties["Special"][0] in ["Taper opkomst einde", "Taper afloop start"]:
-                special_lane_number = self.local_road_properties["Special"][1]
 
         for lane_number in self.lane_numbers:
             current_lane = self.local_road_properties[lane_number]
@@ -81,10 +76,6 @@ class MSIRow:
             elif next_lane in ["Vluchtstrook"]:
                 lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
 
-            if lane_number == special_lane_number:
-                # Tapers are numbered as a single lane, thus for the next lane number the registration is repeated.
-                lanes_in_current_cw.add(lane_number + 1)
-
             self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
             lanes_in_current_cw = set()
             cw_index += 1
@@ -92,7 +83,7 @@ class MSIRow:
         # Drop any carriageways which do not have any MSIs in them.
         self.cw = {cw: msis for cw, msis in self.cw.items() if msis}
 
-        logger.info(f"{self.name}: {self.cw} \t\t\t ({self.local_road_properties})")
+        logger.debug(f"{self.name}: {self.cw} \t\t\t ({self.local_road_properties})")
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
@@ -423,7 +414,7 @@ class MSINetwerk:
             shift (int): Shift so far.
             annotation (dict): Annotation so far.
             current_section_verw_eigs (LijnVerwerkingsEigenschappen): Processing properties of the section.
-            downstream (bool): Indication of search direction. True => Downstream, False => Upstream .
+            downstream (bool): Indication of search direction. True => Downstream, False => Upstream
             is_first_iteration (bool): Indicate if it is first iteration, in which case the start processing
                 values of the provided section will be ignored.
             is_last_iteration (bool): Indicate if it is last iteration, in which case the end processing
@@ -461,7 +452,6 @@ class MSINetwerk:
             Dict indicating the lane number and the annotation - the type of special case encountered.
         """
         annotation = {}
-        logger.debug(shift)
 
         if not start_skip:
             if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
@@ -660,12 +650,10 @@ class MSI:
             shift, annotation = desc
             this_lane_projected = self.lane_nr + shift
 
-            # Basic primary
+            # Primary relation
             if (this_lane_projected in d_row.MSIs.keys() and (
                     # Prevent downstream primary relation being added when lane ends.
                     self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
-                # self.properties["d"] = d_row.MSIs[this_lane_projected].name
-                # d_row.MSIs[this_lane_projected].properties["u"] = self.name
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:
