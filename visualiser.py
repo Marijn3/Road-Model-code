@@ -11,12 +11,13 @@ logger = logging.getLogger(__name__)
 class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
-    __C_HIGHLIGHT = "dimgrey"
+    __C_HIGHLIGHT = "#7D7355"
+    __C_TAPER = "#735A78"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
 
     __CARRIAGEWAY_COLORMAP = {
-        1: "#1959C8",
+        1: "#256BE4",
         2: "#BA7A03",
         3: "#7B0970",
         4: "#B2C200",
@@ -122,7 +123,10 @@ class SvgMaker:
         if self.wegmodel.find_gap([lane for lane in prop.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
         elif "Special" in prop.keys():
-            return self.__C_HIGHLIGHT
+            if "Taper" in prop["Special"]:
+                return self.__C_TAPER
+            else:
+                return self.__C_HIGHLIGHT
         else:
             return self.__C_ASPHALT
 
