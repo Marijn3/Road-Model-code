@@ -148,15 +148,15 @@ class DataFrameLader:
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
-            mapping["1 -> 1.6"] = (1, "TaperStart")
-            mapping["1.6 -> 1"] = (1, "TaperEinde")
-            mapping["2 -> 1.6"] = (2, "TaperStart")
-            mapping["1.6 -> 2"] = (1, "TaperEinde")  # verwacht 2?
+            mapping["1 -> 1.6"] = (1, "Taper opkomst start")
+            mapping["1.6 -> 1"] = (1, "Taper afloop einde")
+            mapping["2 -> 1.6"] = (1, "Taper afloop start")  # verwacht 2 stroken breed?
+            mapping["1.6 -> 2"] = (1, "Taper opkomst einde")  # verwacht 2 stroken breed?
         if direction == "T":
-            mapping["1 -> 1.6"] = (1, "TaperEinde")
-            mapping["1.6 -> 1"] = (1, "TaperStart")
-            mapping["2 -> 1.6"] = (2, "TaperEinde")
-            mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2?
+            mapping["1 -> 1.6"] = (1, "Taper afloop einde")
+            mapping["1.6 -> 1"] = (1, "Taper opkomst start")
+            mapping["2 -> 1.6"] = (1, "Taper opkomst einde")  # verwacht 2 stroken breed?
+            mapping["1.6 -> 2"] = (1, "Taper afloop start")  # verwacht 2 stroken breed?
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
@@ -497,7 +497,7 @@ class WegModel:
 
             # Take note of special circumstances on this feature.
             if special:
-                section_info.obj_eigs["Special"] = special
+                section_info.obj_eigs["Special"] = (special, first_lane_number)
 
         elif name == "Maximum snelheid":
             if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
