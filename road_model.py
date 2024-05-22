@@ -230,12 +230,11 @@ class DataFrameLader:
         """
         df = self.data[name]
 
-        # Try to convert any MultiLineStrings to LineStrings.
-        df["geometry"] = df["geometry"].apply(lambda geom:
-                                              self.__convert_to_linestring(geom) if isinstance(geom, MultiLineString)
-                                              else geom)
-
         s1 = len(df)
+
+        # Try to convert any MultiLineStrings to LineStrings.
+        df.loc[:, "geometry"] = df["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
+                                                     if isinstance(geom, MultiLineString) else geom)
 
         # Filter so only entries are imported where the geometry column contains a LineString or Point
         df = df[df["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))]
@@ -248,8 +247,8 @@ class DataFrameLader:
         df.loc[:, "WEGNUMMER"] = pd.to_numeric(df["WEGNUMMER"], errors="coerce").astype("Int64")
 
         if name == "Rijstroken":
-            df["VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
-            df["LANE_INFO"] = df.apply(self.get_lane_info, args=("OMSCHR",), axis=1)
+            df.loc[:, "VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
+            df.loc[:, "LANE_INFO"] = df.apply(self.get_lane_info, args=("OMSCHR",), axis=1)  # Line has slicing issues
 
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
@@ -275,7 +274,7 @@ class DataFrameLader:
 
         if "stroken" in name:
             # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
-            df["VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
+            df.loc[:, "VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
 
         # Assign dataframe back to original data variable.
         self.data[name] = df
