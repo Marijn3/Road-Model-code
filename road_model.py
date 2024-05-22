@@ -148,15 +148,15 @@ class DataFrameLader:
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
-            mapping["1 -> 1.6"] = (1, "Taper opkomst start")
-            mapping["1.6 -> 1"] = (1, "Taper afloop einde")
-            mapping["2 -> 1.6"] = (1, "Taper afloop start")  # verwacht 2 stroken breed?
-            mapping["1.6 -> 2"] = (1, "Taper opkomst einde")  # verwacht 2 stroken breed?
+            mapping["1 -> 1.6"] = (1, None)  # "Taper opkomst start")
+            mapping["1.6 -> 1"] = (1, None)  # "Taper afloop einde")
+            mapping["2 -> 1.6"] = (2, "Taper afloop start")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "Taper opkomst einde")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         if direction == "T":
-            mapping["1 -> 1.6"] = (1, "Taper afloop einde")
-            mapping["1.6 -> 1"] = (1, "Taper opkomst start")
-            mapping["2 -> 1.6"] = (1, "Taper opkomst einde")  # verwacht 2 stroken breed?
-            mapping["1.6 -> 2"] = (1, "Taper afloop start")  # verwacht 2 stroken breed?
+            mapping["1 -> 1.6"] = (1, None)  # "Taper afloop einde")
+            mapping["1.6 -> 1"] = (1, None)  # "Taper opkomst start")
+            mapping["2 -> 1.6"] = (2, "Taper opkomst einde")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "Taper afloop start")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
