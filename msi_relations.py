@@ -56,7 +56,6 @@ class MSIRow:
         cw_index = 1
 
         for lane_number in self.lane_numbers:
-
             current_lane = self.local_road_properties[lane_number]
 
             if lane_number == max(self.lane_numbers):
@@ -75,13 +74,16 @@ class MSIRow:
             elif current_lane in ["Vluchtstrook"]:
                 continue  # Skip
             elif next_lane in ["Vluchtstrook"]:
-                lanes_in_current_cw.add(lane_number)  # Continue, add these lanes to (final) cw.
+                lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
 
             self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
             lanes_in_current_cw = set()
             cw_index += 1
 
-        logger.info(f"{self.name}: {self.cw}")
+        # Drop any carriageways which do not have any MSIs in them.
+        self.cw = {cw: msis for cw, msis in self.cw.items() if msis}
+
+        logger.debug(f"{self.name}: {self.cw} \t\t\t ({self.local_road_properties})")
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
