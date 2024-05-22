@@ -323,8 +323,8 @@ class MSINetwerk:
             other_point = [point for point in other_points_on_section
                            if dwithin(point.pos_eigs.geometrie, location, 0.2)][0]
 
-        downstream_split = downstream and other_point.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
-        upstream_split = not downstream and other_point.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
+        downstream_split = downstream and other_point.obj_eigs["TYPE"] in ["Splitsing", "Uitvoeging"]
+        upstream_split = not downstream and other_point.obj_eigs["TYPE"] in ["Samenvoeging", "Invoeging"]
 
         if not (downstream_split or upstream_split):
             # The recursive function can be called once, for the (only) section that is in the travel direction.
@@ -400,7 +400,7 @@ class MSINetwerk:
 
         # Further filters for MSIs specifically
         msis_on_section = [point for point in other_points_on_section if
-                           point.obj_eigs["Type"] == "Signalering"]
+                           point.obj_eigs["TYPE"] == "Signalering"]
 
         return other_points_on_section, msis_on_section
 
