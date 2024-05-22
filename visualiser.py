@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
-    __C_HIGHLIGHT = "#7D7355"
-    __C_TAPER = "#735A78"
+    __C_HIGHLIGHT = "#736D55"
+    __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
 
@@ -123,7 +123,7 @@ class SvgMaker:
         if self.wegmodel.find_gap([lane for lane in prop.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
         elif "Special" in prop.keys():
-            if "Taper" in prop["Special"]:
+            if "Taper" in prop["Special"][0]:
                 return self.__C_TAPER
             else:
                 return self.__C_HIGHLIGHT
@@ -300,7 +300,7 @@ class SvgMaker:
 
         self.g_road.add(self.dwg.polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
 
-        should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT]
+        should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT, self.__C_TAPER]
 
         if should_have_marking:
             self.draw_lane_marking(geom, section_info)
