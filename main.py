@@ -16,7 +16,7 @@ MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-locatie = "A2VK"
+locatie = "Bavel"
 dfl = DataFrameLader(locatie, "data/locaties.csv")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
