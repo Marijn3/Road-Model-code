@@ -1062,12 +1062,15 @@ class WegModel:
         # Special code to fill in registration gaps in the case of taper registrations.
         for section_index, section_info in self.sections.items():
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
-            gap_number = find_gap(lane_numbers)
+            gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                if "Special" in section_info.obj_eigs.keys() and gap_number == section_info.obj_eigs["Special"][1] + 1:
+                if ("Special" in section_info.obj_eigs.keys()
+                        and "Taper" in section_info.obj_eigs["Special"][0]
+                        and gap_number == section_info.obj_eigs["Special"][1] + 1):
                     section_info.obj_eigs[gap_number] = section_info.obj_eigs[gap_number - 1]
                 else:
-                    logger.warning(f"Registration has gap in lane definitions: {section_info.obj_eigs}")
+                    logger.warning(f"Registratie heeft gat in registratie rijstroken.\n"
+                                   f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
@@ -1397,6 +1400,14 @@ class WegModel:
                 return section_info
         raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
 
+    @staticmethod
+    def find_gap(numbers: list[int]) -> int | None:
+        """Finds the first missing number in a list of consecutive integers and returns it."""
+        for number in numbers:
+            if not number + 1 in numbers and not number == max(numbers):
+                return number + 1
+        return None
+
 
 def determine_range_overlap(range1: list, range2: list) -> bool:
     """
@@ -1439,11 +1450,3 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
         raise Exception(f"same_direction() kan geen richting bepalen met deze lijnafstanden: {linedist_a, linedist_b}")
 
     return linedist_a < linedist_b
-
-
-def find_gap(numbers: list[int]) -> int | None:
-    """Finds the first missing number in a list of consecutive integers and returns it."""
-    for number in numbers:
-        if not number + 1 in numbers and not number == max(numbers):
-            return number + 1
-    return None

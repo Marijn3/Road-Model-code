@@ -110,27 +110,12 @@ class SvgMaker:
         Returns:
             Color name as string.
         """
-        if self.determine_gap(prop):
+        if self.wegmodel.find_gap([lane for lane in prop.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
         elif "Special" in prop.keys():
             return self.__C_HIGHLIGHT
         else:
             return self.__C_ASPHALT
-
-    @staticmethod
-    def determine_gap(prop: dict) -> bool:
-        """
-        Determines whether there is a gap in the lane registrations of a section.
-        Args:
-            prop (dict): Properties of road section.
-        Returns:
-            Boolean indicating whether a gap occurs.
-        """
-        lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
-        for lane_number in lane_numbers[:-1]:
-            if lane_number + 1 not in prop.keys():
-                return True
-        return False
 
     def get_flipped_coords(self, geom: LineString | Point) -> list[tuple]:
         """
