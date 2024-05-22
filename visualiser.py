@@ -260,10 +260,18 @@ class SvgMaker:
         displaced_point = Point(point_to_displace[0] + tangent_vector[0] * displacement,
                                 point_to_displace[1] + tangent_vector[1] * displacement)
 
+        if get_num_coordinates(line_geom) < 3:
+            if change_start:
+                return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[1:]])
+            else:
+                return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
+
+        # For section geometries with at least three points, the second (to last) point is removed.
+        # This improves the geometry visualisation.
         if change_start:
-            return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[1:]])
+            return LineString([displaced_point.coords[0]] + [coord for coord in line_geom.coords[2:]])
         else:
-            return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
+            return LineString([coord for coord in line_geom.coords[:-2]] + [displaced_point.coords[0]])
 
     def svg_draw_section(self, section_id: int, section_info: ObjectInfo):
         points_on_line = self.check_points_on_line(section_id)
