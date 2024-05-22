@@ -1069,7 +1069,7 @@ class WegModel:
                         and gap_number == section_info.obj_eigs["Special"][1] + 1):
                     section_info.obj_eigs[gap_number] = section_info.obj_eigs[gap_number - 1]
                 else:
-                    logger.warning(f"Registratie heeft gat in registratie rijstroken.\n"
+                    logger.warning(f"Sectie heeft gat in registratie rijstroken.\n"
                                    f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
 
         for section_index, section_info in self.sections.items():

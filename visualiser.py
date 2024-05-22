@@ -1,4 +1,5 @@
 from road_model import WegModel, ObjectInfo, PositieEigenschappen
+from msi_relations import MSINetwerk, MSIRow
 import svgwrite
 import os
 from shapely import *
@@ -14,7 +15,14 @@ class SvgMaker:
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
 
-    __COLORMAP = {
+    __CARRIAGEWAY_COLORMAP = {
+        1: "#1959C8",
+        2: "#BA7A03",
+        3: "#7B0970",
+        4: "#B2C200",
+    }
+
+    __RELATION_COLORMAP = {
         "d": "cyan", "u": "cyan",  # Primary
         "s": "magenta",  # Secondary
         "t": "red",  # Taper
@@ -22,9 +30,10 @@ class SvgMaker:
         "n": "yellow",  # Narrowing
     }
     
-    def __init__(self, wegmodel: WegModel, relation_file_name: str,
+    def __init__(self, wegmodel: WegModel, msis: MSINetwerk, relation_file_name: str,
                  output_folder: str, formaat: int = 1000, onroad: bool = False):
         self.wegmodel = wegmodel
+        self.msi_network = msis
         self.relation_file = relation_file_name
         self.outfile = f"{output_folder}/RoadModelVisualisation.svg"
         self.size = formaat
@@ -82,15 +91,15 @@ class SvgMaker:
     def visualise_roads(self):
         logger.info("Sectiedata visualiseren...")
         for section_id, section_info in self.wegmodel.sections.items():
-            self.svg_add_section(section_id, section_info)
+            self.svg_draw_section(section_id, section_info)
 
     def visualise_msis(self):
-        logger.info("Puntdata visualiseren...")
-        for point in self.wegmodel.get_points_info("MSI"):
-            self.svg_add_point(point)
+        logger.info("MSI-posities visualiseren...")
+        for msi_row in self.msi_network.MSIrows:
+            self.svg_draw_msi_position(msi_row)
 
         logger.info("MSI-relaties visualiseren...")
-        self.draw_msi_relations()
+        self.svg_draw_msi_relations()
 
     def save_image(self):
         # Adjust viewbox
@@ -252,7 +261,7 @@ class SvgMaker:
         else:
             return LineString([coord for coord in line_geom.coords[:-1]] + [displaced_point.coords[0]])
 
-    def svg_add_section(self, section_id: int, section_info: ObjectInfo):
+    def svg_draw_section(self, section_id: int, section_info: ObjectInfo):
         points_on_line = self.check_points_on_line(section_id)
 
         if points_on_line:
@@ -403,7 +412,8 @@ class SvgMaker:
         triangle = self.dwg.polygon(points=all_points, fill=self.__C_WHITE)
         self.g_road.add(triangle)
 
-    def svg_add_point(self, point_info: ObjectInfo):
+    def svg_draw_msi_position(self, msi_row: MSIRow):
+        point_info = msi_row.info
         coords = self.get_flipped_coords(point_info.pos_eigs.geometrie)[0]
         # TODO: Update these calculations so they are uniform with the new approach
         info_offset = self.LANE_WIDTH * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken -
@@ -412,23 +422,32 @@ class SvgMaker:
 
         if point_info.obj_eigs["TYPE"] == "Signalering":
             if self.onroad:
-                self.display_MSI_onroad(point_info, coords, rotate_angle)
+                self.display_MSI_onroad(msi_row, coords, rotate_angle)
             else:
-                self.display_MSI_roadside(point_info, coords, info_offset, rotate_angle)
+                self.display_MSI_roadside(msi_row, coords, info_offset, rotate_angle)
         else:
             self.display_vergence(point_info, coords, info_offset, rotate_angle)
 
-    def display_MSI_roadside(self, point_info: ObjectInfo, coords: tuple, info_offset: float, rotate_angle: float):
+    @staticmethod
+    def determine_cw_number(msi_row: MSIRow, nr):
+        name = msi_row.MSIs[nr].name
+        cw = -1
+        for cw_number, msi_names in msi_row.cw.items():
+            if name in msi_names:
+                return cw_number
+
+    def display_MSI_roadside(self, msi_row: MSIRow, coords: tuple, info_offset: float, rotate_angle: float):
         g_msi_row = self.g_points.add(self.dwg.g())
-        hecto_offset = 0 if point_info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
+        hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
         displacement = 0
 
-        for nr in point_info.obj_eigs["Rijstrooknummers"]:
-            msi_name = make_name(point_info, nr)
+        for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:
+            msi_name = make_name(msi_row.info, nr)
             displacement = (info_offset + self.VISUAL_PLAY + (nr - 1) *
                             (self.VISUAL_PLAY + self.MSIBOX_SIZE) + hecto_offset)
             box_pos = (coords[0] + displacement, coords[1] - self.MSIBOX_SIZE / 2)
-            square = self.draw_msi(box_pos)
+            cw_number = self.determine_cw_number(msi_row, nr)
+            square = self.draw_msi(box_pos, cw_number)
             g_msi_row.add(square)
             self.element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -437,21 +456,22 @@ class SvgMaker:
             self.draw_all_legends(g_msi_row, msi_name, box_pos, box_center, self.MSIBOX_SIZE)
 
         text_coords = (coords[0] + displacement + self.MSIBOX_SIZE * 1.3, coords[1])
-        
-        g_msi_text = self.draw_msi_text(point_info, text_coords, rotate_angle)
+
+        g_msi_text = self.draw_msi_text(msi_row.info, text_coords, rotate_angle)
         g_msi_row.add(g_msi_text)
         g_msi_row.rotate(rotate_angle, center=coords)
 
-    def display_MSI_onroad(self, point_info: ObjectInfo, coords: tuple, rotate_angle: float):
+    def display_MSI_onroad(self, msi_row: MSIRow, coords: tuple, rotate_angle: float):
         g_msi_row = self.g_points.add(self.dwg.g())
         play = (self.LANE_WIDTH - self.MSIBOX_SIZE)/2
         displacement = 0
 
-        for nr in point_info.obj_eigs["Rijstrooknummers"]:
-            msi_name = make_name(point_info, nr)
-            displacement = self.LANE_WIDTH * (nr - 1) - point_info.verw_eigs.aantal_hoofdstroken * self.LANE_WIDTH / 2
+        for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:
+            msi_name = make_name(msi_row.info, nr)
+            displacement = self.LANE_WIDTH * (nr - 1) - msi_row.info.verw_eigs.aantal_hoofdstroken * self.LANE_WIDTH / 2
             box_pos = (coords[0] + displacement + play, coords[1] - self.MSIBOX_SIZE / 2)
-            square = self.draw_msi(box_pos)
+            cw_number = self.determine_cw_number(msi_row, nr)
+            square = self.draw_msi(box_pos, cw_number)
             g_msi_row.add(square)
             self.element_by_id[msi_name] = square, rotate_angle, coords
 
@@ -461,14 +481,15 @@ class SvgMaker:
 
         text_coords = (coords[0] + 2 + displacement + self.MSIBOX_SIZE, coords[1])
         
-        g_msi_text = self.draw_msi_text(point_info, text_coords, rotate_angle)
+        g_msi_text = self.draw_msi_text(msi_row.info, text_coords, rotate_angle)
         g_msi_row.add(g_msi_text)
         g_msi_row.rotate(rotate_angle, center=coords)
 
-    def draw_msi(self, box_pos):
+    def draw_msi(self, box_pos, cw_number: int):
+        stroke_color = self.__CARRIAGEWAY_COLORMAP.get(cw_number, "black")
         return self.dwg.rect(insert=box_pos,
                              size=(self.MSIBOX_SIZE, self.MSIBOX_SIZE),
-                             fill="#1e1b17", stroke="black", stroke_width=self.BASE_STROKE,
+                             fill="#1e1b17", stroke=stroke_color, stroke_width=self.BASE_STROKE,
                              onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                              onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
     
@@ -624,7 +645,7 @@ class SvgMaker:
         g_vergence.add(text)
         g_vergence.rotate(rotate_angle, center=coords)
 
-    def draw_msi_relations(self):
+    def svg_draw_msi_relations(self):
         with open(self.relation_file, "r") as rel_file:
             lines = rel_file.readlines()
 
@@ -641,7 +662,7 @@ class SvgMaker:
 
     def draw_msi_relation(self, rel_type: str, start_pos: tuple, end_pos: tuple):
         self.g_msi_relations.add(self.dwg.line(start=start_pos, end=end_pos,
-                                               stroke=self.__COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
+                                               stroke=self.__RELATION_COLORMAP[rel_type], stroke_width=self.BASE_STROKE * 2))
 
     def get_square_center_coords(self, msi: str):
         element, rotation, origin = self.element_by_id[msi]
