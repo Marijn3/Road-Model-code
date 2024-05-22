@@ -414,7 +414,7 @@ class MSINetwerk:
             shift (int): Shift so far.
             annotation (dict): Annotation so far.
             current_section_verw_eigs (LijnVerwerkingsEigenschappen): Processing properties of the section.
-            downstream (bool): Indication of search direction. True => Downstream, False => Upstream .
+            downstream (bool): Indication of search direction. True => Downstream, False => Upstream
             is_first_iteration (bool): Indicate if it is first iteration, in which case the start processing
                 values of the provided section will be ignored.
             is_last_iteration (bool): Indicate if it is last iteration, in which case the end processing
@@ -452,7 +452,6 @@ class MSINetwerk:
             Dict indicating the lane number and the annotation - the type of special case encountered.
         """
         annotation = {}
-        logger.debug(shift)
 
         if not start_skip:
             if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
@@ -595,26 +594,28 @@ class MSI:
                 at_border_right = self.name == msi_names[-1]
                 break
 
-        assert cw_number, f"Er is iets misgegaan met het bepalen van het cw_nummer voor {self.name}"
+        if not cw_number:
+            logger.warning(f"Er is iets misgegaan met het bepalen van het cw_nummer voor {self.name}")
 
-        self.properties["N_CW"] = len(self.row.cw[cw_number])
-        self.properties["N_TS"] = self.properties["N_CW"]
+        else:
+            self.properties["N_CW"] = len(self.row.cw[cw_number])
+            self.properties["N_TS"] = self.properties["N_CW"]
 
-        self.properties["CW"] = self.row.cw[cw_number]
-        self.properties["CW_num"] = cw_number
-        self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
-        self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
+            self.properties["CW"] = self.row.cw[cw_number]
+            self.properties["CW_num"] = cw_number
+            self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
+            self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
 
-        # Assumption: traffic stream == carriageway
-        self.properties["TS"] = self.properties["CW"]
-        self.properties["TS_num"] = self.properties["CW_num"]
-        self.properties["TS_right"] = self.properties["CW_right"]
-        self.properties["TS_left"] = self.properties["CW_left"]
+            # Assumption: traffic stream == carriageway
+            self.properties["TS"] = self.properties["CW"]
+            self.properties["TS_num"] = self.properties["CW_num"]
+            self.properties["TS_right"] = self.properties["CW_right"]
+            self.properties["TS_left"] = self.properties["CW_left"]
 
-        # Safest assumption: 0 for both directions.
-        # Influence levels are only filled in when the MSI borders a different traffic stream.
-        self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
-        self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
+            # Safest assumption: 0 for both directions.
+            # Influence levels are only filled in when the MSI borders a different traffic stream.
+            self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
+            self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
@@ -649,12 +650,10 @@ class MSI:
             shift, annotation = desc
             this_lane_projected = self.lane_nr + shift
 
-            # Basic primary
+            # Primary relation
             if (this_lane_projected in d_row.MSIs.keys() and (
                     # Prevent downstream primary relation being added when lane ends.
                     self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
-                # self.properties["d"] = d_row.MSIs[this_lane_projected].name
-                # d_row.MSIs[this_lane_projected].properties["u"] = self.name
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:

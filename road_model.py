@@ -148,15 +148,15 @@ class DataFrameLader:
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
-            mapping["1 -> 1.6"] = (1, "TaperStart")
-            mapping["1.6 -> 1"] = (1, "TaperEinde")
-            mapping["2 -> 1.6"] = (2, "TaperStart")
-            mapping["1.6 -> 2"] = (1, "TaperEinde")  # verwacht 2?
+            mapping["1 -> 1.6"] = (1, None)  # "Taper opkomst start")
+            mapping["1.6 -> 1"] = (1, None)  # "Taper afloop einde")
+            mapping["2 -> 1.6"] = (2, "TaperAfloop")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "TaperOpkomst")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         if direction == "T":
-            mapping["1 -> 1.6"] = (1, "TaperEinde")
-            mapping["1.6 -> 1"] = (1, "TaperStart")
-            mapping["2 -> 1.6"] = (2, "TaperEinde")
-            mapping["1.6 -> 2"] = (1, "TaperStart")  # verwacht 2?
+            mapping["1 -> 1.6"] = (1, None)  # "Taper afloop einde")
+            mapping["1.6 -> 1"] = (1, None)  # "Taper opkomst start")
+            mapping["2 -> 1.6"] = (2, "TaperOpkomst")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "TaperAfloop")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
@@ -497,7 +497,7 @@ class WegModel:
 
             # Take note of special circumstances on this feature.
             if special:
-                section_info.obj_eigs["Special"] = special
+                section_info.obj_eigs["Special"] = (special, first_lane_number)
 
         elif name == "Maximum snelheid":
             if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
@@ -1052,12 +1052,31 @@ class WegModel:
                 sections_to_remove.add(section_index)
                 continue
 
-            # Throw out sections that do not have (integer) lane numbers in the keys.
+            # Throw out sections that do not have any (integer) lane numbers in the keys.
             if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
                 sections_to_remove.add(section_index)
                 continue
 
         self.__remove_sections(sections_to_remove)
+
+        # Special code to fill in registration gaps in the case of taper registrations.
+        for section_index, section_info in self.sections.items():
+            lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
+
+            if "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
+                special_lane_nr = section_info.obj_eigs["Special"][1]
+                if special_lane_nr + 1 not in section_info.obj_eigs.keys():
+                    # Section has a registration gap
+                    section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
+                elif section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
+                    # Section has a singular lane registered for the taper
+                    for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
+                        section_info.obj_eigs[lane_number + 1] = section_info.obj_eigs[lane_number]
+
+            gap_number = self.find_gap(lane_numbers)
+            if gap_number:
+                logger.warning(f"Sectie heeft een gat in registratie rijstroken.\n"
+                               f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
@@ -1386,6 +1405,14 @@ class WegModel:
             if dwithin(point, section_info.pos_eigs.geometrie, self.DISTANCE_TOLERANCE):
                 return section_info
         raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
+
+    @staticmethod
+    def find_gap(numbers: list[int]) -> int | None:
+        """Finds the first missing number in a list of consecutive integers and returns it."""
+        for number in numbers:
+            if not number + 1 in numbers and not number == max(numbers):
+                return number + 1
+        return None
 
 
 def determine_range_overlap(range1: list, range2: list) -> bool:
