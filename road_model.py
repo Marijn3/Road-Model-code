@@ -1052,12 +1052,22 @@ class WegModel:
                 sections_to_remove.add(section_index)
                 continue
 
-            # Throw out sections that do not have (integer) lane numbers in the keys.
+            # Throw out sections that do not have any (integer) lane numbers in the keys.
             if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
                 sections_to_remove.add(section_index)
                 continue
 
         self.__remove_sections(sections_to_remove)
+
+        # Special code to fill in registration gaps in the case of taper registrations.
+        for section_index, section_info in self.sections.items():
+            lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
+            gap_number = find_gap(lane_numbers)
+            if gap_number:
+                if "Special" in section_info.obj_eigs.keys() and gap_number == section_info.obj_eigs["Special"][1] + 1:
+                    section_info.obj_eigs[gap_number] = section_info.obj_eigs[gap_number - 1]
+                else:
+                    logger.warning(f"Registration has gap in lane definitions: {section_info.obj_eigs}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
@@ -1429,3 +1439,11 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
         raise Exception(f"same_direction() kan geen richting bepalen met deze lijnafstanden: {linedist_a, linedist_b}")
 
     return linedist_a < linedist_b
+
+
+def find_gap(numbers: list[int]) -> int | None:
+    """Finds the first missing number in a list of consecutive integers and returns it."""
+    for number in numbers:
+        if not number + 1 in numbers and not number == max(numbers):
+            return number + 1
+    return None

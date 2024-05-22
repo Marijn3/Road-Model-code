@@ -80,7 +80,7 @@ class MSIRow:
                 continue  # Skip
             elif next_lane in ["Vluchtstrook"]:
                 lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
-                
+
             if lane_number == special_lane_number:
                 # Tapers are numbered as a single lane, thus for the next lane number the registration is repeated.
                 lanes_in_current_cw.add(lane_number + 1)
