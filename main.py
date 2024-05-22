@@ -27,7 +27,7 @@ MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=
 MSIs.make_print(MSI_RELATIONS_FILE)
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(wegmodel, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
+SvgMaker(wegmodel, MSIs, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
 
 # Exporteer de MSI-eigenschappen naar een bestand.
 ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
