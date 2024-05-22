@@ -54,6 +54,11 @@ class MSIRow:
         """
         lanes_in_current_cw = set()
         cw_index = 1
+        special_lane_number = int()
+
+        if "Special" in self.local_road_properties.keys():
+            if self.local_road_properties["Special"][0] in ["Taper opkomst einde", "Taper afloop start"]:
+                special_lane_number = self.local_road_properties["Special"][1]
 
         for lane_number in self.lane_numbers:
             current_lane = self.local_road_properties[lane_number]
@@ -75,6 +80,10 @@ class MSIRow:
                 continue  # Skip
             elif next_lane in ["Vluchtstrook"]:
                 lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
+                
+            if lane_number == special_lane_number:
+                # Tapers are numbered as a single lane, thus for the next lane number the registration is repeated.
+                lanes_in_current_cw.add(lane_number + 1)
 
             self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
             lanes_in_current_cw = set()
@@ -83,7 +92,7 @@ class MSIRow:
         # Drop any carriageways which do not have any MSIs in them.
         self.cw = {cw: msis for cw, msis in self.cw.items() if msis}
 
-        logger.debug(f"{self.name}: {self.cw} \t\t\t ({self.local_road_properties})")
+        logger.info(f"{self.name}: {self.cw} \t\t\t ({self.local_road_properties})")
 
     def determine_msi_row_relations(self):
         downstream_rows = self.msi_network.travel_roadmodel(self, True)
@@ -595,26 +604,28 @@ class MSI:
                 at_border_right = self.name == msi_names[-1]
                 break
 
-        assert cw_number, f"Er is iets misgegaan met het bepalen van het cw_nummer voor {self.name}"
+        if not cw_number:
+            logger.warning(f"Er is iets misgegaan met het bepalen van het cw_nummer voor {self.name}")
 
-        self.properties["N_CW"] = len(self.row.cw[cw_number])
-        self.properties["N_TS"] = self.properties["N_CW"]
+        else:
+            self.properties["N_CW"] = len(self.row.cw[cw_number])
+            self.properties["N_TS"] = self.properties["N_CW"]
 
-        self.properties["CW"] = self.row.cw[cw_number]
-        self.properties["CW_num"] = cw_number
-        self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
-        self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
+            self.properties["CW"] = self.row.cw[cw_number]
+            self.properties["CW_num"] = cw_number
+            self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
+            self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
 
-        # Assumption: traffic stream == carriageway
-        self.properties["TS"] = self.properties["CW"]
-        self.properties["TS_num"] = self.properties["CW_num"]
-        self.properties["TS_right"] = self.properties["CW_right"]
-        self.properties["TS_left"] = self.properties["CW_left"]
+            # Assumption: traffic stream == carriageway
+            self.properties["TS"] = self.properties["CW"]
+            self.properties["TS_num"] = self.properties["CW_num"]
+            self.properties["TS_right"] = self.properties["CW_right"]
+            self.properties["TS_left"] = self.properties["CW_left"]
 
-        # Safest assumption: 0 for both directions.
-        # Influence levels are only filled in when the MSI borders a different traffic stream.
-        self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
-        self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
+            # Safest assumption: 0 for both directions.
+            # Influence levels are only filled in when the MSI borders a different traffic stream.
+            self.properties["DIF_V_right"] = 0 if at_border_right and cw_number + 1 in self.row.cw.keys() else None
+            self.properties["DIF_V_left"] = 0 if at_border_left and cw_number - 1 in self.row.cw.keys() else None
 
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
