@@ -192,9 +192,10 @@ class DataFrameLader:
         """
         Load GeoDataFrames for each layer based on the specified location.
         """
+        logger.info(f"{len(DataFrameLader.__FILE_PATHS)} lagen worden geladen...")
         for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
-            logger.info(f"Laag '{df_layer_name}' laden...")
+            logger.debug(f"Laag '{df_layer_name}' laden...")
             self.data[df_layer_name] = self.__load_dataframe(file_path)
             self.__edit_columns(df_layer_name)
 
@@ -319,7 +320,7 @@ class DataFrameLader:
 
             common_points = [point for point in line1_points if point in line2_points]
             if len(common_points) == 0:
-                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
+                logger.debug(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
                 return geom
 
             assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
@@ -339,7 +340,7 @@ class DataFrameLader:
 
             return line_merge(MultiLineString([line1, line2]))
 
-        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
+        logger.debug(f"Omzetting naar LineString niet mogelijk (meer dan 2 geoms) voor {geom}")
         return geom
 
 
@@ -384,8 +385,9 @@ class WegModel:
                 3) It is a reliable source for roadside and travel_direction.
                 4) It contains the hectoletter.
         """
+        logger.info(f"{len(self.__LAYER_NAMES)} lagen worden verwerkt in het wegmodel...")
         for df_name in self.__LAYER_NAMES:
-            logger.info(f"Laag '{df_name}' wordt verwerkt in het wegmodel...")
+            logger.debug(f"Laag '{df_name}' wordt verwerkt in het wegmodel...")
             self.__import_dataframe(df_name)
 
     def __import_dataframe(self, df_name: str):
@@ -1092,8 +1094,8 @@ class WegModel:
 
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                logger.warning(f"Sectie heeft een gat in registratie rijstroken.\n"
-                               f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
+                logger.warning(f"Sectie heeft een gat in registratie rijstroken.")
+                # f"\nDeze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()

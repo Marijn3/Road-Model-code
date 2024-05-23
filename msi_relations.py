@@ -119,7 +119,7 @@ class MSINetwerk:
         self.__construct_msi_network()
 
     def __construct_msi_network(self):
-        logger.info(f"MSI-netwerk opzetten...")
+        logger.info(f"MSI-netwerk wordt opgezet...")
 
         self.MSIrows = [MSIRow(self, msi_info) for msi_info in self.wegmodel.get_points_info("MSI")]
 
