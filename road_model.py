@@ -57,7 +57,7 @@ class ObjectInfo:
     def __repr__(self):
         typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
         return (f"{typename} op positie {self.pos_eigs} en eigenschappen:\n"
-                f"{self.obj_eigs}\n")
+                f"{self.obj_eigs}")
 
 
 class DataFrameLader:
@@ -242,34 +242,36 @@ class DataFrameLader:
         return dataframe
 
     def __edit_line_registration_columns(self, dataframe: pd.DataFrame, name) -> pd.DataFrame:
+        df = dataframe.copy()
         # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
-        dataframe.loc[:, "VNRWOL"] = pd.to_numeric(dataframe["VNRWOL"], errors="coerce").astype("Int64")
+        df.loc[:, "VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
 
         if name == "Rijstroken":
-            dataframe.loc[:, "VOLGNRSTRK"] = pd.to_numeric(dataframe["VOLGNRSTRK"], errors="raise").astype("Int64")
-            dataframe.loc[:, "LANE_INFO"] = dataframe.apply(self.__get_lane_info, args=("OMSCHR",), axis=1)  # This line has slicing issues
+            df.loc[:, "VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
+            df.loc[:, "LANE_INFO"] = df.apply(self.__get_lane_info, args=("OMSCHR",), axis=1)
 
         if name == "Kantstroken":
             # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
-            dataframe = dataframe[dataframe["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])]
+            df = df[df["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])]
 
         if name == "Mengstroken":
-            dataframe["LANE_INFO"] = dataframe.apply(self.__get_lane_info, args=("AANT_MSK",), axis=1)
+            df["LANE_INFO"] = df.apply(self.__get_lane_info, args=("AANT_MSK",), axis=1)
 
-        return dataframe
+        return df
 
     def __edit_point_registration_columns(self, dataframe: pd.DataFrame, name) -> pd.DataFrame:
-        if name == "Rijstrooksignaleringen":
-            dataframe = dataframe[dataframe["CODE"] == "KP"]  # Select only the KP (kruis-pijl) signaling (same as AU)
-            dataframe["TYPE"] = "Signalering"
-
+        df = dataframe.copy()
         if name == "Convergenties":
-            dataframe["TYPE"] = dataframe["TYPE_CONV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
+            df["TYPE"] = df["TYPE_CONV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
 
         if name == "Divergenties":
-            dataframe["TYPE"] = dataframe["TYPE_DIV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
+            df["TYPE"] = df["TYPE_DIV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
 
-        return dataframe
+        if name == "Rijstrooksignaleringen":
+            df = df[df["CODE"] == "KP"]  # Select only the KP (kruis-pijl) signaling (same as AU)
+            df = df.assign(TYPE="Signalering")
+
+        return df
 
     def __edit_columns(self, name: str) -> None:
         """
