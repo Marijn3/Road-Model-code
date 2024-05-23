@@ -23,9 +23,9 @@ dfl = DataFrameLader(locatie, "data/locaties.csv")
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
 
-# Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel (deze regels weglaten bij handmatig aanpassen bestand).
+# Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel
 MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
-MSIs.make_print(MSI_RELATIONS_FILE)
+MSIs.make_print(MSI_RELATIONS_FILE)  # (deze regel weglaten bij handmatig aanpassen bestand).
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
 SvgMaker(wegmodel, MSIs, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
