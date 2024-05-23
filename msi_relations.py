@@ -58,9 +58,10 @@ class MSIRow:
         for lane_number in self.lane_numbers:
             current_lane = self.local_road_properties[lane_number]
 
+            if current_lane not in ["Vluchtstrook"]:
+                lanes_in_current_cw.add(lane_number)
+
             if lane_number == max(self.lane_numbers):
-                if current_lane not in ["Vluchtstrook"]:
-                    lanes_in_current_cw.add(lane_number)
                 if lanes_in_current_cw:
                     self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
                 break
@@ -68,13 +69,13 @@ class MSIRow:
             next_lane = self.local_road_properties[lane_number + 1]
 
             if current_lane == next_lane or current_lane in ["Plusstrook"] or next_lane in ["Spitsstrook"]:
-                lanes_in_current_cw.add(lane_number)
+                # lanes_in_current_cw.add(lane_number)
                 lanes_in_current_cw.add(lane_number + 1)
                 continue  # Carriageway hasn't yet ended
             elif current_lane in ["Vluchtstrook"]:
                 continue  # Skip
-            elif next_lane in ["Vluchtstrook"]:
-                lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
+            # elif next_lane in ["Vluchtstrook"]:
+            #    lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
 
             self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
             lanes_in_current_cw = set()
@@ -654,8 +655,6 @@ class MSI:
         for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
             this_lane_projected = self.lane_nr + shift
-
-            logger.debug(f"Check: {annotation}")
 
             if "TaperOpkomst" in annotation.values():
                 taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperOpkomst"][0]
