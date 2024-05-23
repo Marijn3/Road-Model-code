@@ -256,7 +256,7 @@ class MSINetwerk:
             return {self.__get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
 
         # Base case 3: Maximum depth reached.
-        current_distance += current_section.pos_eigs.geometrie.length
+        current_distance += round(current_section.pos_eigs.geometrie.length, 3)
         logger.debug(f"Zoekdiepte: {current_distance}")
         if current_distance >= self.max_search_distance:
             logger.debug(f"De maximale zoekdiepte is overschreden: {current_distance}")
@@ -455,22 +455,21 @@ class MSINetwerk:
         annotation = {}
 
         if not start_skip:
-            if ("Special" in section_verw_eigs.start_kenmerk.keys()
-                    and "Taper" in section_verw_eigs.start_kenmerk["Special"][0]):
+            if "Special" in section_verw_eigs.start_kenmerk.keys():
                 annotation.update({value[1] - shift: value[0] for keyword, value in
                                    section_verw_eigs.start_kenmerk.items() if keyword == "Special"})
-            else:
-                if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
-                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Uitrijstrook"})
 
-                if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
-                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
+            if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs.start_kenmerk.items() if lane_type == "Uitrijstrook"})
 
-                if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
-                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
+            if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
+
+            if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
+                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                   section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
 
         if not end_skip:
             if "Invoegstrook" in section_verw_eigs.einde_kenmerk.values():
