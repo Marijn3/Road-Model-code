@@ -1094,8 +1094,7 @@ class WegModel:
 
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                logger.warning(f"Sectie heeft een gat in registratie rijstroken.")
-                # f"\nDeze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
+                logger.warning(f"Sectie heeft een gat in registratie rijstroken. Deze sectie wordt in de visualisatie doorzichtig weergegeven. {section_info}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
