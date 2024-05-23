@@ -132,25 +132,25 @@ else:
 with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
                   f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
-    outfile.write(f"Road numbers in road model dataset: {roadmodel_dataset_extent}\n")
+    outfile.write(f"Roads in road model dataset: {roadmodel_dataset_extent}\n\n")
     outfile.write(f"Found matches: {len(found_relations_log)}\n")
     outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
     outfile.write(f"Relations from CGGTOP without match: "
                   f"{len(cggtop_lines_filtered)}/{len(cggtop_msi_relations)} (filtered by road numbers and km)\n")
 
-    outfile.write(f"\nROAD MODEL UNMATCHED LINES:\n")
+    outfile.write(f"\nROAD MODEL UNMATCHED RELATIONS:\n")
     if not roadmodel_lines:
         outfile.write(f"-\n")
     for line in roadmodel_lines:
         outfile.write(f"{line.strip()}\n")
 
-    outfile.write(f"\nCGGTOP UNMATCHED LINES (FILTERED BY ROAD NUMBER AND KM RANGE):\n")
+    outfile.write(f"\nCGGTOP UNMATCHED RELATIONS (MSIS FILTERED BY ROAD NUMBER AND KM RANGE):\n")
     if not cggtop_lines_filtered:
         outfile.write(f"-\n")
     for line in cggtop_lines_filtered:
         outfile.write(f"{line.strip()}\n")
 
-    outfile.write(f"\nALL MATCHED LINES:\n")
+    outfile.write(f"\nALL MATCHED RELATIONS:\n")
     outfile.write(f"[Road model MSI relation]\t\t\t\t   [CGGTOP MSI relation]\n")
     for line in found_relations_log:
         outfile.write(f"{line}\n")
