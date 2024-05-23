@@ -7,6 +7,8 @@ from safety_areas import Rand, Aanvraag, AFZETTINGEN
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 
+locatie = "Vught"
+
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
@@ -16,7 +18,6 @@ MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-locatie = "Bavel"
 dfl = DataFrameLader(locatie, "data/locaties.csv")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.

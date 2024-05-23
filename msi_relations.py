@@ -58,9 +58,10 @@ class MSIRow:
         for lane_number in self.lane_numbers:
             current_lane = self.local_road_properties[lane_number]
 
+            if current_lane not in ["Vluchtstrook"]:
+                lanes_in_current_cw.add(lane_number)
+
             if lane_number == max(self.lane_numbers):
-                if current_lane not in ["Vluchtstrook"]:
-                    lanes_in_current_cw.add(lane_number)
                 if lanes_in_current_cw:
                     self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
                 break
@@ -68,13 +69,13 @@ class MSIRow:
             next_lane = self.local_road_properties[lane_number + 1]
 
             if current_lane == next_lane or current_lane in ["Plusstrook"] or next_lane in ["Spitsstrook"]:
-                lanes_in_current_cw.add(lane_number)
+                # lanes_in_current_cw.add(lane_number)
                 lanes_in_current_cw.add(lane_number + 1)
                 continue  # Carriageway hasn't yet ended
             elif current_lane in ["Vluchtstrook"]:
                 continue  # Skip
-            elif next_lane in ["Vluchtstrook"]:
-                lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
+            # elif next_lane in ["Vluchtstrook"]:
+            #    lanes_in_current_cw.add(lane_number)  # Continue, and add these lanes to (final) cw.
 
             self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
             lanes_in_current_cw = set()
@@ -119,7 +120,7 @@ class MSINetwerk:
         self.__construct_msi_network()
 
     def __construct_msi_network(self):
-        logger.info(f"MSI-netwerk opzetten...")
+        logger.info(f"MSI-netwerk wordt opgezet...")
 
         self.MSIrows = [MSIRow(self, msi_info) for msi_info in self.wegmodel.get_points_info("MSI")]
 
@@ -454,17 +455,22 @@ class MSINetwerk:
         annotation = {}
 
         if not start_skip:
-            if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
-                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                   section_verw_eigs.start_kenmerk.items() if lane_type == "Uitrijstrook"})
+            if ("Special" in section_verw_eigs.start_kenmerk.keys()
+                    and "Taper" in section_verw_eigs.start_kenmerk["Special"][0]):
+                annotation.update({value[1] - shift: value[0] for keyword, value in
+                                   section_verw_eigs.start_kenmerk.items() if keyword == "Special"})
+            else:
+                if "Uitrijstrook" in section_verw_eigs.start_kenmerk.values():
+                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Uitrijstrook"})
 
-            if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
-                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                   section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
+                if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
+                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
 
-            if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
-                annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                   section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
+                if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
+                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
 
         if not end_skip:
             if "Invoegstrook" in section_verw_eigs.einde_kenmerk.values():
@@ -472,7 +478,7 @@ class MSINetwerk:
                                    section_verw_eigs.einde_kenmerk.items() if lane_type == "Invoegstrook"})
 
             if "Special" in section_verw_eigs.einde_kenmerk.keys():
-                annotation.update({value[1]: value[0] for keyword, value in
+                annotation.update({value[1] - shift: value[0] for keyword, value in
                                    section_verw_eigs.einde_kenmerk.items() if keyword == "Special"})
 
         return annotation
@@ -649,6 +655,16 @@ class MSI:
         for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
             this_lane_projected = self.lane_nr + shift
+
+            if "TaperOpkomst" in annotation.values():
+                taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperOpkomst"][0]
+                if self.lane_nr >= taper_lane_nr:
+                    this_lane_projected += 1
+
+            if "TaperAfloop" in annotation.values():
+                taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperAfloop"][0]
+                if self.lane_nr >= taper_lane_nr - shift:
+                    this_lane_projected -= 1
 
             # Primary relation
             if (this_lane_projected in d_row.MSIs.keys() and (
