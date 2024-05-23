@@ -57,7 +57,7 @@ class ObjectInfo:
     def __repr__(self):
         typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
         return (f"{typename} op positie {self.pos_eigs} en eigenschappen:\n"
-                f"{self.obj_eigs}\n")
+                f"{self.obj_eigs}")
 
 
 class DataFrameLader:
@@ -101,8 +101,8 @@ class DataFrameLader:
         """
         self.data = {}
         self.locations_csv_path = locations_csv_pad
-        self.lane_mapping_h = self.construct_lane_mapping("H")
-        self.lane_mapping_t = self.construct_lane_mapping("T")
+        self.lane_mapping_h = self.__construct_lane_mapping("H")
+        self.lane_mapping_t = self.__construct_lane_mapping("T")
 
         if isinstance(locatie, str):
             coords = self.__get_coords_from_csv(locatie)
@@ -116,7 +116,7 @@ class DataFrameLader:
         self.__load_dataframes()
 
     @staticmethod
-    def construct_lane_mapping(direction: str) -> dict:
+    def __construct_lane_mapping(direction: str) -> dict:
         """
         Constructs mapping from lane registration to (nLanes, Special feature)
         All registrations with T as kantcode are marked in the opposite direction.
@@ -192,9 +192,10 @@ class DataFrameLader:
         """
         Load GeoDataFrames for each layer based on the specified location.
         """
+        logger.info(f"{len(DataFrameLader.__FILE_PATHS)} lagen worden geladen...")
         for file_path in DataFrameLader.__FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
-            logger.info(f"Laag '{df_layer_name}' laden...")
+            logger.debug(f"Laag '{df_layer_name}' laden...")
             self.data[df_layer_name] = self.__load_dataframe(file_path)
             self.__edit_columns(df_layer_name)
 
@@ -222,6 +223,57 @@ class DataFrameLader:
         folder_name = parts[-2]
         return folder_name
 
+    def __filter_multilinestring(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        """Filters a dataframe by MultiLineString registrations, after
+        attempting to join convert to LineStrings."""
+        s1 = len(dataframe)
+
+        # Try to convert any MultiLineStrings to LineStrings.
+        dataframe.loc[:, "geometry"] = dataframe["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
+                                                                   if isinstance(geom, MultiLineString) else geom)
+
+        # Filter so only entries are imported where the geometry column contains a LineString or Point
+        dataframe = dataframe[dataframe["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))]
+
+        s2 = len(dataframe)
+
+        if s1 - s2 > 0:
+            logger.debug(f"Aantal MultiLineString registraties verwijderd: {s1 - s2}")
+
+        return dataframe
+
+    def __edit_line_registration_columns(self, dataframe: pd.DataFrame, name) -> pd.DataFrame:
+        df = dataframe.copy()
+        # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
+        df.loc[:, "VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
+
+        if name == "Rijstroken":
+            df.loc[:, "VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
+            df.loc[:, "LANE_INFO"] = df.apply(self.__get_lane_info, args=("OMSCHR",), axis=1)
+
+        if name == "Kantstroken":
+            # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
+            df = df[df["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])]
+
+        if name == "Mengstroken":
+            df["LANE_INFO"] = df.apply(self.__get_lane_info, args=("AANT_MSK",), axis=1)
+
+        return df
+
+    def __edit_point_registration_columns(self, dataframe: pd.DataFrame, name) -> pd.DataFrame:
+        df = dataframe.copy()
+        if name == "Convergenties":
+            df["TYPE"] = df["TYPE_CONV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
+
+        if name == "Divergenties":
+            df["TYPE"] = df["TYPE_DIV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
+
+        if name == "Rijstrooksignaleringen":
+            df = df[df["CODE"] == "KP"]  # Select only the KP (kruis-pijl) signaling (same as AU)
+            df = df.assign(TYPE="Signalering")
+
+        return df
+
     def __edit_columns(self, name: str) -> None:
         """
         Edits columns of GeoDataFrames in self.data in place.
@@ -230,56 +282,20 @@ class DataFrameLader:
         """
         df = self.data[name]
 
-        s1 = len(df)
-
-        # Try to convert any MultiLineStrings to LineStrings.
-        df.loc[:, "geometry"] = df["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
-                                                     if isinstance(geom, MultiLineString) else geom)
-
-        # Filter so only entries are imported where the geometry column contains a LineString or Point
-        df = df[df["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))]
-
-        s2 = len(df)
-
-        if s1 - s2 > 0:
-            logger.debug(f"Aantal registraties verwijderd: {s1 - s2}")
-
-        df.loc[:, "WEGNUMMER"] = pd.to_numeric(df["WEGNUMMER"], errors="coerce").astype("Int64")
-
-        if name == "Rijstroken":
-            df.loc[:, "VOLGNRSTRK"] = pd.to_numeric(df["VOLGNRSTRK"], errors="raise").astype("Int64")
-            df.loc[:, "LANE_INFO"] = df.apply(self.get_lane_info, args=("OMSCHR",), axis=1)  # Line has slicing issues
-
-        if name == "Kantstroken":
-            # "Redresseerstrook", "Bushalte", "Pechhaven" and such are not considered.
-            df = df[df["OMSCHR"].isin(["Vluchtstrook", "Puntstuk", "Spitsstrook", "Plusstrook"])]
-
-        if name == "Mengstroken":
-            df["LANE_INFO"] = df.apply(self.get_lane_info, args=("AANT_MSK",), axis=1)
-
-        if name == "Rijstrooksignaleringen":
-            # Select only the KP (kruis-pijl) signaling in Rijstrooksignaleringen
-            df = df[df["CODE"] == "KP"]
-            df["TYPE"] = "Signalering"
-
-        # Some registrations don't have BEGINKM. These can be ignored.
-        if name == "Wegvakken":
-            df = df.dropna(subset=["BEGINKM"])
-
-        if name == "Convergenties":
-            df["TYPE"] = df["TYPE_CONV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
-
-        if name == "Divergenties":
-            df["TYPE"] = df["TYPE_DIV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
+        df = self.__filter_multilinestring(df)
 
         if "stroken" in name:
-            # All "stroken" dataframes have VNRWOL columns which should be converted to integer.
-            df.loc[:, "VNRWOL"] = pd.to_numeric(df["VNRWOL"], errors="coerce").astype("Int64")
+            df = self.__edit_line_registration_columns(df, name)
+        elif name == "Wegvakken":
+            # Few registrations in shivi-netwerk don't have BEGINKM. These can be ignored.
+            df = df.dropna(subset=["BEGINKM"])
+        else:
+            df = self.__edit_point_registration_columns(df, name)
 
         # Assign dataframe back to original data variable.
         self.data[name] = df
 
-    def get_lane_info(self, row, column):
+    def __get_lane_info(self, row, column):
         if row["KANTCODE"] == "H":
             return self.lane_mapping_h.get(row[column], (0, None))
         else:
@@ -304,7 +320,7 @@ class DataFrameLader:
 
             common_points = [point for point in line1_points if point in line2_points]
             if len(common_points) == 0:
-                logger.warning(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
+                logger.debug(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
                 return geom
 
             assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
@@ -324,24 +340,26 @@ class DataFrameLader:
 
             return line_merge(MultiLineString([line1, line2]))
 
-        logger.warning(f"Omzetting naar LineString niet mogelijk voor {geom}")
+        logger.debug(f"Omzetting naar LineString niet mogelijk (meer dan 2 geoms) voor {geom}")
         return geom
 
 
 class WegModel:
-    # The order of the layer names given here indicates the loading order. The first two are fixed.
+    # The order of the layer names given here dictates the loading order. The first two are fixed.
     # It is important to import all layers with line geometries first, then point geometries.
-    __LAYER_NAMES = ["Wegvakken",  # Used as 'reference layer'
-                     "Rijstroken",  # Used as 'initial layer'
-                     "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
-                     "Rijstrooksignaleringen", "Convergenties", "Divergenties"]  # Contain point geometries
+    __LAYER_NAMES = [
+        "Wegvakken",  # Used as 'reference layer'
+        "Rijstroken",  # Used as 'initial layer'
+        "Kantstroken", "Mengstroken", "Maximum snelheid",  # Contain line geometries
+        "Rijstrooksignaleringen", "Convergenties", "Divergenties"  # Contain point geometries
+    ]
 
-    MAIN_LANE_TYPES = ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook", "Weefstrook"]
+    __MAIN_LANE_TYPES = ["Rijstrook", "Splitsing", "Samenvoeging", "Spitsstrook", "Plusstrook", "Weefstrook"]
 
     def __init__(self, dfl: DataFrameLader):
         self.dfl = dfl
         self.DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
-        self.GRID_SIZE = 0.00001
+        self.__GRID_SIZE = 0.00001
 
         self.__reference = {}
         self.__reference_index = 0
@@ -367,8 +385,9 @@ class WegModel:
                 3) It is a reliable source for roadside and travel_direction.
                 4) It contains the hectoletter.
         """
+        logger.info(f"{len(self.__LAYER_NAMES)} lagen worden verwerkt in het wegmodel...")
         for df_name in self.__LAYER_NAMES:
-            logger.info(f"Laag '{df_name}' wordt verwerkt in het wegmodel...")
+            logger.debug(f"Laag '{df_name}' wordt verwerkt in het wegmodel...")
             self.__import_dataframe(df_name)
 
     def __import_dataframe(self, df_name: str):
@@ -454,7 +473,7 @@ class WegModel:
         section_info = ObjectInfo()
 
         section_info.pos_eigs.km = [row["BEGINKM"], row["EINDKM"]]
-        section_info.pos_eigs.geometrie = set_precision(row["geometry"], self.GRID_SIZE)
+        section_info.pos_eigs.geometrie = set_precision(row["geometry"], self.__GRID_SIZE)
 
         if name == "Wegvakken":
             section_info.pos_eigs.wegnummer = row["WEGNR_HMP"]
@@ -769,7 +788,7 @@ class WegModel:
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
         assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
-        diff = difference(geom1, geom2, grid_size=self.GRID_SIZE)
+        diff = difference(geom1, geom2, grid_size=self.__GRID_SIZE)
 
         if isinstance(diff, LineString) and not diff.is_empty:
             return diff
@@ -829,7 +848,7 @@ class WegModel:
         if not determine_range_overlap(pos1.km, pos2.km):
             return None
 
-        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.GRID_SIZE)
+        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.__GRID_SIZE)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             return line_merge(overlap_geometry)
@@ -1075,8 +1094,7 @@ class WegModel:
 
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                logger.warning(f"Sectie heeft een gat in registratie rijstroken.\n"
-                               f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.\n{section_info}")
+                logger.warning(f"Sectie heeft een gat in registratie rijstroken. Deze sectie wordt in de visualisatie doorzichtig weergegeven. {section_info}")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
@@ -1122,7 +1140,7 @@ class WegModel:
                        if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
             hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
                                   if
-                                  lane_type in self.MAIN_LANE_TYPES]
+                                  lane_type in self.__MAIN_LANE_TYPES]
             strooknummers_links = [lane_nr for lane_nr in stroken if
                                    hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
             strooknummers_rechts = [lane_nr for lane_nr in stroken if
@@ -1327,7 +1345,7 @@ class WegModel:
             2) The number of lanes, exluding "puntstuk" registrations.
         """
         main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
-                      and lane_type in self.MAIN_LANE_TYPES]
+                      and lane_type in self.__MAIN_LANE_TYPES]
         any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                      and lane_type not in ["Puntstuk"]]
         return len(main_lanes), len(any_lanes)
@@ -1349,7 +1367,7 @@ class WegModel:
         else:
             return [point for point in self.points.values()]
 
-    # TODO: Use this function in the rest of the code
+    # TODO: Use this function in the rest of the code (?)
     def get_point_info_by_geom(self, geom: Point) -> ObjectInfo | None:
         """
         Obtain a point registration in the road model by its position.
@@ -1357,7 +1375,7 @@ class WegModel:
             The point information.
         """
         for point in self.points.values():
-            if dwithin(point.pos_eigs.geometrie, geom, 0.5):  # TODO: Use general distance tolerance
+            if dwithin(point.pos_eigs.geometrie, geom, self.DISTANCE_TOLERANCE):
                 return point
         logger.warning(f"Geen punt gevonden bij {geom}")
         return None

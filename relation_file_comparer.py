@@ -132,7 +132,7 @@ else:
 with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
                   f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
-    outfile.write(f"Road numbers in road model dataset: {list(roadmodel_dataset_extent.keys())}\n")
+    outfile.write(f"Road numbers in road model dataset: {roadmodel_dataset_extent}\n")
     outfile.write(f"Found matches: {len(found_relations_log)}\n")
     outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
     outfile.write(f"Relations from CGGTOP without match: "
