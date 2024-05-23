@@ -20,8 +20,8 @@ LR1 = 408
 LR2 = 409
 LR3 = 410
 
-BREEDTE_BARRIER = 0.60  # Estimate, in meters
-BREEDTE_BAKENS = 0.40  # Estimate, in meters
+BREEDTE_BARRIER = 0.50  # Estimate, in meters
+BREEDTE_GELEIDEBAKENS = 0.25  # Based on WIU 2020 – Werken op autosnelwegen [p117], in meters
 
 
 class AFZETTINGEN:
@@ -31,7 +31,7 @@ class AFZETTINGEN:
 
 
 TUSSENRUIMTE = {
-    AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE_BAKENS, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE_GELEIDEBAKENS, VEILIGHEIDSRUIMTE: 0.60},
     AFZETTINGEN.BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.60},
     AFZETTINGEN.BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.0},
 }
@@ -231,18 +231,18 @@ class Werkruimte:
         logger.info(f"Deze situatie valt onder categorienummer {category}.")
 
         if category == TL1:
-            self.edges["R"] = Rand(rijstrook=min(self.request.main_lane_nrs), afstand=-0.91)
+            self.edges["R"] = Rand(rijstrook=min(self.request.main_lane_nrs), afstand=-0.81)
         elif category == LL1:
-            self.edges["R"] = Rand(rijstrook=None, afstand=-0.91)
+            self.edges["R"] = Rand(rijstrook=None, afstand=-0.81)
         elif category == LL2:
             self.edges["R"] = Rand(rijstrook=None, afstand=-0.0)
             self.request.requires_lane_narrowing = True
         elif category == TR1:
             self.edges["L"] = Rand(rijstrook=None, afstand=+1.10)
         elif category == TR2:
-            self.edges["L"] = Rand(rijstrook=max(self.request.main_lane_nrs), afstand=+0.91)
+            self.edges["L"] = Rand(rijstrook=max(self.request.main_lane_nrs), afstand=+0.81)
         elif category == LR1:
-            self.edges["L"] = Rand(rijstrook=None, afstand=+0.91)
+            self.edges["L"] = Rand(rijstrook=None, afstand=+0.81)
         elif category == LR2:
             self.edges["L"] = Rand(rijstrook=None, afstand=+0.0)
             self.request.requires_lane_narrowing = True
