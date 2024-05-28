@@ -600,10 +600,7 @@ class MSI:
                 at_border_right = self.name == msi_names[-1]
                 break
 
-        if not cw_number:
-            logger.warning(f"Er is iets misgegaan met het bepalen van het cw_nummer voor {self.name}")
-
-        else:
+        if cw_number:
             self.properties["N_CW"] = len(self.row.cw[cw_number])
             self.properties["N_TS"] = self.properties["N_CW"]
 

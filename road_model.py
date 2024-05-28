@@ -602,8 +602,6 @@ class WegModel:
             if self.__section_combination_invalid(new_info, other_info):
                 continue
 
-            logger.debug(f"Gebaseerd op:\n{new_info}{other_info}")
-
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
 
@@ -1119,7 +1117,7 @@ class WegModel:
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
                 # Manual gap fix.
-                logger.warning(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
+                logger.debug(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
 
@@ -1129,10 +1127,10 @@ class WegModel:
                 section_info.obj_eigs.pop(max(lane_numbers))
 
                 if self.find_gap(lane_numbers):
-                    logger.warning(f"Gat opgelost: {section_info}")
+                    logger.debug(f"Gat opgelost: {section_info}")
                 else:
-                    logger.warning(f"Gat niet opgelost. Deze sectie wordt in de visualisatie doorzichtig weergegeven.")
-
+                    logger.warning(f"Gat in registratie rijstroken {section_info} is niet opgelost."
+                                   f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
