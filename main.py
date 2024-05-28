@@ -7,13 +7,12 @@ from safety_areas import Rand, Aanvraag, AFZETTINGEN
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 
-locatie = "Amstel"
+locatie = "Vught"
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [Tapers] Bavel
-#                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel
+#                     [MSI relaties] Bavel, Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
