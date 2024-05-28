@@ -206,7 +206,7 @@ def initMSIData(RSU, MSI, model, road_layout):
             T.append(f"[{RSU},{lane}]")
         if (int(lane) == int(MSI) - 1) and (int(T_v) != int(T_c)):
             T_left = f"[{RSU},{lane}]"
-        if (int(lane) == int(MSI) + 1) and (int(T_v) != int(T_c)):  # TODO: Fix break if MSI has no TS (eg. over emergency lane)
+        if (int(lane) == int(MSI) + 1) and (int(T_v) != int(T_c)):
             T_right = f"[{RSU},{lane}]"
 
         W_v = road_layout[RSU]["MSI"][lane]["Carriageway"]
