@@ -428,13 +428,14 @@ class MSINetwerk:
         if not new_annotation:
             return shift, annotation
 
-        # Adjust shift in case of (dis)appearing lane
-        if (downstream and "ExtraRijstrook" in new_annotation.values()
-                or not downstream and "Rijstrookbeeindiging" in new_annotation.values()):
-            shift = shift + 1
-        elif (downstream and "Rijstrookbeëindiging" in new_annotation.values()
-                or not downstream and "ExtraRijstrook" in new_annotation.values()):
-            shift = shift - 1
+        # Adjust shift in case of (dis)appearing lane on the left side of the road
+        if 1 in new_annotation.keys():
+            if ((downstream and new_annotation[1] == "ExtraRijstrook")
+                    or (not downstream and new_annotation[1] == "Rijstrookbeeindiging")):
+                shift = shift + 1
+            elif ((downstream and new_annotation[1] == "Rijstrookbeëindiging" )
+                    or (not downstream and new_annotation[1] == "ExtraRijstrook")):
+                shift = shift - 1
 
         # Join dicts while preventing aliasing issues.
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
@@ -674,10 +675,16 @@ class MSI:
                 lane_types = list(annotation.values())
 
                 # Broadening relation
-                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "ExtraRijstrook"
-                        and this_lane_projected - 1 in d_row.MSIs.keys()):
-                    logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
-                    self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
+                if (self.lane_nr in lane_numbers
+                        and annotation[self.lane_nr] == "ExtraRijstrook"):
+                    # Left side
+                    if self.lane_nr == 1 and this_lane_projected - 1 in d_row.MSIs.keys():
+                        logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                        self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
+                    # Right side
+                    elif self.lane_nr > 1 and this_lane_projected + 1 in d_row.MSIs.keys():
+                        logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                        self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
 
                 # Narrowing relation
                 if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
