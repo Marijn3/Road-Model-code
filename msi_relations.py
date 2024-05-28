@@ -465,13 +465,13 @@ class MSINetwerk:
                     annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                        section_verw_eigs.start_kenmerk.items() if lane_type == "Uitrijstrook"})
 
-                if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
-                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
-
-                if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
-                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
+                # if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
+                #     annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                #                        section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
+                #
+                # if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
+                #     annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                #                        section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
 
         if not end_skip:
             if "Invoegstrook" in section_verw_eigs.einde_kenmerk.values():
