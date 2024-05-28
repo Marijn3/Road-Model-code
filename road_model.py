@@ -578,7 +578,7 @@ class WegModel:
         """
         overlap_sections = self.__get_overlapping_sections(new_info)
         if not overlap_sections:
-            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
+            # logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
             return
 
         other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
@@ -790,7 +790,7 @@ class WegModel:
         """
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
-        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1} {geom2}"
+        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
         diff = difference(geom1, geom2, grid_size=self.__GRID_SIZE)
 
         if isinstance(diff, LineString) and not diff.is_empty:
@@ -802,7 +802,7 @@ class WegModel:
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
-            logger.warning(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+            logger.warning(f"Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
                            f"{geom1} en \n{geom2}")
             return diff
 
@@ -904,14 +904,24 @@ class WegModel:
 
             for new_lane_number in new_lane_numbers:
                 if new_lane_number in orig_lane_numbers:
-                    logger.warning(
-                        f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
-                        f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
-                        f"{self.sections[index].obj_eigs}\n"
-                        f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
-                        f"De strook wordt niet toegevoegd."
-                    )
-                    self.sections[index].verw_eigs.heeft_verwerkingsfout = True
+                    # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
+                    if new_obj_eigs[new_lane_number] == "Vluchtstrook":
+                        new_obj_eigs[new_lane_number + 1] = "Vluchtstrook"
+                        new_obj_eigs.pop(new_lane_number)
+                        self.sections[index].obj_eigs.update(new_obj_eigs)
+                    elif self.sections[index].obj_eigs[new_lane_number] == "Vluchtstrook":
+                        self.sections[index].obj_eigs[new_lane_number + 1] = "Vluchtstrook"
+                        self.sections[index].obj_eigs.pop(new_lane_number)
+                        self.sections[index].obj_eigs.update(new_obj_eigs)
+                    else:
+                        logger.warning(
+                            f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
+                            f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
+                            f"{self.sections[index].obj_eigs}\n"
+                            f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
+                            f"De strook wordt niet toegevoegd."
+                        )
+                        self.sections[index].verw_eigs.heeft_verwerkingsfout = True
                 else:
                     self.sections[index].obj_eigs.update(new_obj_eigs)
         if new_geometrie:
