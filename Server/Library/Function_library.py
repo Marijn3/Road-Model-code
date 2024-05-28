@@ -174,7 +174,7 @@ def initTSData(msi_data):
 
 
 def initMSIData(RSU, MSI, model, road_layout):
-    # TODO: This initialisation could potentially be done directly using my MSI class, avoiding the .json file?
+    # TODO: This initialisation could potentially be done directly using the MSI Network, avoiding the .json file.
     d = road_layout[RSU]["MSI"][MSI]["Downstream"]["Primary"]
     ds = road_layout[RSU]["MSI"][MSI]["Downstream"]["Secondary"]
     dt = road_layout[RSU]["MSI"][MSI]["Downstream"]["Taper"]
@@ -206,7 +206,7 @@ def initMSIData(RSU, MSI, model, road_layout):
             T.append(f"[{RSU},{lane}]")
         if (int(lane) == int(MSI) - 1) and (int(T_v) != int(T_c)):
             T_left = f"[{RSU},{lane}]"
-        if (int(lane) == int(MSI) + 1) and (int(T_v) != int(T_c)):
+        if (int(lane) == int(MSI) + 1) and (int(T_v) != int(T_c)):  # TODO: Fix break if MSI has no TS (eg. over emergency lane)
             T_right = f"[{RSU},{lane}]"
 
         W_v = road_layout[RSU]["MSI"][lane]["Carriageway"]
