@@ -599,9 +599,10 @@ class WegModel:
                 else:
                     other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
-            self.__run_checks(new_info, other_info)
+            if self.__section_combination_invalid(new_info, other_info):
+                continue
 
-            # logger.debug(f"Gebaseerd op:\n{new_info}{other_info}")
+            logger.debug(f"Gebaseerd op:\n{new_info}{other_info}")
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -667,8 +668,9 @@ class WegModel:
                                               new_obj_eigs=new_info.obj_eigs,
                                               new_geometrie=other_info.pos_eigs.geometrie)
                     else:
-                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen: "
-                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
+                        logger.warning(f"Twee geometrieën met gelijke beginkm en eindkm lijken niet overeen te komen: "
+                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}\n"
+                                       f"Gebaseerd op: {new_info}\n{other_info}")
                     break  # This is the final iteration.
 
         self.__remove_sections(sections_to_remove)
@@ -756,7 +758,7 @@ class WegModel:
         return km_remaining, other_geom
 
     @staticmethod
-    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
+    def __section_combination_invalid(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
         if not determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km):
             logger.warning(f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
             return True
@@ -1088,14 +1090,19 @@ class WegModel:
                 sections_to_remove.add(section_index)
                 continue
 
-            # Throw out sections that do not have any (integer) lane numbers in the keys.
-            if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
+            # # Throw out sections that do not have any (integer) lane numbers in the keys.
+            # if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
+            #     sections_to_remove.add(section_index)
+            #     continue
+            #
+            # Throw out sections that do not have any normal lanes in them.
+            if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int) and section_info.obj_eigs[key] == "Rijstrook"]:
                 sections_to_remove.add(section_index)
                 continue
 
         self.__remove_sections(sections_to_remove)
 
-        # Special code to fill in registration gaps in the case of taper registrations.
+        # Special code to fill in registration issues in the case of outgoing taper registrations.
         for section_index, section_info in self.sections.items():
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
 
@@ -1274,13 +1281,17 @@ class WegModel:
         section_b_info = adjacent_sections[section_b_id]
 
         # TODO: Make separate function for this, remove duplicate code in visualiser.py that achieves the same.
-        section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
-        section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
+        section_a_keys = [key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)]
+        section_b_keys = [key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)]
+        section_a_max_lane_nr = max(section_a_keys)
+        section_b_max_lane_nr = max(section_b_keys)
+        section_a_min_lane_nr = min(section_a_keys)
+        section_b_min_lane_nr = min(section_b_keys)
 
         a_is_continuous = (section_a_info.obj_eigs[section_a_max_lane_nr] == "Puntstuk"
-                           or section_b_info.obj_eigs[1] == "Puntstuk")
+                           or section_b_info.obj_eigs[section_b_min_lane_nr] == "Puntstuk")
         b_is_continuous = (section_b_info.obj_eigs[section_b_max_lane_nr] == "Puntstuk"
-                           or section_a_info.obj_eigs[1] == "Puntstuk")
+                           or section_a_info.obj_eigs[section_a_min_lane_nr] == "Puntstuk")
 
         if a_is_continuous:
             return section_a_id, section_b_id
