@@ -1118,10 +1118,26 @@ class WegModel:
 
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                logger.warning(f"Sectie heeft een gat in registratie rijstroken. Deze sectie wordt in de visualisatie doorzichtig weergegeven. {section_info}")
+                # Manual gap fix.
+                logger.warning(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
+                lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
+                section_info.verw_eigs.heeft_verwerkingsfout = True
+
+                # Move lanes to fill the gap
+                for lane_number in range(gap_number, max(lane_numbers)):
+                    section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
+                section_info.obj_eigs.pop(max(lane_numbers))
+
+                if self.find_gap(lane_numbers):
+                    logger.warning(f"Gat opgelost: {section_info}")
+                else:
+                    logger.warning(f"Gat niet opgelost. Deze sectie wordt in de visualisatie doorzichtig weergegeven.")
+
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
+
+            section_verw_eigs.heeft_verwerkingsfout = section_info.verw_eigs.heeft_verwerkingsfout
 
             skip_start_check = False
             skip_end_check = False
