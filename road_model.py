@@ -36,6 +36,7 @@ class LijnVerwerkingsEigenschappen:
         self.aantal_hoofdstroken = None
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
+        self.heeft_verwerkingsfout = False
 
 
 class PuntVerwerkingsEigenschappen:
@@ -49,10 +50,10 @@ class PuntVerwerkingsEigenschappen:
 
 
 class ObjectInfo:
-    def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None):
+    def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None, lijn: bool = True):
         self.pos_eigs = PositieEigenschappen() if pos_eigs is None else pos_eigs
         self.obj_eigs = {} if obj_eigs is None else obj_eigs
-        self.verw_eigs = None
+        self.verw_eigs = LijnVerwerkingsEigenschappen() if lijn else PuntVerwerkingsEigenschappen()
 
     def __repr__(self):
         typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
@@ -155,8 +156,8 @@ class DataFrameLader:
         if direction == "T":
             mapping["1 -> 1.6"] = (1, None)  # "Taper afloop einde")
             mapping["1.6 -> 1"] = (1, None)  # "Taper opkomst start")
-            mapping["2 -> 1.6"] = (2, "TaperOpkomst")  # wel 2 stroken breed, want 2 breed bij start
-            mapping["1.6 -> 2"] = (1, "TaperAfloop")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["2 -> 1.6"] = (1, "TaperOpkomst")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["1.6 -> 2"] = (2, "TaperAfloop")  # wel 2 stroken breed, want 2 breed bij start
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
@@ -310,6 +311,8 @@ class DataFrameLader:
         if isinstance(merged, LineString):
             return merged
 
+        return geom
+
         # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
         if get_num_geometries(geom) == 2:
             line1 = geom.geoms[0]
@@ -443,7 +446,7 @@ class WegModel:
         """
         assert isinstance(row["geometry"], Point), f"Dit is geen simpele puntgeometrie: {row}"
 
-        point_info = ObjectInfo()
+        point_info = ObjectInfo(lijn=False)
 
         section_info = self.get_one_section_at_point(row["geometry"])
         point_info.pos_eigs.rijrichting = section_info.pos_eigs.rijrichting
@@ -452,7 +455,7 @@ class WegModel:
 
         point_info.pos_eigs.km = row["KMTR"]
         point_info.pos_eigs.geometrie = row["geometry"]
-        point_info.obj_eigs["TYPE"] = row["TYPE"]
+        point_info.obj_eigs["Type"] = row["TYPE"]
 
         if name == "Rijstrooksignaleringen":
             point_info.obj_eigs["Rijstrooknummers"] = [int(char) for char in row["RIJSTRKNRS"]]
@@ -575,7 +578,7 @@ class WegModel:
         """
         overlap_sections = self.__get_overlapping_sections(new_info)
         if not overlap_sections:
-            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
+            # logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
             return
 
         other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
@@ -596,9 +599,8 @@ class WegModel:
                 else:
                     other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
-            self.__run_checks(new_info, other_info)
-
-            # logger.debug(f"Gebaseerd op:\n{new_info}{other_info}")
+            if self.__section_combination_invalid(new_info, other_info):
+                continue
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -664,8 +666,9 @@ class WegModel:
                                               new_obj_eigs=new_info.obj_eigs,
                                               new_geometrie=other_info.pos_eigs.geometrie)
                     else:
-                        logger.warning(f"Twee overlappende geometrieën lijken niet overeen te komen: "
-                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}")
+                        logger.warning(f"Twee geometrieën met gelijke beginkm en eindkm lijken niet overeen te komen: "
+                                       f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}\n"
+                                       f"Gebaseerd op: {new_info}\n{other_info}")
                     break  # This is the final iteration.
 
         self.__remove_sections(sections_to_remove)
@@ -753,7 +756,7 @@ class WegModel:
         return km_remaining, other_geom
 
     @staticmethod
-    def __run_checks(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
+    def __section_combination_invalid(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
         if not determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km):
             logger.warning(f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
             return True
@@ -799,7 +802,7 @@ class WegModel:
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
-            logger.warning(f"Kan niet verder. Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
+            logger.warning(f"Lege of onjuiste overgebleven geometrie ({diff}) tussen\n"
                            f"{geom1} en \n{geom2}")
             return diff
 
@@ -900,13 +903,27 @@ class WegModel:
             new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
 
             for new_lane_number in new_lane_numbers:
-                assert new_lane_number not in orig_lane_numbers, \
-                    (f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
-                     f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
-                     f"{self.sections[index].obj_eigs}\n"
-                     f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties?")
-
-            self.sections[index].obj_eigs.update(new_obj_eigs)
+                if new_lane_number in orig_lane_numbers:
+                    # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
+                    if new_obj_eigs[new_lane_number] == "Vluchtstrook":
+                        new_obj_eigs[new_lane_number + 1] = "Vluchtstrook"
+                        new_obj_eigs.pop(new_lane_number)
+                        self.sections[index].obj_eigs.update(new_obj_eigs)
+                    elif self.sections[index].obj_eigs[new_lane_number] == "Vluchtstrook":
+                        self.sections[index].obj_eigs[new_lane_number + 1] = "Vluchtstrook"
+                        self.sections[index].obj_eigs.pop(new_lane_number)
+                        self.sections[index].obj_eigs.update(new_obj_eigs)
+                    else:
+                        logger.warning(
+                            f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
+                            f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
+                            f"{self.sections[index].obj_eigs}\n"
+                            f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
+                            f"De strook wordt niet toegevoegd."
+                        )
+                        self.sections[index].verw_eigs.heeft_verwerkingsfout = True
+                else:
+                    self.sections[index].obj_eigs.update(new_obj_eigs)
         if new_geometrie:
             self.sections[index].pos_eigs.geometrie = new_geometrie
 
@@ -1071,14 +1088,19 @@ class WegModel:
                 sections_to_remove.add(section_index)
                 continue
 
-            # Throw out sections that do not have any (integer) lane numbers in the keys.
-            if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
+            # # Throw out sections that do not have any (integer) lane numbers in the keys.
+            # if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
+            #     sections_to_remove.add(section_index)
+            #     continue
+            #
+            # Throw out sections that do not have any normal lanes in them.
+            if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int) and section_info.obj_eigs[key] == "Rijstrook"]:
                 sections_to_remove.add(section_index)
                 continue
 
         self.__remove_sections(sections_to_remove)
 
-        # Special code to fill in registration gaps in the case of taper registrations.
+        # Special code to fill in registration issues in the case of outgoing taper registrations.
         for section_index, section_info in self.sections.items():
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
 
@@ -1094,10 +1116,26 @@ class WegModel:
 
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                logger.warning(f"Sectie heeft een gat in registratie rijstroken. Deze sectie wordt in de visualisatie doorzichtig weergegeven. {section_info}")
+                # Manual gap fix.
+                logger.debug(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
+                lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
+                section_info.verw_eigs.heeft_verwerkingsfout = True
+
+                # Move lanes to fill the gap
+                for lane_number in range(gap_number, max(lane_numbers)):
+                    section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
+                section_info.obj_eigs.pop(max(lane_numbers))
+
+                if self.find_gap(lane_numbers):
+                    logger.debug(f"Gat opgelost: {section_info}")
+                else:
+                    logger.warning(f"Gat in registratie rijstroken {section_info} is niet opgelost."
+                                   f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.")
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
+
+            section_verw_eigs.heeft_verwerkingsfout = section_info.verw_eigs.heeft_verwerkingsfout
 
             skip_start_check = False
             skip_end_check = False
@@ -1136,17 +1174,13 @@ class WegModel:
                 section_verw_eigs.einde_kenmerk = (
                     self.__get_dif_props(section_info.obj_eigs, self.sections[main_down].obj_eigs))
 
-            stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                       if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
-            hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                                  if
-                                  lane_type in self.__MAIN_LANE_TYPES]
-            strooknummers_links = [lane_nr for lane_nr in stroken if
+            hoofdstrooknummers, strooknummers = self.get_lane_numbers(section_info.obj_eigs)
+            strooknummers_links = [lane_nr for lane_nr in strooknummers if
                                    hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
-            strooknummers_rechts = [lane_nr for lane_nr in stroken if
+            strooknummers_rechts = [lane_nr for lane_nr in strooknummers if
                                     hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
 
-            section_verw_eigs.aantal_stroken = len(stroken)
+            section_verw_eigs.aantal_stroken = len(strooknummers)
             section_verw_eigs.aantal_hoofdstroken = len(hoofdstrooknummers)
             section_verw_eigs.aantal_rijstroken_links = len(strooknummers_links)
             section_verw_eigs.aantal_rijstroken_rechts = len(strooknummers_rechts)
@@ -1174,7 +1208,7 @@ class WegModel:
 
             point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 
-            if point_info.obj_eigs["TYPE"] in ["Samenvoeging", "Invoeging"]:
+            if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
@@ -1182,7 +1216,7 @@ class WegModel:
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
 
-            if point_info.obj_eigs["TYPE"] in ["Splitsing", "Uitvoeging"]:
+            if point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
@@ -1191,9 +1225,9 @@ class WegModel:
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
             # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
-            if (point_info.obj_eigs["TYPE"] in ["Samenvoeging", "Invoeging"]
+            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
                     and not (len(point_verw_eigs.ingaande_secties) == 2) or
-                    (point_info.obj_eigs["TYPE"] in ["Splitsing", "Uitvoeging"]
+                    (point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
                      and not len(point_verw_eigs.uitgaande_secties) == 2)):
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
@@ -1203,7 +1237,11 @@ class WegModel:
         self.__remove_points(points_to_remove)
 
     @staticmethod
-    def __separate_main_and_div(connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
+    def get_min_max_lane_number(lanes: dict) -> tuple[int, int]:
+        lane_numbers = [lane_nr for lane_nr in lanes.keys() if isinstance(lane_nr, int)]
+        return min(lane_numbers), max(lane_numbers)
+
+    def __separate_main_and_div(self, connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
         """
         When the road model splits into two sections, this function can separate the two
         connecting sections into the main section and the diverging section.
@@ -1256,18 +1294,11 @@ class WegModel:
         section_a_info = adjacent_sections[section_a_id]
         section_b_info = adjacent_sections[section_b_id]
 
-        # TODO: Make separate function for this, remove duplicate code in visualiser.py that achieves the same.
-        section_a_max_lane_nr = max([key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)])
-        section_b_max_lane_nr = max([key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)])
+        first_is_continuous, second_is_continuous = self.determine_continuous_section(section_a_info, section_b_info)
 
-        a_is_continuous = (section_a_info.obj_eigs[section_a_max_lane_nr] == "Puntstuk"
-                           or section_b_info.obj_eigs[1] == "Puntstuk")
-        b_is_continuous = (section_b_info.obj_eigs[section_b_max_lane_nr] == "Puntstuk"
-                           or section_a_info.obj_eigs[1] == "Puntstuk")
-
-        if a_is_continuous:
+        if first_is_continuous:
             return section_a_id, section_b_id
-        elif b_is_continuous:
+        elif second_is_continuous:
             return section_b_id, section_a_id
 
         # If neither other section had puntstuk, return the one section with same hectoletter
@@ -1281,6 +1312,17 @@ class WegModel:
 
         # This connection must be an intersection, which will be treated as an end point.
         return None, None
+
+    def determine_continuous_section(self, section1, section2) -> tuple[bool, bool]:
+        section1_min_lane_nr, section1_max_lane_nr = self.get_min_max_lane_number(section1.obj_eigs)
+        section2_min_lane_nr, section2_max_lane_nr = self.get_min_max_lane_number(section2.obj_eigs)
+
+        continuous1 = (section1.obj_eigs[section1_max_lane_nr] == "Puntstuk" or
+                       section2.obj_eigs[section2_min_lane_nr] == "Puntstuk")
+        continuous2 = (section2.obj_eigs[section2_max_lane_nr] == "Puntstuk" or
+                       section1.obj_eigs[section1_min_lane_nr] == "Puntstuk")
+
+        return continuous1, continuous2
 
     @staticmethod
     def __get_dif_props(section_props: dict, other_props):
@@ -1335,19 +1377,31 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    def get_n_lanes(self, obj_eigs: dict) -> tuple[int, int]:
+    def get_lane_numbers(self, obj_eigs: dict) -> tuple[list, list]:
         """
-        Determines the number of lanes given road properties.
+        Obtains the lane numbers, given road properties.
         Args:
             obj_eigs (dict): Road properties to be evaluated.
         Returns:
-            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
-            2) The number of lanes, exluding "puntstuk" registrations.
+            1) The main lane numbers.
+            2) The lane numbers, exluding "puntstuk" registrations.
         """
         main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                       and lane_type in self.__MAIN_LANE_TYPES]
         any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                      and lane_type not in ["Puntstuk"]]
+        return main_lanes, any_lanes
+
+    def get_n_lanes(self, obj_eigs: dict) -> tuple[int, int]:
+        """
+        Determines the amount of lanes given road properties.
+        Args:
+            obj_eigs (dict): Road properties to be evaluated.
+        Returns:
+            1) The amount of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
+            2) The amount of lanes, exluding "puntstuk" registrations.
+        """
+        main_lanes, any_lanes = self.get_lane_numbers(obj_eigs)
         return len(main_lanes), len(any_lanes)
 
     def get_points_info(self, specifier: str = None) -> list[ObjectInfo]:
@@ -1361,9 +1415,9 @@ class WegModel:
             List of all point information.
         """
         if specifier == "MSI":
-            return [point for point in self.points.values() if point.obj_eigs["TYPE"] == "Signalering"]
+            return [point for point in self.points.values() if point.obj_eigs["Type"] == "Signalering"]
         elif specifier == "*vergentie":
-            return [point for point in self.points.values() if point.obj_eigs["TYPE"] != "Signalering"]
+            return [point for point in self.points.values() if point.obj_eigs["Type"] != "Signalering"]
         else:
             return [point for point in self.points.values()]
 

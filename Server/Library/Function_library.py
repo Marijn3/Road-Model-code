@@ -174,7 +174,7 @@ def initTSData(msi_data):
 
 
 def initMSIData(RSU, MSI, model, road_layout):
-    # TODO: This initialisation could potentially be done directly using my MSI class, avoiding the .json file?
+    # TODO: This initialisation could potentially be done directly using the MSI Network, avoiding the .json file.
     d = road_layout[RSU]["MSI"][MSI]["Downstream"]["Primary"]
     ds = road_layout[RSU]["MSI"][MSI]["Downstream"]["Secondary"]
     dt = road_layout[RSU]["MSI"][MSI]["Downstream"]["Taper"]

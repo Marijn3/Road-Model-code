@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
-    __C_HIGHLIGHT = "#736D55"
+    __C_HIGHLIGHT = "#D06E7C"
+    __C_NARROWING = "#736D55"
     __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
@@ -112,21 +113,23 @@ class SvgMaker:
 
         logger.info("Visualisatie succesvol afgerond.")
 
-    def get_road_color(self, prop: dict) -> str:
+    def get_road_color(self, section_info: ObjectInfo) -> str:
         """
         Determines color for road section visualisation based on the provided road properties.
         Args:
-            prop (dict): Properties of road section.
+            section_info (ObjectInfo): Properties of road section.
         Returns:
             Color name as string.
         """
-        if self.wegmodel.find_gap([lane for lane in prop.keys() if isinstance(lane, int)]):
+        if self.wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif "Special" in prop.keys():
-            if "Taper" in prop["Special"][0]:
+        elif "Special" in section_info.obj_eigs.keys():
+            if "Taper" in section_info.obj_eigs["Special"][0]:
                 return self.__C_TAPER
             else:
-                return self.__C_HIGHLIGHT
+                return self.__C_NARROWING
+        elif section_info.verw_eigs.heeft_verwerkingsfout:
+            return self.__C_HIGHLIGHT
         else:
             return self.__C_ASPHALT
 
@@ -171,7 +174,7 @@ class SvgMaker:
         #
         points_info = []
         for point_info in self.wegmodel.get_points_info():
-            if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["TYPE"] not in ["Signalering"]:
+            if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["Type"] not in ["Signalering"]:
                 points_info.append(point_info)
         return points_info
 
@@ -192,7 +195,7 @@ class SvgMaker:
 
         for point_info in points_info:
             # Case by case analysis of what should be done to the line geometry.
-            point_type = point_info.obj_eigs["TYPE"]
+            point_type = point_info.obj_eigs["Type"]
 
             point_is_at_line_start = dwithin(Point(line_geom.coords[0]),
                                              point_info.pos_eigs.geometrie,
@@ -295,12 +298,12 @@ class SvgMaker:
         offset = self.LANE_WIDTH * (n_lanes_left - n_lanes_right) / 2
 
         asphalt_coords = self.get_offset_coords(geom, offset)
-        color = self.get_road_color(section_info.obj_eigs)
+        color = self.get_road_color(section_info)
         width = self.LANE_WIDTH * n_total_lanes
 
         self.g_road.add(self.dwg.polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
 
-        should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT, self.__C_TAPER]
+        should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT, self.__C_TAPER, self.__C_NARROWING]
 
         if should_have_marking:
             self.draw_lane_marking(geom, section_info)
@@ -432,7 +435,7 @@ class SvgMaker:
                                          point_info.verw_eigs.aantal_hoofdstroken) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
-        if point_info.obj_eigs["TYPE"] == "Signalering":
+        if point_info.obj_eigs["Type"] == "Signalering":
             if self.onroad:
                 self.display_MSI_onroad(msi_row, coords, rotate_angle)
             else:
@@ -443,14 +446,13 @@ class SvgMaker:
     @staticmethod
     def determine_cw_number(msi_row: MSIRow, nr):
         name = msi_row.MSIs[nr].name
-        cw = -1
         for cw_number, msi_names in msi_row.cw.items():
             if name in msi_names:
                 return cw_number
 
     def display_MSI_roadside(self, msi_row: MSIRow, coords: tuple, info_offset: float, rotate_angle: float):
         g_msi_row = self.g_points.add(self.dwg.g())
-        hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
+        hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w"] else self.LANE_WIDTH * 25
         displacement = 0
 
         for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:

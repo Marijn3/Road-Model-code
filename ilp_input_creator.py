@@ -105,10 +105,10 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
             road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
             road_dict[row_name]["MSI"][msi.lane_nr]["Rush_hour_lane"] = msi.properties["RHL"]
             road_dict[row_name]["MSI"][msi.lane_nr]["Exit-Entry"] = msi.properties["Exit_Entry"]
-            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = str(msi.properties["TS_num"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = str(msi.properties["TS_num"]) if msi.properties["TS_num"] else "99"
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Left"] = msi.properties["DIF_V_left"]
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
-            road_dict[row_name]["MSI"][msi.lane_nr]["Carriageway"] = str(msi.properties["CW_num"])
+            road_dict[row_name]["MSI"][msi.lane_nr]["Carriageway"] = str(msi.properties["CW_num"]) if msi.properties["CW_num"] else "99"
 
         # These properties are the same for the entire row, so the value taken from the last iteration.
         road_dict[row_name]["Continue-V"] = msi.properties["C_V"]
