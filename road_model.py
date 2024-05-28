@@ -156,8 +156,8 @@ class DataFrameLader:
         if direction == "T":
             mapping["1 -> 1.6"] = (1, None)  # "Taper afloop einde")
             mapping["1.6 -> 1"] = (1, None)  # "Taper opkomst start")
-            mapping["2 -> 1.6"] = (2, "TaperOpkomst")  # wel 2 stroken breed, want 2 breed bij start
-            mapping["1.6 -> 2"] = (1, "TaperAfloop")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["2 -> 1.6"] = (1, "TaperOpkomst")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["1.6 -> 2"] = (2, "TaperAfloop")  # wel 2 stroken breed, want 2 breed bij start
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
