@@ -655,6 +655,8 @@ class MSI:
         if self.lane_nr - 1 in self.row.MSIs.keys():
             self.properties["l"] = self.row.MSIs[self.lane_nr - 1].name
 
+        has_taper = False
+
         # Downstream relations
         for d_row, desc in self.row.downstream.items():
             shift, annotation = desc
@@ -667,11 +669,14 @@ class MSI:
 
             if "TaperAfloop" in annotation.values():
                 taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperAfloop"][0]
-                if self.lane_nr >= taper_lane_nr - shift:
+                if self.lane_nr > taper_lane_nr:
                     this_lane_projected -= 1
+                if self.lane_nr == taper_lane_nr:
+                    self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "t")
+                    has_taper = True
 
             # Primary relation
-            if (this_lane_projected in d_row.MSIs.keys() and (
+            if (this_lane_projected in d_row.MSIs.keys() and not has_taper and (
                     # Prevent downstream primary relation being added when lane ends.
                     self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
