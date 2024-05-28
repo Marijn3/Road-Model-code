@@ -36,6 +36,7 @@ class LijnVerwerkingsEigenschappen:
         self.aantal_hoofdstroken = None
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
+        self.heeft_verwerkingsfout = False
 
 
 class PuntVerwerkingsEigenschappen:
@@ -49,10 +50,10 @@ class PuntVerwerkingsEigenschappen:
 
 
 class ObjectInfo:
-    def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None):
+    def __init__(self, pos_eigs: PositieEigenschappen = None, obj_eigs: dict = None, lijn: bool = True):
         self.pos_eigs = PositieEigenschappen() if pos_eigs is None else pos_eigs
         self.obj_eigs = {} if obj_eigs is None else obj_eigs
-        self.verw_eigs = None
+        self.verw_eigs = LijnVerwerkingsEigenschappen() if lijn else PuntVerwerkingsEigenschappen()
 
     def __repr__(self):
         typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
@@ -310,6 +311,8 @@ class DataFrameLader:
         if isinstance(merged, LineString):
             return merged
 
+        return geom
+
         # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
         if get_num_geometries(geom) == 2:
             line1 = geom.geoms[0]
@@ -443,7 +446,7 @@ class WegModel:
         """
         assert isinstance(row["geometry"], Point), f"Dit is geen simpele puntgeometrie: {row}"
 
-        point_info = ObjectInfo()
+        point_info = ObjectInfo(lijn=False)
 
         section_info = self.get_one_section_at_point(row["geometry"])
         point_info.pos_eigs.rijrichting = section_info.pos_eigs.rijrichting
@@ -787,7 +790,7 @@ class WegModel:
         """
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
-        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
+        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1} {geom2}"
         diff = difference(geom1, geom2, grid_size=self.__GRID_SIZE)
 
         if isinstance(diff, LineString) and not diff.is_empty:
@@ -900,13 +903,17 @@ class WegModel:
             new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
 
             for new_lane_number in new_lane_numbers:
-                assert new_lane_number not in orig_lane_numbers, \
-                    (f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
-                     f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
-                     f"{self.sections[index].obj_eigs}\n"
-                     f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties?")
-
-            self.sections[index].obj_eigs.update(new_obj_eigs)
+                if new_lane_number in orig_lane_numbers:
+                    logger.warning(
+                        f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
+                        f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
+                        f"{self.sections[index].obj_eigs}\n"
+                        f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
+                        f"De strook wordt niet toegevoegd."
+                    )
+                    self.sections[index].verw_eigs.heeft_verwerkingsfout = True
+                else:
+                    self.sections[index].obj_eigs.update(new_obj_eigs)
         if new_geometrie:
             self.sections[index].pos_eigs.geometrie = new_geometrie
 

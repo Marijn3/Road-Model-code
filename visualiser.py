@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
-    __C_HIGHLIGHT = "#736D55"
+    __C_HIGHLIGHT = "#FF7755"
+    __C_NARROWING = "#736D55"
     __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
@@ -112,21 +113,23 @@ class SvgMaker:
 
         logger.info("Visualisatie succesvol afgerond.")
 
-    def get_road_color(self, prop: dict) -> str:
+    def get_road_color(self, section_info: ObjectInfo) -> str:
         """
         Determines color for road section visualisation based on the provided road properties.
         Args:
-            prop (dict): Properties of road section.
+            section_info (ObjectInfo): Properties of road section.
         Returns:
             Color name as string.
         """
-        if self.wegmodel.find_gap([lane for lane in prop.keys() if isinstance(lane, int)]):
+        if self.wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif "Special" in prop.keys():
-            if "Taper" in prop["Special"][0]:
+        elif "Special" in section_info.obj_eigs.keys():
+            if "Taper" in section_info.obj_eigs["Special"][0]:
                 return self.__C_TAPER
             else:
-                return self.__C_HIGHLIGHT
+                return self.__C_NARROWING
+        elif section_info.verw_eigs.heeft_verwerkingsfout:
+            return self.__C_HIGHLIGHT
         else:
             return self.__C_ASPHALT
 
@@ -295,7 +298,7 @@ class SvgMaker:
         offset = self.LANE_WIDTH * (n_lanes_left - n_lanes_right) / 2
 
         asphalt_coords = self.get_offset_coords(geom, offset)
-        color = self.get_road_color(section_info.obj_eigs)
+        color = self.get_road_color(section_info)
         width = self.LANE_WIDTH * n_total_lanes
 
         self.g_road.add(self.dwg.polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
@@ -443,7 +446,6 @@ class SvgMaker:
     @staticmethod
     def determine_cw_number(msi_row: MSIRow, nr):
         name = msi_row.MSIs[nr].name
-        cw = -1
         for cw_number, msi_names in msi_row.cw.items():
             if name in msi_names:
                 return cw_number
