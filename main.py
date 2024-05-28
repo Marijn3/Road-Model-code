@@ -7,7 +7,7 @@ from safety_areas import Rand, Aanvraag, AFZETTINGEN
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 
-locatie = "Vught"
+locatie = "Amstel"
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
