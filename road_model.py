@@ -1241,7 +1241,11 @@ class WegModel:
         self.__remove_points(points_to_remove)
 
     @staticmethod
-    def __separate_main_and_div(connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
+    def get_min_max_lane_number(lanes: dict) -> tuple[int, int]:
+        lane_numbers = [lane_nr for lane_nr in lanes.keys() if isinstance(lane_nr, int)]
+        return min(lane_numbers), max(lane_numbers)
+
+    def __separate_main_and_div(self, connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
         """
         When the road model splits into two sections, this function can separate the two
         connecting sections into the main section and the diverging section.
@@ -1294,22 +1298,11 @@ class WegModel:
         section_a_info = adjacent_sections[section_a_id]
         section_b_info = adjacent_sections[section_b_id]
 
-        # TODO: Make separate function for this, remove duplicate code in visualiser.py that achieves the same.
-        section_a_keys = [key for key in section_a_info.obj_eigs.keys() if isinstance(key, int)]
-        section_b_keys = [key for key in section_b_info.obj_eigs.keys() if isinstance(key, int)]
-        section_a_max_lane_nr = max(section_a_keys)
-        section_b_max_lane_nr = max(section_b_keys)
-        section_a_min_lane_nr = min(section_a_keys)
-        section_b_min_lane_nr = min(section_b_keys)
+        first_is_continuous, second_is_continuous = self.determine_continuous_section(section_a_info, section_b_info)
 
-        a_is_continuous = (section_a_info.obj_eigs[section_a_max_lane_nr] == "Puntstuk"
-                           or section_b_info.obj_eigs[section_b_min_lane_nr] == "Puntstuk")
-        b_is_continuous = (section_b_info.obj_eigs[section_b_max_lane_nr] == "Puntstuk"
-                           or section_a_info.obj_eigs[section_a_min_lane_nr] == "Puntstuk")
-
-        if a_is_continuous:
+        if first_is_continuous:
             return section_a_id, section_b_id
-        elif b_is_continuous:
+        elif second_is_continuous:
             return section_b_id, section_a_id
 
         # If neither other section had puntstuk, return the one section with same hectoletter
@@ -1323,6 +1316,17 @@ class WegModel:
 
         # This connection must be an intersection, which will be treated as an end point.
         return None, None
+
+    def determine_continuous_section(self, section1, section2) -> tuple[bool, bool]:
+        section1_min_lane_nr, section1_max_lane_nr = self.get_min_max_lane_number(section1.obj_eigs)
+        section2_min_lane_nr, section2_max_lane_nr = self.get_min_max_lane_number(section2.obj_eigs)
+
+        continuous1 = (section1.obj_eigs[section1_max_lane_nr] == "Puntstuk" or
+                       section2.obj_eigs[section2_min_lane_nr] == "Puntstuk")
+        continuous2 = (section2.obj_eigs[section2_max_lane_nr] == "Puntstuk" or
+                       section1.obj_eigs[section1_min_lane_nr] == "Puntstuk")
+
+        return continuous1, continuous2
 
     @staticmethod
     def __get_dif_props(section_props: dict, other_props):

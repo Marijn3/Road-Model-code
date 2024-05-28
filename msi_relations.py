@@ -331,13 +331,19 @@ class MSINetwerk:
             # The recursive function can be called once, for the (only) section that is in the travel direction.
             next_section_id = other_point.verw_eigs.uitgaande_secties[0] if downstream \
                 else other_point.verw_eigs.ingaande_secties[0]
-            if "Puntstuk" not in current_section.obj_eigs.values():  # TODO: remove this assumption.
-                # This is the diverging section. Determine annotation.
-                if downstream:
-                    puntstuk_section_id = list(set(other_point.verw_eigs.ingaande_secties) - {current_section_id})[0]
-                else:
-                    puntstuk_section_id = list(set(other_point.verw_eigs.uitgaande_secties) - {current_section_id})[0]
-                n_lanes_other, _ = self.wegmodel.get_n_lanes(self.wegmodel.sections[puntstuk_section_id].obj_eigs)
+
+            if downstream:
+                puntstuk_section_id = list(set(other_point.verw_eigs.ingaande_secties) - {current_section_id})[0]
+            else:
+                puntstuk_section_id = list(set(other_point.verw_eigs.uitgaande_secties) - {current_section_id})[0]
+
+            other_section = self.wegmodel.sections[puntstuk_section_id]
+
+            current_cont, other_cont = self.wegmodel.determine_continuous_section(current_section, other_section)
+
+            if not current_cont:
+                # This is the diverging section. Determine shifted annotation.
+                n_lanes_other, _ = self.wegmodel.get_n_lanes(other_section.obj_eigs)
                 shift = shift + n_lanes_other
 
             shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
@@ -749,17 +755,18 @@ class MSI:
                                    f"omdat dit geval nog niet ingeprogrammeerd is.")
 
     @staticmethod
-    def make_connection(row1, row2, rel_type_letter: str = ""):
+    def make_connection(row1, row2, relation_type_letter: str = ""):
         """
         First entry is the row that should have an upstream relation to the second entry.
         """
-        row1.properties[f"u{rel_type_letter}"] = row2.name
-        row2.properties[f"d{rel_type_letter}"] = row1.name
+        row1.properties[f"u{relation_type_letter}"] = row2.name
+        row2.properties[f"d{relation_type_letter}"] = row1.name
 
     @staticmethod
     def make_secondary_connection(row1, row2):
         """
         First entry is the row that should have an upstream secondary relation to the second entry.
+        This function allows multiple relations, which are joined in a list.
         """
         row1.properties["us"] = row2.name
         if not row2.properties["ds"]:
