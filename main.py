@@ -13,8 +13,7 @@ locatie = "Amstel"
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
 # Verwerkingsfouten : [MultiLineString] Zonzeel
 #                     [Tapers] Bavel
-#                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*
-# Importfouten : Lankhorst
+#                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
