@@ -1174,17 +1174,13 @@ class WegModel:
                 section_verw_eigs.einde_kenmerk = (
                     self.__get_dif_props(section_info.obj_eigs, self.sections[main_down].obj_eigs))
 
-            stroken = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                       if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]]
-            hoofdstrooknummers = [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items()
-                                  if
-                                  lane_type in self.__MAIN_LANE_TYPES]
-            strooknummers_links = [lane_nr for lane_nr in stroken if
+            hoofdstrooknummers, strooknummers = self.get_lane_numbers(section_info.obj_eigs)
+            strooknummers_links = [lane_nr for lane_nr in strooknummers if
                                    hoofdstrooknummers and lane_nr < min(hoofdstrooknummers)]
-            strooknummers_rechts = [lane_nr for lane_nr in stroken if
+            strooknummers_rechts = [lane_nr for lane_nr in strooknummers if
                                     hoofdstrooknummers and lane_nr > max(hoofdstrooknummers)]
 
-            section_verw_eigs.aantal_stroken = len(stroken)
+            section_verw_eigs.aantal_stroken = len(strooknummers)
             section_verw_eigs.aantal_hoofdstroken = len(hoofdstrooknummers)
             section_verw_eigs.aantal_rijstroken_links = len(strooknummers_links)
             section_verw_eigs.aantal_rijstroken_rechts = len(strooknummers_rechts)
@@ -1381,19 +1377,31 @@ class WegModel:
         average_angle = sum(angles) / len(angles)
         return round(average_angle, 2)
 
-    def get_n_lanes(self, obj_eigs: dict) -> tuple[int, int]:
+    def get_lane_numbers(self, obj_eigs: dict) -> tuple[list, list]:
         """
-        Determines the number of lanes given road properties.
+        Obtains the lane numbers, given road properties.
         Args:
             obj_eigs (dict): Road properties to be evaluated.
         Returns:
-            1) The number of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
-            2) The number of lanes, exluding "puntstuk" registrations.
+            1) The main lane numbers.
+            2) The lane numbers, exluding "puntstuk" registrations.
         """
         main_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                       and lane_type in self.__MAIN_LANE_TYPES]
         any_lanes = [lane_nr for lane_nr, lane_type in obj_eigs.items() if isinstance(lane_nr, int)
                      and lane_type not in ["Puntstuk"]]
+        return main_lanes, any_lanes
+
+    def get_n_lanes(self, obj_eigs: dict) -> tuple[int, int]:
+        """
+        Determines the amount of lanes given road properties.
+        Args:
+            obj_eigs (dict): Road properties to be evaluated.
+        Returns:
+            1) The amount of main lanes - only "Rijstrook", "Splitsing" and "Samenvoeging" registrations.
+            2) The amount of lanes, exluding "puntstuk" registrations.
+        """
+        main_lanes, any_lanes = self.get_lane_numbers(obj_eigs)
         return len(main_lanes), len(any_lanes)
 
     def get_points_info(self, specifier: str = None) -> list[ObjectInfo]:
