@@ -174,7 +174,7 @@ class SvgMaker:
         #
         points_info = []
         for point_info in self.wegmodel.get_points_info():
-            if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["TYPE"] not in ["Signalering"]:
+            if sid in point_info.verw_eigs.sectie_ids and point_info.obj_eigs["Type"] not in ["Signalering"]:
                 points_info.append(point_info)
         return points_info
 
@@ -195,7 +195,7 @@ class SvgMaker:
 
         for point_info in points_info:
             # Case by case analysis of what should be done to the line geometry.
-            point_type = point_info.obj_eigs["TYPE"]
+            point_type = point_info.obj_eigs["Type"]
 
             point_is_at_line_start = dwithin(Point(line_geom.coords[0]),
                                              point_info.pos_eigs.geometrie,
@@ -435,7 +435,7 @@ class SvgMaker:
                                          point_info.verw_eigs.aantal_hoofdstroken) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
-        if point_info.obj_eigs["TYPE"] == "Signalering":
+        if point_info.obj_eigs["Type"] == "Signalering":
             if self.onroad:
                 self.display_MSI_onroad(msi_row, coords, rotate_angle)
             else:
@@ -452,7 +452,7 @@ class SvgMaker:
 
     def display_MSI_roadside(self, msi_row: MSIRow, coords: tuple, info_offset: float, rotate_angle: float):
         g_msi_row = self.g_points.add(self.dwg.g())
-        hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w", "h"] else self.LANE_WIDTH * 25
+        hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w"] else self.LANE_WIDTH * 25
         displacement = 0
 
         for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:

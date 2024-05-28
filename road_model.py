@@ -455,7 +455,7 @@ class WegModel:
 
         point_info.pos_eigs.km = row["KMTR"]
         point_info.pos_eigs.geometrie = row["geometry"]
-        point_info.obj_eigs["TYPE"] = row["TYPE"]
+        point_info.obj_eigs["Type"] = row["TYPE"]
 
         if name == "Rijstrooksignaleringen":
             point_info.obj_eigs["Rijstrooknummers"] = [int(char) for char in row["RIJSTRKNRS"]]
@@ -1212,7 +1212,7 @@ class WegModel:
 
             point_verw_eigs.lokale_hoek = self.__get_local_angle(sections_near_point, point_info.pos_eigs.geometrie)
 
-            if point_info.obj_eigs["TYPE"] in ["Samenvoeging", "Invoeging"]:
+            if point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
@@ -1220,7 +1220,7 @@ class WegModel:
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
 
-            if point_info.obj_eigs["TYPE"] in ["Splitsing", "Uitvoeging"]:
+            if point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]:
                 point_verw_eigs.ingaande_secties = \
                     [section_id for section_id, section_info in overlapping_sections.items()
                      if self.get_n_lanes(section_info.obj_eigs)[1] == point_verw_eigs.aantal_stroken]
@@ -1229,9 +1229,9 @@ class WegModel:
                      if self.get_n_lanes(section_info.obj_eigs)[1] != point_verw_eigs.aantal_stroken]
 
             # Check if invoeging has 2 ingoing sections, check if uitvoeging has 2 outgoing sections!
-            if (point_info.obj_eigs["TYPE"] in ["Samenvoeging", "Invoeging"]
+            if (point_info.obj_eigs["Type"] in ["Samenvoeging", "Invoeging"]
                     and not (len(point_verw_eigs.ingaande_secties) == 2) or
-                    (point_info.obj_eigs["TYPE"] in ["Splitsing", "Uitvoeging"]
+                    (point_info.obj_eigs["Type"] in ["Splitsing", "Uitvoeging"]
                      and not len(point_verw_eigs.uitgaande_secties) == 2)):
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
@@ -1403,9 +1403,9 @@ class WegModel:
             List of all point information.
         """
         if specifier == "MSI":
-            return [point for point in self.points.values() if point.obj_eigs["TYPE"] == "Signalering"]
+            return [point for point in self.points.values() if point.obj_eigs["Type"] == "Signalering"]
         elif specifier == "*vergentie":
-            return [point for point in self.points.values() if point.obj_eigs["TYPE"] != "Signalering"]
+            return [point for point in self.points.values() if point.obj_eigs["Type"] != "Signalering"]
         else:
             return [point for point in self.points.values()]
 
