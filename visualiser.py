@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
-    __C_HIGHLIGHT = "#FF7755"
+    __C_HIGHLIGHT = "#D06E7C"
     __C_NARROWING = "#736D55"
     __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
@@ -303,7 +303,7 @@ class SvgMaker:
 
         self.g_road.add(self.dwg.polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
 
-        should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT, self.__C_TAPER]
+        should_have_marking = color in [self.__C_ASPHALT, self.__C_HIGHLIGHT, self.__C_TAPER, self.__C_NARROWING]
 
         if should_have_marking:
             self.draw_lane_marking(geom, section_info)
