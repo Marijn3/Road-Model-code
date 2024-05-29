@@ -91,14 +91,14 @@ class MSIRow:
         for row in downstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
-                    logger.debug(f"Conclusion: {msi_row.name} {desc}")
+                    logger.debug(f"Conclusion: {msi_row.name} with shift, specials and lane boundaries: {desc}")
                     self.downstream[msi_row] = desc
 
         upstream_rows = self.msi_network.travel_roadmodel(self, False)
         for row in upstream_rows:
             for msi_row, desc in row.items():
                 if msi_row is not None:
-                    logger.debug(f"Conclusion: {msi_row.name} {desc}")
+                    logger.debug(f"Conclusion: {msi_row.name} with shift, specials and lane boundaries: {desc}")
                     self.upstream[msi_row] = desc
 
 
@@ -203,7 +203,8 @@ class MSINetwerk:
                 return section_id
 
     def __find_msi_recursive(self, current_section_id: int, current_point_eigs: PositieEigenschappen, downstream: bool,
-                             shift: int = 0, current_distance: float = 0, annotation: dict = None) -> list | dict:
+                             shift: int = 0, current_distance: float = 0,
+                             lane_bounds: list = None, annotation: dict = None) -> list | dict:
         """
         This is recursive function, meaning that it calls itself. The function requires
         variables to keep track of where a branch of the recursive search is. These have
@@ -218,6 +219,7 @@ class MSINetwerk:
                 original road section so far.
             current_distance (float): Distance travelled through model so far. This is
                 used to cut off search after passing a threshold.
+            lane_bounds (list): Current set of lanes which is continuous.
             annotation (dict): Annotation so far.
         Returns:
             (List of) dictionaries, structured as: {MSIRow object: (shift, annotation)}.
@@ -226,14 +228,20 @@ class MSINetwerk:
             should be handled outside the function.
         """
         if current_section_id is None:
-            return {None: (shift, annotation)}
+            return {None: (shift, annotation, lane_bounds)}
 
         current_section = self.wegmodel.sections[current_section_id]
+
+        section_lanes, _ = self.wegmodel.get_lane_numbers(current_section.obj_eigs)
+
+        if lane_bounds is None:
+            lane_bounds = section_lanes
 
         first_iteration = False
         if annotation is None:
             first_iteration = True
-            current_distance -= current_section.pos_eigs.geometrie.length
+            # The length from the MSI row to the end of its section is ignored.
+            current_distance -= round(current_section.pos_eigs.geometrie.length, 3)
             annotation = {}
 
         other_points_on_section, msis_on_section = (
@@ -242,25 +250,29 @@ class MSINetwerk:
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
             logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km} km")
-            shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                               downstream, first_iteration, True)
-            return {self.__get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation)}
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+            shift, annotation = self.__update_trackers(
+                shift, annotation, current_section.verw_eigs, downstream, first_iteration, True
+            )
+            return {self.__get_msi_row_by_pos(msis_on_section[0].pos_eigs): (shift, annotation, lane_bounds)}
 
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_point_eigs.km - msi.pos_eigs.km))
             logger.debug(f"Meerdere MSI rows gevonden op sectie {current_section_id}. "
                          f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km} km")
-            shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                               downstream, first_iteration, True)
-            return {self.__get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation)}
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+            shift, annotation = self.__update_trackers(
+                shift, annotation, current_section.verw_eigs, downstream, first_iteration, True
+            )
+            return {self.__get_msi_row_by_pos(nearest_msi.pos_eigs): (shift, annotation, lane_bounds)}
 
         # Base case 3: Maximum depth reached.
         current_distance += round(current_section.pos_eigs.geometrie.length, 3)
         logger.debug(f"Zoekdiepte: {current_distance}")
         if current_distance >= self.max_search_distance:
             logger.debug(f"De maximale zoekdiepte is overschreden: {current_distance}")
-            return {None: (shift, annotation)}
+            return {None: (shift, annotation, lane_bounds)}
 
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
@@ -278,18 +290,20 @@ class MSINetwerk:
             if not connecting_section_ids:
                 # There are no further sections connected to the current one. Return empty-handed.
                 logger.debug(f"Geen andere secties verbonden met {current_section_id}")
-                return {None: (shift, annotation)}
+                return {None: (shift, annotation, lane_bounds)}
             elif len(connecting_section_ids) > 1:
                 # This happens in the case of intersections. These are of no interest for MSI relations.
                 logger.debug(f"Er lijkt meer dan één sectie verbonden te zijn met sectie {current_section_id}, "
                              f"zonder een *vergentiepunt: {connecting_section_ids}. Stop zoektocht.")
-                return {None: (shift, annotation)}
+                return {None: (shift, annotation, lane_bounds)}
             else:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 logger.debug(f"Zoeken in volgende sectie, {next_section_id}")
-                shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                                   downstream, first_iteration)
+                lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+                shift, annotation = self.__update_trackers(
+                    shift, annotation, current_section.verw_eigs, downstream, first_iteration
+                )
                 if downstream:
                     next_point_geom = Point(current_section.pos_eigs.geometrie.coords[-1])
                     next_km = current_section.pos_eigs.km[-1]
@@ -306,7 +320,7 @@ class MSINetwerk:
                 )
 
                 return self.__find_msi_recursive(connecting_section_ids[0], next_point_pos_eigs, downstream,
-                                                 shift, current_distance, annotation)
+                                                 shift, current_distance, lane_bounds, annotation)
 
         assert len(other_points_on_section) == 1 or len(other_points_on_section) == 2, \
             f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
@@ -341,18 +355,21 @@ class MSINetwerk:
 
             current_cont, other_cont = self.wegmodel.determine_continuous_section(current_section, other_section)
 
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+
             if not current_cont:
                 # This is the diverging section. Determine shifted annotation.
                 n_lanes_other, _ = self.wegmodel.get_n_lanes(other_section.obj_eigs)
                 shift = shift + n_lanes_other
 
-            shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                               downstream, first_iteration)
+            shift, annotation = self.__update_trackers(
+                shift, annotation, current_section.verw_eigs, downstream, first_iteration
+            )
 
             logger.debug(f"*vergentiepunt gevonden, vervolg in sectie {next_section_id} met shift +{shift}")
 
             return self.__find_msi_recursive(next_section_id, other_point.pos_eigs, downstream,
-                                             shift, current_distance, annotation)
+                                             shift, current_distance, lane_bounds, annotation)
 
         if upstream_split:
             cont_section_id = current_section.verw_eigs.sectie_stroomopwaarts
@@ -366,19 +383,22 @@ class MSINetwerk:
         assert cont_section_id is not None and div_section_id is not None,\
             "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
 
+        lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+
         _, shift_div = self.wegmodel.get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
 
-        shift, annotation = self.__update_shift_annotation(shift, annotation, current_section.verw_eigs,
-                                                           downstream, first_iteration)
+        shift, annotation = self.__update_trackers(
+            shift, annotation, current_section.verw_eigs, downstream, first_iteration
+        )
 
         # Make it do the recursive function twice.
         logger.debug(f"Zoek nu verder in sectie {cont_section_id}")
         option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs, downstream,
-                                                        shift, current_distance, annotation)
+                                                        shift, current_distance, lane_bounds, annotation)
 
         logger.debug(f"Zoek nu verder in sectie {div_section_id} met shift -{shift_div}")
         option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs, downstream,
-                                                     shift - shift_div, current_distance, annotation)
+                                                     shift - shift_div, current_distance, lane_bounds, annotation)
 
         # Combine both options as one list, without nesting.
         if isinstance(option_continuation, list):
@@ -411,9 +431,9 @@ class MSINetwerk:
 
         return other_points_on_section, msis_on_section
 
-    def __update_shift_annotation(self, shift: int, annotation: dict,
-                                  current_section_verw_eigs: LijnVerwerkingsEigenschappen, downstream: bool,
-                                  is_first_iteration: bool = False, is_last_iteration: bool = False) -> tuple[int, dict]:
+    def __update_trackers(self, shift: int, annotation: dict,
+                          current_section_verw_eigs: LijnVerwerkingsEigenschappen, downstream: bool,
+                          is_first_iteration: bool = False, is_last_iteration: bool = False) -> tuple[int, dict]:
         """
         Adapts the shift and annotation value according to the previous shift and annotation
         and the processing properties of the provided section.
@@ -439,12 +459,18 @@ class MSINetwerk:
             if ((downstream and new_annotation[1] == "ExtraRijstrook")
                     or (not downstream and new_annotation[1] == "Rijstrookbeeindiging")):
                 shift = shift + 1
-            elif ((downstream and new_annotation[1] == "Rijstrookbeëindiging" )
+            elif ((downstream and new_annotation[1] == "Rijstrookbeëindiging")
                     or (not downstream and new_annotation[1] == "ExtraRijstrook")):
                 shift = shift - 1
 
         # Join dicts while preventing aliasing issues.
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
+
+    @staticmethod
+    def __update_lane_bounds(current_bounds, lanes, shift):
+        shifted_lanes = [lane - shift for lane in lanes]
+        updated_bounds = [lane for lane in current_bounds if lane in shifted_lanes]
+        return updated_bounds
 
     @staticmethod
     def __get_annotation(section_verw_eigs: LijnVerwerkingsEigenschappen, shift: int,
@@ -654,7 +680,7 @@ class MSI:
 
         # Downstream relations
         for d_row, desc in self.row.downstream.items():
-            shift, annotation = desc
+            shift, annotation, lane_bounds = desc
             this_lane_projected = self.lane_nr + shift
 
             if "TaperOpkomst" in annotation.values():
