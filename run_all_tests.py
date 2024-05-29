@@ -12,7 +12,7 @@ n_gelukt = 0
 for locatie in locaties:
     try:
         logger.info(f"{locatie} verwerken...")
-        dfl = DataFrameLader(locatie, "data/locaties.csv")
+        dfl = DataFrameLader(locatie, "locaties.csv", "data")
         wegmodel = WegModel(dfl)
         MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, alle_secundaire_relaties=True)
     except Exception:

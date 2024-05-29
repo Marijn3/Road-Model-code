@@ -16,7 +16,7 @@ locatie = "Amstel"
 # * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader(locatie, "data/locaties.csv")
+dfl = DataFrameLader(locatie, "locaties.csv", "data")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)

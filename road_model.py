@@ -70,18 +70,6 @@ class DataFrameLader:
        extent (box): The extent of the specified location.
    """
 
-    # List all data layer files to be loaded. Same structure as WEGGEG.
-    __FILE_PATHS = [
-        "data/Wegvakken/wegvakken.dbf",
-        "data/Rijstroken/rijstroken.dbf",
-        "data/Kantstroken/kantstroken.dbf",
-        "data/Mengstroken/mengstroken.dbf",
-        "data/Maximum snelheid/max_snelheden.dbf",
-        "data/Convergenties/convergenties.dbf",
-        "data/Divergenties/divergenties.dbf",
-        "data/Rijstrooksignaleringen/strksignaleringn.dbf",
-    ]
-
     __VERGENCE_NAME_MAPPING = {
         "U": "Uitvoeging",
         "D": "Splitsing",
@@ -89,7 +77,7 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, locatie: str | dict, locations_csv_pad: str) -> None:
+    def __init__(self, locatie: str | dict, locations_csv_pad: str, data_folder: str) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
@@ -100,6 +88,18 @@ class DataFrameLader:
             dfl = DataFrameLader("Everdingen")
             dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
         """
+        # List all data layer files to be loaded. Same structure as WEGGEG.
+        self.FILE_PATHS = [
+            f"{data_folder}/Wegvakken/wegvakken.dbf",
+            f"{data_folder}/Rijstroken/rijstroken.dbf",
+            f"{data_folder}/Kantstroken/kantstroken.dbf",
+            f"{data_folder}/Mengstroken/mengstroken.dbf",
+            f"{data_folder}/Maximum snelheid/max_snelheden.dbf",
+            f"{data_folder}/Convergenties/convergenties.dbf",
+            f"{data_folder}/Divergenties/divergenties.dbf",
+            f"{data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
+        ]
+        
         self.data = {}
         self.locations_csv_path = locations_csv_pad
         self.lane_mapping_h = self.__construct_lane_mapping("H")
@@ -193,8 +193,8 @@ class DataFrameLader:
         """
         Load GeoDataFrames for each layer based on the specified location.
         """
-        logger.info(f"{len(DataFrameLader.__FILE_PATHS)} lagen worden geladen...")
-        for file_path in DataFrameLader.__FILE_PATHS:
+        logger.info(f"{len(self.FILE_PATHS)} lagen worden geladen...")
+        for file_path in self.FILE_PATHS:
             df_layer_name = self.__get_layer_name(file_path)
             logger.debug(f"Laag '{df_layer_name}' laden...")
             self.data[df_layer_name] = self.__load_dataframe(file_path)
