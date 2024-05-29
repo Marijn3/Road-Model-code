@@ -9,9 +9,9 @@ class MSIRow:
         self.msi_network = msi_network
         self.info = msi_row_info
         self.properties = self.info.obj_eigs
-        self.rijstrooknummers = self.info.obj_eigs["Rijstrooknummers"]
         self.local_road_info = self.msi_network.wegmodel.get_one_section_at_point(self.info.pos_eigs.geometrie)
         self.local_road_properties = self.local_road_info.obj_eigs
+        self.rijstrooknummers = self.info.obj_eigs["Rijstrooknummers"]
         self.name = make_MTM_row_name(self.info)
         self.lane_numbers = []
         self.n_lanes = 0
@@ -38,6 +38,12 @@ class MSIRow:
 
         # Create all MSIs in row, passing the parent row class as argument (self)
         self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.rijstrooknummers}
+
+        # # Move MSI number registration in case of left emergency lane
+        # if 1 in self.local_road_properties.keys() and self.local_road_properties[1] == "Vluchtstrook":
+        #     self.MSIs = {msi_numbering: MSI(self, msi_numbering + 1) for msi_numbering in self.rijstrooknummers}
+        # else:
+        #     self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.rijstrooknummers}
 
         self.determine_carriageways()
 
@@ -683,6 +689,12 @@ class MSI:
             shift, annotation, lane_bounds = desc
             this_lane_projected = self.lane_nr + shift
 
+            # # Move MSI number registration in case of left emergency lane
+            if 1 in self.row.local_road_properties.keys() and self.row.local_road_properties[1] == "Vluchtstrook":
+                lane_bounds = [lane_number - 1 for lane_number in lane_bounds]
+
+            logger.debug(f"{self.name} - {d_row.name} check: {shift} {annotation} {lane_bounds}")
+
             if "TaperOpkomst" in annotation.values():
                 taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperOpkomst"][0]
                 if self.lane_nr >= taper_lane_nr:
@@ -697,7 +709,7 @@ class MSI:
                     has_taper = True
 
             # Primary relation
-            if (this_lane_projected in d_row.MSIs.keys() and not has_taper and (
+            if (this_lane_projected in d_row.MSIs.keys() and not has_taper and self.lane_nr in lane_bounds and (
                     # Prevent downstream primary relation being added when lane ends.
                     self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
