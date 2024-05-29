@@ -786,15 +786,16 @@ class MSI:
 
             if self.row.msi_network.add_secondary_relations:
                 u_row, desc = next(iter(self.row.upstream.items()))
+                shift, annotation, lane_bounds = desc
                 if u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
                     logger.debug(f"Relatie wordt toegepast.")
-                    self.make_secondary_connection(self, u_row.MSIs[u_row.highest_msi_number])
-                elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
-                      and self.lane_nr == 1):
-                    # This should not occur in the Netherlands, but is here for safety.
-                    logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
-
-                    self.make_secondary_connection(self, u_row.MSIs[u_row.lowest_msi_number])
+                    self.make_secondary_connection(self, u_row.MSIs[min(max(lane_bounds), u_row.highest_msi_number)])
+                # elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
+                #       and self.lane_nr == 1):
+                #     # This should not occur in the Netherlands, but is here for safety.
+                #     logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
+                #
+                #     self.make_secondary_connection(self, u_row.MSIs[u_row.lowest_msi_number])
                 else:
                     logger.warning(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
                                    f"omdat dit geval nog niet ingeprogrammeerd is.")
