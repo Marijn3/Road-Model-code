@@ -1083,24 +1083,20 @@ class WegModel:
     def __post_process_data(self) -> None:
         sections_to_remove = set()
         for section_index, section_info in self.sections.items():
-            # Throw out sections that do not intersect the final frame.
-            if not intersection(section_info.pos_eigs.geometrie, self.dfl.extent):
+            # [1] Throw out sections that do not intersect the extent.
+            if not intersection(section_info.pos_eigs.geometrie, self.__dfl.extent):
                 sections_to_remove.add(section_index)
                 continue
 
-            # # Throw out sections that do not have any (integer) lane numbers in the keys.
-            # if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]:
-            #     sections_to_remove.add(section_index)
-            #     continue
-            #
-            # Throw out sections that do not have any normal lanes in them.
-            if not [key for key in section_info.obj_eigs.keys() if isinstance(key, int) and section_info.obj_eigs[key] == "Rijstrook"]:
+            # [2] Throw out sections that do not have at least one normal lane in them.
+            if not [key for key in section_info.obj_eigs.keys()
+                    if isinstance(key, int) and section_info.obj_eigs[key] == "Rijstrook"]:
                 sections_to_remove.add(section_index)
                 continue
 
         self.__remove_sections(sections_to_remove)
 
-        # Special code to fill in registration issues in the case of outgoing taper registrations.
+        # [3] Special code to fill in registration issues in the case of outgoing taper registrations.
         for section_index, section_info in self.sections.items():
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
 
@@ -1116,12 +1112,11 @@ class WegModel:
 
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                # Manual gap fix.
+                # [4] Manual gap fix. Move lanes to fill the gap
                 logger.debug(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
 
-                # Move lanes to fill the gap
                 for lane_number in range(gap_number, max(lane_numbers)):
                     section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
                 section_info.obj_eigs.pop(max(lane_numbers))
@@ -1521,8 +1516,8 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
         small_geom = geom2
         large_geom = geom1
 
-    linedist_a = line_locate_point(large_geom, Point(small_geom.coords[0]))
-    linedist_b = line_locate_point(large_geom, Point(small_geom.coords[-1]))
+    linedist_a = line_locate_point(large_geom, Point(small_geom.coords[0]), normalized=True)
+    linedist_b = line_locate_point(large_geom, Point(small_geom.coords[-1]), normalized=True)
 
     if linedist_a == linedist_b:
         raise Exception(f"same_direction() kan geen richting bepalen met deze lijnafstanden: {linedist_a, linedist_b}")
