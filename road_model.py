@@ -1147,6 +1147,7 @@ class WegModel:
                     for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
                         section_info.obj_eigs[lane_number + 1] = section_info.obj_eigs[lane_number]
 
+            lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
                 # [4] Manual gap fix. Move lanes to fill the gap
