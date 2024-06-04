@@ -201,26 +201,20 @@ class Werkruimte:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
 
         if self.category == "A":
-            if self.request.open_side == "R":
-                self.edges["L"] = Rand(rijstrook=None, afstand=+0.81)
-            else:
-                self.edges["L"] = Rand(rijstrook=None, afstand=-0.81)
+            self.make_edge(side=self.request.open_side, lane=None, distance_r=+0.81)
         elif self.category == "B":
-            if self.request.open_side == "R":
-                self.edges["R"] = Rand(rijstrook=min(self.request.main_lane_nrs), afstand=-0.81)
-            else:
-                self.edges["L"] = Rand(rijstrook=max(self.request.main_lane_nrs), afstand=+0.81)
+            self.make_edge(side=self.request.open_side, lane=min(self.request.main_lane_nrs), distance_r=-0.81)
         elif self.category == "C":
-            if self.request.open_side == "R":
-                self.edges["R"] = Rand(rijstrook=None, afstand=-0.0)
-            else:
-                self.edges["L"] = Rand(rijstrook=None, afstand=+0.0)
+            self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.0)
             self.request.requires_lane_narrowing = True
         elif self.category == "D":
-            if self.request.open_side == "R":
-                self.edges["L"] = Rand(rijstrook=None, afstand=+0.0)
-            else:
-                self.edges["R"] = Rand(rijstrook=None, afstand=-0.0)
+            adjustable_side = "R" if self.request.open_side == "L" else "L"
+            self.make_edge(side=adjustable_side, lane=None, distance_r=+0.0)
+
+    def make_edge(self, side: str, lane: int | None, distance_r: float):
+        if side == "L":
+            distance_r = -distance_r
+        self.edges[side] = Rand(rijstrook=lane, afstand=+distance_r)
 
     def determine_open_side(self) -> str:
         n_main_lanes_left = self.request.edges["L"].lane - min(self.request.main_lane_nrs)
