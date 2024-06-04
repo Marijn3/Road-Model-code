@@ -1,0 +1,5 @@
+01-05-2024 kenmerkniveau
+31 mei aangepast naar toekomstige situatie door Ramon Donkers.
+
+Lijst van sindsdien gemaakte aanpassingen:
+- Folder Strksgnlring hernoemd naar Rijstrooksignaleringen
