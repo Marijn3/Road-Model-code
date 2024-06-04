@@ -1,4 +1,0 @@
-Productnaam          : WGG0112-k 
-Aanvraagdatum        : 06-02-2024 14:07:08 
-Gebruikte Parameters : 
-Peildatum                                : 01-02-2024

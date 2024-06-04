@@ -314,6 +314,8 @@ class SvgMaker:
                            + self.__LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
                            - self.__LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
+        # TODO: Replace with approach using lane marking table.
+
         first_lane_nr = lane_numbers[0]
         last_lane_nr = lane_numbers[-1]
         next_lane = None
@@ -365,9 +367,9 @@ class SvgMaker:
             elif this_lane == "Plusstrook":
                 self.__draw_markerline(line_coords, "Streep-9-3")
 
-            # If the next lane is a samenvoeging, use normal dashed lane marking.
-            elif next_lane == "Samenvoeging":
-                self.__draw_markerline(line_coords, "Streep-3-9")
+            # If the next lane is a samenvoeging, use normal dashed lane marking. TODO: Why??
+            # elif next_lane == "Samenvoeging":
+            #     self.__draw_markerline(line_coords, "Streep-3-9")
 
             # A rush hour lane (on the final lane) has special lines.
             elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
