@@ -256,7 +256,7 @@ class MSINetwerk:
         # Base case 1: Single MSI row found.
         if len(msis_on_section) == 1:
             logger.debug(f"MSI row gevonden op {current_section_id}: {msis_on_section[0].pos_eigs.km} km")
-            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
             shift, annotation = self.__update_trackers(
                 shift, annotation, current_section.verw_eigs, downstream, first_iteration, True
             )
@@ -267,7 +267,7 @@ class MSINetwerk:
             nearest_msi = min(msis_on_section, key=lambda msi: abs(current_point_eigs.km - msi.pos_eigs.km))
             logger.debug(f"Meerdere MSI rows gevonden op sectie {current_section_id}. "
                          f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km} km")
-            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
             shift, annotation = self.__update_trackers(
                 shift, annotation, current_section.verw_eigs, downstream, first_iteration, True
             )
@@ -306,7 +306,7 @@ class MSINetwerk:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
                 logger.debug(f"Zoeken in volgende sectie, {next_section_id}")
-                lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+                lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
                 shift, annotation = self.__update_trackers(
                     shift, annotation, current_section.verw_eigs, downstream, first_iteration
                 )
@@ -361,7 +361,7 @@ class MSINetwerk:
 
             current_cont, other_cont = self.wegmodel.determine_continuous_section(current_section, other_section)
 
-            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
 
             if not current_cont:
                 # This is the diverging section. Determine shifted annotation.
@@ -389,7 +389,7 @@ class MSINetwerk:
         assert cont_section_id is not None and div_section_id is not None,\
             "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
 
-        lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift)
+        lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
 
         _, shift_div = self.wegmodel.get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
 
@@ -473,7 +473,15 @@ class MSINetwerk:
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
 
     @staticmethod
-    def __update_lane_bounds(current_bounds, lanes, shift):
+    def __update_lane_bounds(current_bounds, lanes, shift, annotation):
+        # Adjust shift in case of an ending taper.
+        if "TaperAfloop" in annotation.values():
+            for lane_number, lane_type in annotation.items():
+                if lane_type == "TaperAfloop" and lane_number + 1 in current_bounds:
+                    normal_lanes = [lane - shift for lane in lanes if lane < lane_number]
+                    shifted_lanes = [lane - shift + 1 for lane in lanes if lane >= lane_number]
+                    return [lane for lane in normal_lanes + shifted_lanes if lane in current_bounds]
+
         shifted_lanes = [lane - shift for lane in lanes]
         updated_bounds = [lane for lane in current_bounds if lane in shifted_lanes]
         return updated_bounds
@@ -498,6 +506,7 @@ class MSINetwerk:
                 annotation.update({value[1] - shift: value[0] for keyword, value in
                                    section_verw_eigs.start_kenmerk.items() if keyword == "Special"})
 
+                # Used for cross-relations
                 # if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
                 #     annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                 #                        section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
@@ -692,8 +701,6 @@ class MSI:
             # # Move MSI number registration in case of left emergency lane
             if 1 in self.row.local_road_properties.keys() and self.row.local_road_properties[1] == "Vluchtstrook":
                 lane_bounds = [lane_number - 1 for lane_number in lane_bounds]
-
-            logger.debug(f"{self.name} - {d_row.name} check: {shift} {annotation} {lane_bounds}")
 
             if "TaperOpkomst" in annotation.values():
                 taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperOpkomst"][0]

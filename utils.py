@@ -9,3 +9,5 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(
 external_logger = logging.getLogger('fiona')
 external_logger.setLevel(logging.INFO)
 
+DISTANCE_TOLERANCE = 0.3  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
+CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometriën.
