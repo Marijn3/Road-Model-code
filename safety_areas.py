@@ -27,10 +27,22 @@ class AFZETTINGEN:
     BARRIER_BOVEN_80CM = 302
 
 
-TUSSENRUIMTE = {
+# Ruimte aan zijkanten van vakken in meters.
+TUSSENRUIMTE_NAAST = {
     AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE.GELEIDEBAKENS, VEILIGHEIDSRUIMTE: 0.60},
     AFZETTINGEN.BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE.BARRIER, VEILIGHEIDSRUIMTE: 0.60},
     AFZETTINGEN.BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE.BARRIER, VEILIGHEIDSRUIMTE: 0.0},
+}
+
+# Ruimte aan voor- en achterkanten van vakken in kilometers.
+TUSSENRUIMTE_VOOR = {
+    WERKVAK: 0.150,
+    VEILIGHEIDSRUIMTE: 0.200
+}
+
+TUSSENRUIMTE_NA = {
+    WERKVAK: 0.000,
+    VEILIGHEIDSRUIMTE: 0.050
 }
 
 
@@ -47,7 +59,6 @@ class Rand:
             return f"{position} {self.distance}m"
 
     def move_edge(self, move_distance, side):
-        # TODO: Make exceptions for lane narrowing
         if side == "L":
             direction_modifier = -1
         else:
@@ -125,10 +136,10 @@ class Aanvraag:
     def run_sanity_checks(self):
         assert len(self.edges) == 2, \
             "Specificeer beide randen."
-        assert self.edges['L'].distance and self.edges['R'].distance, \
+        assert self.edges["L"].distance and self.edges["R"].distance, \
             "Specificeer afstand vanaf belijning in de aanvraag."
         assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
-            "Specificeer ongelijke afstanden."
+            "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
     def step_1_determine_minimal_werkruimte(self):
         self.werkruimte.determine_minimal_werkruimte_size()
@@ -145,8 +156,8 @@ class Aanvraag:
 
         # Determine minimal length wtih respect to the MSIs  # TODO
         self.werkvak.adjust_length_to_msis()
-        # self.veiligheidsruimte.adjust_length_to_werkvak()
-        # self.werkruimte.adjust_length_to_veiligheidsruimte()
+        self.veiligheidsruimte.adjust_length_to_werkvak()
+        self.werkruimte.adjust_length_to_veiligheidsruimte()
 
     def step_3_determine_legend_request(self):
         return  # TODO
@@ -158,10 +169,10 @@ class Aanvraag:
         return  # TODO
 
     def report_request(self):
-        logger.info(f"Aanvraag aangemaakt met randen: {self.edges}")
-        logger.info(f"Werkruimte aangemaakt met randen: {self.werkruimte.edges}")
-        logger.info(f"Veiligheidsruimte aangemaakt met randen: {self.veiligheidsruimte.edges}")
-        logger.info(f"Werkvak aangemaakt met randen: {self.werkvak.edges}")
+        logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
+        logger.info(f"Werkruimte aangemaakt met km {self.werkruimte.km} en randen {self.werkruimte.edges}")
+        logger.info(f"Veiligheidsruimte aangemaakt met km {self.veiligheidsruimte.km} en randen {self.veiligheidsruimte.edges}")
+        logger.info(f"Werkvak aangemaakt met km {self.werkvak.km} en randen {self.werkvak.edges}")
 
 
 class Werkruimte:
@@ -212,21 +223,21 @@ class Werkruimte:
 
         # Determine if expansion is not necessary. When the request goes all the way up
         # to a side of the road, expansion of the request does not need to be determined.
-        if (self.request.first_lane_nr in [self.request.edges['L'].lane, self.request.edges['R'].lane]
-                or self.request.last_lane_nr in [self.request.edges['L'].lane, self.request.edges['R'].lane]):
+        if (self.request.first_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]
+                or self.request.last_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]):
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
             return
 
         self.request.open_side = self.determine_open_side()
 
-    def do_onroad_sanity_checks(self):
-        assert self.request.edges['L'].lane is None or self.request.edges['L'].lane in self.request.main_lane_nrs, \
+    def do_onroad_sanity_checks(self) -> None:
+        assert self.request.edges["L"].lane is None or self.request.edges["L"].lane in self.request.main_lane_nrs, \
             "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
-        assert self.request.edges['R'].lane is None or self.request.edges['R'].lane in self.request.main_lane_nrs, \
+        assert self.request.edges["R"].lane is None or self.request.edges["R"].lane in self.request.main_lane_nrs, \
             "Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken."
-        assert self.request.edges['L'].distance is None or self.request.edges['L'].distance >= 0, \
+        assert self.request.edges["L"].distance is None or self.request.edges["L"].distance >= 0, \
             "Geef een positieve afstand voor de linkerrand op."
-        assert self.request.edges['R'].distance is None or self.request.edges['R'].distance <= 0, \
+        assert self.request.edges["R"].distance is None or self.request.edges["R"].distance <= 0, \
             "Geef een negatieve afstand voor de rechterrand op."
 
     def determine_open_side(self) -> str:
@@ -247,7 +258,7 @@ class Werkruimte:
                 open_side = "L"
             return open_side
 
-    def determine_request_category_roadside(self):
+    def determine_request_category_roadside(self) -> None:
         if abs(self.edges["L"].distance) < abs(self.edges["R"].distance):
             crit_dist = self.edges["L"].distance  # Space closest to road
         else:
@@ -283,12 +294,19 @@ class Werkruimte:
     def adjust_edges_to_veiligheidsruimte(self):
         self.edges = deepcopy(self.request.veiligheidsruimte.edges)
         side = self.request.open_side
-        move_distance = -TUSSENRUIMTE[self.request.demarcation][VEILIGHEIDSRUIMTE]
+        move_distance = -TUSSENRUIMTE_NAAST[self.request.demarcation][VEILIGHEIDSRUIMTE]
         self.edges[side].move_edge(move_distance, side)
-        return
 
     def adjust_length_to_veiligheidsruimte(self):
-        return  # TODO
+        if self.request.roadside == "R":
+            open_space_high_km = TUSSENRUIMTE_NA[WERKVAK]
+            open_space_low_km = TUSSENRUIMTE_VOOR[WERKVAK]
+        else:
+            open_space_low_km = TUSSENRUIMTE_NA[WERKVAK]
+            open_space_high_km = TUSSENRUIMTE_VOOR[WERKVAK]
+
+        self.km = [self.request.veiligheidsruimte.km[0] + open_space_low_km,
+                   self.request.veiligheidsruimte.km[1] + open_space_high_km]
 
 
 class Veiligheidsruimte:
@@ -301,19 +319,25 @@ class Veiligheidsruimte:
     def adjust_edges_to_werkruimte(self) -> None:
         self.edges = deepcopy(self.request.werkruimte.edges)
         side = self.request.open_side
-        move_distance = TUSSENRUIMTE[self.request.demarcation][self.surface_type]
+        move_distance = TUSSENRUIMTE_NAAST[self.request.demarcation][self.surface_type]
         self.edges[side].move_edge(move_distance, side)
-        return
 
-    def adjust_edges_to_werkvak(self):
+    def adjust_edges_to_werkvak(self) -> None:
         self.edges = deepcopy(self.request.werkvak.edges)
         side = self.request.open_side
-        move_distance = -TUSSENRUIMTE[self.request.demarcation][WERKVAK]
+        move_distance = -TUSSENRUIMTE_NAAST[self.request.demarcation][WERKVAK]
         self.edges[side].move_edge(move_distance, side)
-        return
 
-    def adjust_length_to_werkvak(self):
-        return  # TODO
+    def adjust_length_to_werkvak(self) -> None:
+        if self.request.roadside == "R":
+            open_space_high_km = TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_low_km = TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+        else:
+            open_space_low_km = TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_high_km = TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+
+        self.km = [self.request.werkvak.km[0] + open_space_low_km,
+                   self.request.werkvak.km[1] + open_space_high_km]
 
 
 class Werkvak:
@@ -323,40 +347,48 @@ class Werkvak:
         self.edges = deepcopy(request.edges)
         self.km = request.km
 
-    def adjust_edges_to_veiligheidsruimte(self):
+    def adjust_edges_to_veiligheidsruimte(self) -> None:
         self.edges = deepcopy(self.request.veiligheidsruimte.edges)
         side = self.request.open_side
-        move_distance = TUSSENRUIMTE[self.request.demarcation][self.surface_type]
+        move_distance = TUSSENRUIMTE_NAAST[self.request.demarcation][self.surface_type]
         self.edges[side].move_edge(move_distance, side)
-        return
 
-    def adjust_edges_to_road(self):
+    def adjust_edges_to_road(self) -> None:
+        # TODO: Make exception when lane narrowing present
         if self.request.open_side == "L":
             self.edges["L"].distance = +0.0
         if self.request.open_side == "R":
             self.edges["R"].distance = -0.0
-        return
 
-    def adjust_length_to_msis(self):
+    def adjust_length_to_msis(self) -> None:
         current_closest_higher_km = float("inf")
         current_closest_lower_km = float("-inf")
         msi_at_higher_km = None
         msi_at_lower_km = None
 
+        if self.request.roadside == "R":
+            open_space_high_km = TUSSENRUIMTE_NA[WERKVAK] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_low_km = TUSSENRUIMTE_VOOR[WERKVAK] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+        else:
+            open_space_low_km = TUSSENRUIMTE_NA[WERKVAK] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_high_km = TUSSENRUIMTE_VOOR[WERKVAK] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+
         for msi_info in self.request.roadmodel.get_points_info("MSI"):
-            if self.km[1] < msi_info.pos_eigs.km < current_closest_higher_km:
+            if self.km[1] + open_space_high_km < msi_info.pos_eigs.km < current_closest_higher_km:
                 current_closest_higher_km = msi_info.pos_eigs.km
                 msi_at_higher_km = msi_info
-            if current_closest_lower_km < msi_info.pos_eigs.km < self.km[0]:
+            if current_closest_lower_km < msi_info.pos_eigs.km < self.km[0] - open_space_low_km:
                 current_closest_lower_km = msi_info.pos_eigs.km
                 msi_at_lower_km = msi_info
 
-        if self.request.roadside == "R":
-            downstream_msi = msi_at_higher_km
-            upstream_msi = msi_at_lower_km
-        else:
-            upstream_msi = msi_at_higher_km
-            downstream_msi = msi_at_lower_km
+        # if self.request.roadside == "R":
+        #     downstream_msi = msi_at_higher_km
+        #     upstream_msi = msi_at_lower_km
+        # else:
+        #     upstream_msi = msi_at_higher_km
+        #     downstream_msi = msi_at_lower_km
 
-        logger.info(f"{downstream_msi.pos_eigs}, {upstream_msi.pos_eigs}")
-        return
+        if not msi_at_higher_km or not msi_at_lower_km:
+            raise NotImplementedError("Geen passende signalering gevonden.")
+
+        self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
