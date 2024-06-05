@@ -82,13 +82,14 @@ class Aanvraag:
         self.requires_lane_narrowing = False
         self.open_side = None
 
-        self.sections = self.roadmodel.get_section_info_by_bps(self.km, self.roadside, self.hecto_character)
+        self.sections = self.roadmodel.get_section_by_bps(self.km, self.roadside, self.hecto_character)
         if not self.sections:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
                             f"{self.km} {self.roadside} {self.hecto_character}")
 
         # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
-        self.road_info = self.sections[0]
+        self.road_id = next(iter(self.sections.keys()))
+        self.road_info = next(iter(self.sections.values()))
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
 
@@ -134,7 +135,7 @@ class Aanvraag:
         self.werkruimte.adjust_edges_to_veiligheidsruimte()
 
         # Determine minimal length wtih respect to the MSIs  # TODO
-        # self.werkvak.adjust_length_to_msis()
+        self.werkvak.adjust_length_to_msis()
         # self.veiligheidsruimte.adjust_length_to_werkvak()
         # self.werkruimte.adjust_length_to_veiligheidsruimte()
 
@@ -328,4 +329,25 @@ class Werkvak:
         return
 
     def adjust_length_to_msis(self):
-        return  # TODO
+        current_closest_higher_km = float("inf")
+        current_closest_lower_km = float("-inf")
+        msi_at_higher_km = None
+        msi_at_lower_km = None
+
+        for msi_info in self.request.roadmodel.get_points_info("MSI"):
+            if self.km[1] < msi_info.pos_eigs.km < current_closest_higher_km:
+                current_closest_higher_km = msi_info.pos_eigs.km
+                msi_at_higher_km = msi_info
+            if current_closest_lower_km < msi_info.pos_eigs.km < self.km[0]:
+                current_closest_lower_km = msi_info.pos_eigs.km
+                msi_at_lower_km = msi_info
+
+        if self.request.roadside == "R":
+            downstream_msi = msi_at_higher_km
+            upstream_msi = msi_at_lower_km
+        else:
+            upstream_msi = msi_at_higher_km
+            downstream_msi = msi_at_lower_km
+
+        logger.info(f"{downstream_msi.pos_eigs}, {upstream_msi.pos_eigs}")
+        return

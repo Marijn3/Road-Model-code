@@ -1475,7 +1475,7 @@ class WegModel:
         else:
             return [point for point in self.points.values()]
 
-    def get_section_info_by_bps(self, km: list, side: str, hecto: str = "") -> list:
+    def get_section_by_bps(self, km: list, side: str, hecto: str = "") -> dict:
         """
         Finds the full properties of a road section at a specific km, roadside and hectoletter.
         Args:
@@ -1483,14 +1483,14 @@ class WegModel:
             side (str): Side of the road to retrieve the road section properties for.
             hecto (str): Letter that gives further specification for connecting roads.
         Returns:
-            List of section information
+            Dict with ID and section information
         """
-        sections = []
-        for section in self.sections.values():
-            if (section.pos_eigs.rijrichting == side and section.pos_eigs.hectoletter == hecto and
-                    (min(section.pos_eigs.km) <= km[0] <= max(section.pos_eigs.km) or
-                     min(section.pos_eigs.km) <= km[1] <= max(section.pos_eigs.km))):
-                sections.append(section)
+        sections = {}
+        for section_index, section_info in self.sections.items():
+            if (section_info.pos_eigs.rijrichting == side and section_info.pos_eigs.hectoletter == hecto and
+                    (min(section_info.pos_eigs.km) <= km[0] <= max(section_info.pos_eigs.km) or
+                     min(section_info.pos_eigs.km) <= km[1] <= max(section_info.pos_eigs.km))):
+                sections[section_index] = section_info
         return sections
 
     def get_sections_by_point(self, point: Point) -> dict[int: dict]:
