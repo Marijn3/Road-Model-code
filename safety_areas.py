@@ -199,7 +199,7 @@ class Aanvraag:
         plt.ylim([y_min, y_max])
         plt.xlabel("Width [m] (estimate for visualization)")
         plt.ylabel("Length [km]")
-        plt.title(f"Safety areas for request with km {self.km}")
+        plt.title(f"Safety areas for request with category {self.werkruimte.category}")
 
         for lane_number in self.all_lane_nrs:
             south = y_min
@@ -398,10 +398,11 @@ class Werkvak:
 
     def adjust_edges_to_road(self) -> None:
         # TODO: Make exception when lane narrowing present
-        if self.request.open_side == "L":
-            self.edges["L"].distance = POS_ZERO
-        if self.request.open_side == "R":
-            self.edges["R"].distance = NEG_ZERO
+        if not self.request.requires_lane_narrowing:
+            if self.request.open_side == "L":
+                self.edges["L"].distance = POS_ZERO
+            if self.request.open_side == "R":
+                self.edges["R"].distance = NEG_ZERO
 
     def adjust_length_to_msis(self) -> None:
         current_closest_higher_km = float("inf")
@@ -423,13 +424,6 @@ class Werkvak:
             if current_closest_lower_km < msi_info.pos_eigs.km < self.km[0] - open_space_low_km:
                 current_closest_lower_km = msi_info.pos_eigs.km
                 msi_at_lower_km = msi_info
-
-        # if self.request.roadside == "R":
-        #     downstream_msi = msi_at_higher_km
-        #     upstream_msi = msi_at_lower_km
-        # else:
-        #     upstream_msi = msi_at_higher_km
-        #     downstream_msi = msi_at_lower_km
 
         if not msi_at_higher_km or not msi_at_lower_km:
             raise NotImplementedError("Geen passende signalering gevonden.")
@@ -460,7 +454,7 @@ class Werkvak:
                 if self.km[0] < msi_info.pos_eigs.km <= self.km[1]:
                     msi_rows_inside.append((msi_info, covered_lanes))
 
-        logger.info(msi_rows_inside)
+        # logger.info(msi_rows_inside)
 
         return msi_rows_inside
 
