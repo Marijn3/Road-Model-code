@@ -6,6 +6,9 @@ from utils import *
 
 logger = logging.getLogger(__name__)
 
+NEG_ZERO = -0.00001
+POS_ZERO = 0.00001
+
 AANVRAAG = 200
 WERKRUIMTE = 201
 VEILIGHEIDSRUIMTE = 202
@@ -22,6 +25,8 @@ COLORMAP = {
 class BREEDTE:
     BARRIER = 0.40  # Estimate, in meters
     GELEIDEBAKENS = 0.25  # Based on WIU 2020 – Werken op autosnelwegen [p117], in meters
+    RIJSTROOK = 3.50  # Estimate, in meters
+    VLUCHTSTROOK = 2.00  # Estimate, in meters
 
 
 class AFZETTINGEN:
@@ -57,9 +62,9 @@ class Rand:
     def __repr__(self) -> str:
         position = f"Rijstrook {self.lane}" if self.lane else f"Naast weg"
         if self.distance > 0:
-            return f"{position} +{self.distance}m"
+            return f"{position} +{round(self.distance, 2)}m"
         else:
-            return f"{position} {self.distance}m"
+            return f"{position} {round(self.distance, 2)}m"
 
     def move_edge(self, move_distance, side):
         if side == "L":
@@ -71,18 +76,19 @@ class Rand:
             self.lane = self.lane + 1 * direction_modifier if self.lane else None
         self.distance = round(self.distance + move_distance * direction_modifier, 2)
 
-    def make_simple_distance(self) -> float:
-        if not self.lane and self.distance >= 0.0:
-            return 20 + self.distance
-        if not self.lane and self.distance <= 0.0:
-            return 0 + self.distance
-
-        if self.distance > 0:
-            full_lanes = self.lane - 1
+    def make_simple_distance(self, n_lanes) -> float:
+        if self.lane:
+            if self.distance >= 0.0:
+                n_full_lanes = self.lane - 1
+            else:
+                n_full_lanes = self.lane
         else:
-            full_lanes = self.lane
+            if self.distance >= 0.0:
+                n_full_lanes = n_lanes
+            else:
+                n_full_lanes = 0
 
-        return full_lanes * 3.5 + self.distance
+        return n_full_lanes * BREEDTE.RIJSTROOK + round(self.distance, 2)
 
 
 class Aanvraag:
@@ -136,6 +142,7 @@ class Aanvraag:
                               lane_type not in ["Puntstuk", "Vluchtstrook", "Spitsstrook", "Plusstrook"]]
         self.first_lane_nr = min(self.all_lane_nrs)
         self.last_lane_nr = max(self.all_lane_nrs)
+        self.n_main_lanes = len(self.main_lane_nrs)
 
         self.msis_red_cross = []
 
@@ -191,26 +198,44 @@ class Aanvraag:
 
     def plot_areas(self):
         fig = plt.figure()
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot()
 
-        self.plot_area(ax, self)
+        x_min = -3
+        x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
+        y_min = self.werkvak.km[0] - 0.050
+        y_max = self.werkvak.km[1] + 0.050
+
+        plt.xlim([x_min, x_max])
+        plt.ylim([y_min, y_max])
+
+        for lane_nr in range(1, self.n_lanes + 1):
+            south = y_min
+            west = (lane_nr - 1) * BREEDTE.RIJSTROOK + 0.1
+            lane = matplotlib.patches.Rectangle(xy=(west, south),
+                                                width=BREEDTE.RIJSTROOK - 0.2,
+                                                height=y_max-y_min,
+                                                facecolor="grey")
+            ax.add_patch(lane)
+
         self.plot_area(ax, self.werkvak)
         self.plot_area(ax, self.veiligheidsruimte)
         self.plot_area(ax, self.werkruimte)
+        self.plot_area(ax, self)
 
-        plt.xlim([0, self.werkvak.edges["R"].make_simple_distance() + 2])
-        plt.ylim([self.werkvak.km[0] - 0.050, self.werkvak.km[1] + 0.250])
         plt.show()
 
     def plot_area(self, ax, area):
-        x = area.edges["L"].make_simple_distance()
-        y = area.edges["R"].make_simple_distance()
+        x = area.edges["L"].make_simple_distance(self.n_main_lanes)
+        y = area.edges["R"].make_simple_distance(self.n_main_lanes)
+
+        edgecolor = "brown" if area.surface_type == AANVRAAG else "none"
 
         rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
                                             width=y-x,
                                             height=area.km[0] + area.km[1],
                                             facecolor=COLORMAP[area.surface_type],
-                                            edgecolor="brown")
+                                            edgecolor=edgecolor,
+                                            linewidth=2.0)
         ax.add_patch(rect)
 
     def report_request(self):
@@ -247,20 +272,20 @@ class Werkruimte:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
 
         if self.category == "A":
-            self.make_edge(side_to_adjust=self.request.open_side, lane=None, distance_r=-0.81)
+            self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
-            self.make_edge(side_to_adjust=self.request.open_side, lane=min(self.request.main_lane_nrs), distance_r=-0.81)
+            self.make_edge(side=self.request.open_side, lane=min(self.request.main_lane_nrs), distance_r=-0.81)
         elif self.category == "C":
             self.request.requires_lane_narrowing = True
-            self.make_edge(side_to_adjust=self.request.open_side, lane=None, distance_r=-0.0)
+            self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
         elif self.category == "D":
             other_side = "R" if self.request.open_side == "L" else "L"
-            self.make_edge(side_to_adjust=other_side, lane=None, distance_r=+5.0)
+            self.make_edge(side=other_side, lane=None, distance_r=+BREEDTE.VLUCHTSTROOK)
 
-    def make_edge(self, side_to_adjust: str, lane: int | None, distance_r: float) -> None:
-        if side_to_adjust == "L":
+    def make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
+        if side == "L":
             distance_r = -distance_r
-        self.edges[side_to_adjust] = Rand(rijstrook=lane, afstand=+distance_r)
+        self.edges[side] = Rand(rijstrook=lane, afstand=+distance_r)
 
     def determine_request_category_onroad(self) -> None:
         self.do_onroad_sanity_checks()
@@ -351,7 +376,7 @@ class Werkruimte:
             open_space_high_km = TUSSENRUIMTE_VOOR[WERKVAK]
 
         self.km = [self.request.veiligheidsruimte.km[0] + open_space_low_km,
-                   self.request.veiligheidsruimte.km[1] + open_space_high_km]
+                   self.request.veiligheidsruimte.km[1] - open_space_high_km]
 
 
 class Veiligheidsruimte:
@@ -382,7 +407,7 @@ class Veiligheidsruimte:
             open_space_high_km = TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
 
         self.km = [self.request.werkvak.km[0] + open_space_low_km,
-                   self.request.werkvak.km[1] + open_space_high_km]
+                   self.request.werkvak.km[1] - open_space_high_km]
 
 
 class Werkvak:
@@ -401,9 +426,9 @@ class Werkvak:
     def adjust_edges_to_road(self) -> None:
         # TODO: Make exception when lane narrowing present
         if self.request.open_side == "L":
-            self.edges["L"].distance = +0.0
+            self.edges["L"].distance = POS_ZERO
         if self.request.open_side == "R":
-            self.edges["R"].distance = -0.0
+            self.edges["R"].distance = NEG_ZERO
 
     def adjust_length_to_msis(self) -> None:
         current_closest_higher_km = float("inf")
