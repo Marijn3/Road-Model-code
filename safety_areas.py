@@ -1,3 +1,6 @@
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from road_model import WegModel
 from utils import *
 
@@ -8,11 +11,11 @@ WERKRUIMTE = 201
 VEILIGHEIDSRUIMTE = 202
 WERKVAK = 203
 
-OPPERVLAKTE_NAMEN = {
-    AANVRAAG: "Aanvraag",
-    WERKVAK: "Werkvak",
-    VEILIGHEIDSRUIMTE: "Veiligheidsruimte",
-    WERKRUIMTE: "Werkruimte",
+COLORMAP = {
+    AANVRAAG: "none",
+    WERKVAK: "#13AFE1",
+    VEILIGHEIDSRUIMTE: "#FBD799",
+    WERKRUIMTE: "#F49510",
 }
 
 
@@ -67,6 +70,19 @@ class Rand:
         if self.distance < -move_distance * direction_modifier:  # The edge will cross 0
             self.lane = self.lane + 1 * direction_modifier if self.lane else None
         self.distance = round(self.distance + move_distance * direction_modifier, 2)
+
+    def make_simple_distance(self) -> float:
+        if not self.lane and self.distance >= 0.0:
+            return 20 + self.distance
+        if not self.lane and self.distance <= 0.0:
+            return 0 + self.distance
+
+        if self.distance > 0:
+            full_lanes = self.lane - 1
+        else:
+            full_lanes = self.lane
+
+        return full_lanes * 3.5 + self.distance
 
 
 class Aanvraag:
@@ -161,6 +177,8 @@ class Aanvraag:
         self.veiligheidsruimte.adjust_length_to_werkvak()
         self.werkruimte.adjust_length_to_veiligheidsruimte()
 
+        self.plot_areas()
+
     def step_3_determine_legend_request(self):
         self.msis_red_cross = self.werkvak.obtain_msis_inside()
         return  # TODO
@@ -170,6 +188,30 @@ class Aanvraag:
 
     def step_5_adjust_area_sizes(self):
         return  # TODO
+
+    def plot_areas(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+        self.plot_area(ax, self)
+        self.plot_area(ax, self.werkvak)
+        self.plot_area(ax, self.veiligheidsruimte)
+        self.plot_area(ax, self.werkruimte)
+
+        plt.xlim([0, self.werkvak.edges["R"].make_simple_distance() + 2])
+        plt.ylim([self.werkvak.km[0] - 0.050, self.werkvak.km[1] + 0.250])
+        plt.show()
+
+    def plot_area(self, ax, area):
+        x = area.edges["L"].make_simple_distance()
+        y = area.edges["R"].make_simple_distance()
+
+        rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
+                                            width=y-x,
+                                            height=area.km[0] + area.km[1],
+                                            facecolor=COLORMAP[area.surface_type],
+                                            edgecolor="brown")
+        ax.add_patch(rect)
 
     def report_request(self):
         logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
