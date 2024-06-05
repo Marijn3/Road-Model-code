@@ -38,16 +38,15 @@ class Rand:
             return f"{position} {self.distance}m"
 
     def move_edge(self, move_distance, side):
+        # TODO: Make exceptions for lane narrowing
         if side == "L":
-            if self.distance < move_distance:  # The edge will cross 0
-                self.lane = self.lane - 1 if self.lane else None
-            self.distance = round(self.distance - move_distance, 2)
-        elif side == "R":
-            if self.distance < -move_distance:  # The edge will cross 0
-                self.lane = self.lane + 1 if self.lane else None
-            self.distance = round(self.distance + move_distance, 2)
+            direction_modifier = -1
         else:
-            raise Exception("Onjuiste kantletter gebruik in de code.")
+            direction_modifier = 1
+
+        if self.distance < -move_distance * direction_modifier:  # The edge will cross 0
+            self.lane = self.lane + 1 * direction_modifier if self.lane else None
+        self.distance = round(self.distance + move_distance * direction_modifier, 2)
 
 
 class Aanvraag:
@@ -253,20 +252,21 @@ class Werkruimte:
         else:
             raise Exception("Deze combinatie van randen is niet toegestaan.")
 
-        if self.request.under_24h and side_of_road == "L" and -3.50 <= crit_dist:
+        variable_edge = 1.50  # defined as 0.25-1.50 [m]
+
+        if ((self.request.under_24h and side_of_road == "R" and 1.10 < crit_dist <= self.request.sphere_of_influence)
+                or (not self.request.under_24h and side_of_road == "L" and crit_dist < -0.25)
+                or (not self.request.under_24h and side_of_road == "R" and variable_edge < crit_dist <= 2.50)):
+            self.category = "A"
+
+        elif ((self.request.under_24h and side_of_road == "L" and -3.50 <= crit_dist)
+                or (self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10)):
             self.category = "B"
-        elif self.request.under_24h and side_of_road == "R" and 1.10 < crit_dist <= self.request.sphere_of_influence:
-            self.category = "A"
-        elif self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10:
-            self.category = "B"
-        elif not self.request.under_24h and side_of_road == "L" and crit_dist < -0.25:
-            self.category = "A"
-        elif not self.request.under_24h and side_of_road == "L" and -0.25 <= crit_dist <= 0.0:
+
+        elif ((not self.request.under_24h and side_of_road == "L" and -0.25 <= crit_dist <= 0.0)
+                or (not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= variable_edge)):
             self.category = "C"
-        elif not self.request.under_24h and side_of_road == "R" and 1.50 < crit_dist <= 2.50:
-            self.category = "A"
-        elif not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.50:  # defined as 0.25-1.50m
-            self.category = "C"
+
         else:
             logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
