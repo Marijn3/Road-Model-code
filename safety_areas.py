@@ -201,20 +201,30 @@ class Aanvraag:
         ax = fig.add_subplot()
 
         x_min = -3
-        x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
-        y_min = self.werkvak.km[0] - 0.050
-        y_max = self.werkvak.km[1] + 0.050
+        x_max = 12  # self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
+        y_min = self.werkvak.km[0] - 0.10
+        y_max = self.werkvak.km[1] + 0.10
 
         plt.xlim([x_min, x_max])
         plt.ylim([y_min, y_max])
 
-        for lane_nr in range(1, self.n_lanes + 1):
+        for lane_number in self.all_lane_nrs:
             south = y_min
-            west = (lane_nr - 1) * BREEDTE.RIJSTROOK + 0.1
-            lane = matplotlib.patches.Rectangle(xy=(west, south),
-                                                width=BREEDTE.RIJSTROOK - 0.2,
-                                                height=y_max-y_min,
-                                                facecolor="grey")
+            if lane_number not in self.main_lane_nrs:
+                if lane_number == 1:
+                    west = (lane_number - 1) * BREEDTE.VLUCHTSTROOK + (BREEDTE.VLUCHTSTROOK - BREEDTE.RIJSTROOK) + 0.05
+                else:
+                    west = (lane_number - 1) * BREEDTE.RIJSTROOK + 0.05
+                lane = matplotlib.patches.Rectangle(xy=(west, south),
+                                                    width=BREEDTE.VLUCHTSTROOK - 0.1,
+                                                    height=y_max - y_min,
+                                                    facecolor="darkgrey")
+            else:
+                west = (lane_number - 1) * BREEDTE.RIJSTROOK + 0.05
+                lane = matplotlib.patches.Rectangle(xy=(west, south),
+                                                    width=BREEDTE.RIJSTROOK - 0.1,
+                                                    height=y_max - y_min,
+                                                    facecolor="lightgrey")
             ax.add_patch(lane)
 
         self.plot_area(ax, self.werkvak)
@@ -232,7 +242,7 @@ class Aanvraag:
 
         rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
                                             width=y-x,
-                                            height=area.km[0] + area.km[1],
+                                            height=area.km[1]-area.km[0],
                                             facecolor=COLORMAP[area.surface_type],
                                             edgecolor=edgecolor,
                                             linewidth=2.0)
