@@ -44,12 +44,12 @@ TUSSENRUIMTE_NAAST = {
 
 # Ruimte aan voor- en achterkanten van vakken in kilometers.
 TUSSENRUIMTE_VOOR = {
-    WERKVAK: 0.150,
+    WERKRUIMTE: 0.150,
     VEILIGHEIDSRUIMTE: 0.200
 }
 
 TUSSENRUIMTE_NA = {
-    WERKVAK: 0.000,
+    WERKRUIMTE: 0.000,
     VEILIGHEIDSRUIMTE: 0.050
 }
 
@@ -380,15 +380,7 @@ class Werkruimte:
         self.edges[side].move_edge(move_distance, side)
 
     def adjust_length_to_veiligheidsruimte(self):
-        if self.request.roadside == "R":
-            open_space_high_km = TUSSENRUIMTE_NA[WERKVAK]
-            open_space_low_km = TUSSENRUIMTE_VOOR[WERKVAK]
-        else:
-            open_space_low_km = TUSSENRUIMTE_NA[WERKVAK]
-            open_space_high_km = TUSSENRUIMTE_VOOR[WERKVAK]
-
-        self.km = [self.request.veiligheidsruimte.km[0] + open_space_low_km,
-                   self.request.veiligheidsruimte.km[1] - open_space_high_km]
+        adjust_length_to(self.request.veiligheidsruimte, self)
 
 
 class Veiligheidsruimte:
@@ -411,15 +403,7 @@ class Veiligheidsruimte:
         self.edges[side].move_edge(move_distance, side)
 
     def adjust_length_to_werkvak(self) -> None:
-        if self.request.roadside == "R":
-            open_space_high_km = TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
-            open_space_low_km = TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
-        else:
-            open_space_low_km = TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
-            open_space_high_km = TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
-
-        self.km = [self.request.werkvak.km[0] + open_space_low_km,
-                   self.request.werkvak.km[1] - open_space_high_km]
+        adjust_length_to(self.request.werkvak, self)
 
 
 class Werkvak:
@@ -449,11 +433,11 @@ class Werkvak:
         msi_at_lower_km = None
 
         if self.request.roadside == "R":
-            open_space_high_km = TUSSENRUIMTE_NA[WERKVAK] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
-            open_space_low_km = TUSSENRUIMTE_VOOR[WERKVAK] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+            open_space_high_km = TUSSENRUIMTE_NA[WERKRUIMTE] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_low_km = TUSSENRUIMTE_VOOR[WERKRUIMTE] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
         else:
-            open_space_low_km = TUSSENRUIMTE_NA[WERKVAK] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
-            open_space_high_km = TUSSENRUIMTE_VOOR[WERKVAK] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+            open_space_low_km = TUSSENRUIMTE_NA[WERKRUIMTE] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_high_km = TUSSENRUIMTE_VOOR[WERKRUIMTE] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
 
         for msi_info in self.request.roadmodel.get_points_info("MSI"):
             if self.km[1] + open_space_high_km < msi_info.pos_eigs.km < current_closest_higher_km:
@@ -477,3 +461,15 @@ class Werkvak:
 
     def obtain_msis_inside(self) -> list:
         return []
+
+
+def adjust_length_to(area_to_adjust_to, area):
+    if area.request.roadside == "R":
+        open_space_high_km = TUSSENRUIMTE_NA[area.surface_type]
+        open_space_low_km = TUSSENRUIMTE_VOOR[area.surface_type]
+    else:
+        open_space_low_km = TUSSENRUIMTE_NA[area.surface_type]
+        open_space_high_km = TUSSENRUIMTE_VOOR[area.surface_type]
+
+    area.km = [round(area_to_adjust_to.km[0] + open_space_low_km, 3),
+               round(area_to_adjust_to.km[1] - open_space_high_km, 3)]
