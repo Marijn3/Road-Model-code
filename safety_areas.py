@@ -24,7 +24,7 @@ COLORMAP = {
 
 class BREEDTE:
     BARRIER = 0.40  # Estimate, in meters
-    GELEIDEBAKENS = 0.25  # Based on WIU 2020 – Werken op autosnelwegen [p117], in meters
+    GELEIDEBAKENS = 0.25  # Source: "WIU 2020 – Werken op autosnelwegen", p117, in meters
     RIJSTROOK = 3.50  # Estimate, in meters
     VLUCHTSTROOK = 2.00  # Estimate, in meters
 
@@ -67,14 +67,10 @@ class Rand:
             return f"{position} {round(self.distance, 2)}m"
 
     def move_edge(self, move_distance, side):
-        if side == "L":
-            direction_modifier = -1
-        else:
-            direction_modifier = 1
-
-        if self.distance < -move_distance * direction_modifier:  # The edge will cross 0
-            self.lane = self.lane + 1 * direction_modifier if self.lane else None
-        self.distance = round(self.distance + move_distance * direction_modifier, 2)
+        direction = 1 if side == "R" else -1
+        if self.distance < -move_distance * direction:  # The edge will cross 0
+            self.lane = self.lane + 1 * direction if self.lane else None
+        self.distance = round(self.distance + move_distance * direction, 2)
 
     def make_simple_distance(self, n_lanes) -> float:
         if self.lane:
@@ -93,7 +89,7 @@ class Rand:
 
 class Aanvraag:
 
-    # Source: "WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat"
+    # Source: "WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat", p24
     __SPHERE_OF_INFLUENCE = {
         130: 13,  # maximum velocity in km/h -> sphere of influence in m
         120: 13,
@@ -374,10 +370,7 @@ class Werkruimte:
             logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
     def adjust_edges_to_veiligheidsruimte(self):
-        self.edges = deepcopy(self.request.veiligheidsruimte.edges)
-        side = self.request.open_side
-        move_distance = -TUSSENRUIMTE_NAAST[self.request.demarcation][VEILIGHEIDSRUIMTE]
-        self.edges[side].move_edge(move_distance, side)
+        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, positive=False)
 
     def adjust_length_to_veiligheidsruimte(self):
         adjust_length_to(self.request.veiligheidsruimte, self)
@@ -391,16 +384,10 @@ class Veiligheidsruimte:
         self.km = request.km
 
     def adjust_edges_to_werkruimte(self) -> None:
-        self.edges = deepcopy(self.request.werkruimte.edges)
-        side = self.request.open_side
-        move_distance = TUSSENRUIMTE_NAAST[self.request.demarcation][self.surface_type]
-        self.edges[side].move_edge(move_distance, side)
+        adjust_edges_to(self.request.werkruimte, self, self.surface_type, positive=True)
 
     def adjust_edges_to_werkvak(self) -> None:
-        self.edges = deepcopy(self.request.werkvak.edges)
-        side = self.request.open_side
-        move_distance = -TUSSENRUIMTE_NAAST[self.request.demarcation][WERKVAK]
-        self.edges[side].move_edge(move_distance, side)
+        adjust_edges_to(self.request.werkvak, self, WERKVAK, positive=False)
 
     def adjust_length_to_werkvak(self) -> None:
         adjust_length_to(self.request.werkvak, self)
@@ -414,10 +401,7 @@ class Werkvak:
         self.km = request.km
 
     def adjust_edges_to_veiligheidsruimte(self) -> None:
-        self.edges = deepcopy(self.request.veiligheidsruimte.edges)
-        side = self.request.open_side
-        move_distance = TUSSENRUIMTE_NAAST[self.request.demarcation][self.surface_type]
-        self.edges[side].move_edge(move_distance, side)
+        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, positive=True)
 
     def adjust_edges_to_road(self) -> None:
         # TODO: Make exception when lane narrowing present
@@ -461,6 +445,12 @@ class Werkvak:
 
     def obtain_msis_inside(self) -> list:
         return []
+
+
+def adjust_edges_to(area_to_adjust_to, area, border_surface, positive: bool):
+    area.edges = deepcopy(area_to_adjust_to.edges)
+    move_distance = (1 if positive else -1) * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
+    area.edges[area.request.open_side].move_edge(move_distance, area.request.open_side)
 
 
 def adjust_length_to(area_to_adjust_to, area):
