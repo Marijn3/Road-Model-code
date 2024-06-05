@@ -74,16 +74,9 @@ class Rand:
 
     def make_simple_distance(self, n_lanes) -> float:
         if self.lane:
-            if self.distance >= 0.0:
-                n_full_lanes = self.lane - 1
-            else:
-                n_full_lanes = self.lane
+            n_full_lanes = self.lane - 1 if self.distance >= 0.0 else self.lane
         else:
-            if self.distance >= 0.0:
-                n_full_lanes = n_lanes
-            else:
-                n_full_lanes = 0
-
+            n_full_lanes = n_lanes if self.distance >= 0.0 else 0
         return n_full_lanes * BREEDTE.RIJSTROOK + round(self.distance, 2)
 
 
@@ -444,7 +437,32 @@ class Werkvak:
         self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
 
     def obtain_msis_inside(self) -> list:
-        return []
+        # Determine fully covered lanes
+        if self.edges["L"].lane:
+            left_lane = self.edges["L"].lane if self.edges["L"].distance > 0.0 else self.edges["L"].lane + 1
+        else:
+            left_lane = 0 if self.edges["L"].distance < 0.0 else self.request.n_lanes
+        if self.edges["R"].lane:
+            right_lane = self.edges["R"].lane if self.edges["R"].distance < 0.0 else self.edges["R"].lane + 1
+        else:
+            right_lane = 0 if self.edges["R"].distance < 0.0 else self.request.n_lanes
+
+        covered_lanes = [lane_number for lane_number in range(left_lane, right_lane+1)]
+
+        # Determine MSI rows
+        msi_rows_inside = []
+        if self.request.roadside == "R":
+            for msi_info in self.request.roadmodel.get_points_info("MSI"):
+                if self.km[0] <= msi_info.pos_eigs.km < self.km[1]:
+                    msi_rows_inside.append((msi_info, covered_lanes))
+        else:  # roadside == "L"
+            for msi_info in self.request.roadmodel.get_points_info("MSI"):
+                if self.km[0] < msi_info.pos_eigs.km <= self.km[1]:
+                    msi_rows_inside.append((msi_info, covered_lanes))
+
+        logger.info(msi_rows_inside)
+
+        return msi_rows_inside
 
 
 def adjust_edges_to(area_to_adjust_to, area, border_surface, positive: bool):
