@@ -121,13 +121,15 @@ class Aanvraag:
         self.first_lane_nr = min(self.all_lane_nrs)
         self.last_lane_nr = max(self.all_lane_nrs)
 
+        self.msis_red_cross = []
+
         self.werkruimte = Werkruimte(self)
         self.veiligheidsruimte = Veiligheidsruimte(self)
         self.werkvak = Werkvak(self)
 
         self.step_1_determine_minimal_werkruimte()
         self.step_2_determine_area_sizes()
-        # self.step_3_determine_legend_request()
+        self.step_3_determine_legend_request()
         # self.step_4_solve_legend_request()
         # self.step_5_adjust_area_sizes()
 
@@ -154,12 +156,13 @@ class Aanvraag:
         self.veiligheidsruimte.adjust_edges_to_werkvak()
         self.werkruimte.adjust_edges_to_veiligheidsruimte()
 
-        # Determine minimal length wtih respect to the MSIs  # TODO
+        # Determine minimal length with respect to the MSIs
         self.werkvak.adjust_length_to_msis()
         self.veiligheidsruimte.adjust_length_to_werkvak()
         self.werkruimte.adjust_length_to_veiligheidsruimte()
 
     def step_3_determine_legend_request(self):
+        self.msis_red_cross = self.werkvak.obtain_msis_inside()
         return  # TODO
 
     def step_4_solve_legend_request(self):
@@ -172,7 +175,7 @@ class Aanvraag:
         logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
         logger.info(f"Werkruimte aangemaakt met km {self.werkruimte.km} en randen {self.werkruimte.edges}")
         logger.info(f"Veiligheidsruimte aangemaakt met km {self.veiligheidsruimte.km} en randen {self.veiligheidsruimte.edges}")
-        logger.info(f"Werkvak aangemaakt met km {self.werkvak.km} en randen {self.werkvak.edges}")
+        logger.info(f"Werkvak aangemaakt met km {self.werkvak.km} en randen {self.werkvak.edges}\n")
 
 
 class Werkruimte:
@@ -392,3 +395,6 @@ class Werkvak:
             raise NotImplementedError("Geen passende signalering gevonden.")
 
         self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
+
+    def obtain_msis_inside(self) -> list:
+        return []
