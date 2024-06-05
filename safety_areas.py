@@ -201,30 +201,32 @@ class Aanvraag:
         ax = fig.add_subplot()
 
         x_min = -3
-        x_max = 12  # self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
+        x_max = len(self.all_lane_nrs) * 3.5 + 1.5
+        # x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
         y_min = self.werkvak.km[0] - 0.10
         y_max = self.werkvak.km[1] + 0.10
 
         plt.xlim([x_min, x_max])
         plt.ylim([y_min, y_max])
+        plt.xlabel("Width [m] (estimate for visualization)")
+        plt.ylabel("Length [km]")
+        plt.title(f"Safety areas for request with km {self.km}")
 
         for lane_number in self.all_lane_nrs:
             south = y_min
+            west = (lane_number - 1) * BREEDTE.RIJSTROOK
             if lane_number not in self.main_lane_nrs:
                 if lane_number == 1:
-                    west = (lane_number - 1) * BREEDTE.VLUCHTSTROOK + (BREEDTE.VLUCHTSTROOK - BREEDTE.RIJSTROOK) + 0.05
-                else:
-                    west = (lane_number - 1) * BREEDTE.RIJSTROOK + 0.05
-                lane = matplotlib.patches.Rectangle(xy=(west, south),
-                                                    width=BREEDTE.VLUCHTSTROOK - 0.1,
-                                                    height=y_max - y_min,
-                                                    facecolor="darkgrey")
+                    west += (BREEDTE.VLUCHTSTROOK - BREEDTE.RIJSTROOK)
+                width = BREEDTE.VLUCHTSTROOK
+                color = "darkgrey"
             else:
-                west = (lane_number - 1) * BREEDTE.RIJSTROOK + 0.05
-                lane = matplotlib.patches.Rectangle(xy=(west, south),
-                                                    width=BREEDTE.RIJSTROOK - 0.1,
-                                                    height=y_max - y_min,
-                                                    facecolor="lightgrey")
+                width = BREEDTE.RIJSTROOK
+                color = "lightgrey"
+            lane = matplotlib.patches.Rectangle(xy=(west + 0.05, south),
+                                                width=width - 0.1,
+                                                height=y_max - y_min,
+                                                facecolor=color)
             ax.add_patch(lane)
 
         self.plot_area(ax, self.werkvak)
