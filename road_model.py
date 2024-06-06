@@ -486,7 +486,7 @@ class WegModel:
         point_info.pos_eigs.wegnummer = section_info.pos_eigs.wegnummer
         point_info.pos_eigs.hectoletter = section_info.pos_eigs.hectoletter
 
-        point_info.pos_eigs.km = row["KMTR"]
+        point_info.pos_eigs.km = round(row["KMTR"], 3)
         point_info.pos_eigs.geometrie = row["geometry"]
         point_info.obj_eigs["Type"] = row["TYPE"]
 
@@ -495,7 +495,8 @@ class WegModel:
 
         return point_info
 
-    def __extract_line_properties(self, row: pd.Series, name: str) -> ObjectInfo:
+    @staticmethod
+    def __extract_line_properties(row: pd.Series, name: str) -> ObjectInfo:
         """
         Determines line info based on a row in the dataframe
         Args:
@@ -508,7 +509,8 @@ class WegModel:
 
         section_info = ObjectInfo()
 
-        section_info.pos_eigs.km = [row["BEGINKM"], row["EINDKM"]]
+        section_info.pos_eigs.km = [round(min(row["BEGINKM"], row["EINDKM"]), 3),
+                                    round(max(row["BEGINKM"], row["EINDKM"]), 3)]
         section_info.pos_eigs.geometrie = set_precision(row["geometry"], CALCULATION_PRECISION)
 
         if name == "Wegvakken":
@@ -521,7 +523,7 @@ class WegModel:
 
             # Flip range only if travel_direction is L.
             if section_info.pos_eigs.rijrichting == "L":
-                section_info.pos_eigs.km = [row["EINDKM"], row["BEGINKM"]]
+                section_info.pos_eigs.km = [round(row["EINDKM"], 3), round(row["BEGINKM"], 3)]
 
             first_lane_number = row["VNRWOL"]
             n_lanes, special = row["LANE_INFO"]
@@ -827,7 +829,12 @@ class WegModel:
         """
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
-        assert not self.__check_geometry_equality(geom1, geom2), f"Geometrieën zijn exact aan elkaar gelijk: {geom1}"
+
+        if self.__check_geometry_equality(geom1, geom2):
+            raise AssertionError(f"Geometrieën zijn exact aan elkaar gelijk:\n"
+                                 f"{geom1}\n{geom2}\n"
+                                 f"Zijn de kilometerregistraties juist?\n")
+
         diff = difference(geom1, geom2, grid_size=CALCULATION_PRECISION)
 
         if isinstance(diff, LineString) and not diff.is_empty:
@@ -940,6 +947,7 @@ class WegModel:
             new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
 
             for new_lane_number in new_lane_numbers:
+                # TODO: Check if this is the correct implementation
                 if new_lane_number in orig_lane_numbers:
                     # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
                     if new_obj_eigs[new_lane_number] == "Vluchtstrook":
@@ -1057,7 +1065,7 @@ class WegModel:
                      f"{self.points[index].pos_eigs.rijrichting}\t"
                      f"{self.points[index].pos_eigs.hectoletter}\t"
                      f"{self.points[index].obj_eigs} \n"
-                     f"\t\t\t\t\t\t\t{set_precision(self.points[index].pos_eigs.geometrie, 1)}")
+                     f"\t\t\t\t\t\t\t{self.points[index].pos_eigs.geometrie}")
 
     def __log_reference(self, index: int) -> None:
         """
@@ -1068,7 +1076,7 @@ class WegModel:
         logger.debug(f"Referentie {index} toegevoegd:  \t"
                      f"{self.__reference[index].pos_eigs.wegnummer}\t"
                      f"{self.__reference[index].pos_eigs.hectoletter}\n"
-                     f"\t\t\t\t\t\t\t\t{set_precision(self.__reference[index].pos_eigs.geometrie, 1)}")
+                     f"\t\t\t\t\t\t\t\t{self.__reference[index].pos_eigs.geometrie}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
         """
@@ -1083,7 +1091,7 @@ class WegModel:
                      f"{self.sections[index].pos_eigs.rijrichting}\t"
                      f"{self.sections[index].pos_eigs.hectoletter}\t"
                      f"{self.sections[index].obj_eigs} \n"
-                     f"\t\t\t\t\t\t\t\t{set_precision(self.sections[index].pos_eigs.geometrie, 1)}")
+                     f"\t\t\t\t\t\t\t\t{self.sections[index].pos_eigs.geometrie}")
 
     def __get_overlapping_reference_info(self, section_info: ObjectInfo) -> ObjectInfo | None:
         """
@@ -1535,7 +1543,7 @@ def determine_range_overlap(range1: list, range2: list) -> bool:
         range1 (list): First range with two float values.
         range2 (list): Second range with two float values.
     Returns:
-        Boolean value indicating whether the sections overlap or not.
+        Boolean value indicating whether the ranges overlap or not.
         Touching ranges, such as [4, 7] and [7, 8], return False.
     """
     min1, max1 = min(range1), max(range1)

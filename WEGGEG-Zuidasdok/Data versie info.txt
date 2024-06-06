@@ -1,5 +1,23 @@
 01-05-2024 kenmerkniveau
 31 mei aangepast naar toekomstige situatie door Ramon Donkers.
 
-Lijst van sindsdien gemaakte aanpassingen:
-- Folder Strksgnlring hernoemd naar Rijstrooksignaleringen
+Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
+- Folder Strksgnlring hernoemd naar Rijstrooksignaleringen.
+- De geopackage bestanden in rijstroken en kantstroken geconverteerd naar shapefiles met QGIS > Exporteren > Objecten opslaan als... > ESRI-shape gegevens.
+- Kilometerregistraties in divergentiepunten op 16.7 km in alle lagen aangepast naar 16.678 km.
+- Km-registraties bij convergentiepunt 16.5 km in alle lagen aangepast zodat ze op convergentiepunt aansluiten, ipv 15.563 km.
+- Convergentiepunt 16.00 km hetzelfde als bovenstaande.
+- Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
+- Registratie rond 15.871 km gelijk getrokken.
+- Convergentiepunt van 17.350 km naar 17.246 km aangepast.
+- Convergentiepunt van 17.650 km naar 17.530 km aangepast.
+- Km-registraties rond divergentiepunt 15.526 km aangepast.
+- Km-registraties rond convergentie 31.5 km aangepast.
+- Km-registraties rond divergentiepunt 15.330 km aangepast.
+- Km-registraties bij 15.828 km gelijk getrokken.
+- VNRWOL toegevoegd aan registratie 135 (Vluchtstrook)
+- Rijstroken 5 -> 5 rond 16.678 km aangepast naar 3 -> 3, want 2 stroken horen bij splitsing.
+- Geometrie van bovenstaande klein beetje ingekort om interne overlap te voorkomen.
+- Veel lege VNRWOL registraties aangevuld.
+- Registratie 8 en 127 verwijderd (dubbel/ongebruikt)
+- VNRWOL registratie 81 & 82 aangepast van 5 naar 4
