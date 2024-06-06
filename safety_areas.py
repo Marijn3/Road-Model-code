@@ -1,27 +1,32 @@
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from road_model import WegModel
 from utils import *
 
 logger = logging.getLogger(__name__)
+
+NEG_ZERO = -0.00001
+POS_ZERO = 0.00001
 
 AANVRAAG = 200
 WERKRUIMTE = 201
 VEILIGHEIDSRUIMTE = 202
 WERKVAK = 203
 
-TL1 = 400
-TL2 = 401
-TR1 = 402
-TR2 = 403
-TR3 = 404
-LL1 = 405
-LL2 = 406
-LL3 = 407
-LR1 = 408
-LR2 = 409
-LR3 = 410
+COLORMAP = {
+    AANVRAAG: "none",
+    WERKVAK: "#13AFE1",
+    VEILIGHEIDSRUIMTE: "#FBD799",
+    WERKRUIMTE: "#F49510",
+}
 
-BREEDTE_BARRIER = 0.50  # Estimate, in meters
-BREEDTE_GELEIDEBAKENS = 0.25  # Based on WIU 2020 – Werken op autosnelwegen [p117], in meters
+
+class BREEDTE:
+    BARRIER = 0.40  # Estimate, in meters
+    GELEIDEBAKENS = 0.25  # Source: "WIU 2020 – Werken op autosnelwegen", p117, in meters
+    RIJSTROOK = 3.50  # Estimate, in meters
+    VLUCHTSTROOK = 2.00  # Estimate, in meters
 
 
 class AFZETTINGEN:
@@ -30,10 +35,22 @@ class AFZETTINGEN:
     BARRIER_BOVEN_80CM = 302
 
 
-TUSSENRUIMTE = {
-    AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE_GELEIDEBAKENS, VEILIGHEIDSRUIMTE: 0.60},
-    AFZETTINGEN.BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.60},
-    AFZETTINGEN.BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE_BARRIER, VEILIGHEIDSRUIMTE: 0.0},
+# Ruimte aan zijkanten van vakken in meters.
+TUSSENRUIMTE_NAAST = {
+    AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE.GELEIDEBAKENS, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTINGEN.BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE.BARRIER, VEILIGHEIDSRUIMTE: 0.60},
+    AFZETTINGEN.BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE.BARRIER, VEILIGHEIDSRUIMTE: 0.0},
+}
+
+# Ruimte aan voor- en achterkanten van vakken in kilometers.
+TUSSENRUIMTE_VOOR = {
+    WERKRUIMTE: 0.150,
+    VEILIGHEIDSRUIMTE: 0.200
+}
+
+TUSSENRUIMTE_NA = {
+    WERKRUIMTE: 0.000,
+    VEILIGHEIDSRUIMTE: 0.050
 }
 
 
@@ -45,26 +62,27 @@ class Rand:
     def __repr__(self) -> str:
         position = f"Rijstrook {self.lane}" if self.lane else f"Naast weg"
         if self.distance > 0:
-            return f"{position} +{self.distance}m"
+            return f"{position} +{round(self.distance, 2)}m"
         else:
-            return f"{position} {self.distance}m"
+            return f"{position} {round(self.distance, 2)}m"
 
     def move_edge(self, move_distance, side):
-        if side == "L":
-            if self.distance < move_distance:  # The edge will cross 0
-                self.lane = self.lane - 1 if self.lane else 99
-            self.distance = round(self.distance - move_distance, 2)
-        elif side == "R":
-            if self.distance < -move_distance:  # The edge will cross 0
-                self.lane = self.lane + 1 if self.lane else -99
-            self.distance = round(self.distance + move_distance, 2)
+        direction = 1 if side == "R" else -1
+        if self.distance < -move_distance * direction:  # The edge will cross 0
+            self.lane = self.lane + 1 * direction if self.lane else None
+        self.distance = round(self.distance + move_distance * direction, 2)
+
+    def make_simple_distance(self, n_lanes) -> float:
+        if self.lane:
+            n_full_lanes = self.lane - 1 if self.distance >= 0.0 else self.lane
         else:
-            raise Exception("Onjuiste kantletter gebruik in de code.")
+            n_full_lanes = n_lanes if self.distance >= 0.0 else 0
+        return n_full_lanes * BREEDTE.RIJSTROOK + round(self.distance, 2)
 
 
 class Aanvraag:
 
-    # Source: "WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat"
+    # Source: "WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat", p24
     __SPHERE_OF_INFLUENCE = {
         130: 13,  # maximum velocity in km/h -> sphere of influence in m
         120: 13,
@@ -89,17 +107,20 @@ class Aanvraag:
 
         self.run_sanity_checks()
 
+        logger.info(f"Aanvraag met kmrange={km_start}, {km_end} randen={randen}, korter dan 24h={korter_dan_24h}.")
+
         self.surface_type = AANVRAAG
         self.requires_lane_narrowing = False
         self.open_side = None
 
-        self.sections = self.roadmodel.get_section_info_by_bps(self.km, self.roadside, self.hecto_character)
+        self.sections = self.roadmodel.get_section_by_bps(self.km, self.roadside, self.hecto_character)
         if not self.sections:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
                             f"{self.km} {self.roadside} {self.hecto_character}")
 
         # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
-        self.road_info = self.sections[0]
+        self.road_id = next(iter(self.sections.keys()))
+        self.road_info = next(iter(self.sections.values()))
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken
         self.sphere_of_influence = self.__SPHERE_OF_INFLUENCE.get(self.road_info.obj_eigs["Maximumsnelheid"], None)
 
@@ -110,6 +131,9 @@ class Aanvraag:
                               lane_type not in ["Puntstuk", "Vluchtstrook", "Spitsstrook", "Plusstrook"]]
         self.first_lane_nr = min(self.all_lane_nrs)
         self.last_lane_nr = max(self.all_lane_nrs)
+        self.n_main_lanes = len(self.main_lane_nrs)
+
+        self.msis_red_cross = []
 
         self.werkruimte = Werkruimte(self)
         self.veiligheidsruimte = Veiligheidsruimte(self)
@@ -117,7 +141,7 @@ class Aanvraag:
 
         self.step_1_determine_minimal_werkruimte()
         self.step_2_determine_area_sizes()
-        # self.step_3_determine_legend_request()
+        self.step_3_determine_legend_request()
         # self.step_4_solve_legend_request()
         # self.step_5_adjust_area_sizes()
 
@@ -126,10 +150,10 @@ class Aanvraag:
     def run_sanity_checks(self):
         assert len(self.edges) == 2, \
             "Specificeer beide randen."
-        assert self.edges['L'].distance and self.edges['R'].distance, \
+        assert self.edges["L"].distance and self.edges["R"].distance, \
             "Specificeer afstand vanaf belijning in de aanvraag."
         assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
-            "Specificeer ongelijke afstanden."
+            "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
     def step_1_determine_minimal_werkruimte(self):
         self.werkruimte.determine_minimal_werkruimte_size()
@@ -144,12 +168,15 @@ class Aanvraag:
         self.veiligheidsruimte.adjust_edges_to_werkvak()
         self.werkruimte.adjust_edges_to_veiligheidsruimte()
 
-        # Determine minimal length in regard to the MSIs
-        # self.werkvak.adjust_length_to_msis()
-        # self.veiligheidsruimte.adjust_length_to_werkvak()
-        # self.werkruimte.adjust_length_to_veiligheidsruimte()
+        # Determine minimal length with respect to the MSIs
+        self.werkvak.adjust_length_to_msis()
+        self.veiligheidsruimte.adjust_length_to_werkvak()
+        self.werkruimte.adjust_length_to_veiligheidsruimte()
+
+        self.plot_areas()
 
     def step_3_determine_legend_request(self):
+        self.msis_red_cross = self.werkvak.obtain_msis_inside()
         return  # TODO
 
     def step_4_solve_legend_request(self):
@@ -158,12 +185,65 @@ class Aanvraag:
     def step_5_adjust_area_sizes(self):
         return  # TODO
 
+    def plot_areas(self):
+        fig = plt.figure()
+        ax = fig.add_subplot()
+
+        x_min = -3
+        x_max = len(self.all_lane_nrs) * 3.5 + 1.5
+        # x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
+        y_min = self.werkvak.km[0] - 0.10
+        y_max = self.werkvak.km[1] + 0.10
+
+        plt.xlim([x_min, x_max])
+        plt.ylim([y_min, y_max])
+        plt.xlabel("Width [m] (estimate for visualization)")
+        plt.ylabel("Length [km]")
+        plt.title(f"Safety areas for request with category {self.werkruimte.category}")
+
+        for lane_number in self.all_lane_nrs:
+            south = y_min
+            west = (lane_number - 1) * BREEDTE.RIJSTROOK
+            if lane_number not in self.main_lane_nrs:
+                if lane_number == 1:
+                    west += (BREEDTE.VLUCHTSTROOK - BREEDTE.RIJSTROOK)
+                width = BREEDTE.VLUCHTSTROOK
+                color = "darkgrey"
+            else:
+                width = BREEDTE.RIJSTROOK
+                color = "lightgrey"
+            lane = matplotlib.patches.Rectangle(xy=(west + 0.05, south),
+                                                width=width - 0.1,
+                                                height=y_max - y_min,
+                                                facecolor=color)
+            ax.add_patch(lane)
+
+        self.plot_area(ax, self.werkvak)
+        self.plot_area(ax, self.veiligheidsruimte)
+        self.plot_area(ax, self.werkruimte)
+        self.plot_area(ax, self)
+
+        plt.show()
+
+    def plot_area(self, ax, area):
+        x = area.edges["L"].make_simple_distance(self.n_main_lanes)
+        y = area.edges["R"].make_simple_distance(self.n_main_lanes)
+
+        edgecolor = "brown" if area.surface_type == AANVRAAG else "none"
+
+        rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
+                                            width=y-x,
+                                            height=area.km[1]-area.km[0],
+                                            facecolor=COLORMAP[area.surface_type],
+                                            edgecolor=edgecolor,
+                                            linewidth=2.0)
+        ax.add_patch(rect)
+
     def report_request(self):
-        logger.info("")
-        logger.info(f"Aanvraag aangemaakt met randen: {self.edges}")
-        logger.info(f"Werkruimte aangemaakt met randen: {self.werkruimte.edges}")
-        logger.info(f"Veiligheidsruimte aangemaakt met randen: {self.veiligheidsruimte.edges}")
-        logger.info(f"Werkvak aangemaakt met randen: {self.werkvak.edges}")
+        logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
+        logger.info(f"Werkruimte aangemaakt met km {self.werkruimte.km} en randen {self.werkruimte.edges}")
+        logger.info(f"Veiligheidsruimte aangemaakt met km {self.veiligheidsruimte.km} en randen {self.veiligheidsruimte.edges}")
+        logger.info(f"Werkvak aangemaakt met km {self.werkvak.km} en randen {self.werkvak.edges}\n")
 
 
 class Werkruimte:
@@ -172,84 +252,84 @@ class Werkruimte:
         self.request = request
         self.edges = deepcopy(request.edges)
         self.km = request.km
+        self.category = str()
 
     def determine_minimal_werkruimte_size(self):
-        # In case the request is defined in terms of lanes for both edges...
-        if self.request.edges['L'].lane and self.request.edges['R'].lane:
-            # Additional sanity checks for request in this case.
-            assert self.request.edges['L'].lane is None or self.request.edges['L'].lane in self.request.main_lane_nrs, \
-                "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
-            assert self.request.edges['R'].lane is None or self.request.edges['R'].lane in self.request.main_lane_nrs, \
-                "Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken."
-            assert self.request.edges['L'].distance is None or self.request.edges['L'].distance >= 0, \
-                "Geef een positieve afstand voor de linkerrand op."
-            assert self.request.edges['R'].distance is None or self.request.edges['R'].distance <= 0, \
-                "Geef een negatieve afstand voor de rechterrand op."
-
-            # Determine if expansion is necessary
-            if (self.request.first_lane_nr in [self.request.edges['L'].lane, self.request.edges['R'].lane]
-                    or self.request.last_lane_nr in [self.request.edges['L'].lane, self.request.edges['R'].lane]):
-                # The request goes all the way up to a side of the road. Expansion does not need to be determined.
-                logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
-                return
-
-            keep_left_open = True  # If False: keep right side open.
-
-            n_main_lanes_left = self.request.edges['L'].lane - min(self.request.main_lane_nrs)
-            n_main_lanes_right = max(self.request.main_lane_nrs) - self.request.edges['R'].lane
-
-            if n_main_lanes_left < n_main_lanes_right:
-                keep_left_open = False
-            elif n_main_lanes_left > n_main_lanes_right:
-                keep_left_open = True
-            else:
-                # Check if leftmost or rightmost lanes are lane types that are generally smaller.
-                # Desired result: if vluchtstrook on both sides, then left side should be open.
-                if self.request.lanes[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
-                    keep_left_open = False
-                if self.request.lanes[self.request.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
-                    keep_left_open = True
-
-            if keep_left_open:
-                # Adjust to far right side of road. Case TR3 or LR3
-                self.edges["R"] = Rand(rijstrook=None, afstand=-0.0)
-                self.request.open_side = "L"
-            else:
-                # Adjust to far left side of road. Case TL2 or LL3
-                self.edges["L"] = Rand(rijstrook=None, afstand=+0.0)
-                self.request.open_side = "R"
-            return
-
-        # In case the request is defined in lanes on only one edge...
-        if self.request.edges["L"].lane or self.request.edges["R"].lane:
+        if self.request.edges["L"].lane and self.request.edges["R"].lane:
+            self.determine_request_category_onroad()
+        elif self.request.edges["L"].lane or self.request.edges["R"].lane:
             # TODO: Uitwerken wat er in deze situatie moet gebeuren.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
             return
-
-        # In case the request is not defined in terms of lanes for either edge.
-        category = self.determine_request_category_roadside()
-        logger.info(f"Deze situatie valt onder categorienummer {category}.")
-
-        if category == TL1:
-            self.edges["R"] = Rand(rijstrook=min(self.request.main_lane_nrs), afstand=-0.81)
-        elif category == LL1:
-            self.edges["R"] = Rand(rijstrook=None, afstand=-0.81)
-        elif category == LL2:
-            self.edges["R"] = Rand(rijstrook=None, afstand=-0.0)
-            self.request.requires_lane_narrowing = True
-        elif category == TR1:
-            self.edges["L"] = Rand(rijstrook=None, afstand=+1.10)
-        elif category == TR2:
-            self.edges["L"] = Rand(rijstrook=max(self.request.main_lane_nrs), afstand=+0.81)
-        elif category == LR1:
-            self.edges["L"] = Rand(rijstrook=None, afstand=+0.81)
-        elif category == LR2:
-            self.edges["L"] = Rand(rijstrook=None, afstand=+0.0)
-            self.request.requires_lane_narrowing = True
         else:
-            logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op weg).")
+            self.determine_request_category_roadside()
 
-    def determine_request_category_roadside(self) -> int:
+        self.apply_category_measures()
+
+    def apply_category_measures(self):
+        if not self.category:
+            logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op de weg).")
+        else:
+            logger.info(f"Deze situatie valt onder categorie {self.category}.")
+
+        if self.category == "A":
+            self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
+        elif self.category == "B":
+            self.make_edge(side=self.request.open_side, lane=min(self.request.main_lane_nrs), distance_r=-0.81)
+        elif self.category == "C":
+            self.request.requires_lane_narrowing = True
+            self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
+        elif self.category == "D":
+            other_side = "R" if self.request.open_side == "L" else "L"
+            self.make_edge(side=other_side, lane=None, distance_r=+BREEDTE.VLUCHTSTROOK)
+
+    def make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
+        if side == "L":
+            distance_r = -distance_r
+        self.edges[side] = Rand(rijstrook=lane, afstand=+distance_r)
+
+    def determine_request_category_onroad(self) -> None:
+        self.do_onroad_sanity_checks()
+        self.category = "D"
+
+        # Determine if expansion is not necessary. When the request goes all the way up
+        # to a side of the road, expansion of the request does not need to be determined.
+        if (self.request.first_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]
+                or self.request.last_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]):
+            logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
+            return
+
+        self.request.open_side = self.determine_open_side()
+
+    def do_onroad_sanity_checks(self) -> None:
+        assert self.request.edges["L"].lane is None or self.request.edges["L"].lane in self.request.main_lane_nrs, \
+            "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
+        assert self.request.edges["R"].lane is None or self.request.edges["R"].lane in self.request.main_lane_nrs, \
+            "Opgegeven rijstrooknummer voor rand rechts behoort niet tot de hoofdstroken."
+        assert self.request.edges["L"].distance is None or self.request.edges["L"].distance >= 0, \
+            "Geef een positieve afstand voor de linkerrand op."
+        assert self.request.edges["R"].distance is None or self.request.edges["R"].distance <= 0, \
+            "Geef een negatieve afstand voor de rechterrand op."
+
+    def determine_open_side(self) -> str:
+        n_main_lanes_left = self.request.edges["L"].lane - min(self.request.main_lane_nrs)
+        n_main_lanes_right = max(self.request.main_lane_nrs) - self.request.edges["R"].lane
+
+        if n_main_lanes_left < n_main_lanes_right:
+            return "R"
+        elif n_main_lanes_left > n_main_lanes_right:
+            return "L"
+        else:
+            open_side = "L"
+            # Check if leftmost or rightmost lanes are lane types that are generally smaller.
+            # Desired result: if vluchtstrook on both sides, then left side should be open.
+            if self.request.lanes[1] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                open_side = "R"
+            if self.request.lanes[self.request.n_lanes] in ["Vluchtstrook", "Spitsstrook", "Plusstrook"]:
+                open_side = "L"
+            return open_side
+
+    def determine_request_category_roadside(self) -> None:
         if abs(self.edges["L"].distance) < abs(self.edges["R"].distance):
             crit_dist = self.edges["L"].distance  # Space closest to road
         else:
@@ -264,33 +344,29 @@ class Werkruimte:
         else:
             raise Exception("Deze combinatie van randen is niet toegestaan.")
 
-        if self.request.under_24h and side_of_road == "L" and crit_dist >= -3.50:
-            return TL1
-        elif self.request.under_24h and side_of_road == "R" and 1.10 < crit_dist <= self.request.sphere_of_influence:
-            return TR1
-        elif self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10:
-            return TR2
-        elif not self.request.under_24h and side_of_road == "L" and crit_dist < -0.25:
-            return LL1
-        elif not self.request.under_24h and side_of_road == "L" and 0.0 >= crit_dist >= -0.25:
-            return LL2
-        elif not self.request.under_24h and side_of_road == "R" and 1.50 < crit_dist <= 2.50:
-            return LR1
-        elif not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.50:  # defined as 0.25-1.50m
-            return LR2
+        variable_edge = 1.50  # defined as 0.25-1.50 [m]
+
+        if ((self.request.under_24h and side_of_road == "R" and 1.10 < crit_dist <= self.request.sphere_of_influence)
+                or (not self.request.under_24h and side_of_road == "L" and crit_dist < -0.25)
+                or (not self.request.under_24h and side_of_road == "R" and variable_edge < crit_dist <= 2.50)):
+            self.category = "A"
+
+        elif ((self.request.under_24h and side_of_road == "L" and -3.50 <= crit_dist)
+                or (self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10)):
+            self.category = "B"
+
+        elif ((not self.request.under_24h and side_of_road == "L" and -0.25 <= crit_dist <= 0.0)
+                or (not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= variable_edge)):
+            self.category = "C"
+
         else:
-            logger.warning("Geen passende categorie gevonden voor de gegeven aanvraag.")
-            return 0
+            logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
     def adjust_edges_to_veiligheidsruimte(self):
-        self.edges = deepcopy(self.request.veiligheidsruimte.edges)
-        side = self.request.open_side
-        move_distance = -TUSSENRUIMTE[self.request.demarcation][VEILIGHEIDSRUIMTE]
-        self.edges[side].move_edge(move_distance, side)
-        return
+        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, positive=False)
 
     def adjust_length_to_veiligheidsruimte(self):
-        return  # TODO
+        adjust_length_to(self.request.veiligheidsruimte, self)
 
 
 class Veiligheidsruimte:
@@ -301,21 +377,13 @@ class Veiligheidsruimte:
         self.km = request.km
 
     def adjust_edges_to_werkruimte(self) -> None:
-        self.edges = deepcopy(self.request.werkruimte.edges)
-        side = self.request.open_side
-        move_distance = TUSSENRUIMTE[self.request.demarcation][self.surface_type]
-        self.edges[side].move_edge(move_distance, side)
-        return
+        adjust_edges_to(self.request.werkruimte, self, self.surface_type, positive=True)
 
-    def adjust_edges_to_werkvak(self):
-        self.edges = deepcopy(self.request.werkvak.edges)
-        side = self.request.open_side
-        move_distance = -TUSSENRUIMTE[self.request.demarcation][WERKVAK]
-        self.edges[side].move_edge(move_distance, side)
-        return
+    def adjust_edges_to_werkvak(self) -> None:
+        adjust_edges_to(self.request.werkvak, self, WERKVAK, positive=False)
 
-    def adjust_length_to_werkvak(self):
-        return  # TODO
+    def adjust_length_to_werkvak(self) -> None:
+        adjust_length_to(self.request.werkvak, self)
 
 
 class Werkvak:
@@ -325,19 +393,85 @@ class Werkvak:
         self.edges = deepcopy(request.edges)
         self.km = request.km
 
-    def adjust_edges_to_veiligheidsruimte(self):
-        self.edges = deepcopy(self.request.veiligheidsruimte.edges)
-        side = self.request.open_side
-        move_distance = TUSSENRUIMTE[self.request.demarcation][self.surface_type]
-        self.edges[side].move_edge(move_distance, side)
-        return
+    def adjust_edges_to_veiligheidsruimte(self) -> None:
+        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, positive=True)
 
-    def adjust_edges_to_road(self):
-        if self.request.open_side == "L":
-            self.edges["L"].distance = +0.0
-        if self.request.open_side == "R":
-            self.edges["R"].distance = -0.0
-        return
+    def adjust_edges_to_road(self) -> None:
+        # TODO: Make exception when lane narrowing present
+        if not self.request.requires_lane_narrowing:
+            if self.request.open_side == "L":
+                self.edges["L"].distance = POS_ZERO
+            if self.request.open_side == "R":
+                self.edges["R"].distance = NEG_ZERO
 
-    def adjust_length_to_msis(self):
-        return  # TODO
+    def adjust_length_to_msis(self) -> None:
+        current_closest_higher_km = float("inf")
+        current_closest_lower_km = float("-inf")
+        msi_at_higher_km = None
+        msi_at_lower_km = None
+
+        if self.request.roadside == "R":
+            open_space_high_km = TUSSENRUIMTE_NA[WERKRUIMTE] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_low_km = TUSSENRUIMTE_VOOR[WERKRUIMTE] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+        else:
+            open_space_low_km = TUSSENRUIMTE_NA[WERKRUIMTE] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
+            open_space_high_km = TUSSENRUIMTE_VOOR[WERKRUIMTE] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+
+        for msi_info in self.request.roadmodel.get_points_info("MSI"):
+            if self.km[1] + open_space_high_km < msi_info.pos_eigs.km < current_closest_higher_km:
+                current_closest_higher_km = msi_info.pos_eigs.km
+                msi_at_higher_km = msi_info
+            if current_closest_lower_km < msi_info.pos_eigs.km < self.km[0] - open_space_low_km:
+                current_closest_lower_km = msi_info.pos_eigs.km
+                msi_at_lower_km = msi_info
+
+        if not msi_at_higher_km or not msi_at_lower_km:
+            raise NotImplementedError("Geen passende signalering gevonden.")
+
+        self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
+
+    def obtain_msis_inside(self) -> list:
+        # Determine fully covered lanes
+        if self.edges["L"].lane:
+            left_lane = self.edges["L"].lane if self.edges["L"].distance > 0.0 else self.edges["L"].lane + 1
+        else:
+            left_lane = 0 if self.edges["L"].distance < 0.0 else self.request.n_lanes
+        if self.edges["R"].lane:
+            right_lane = self.edges["R"].lane if self.edges["R"].distance < 0.0 else self.edges["R"].lane + 1
+        else:
+            right_lane = 0 if self.edges["R"].distance < 0.0 else self.request.n_lanes
+
+        covered_lanes = [lane_number for lane_number in range(left_lane, right_lane+1)]
+
+        # Determine MSI rows
+        msi_rows_inside = []
+        if self.request.roadside == "R":
+            for msi_info in self.request.roadmodel.get_points_info("MSI"):
+                if self.km[0] <= msi_info.pos_eigs.km < self.km[1]:
+                    msi_rows_inside.append((msi_info, covered_lanes))
+        else:  # roadside == "L"
+            for msi_info in self.request.roadmodel.get_points_info("MSI"):
+                if self.km[0] < msi_info.pos_eigs.km <= self.km[1]:
+                    msi_rows_inside.append((msi_info, covered_lanes))
+
+        # logger.info(msi_rows_inside)
+
+        return msi_rows_inside
+
+
+def adjust_edges_to(area_to_adjust_to, area, border_surface, positive: bool):
+    area.edges = deepcopy(area_to_adjust_to.edges)
+    move_distance = (1 if positive else -1) * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
+    area.edges[area.request.open_side].move_edge(move_distance, area.request.open_side)
+
+
+def adjust_length_to(area_to_adjust_to, area):
+    if area.request.roadside == "R":
+        open_space_high_km = TUSSENRUIMTE_NA[area.surface_type]
+        open_space_low_km = TUSSENRUIMTE_VOOR[area.surface_type]
+    else:
+        open_space_low_km = TUSSENRUIMTE_NA[area.surface_type]
+        open_space_high_km = TUSSENRUIMTE_VOOR[area.surface_type]
+
+    area.km = [round(area_to_adjust_to.km[0] + open_space_low_km, 3),
+               round(area_to_adjust_to.km[1] - open_space_high_km, 3)]
