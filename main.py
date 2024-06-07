@@ -7,7 +7,7 @@ from safety_areas import Rand, Aanvraag, AFZETTINGEN
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 
-locatie = "Vught"
+locatie = "Oosterhout"
 
 # ========= Gedefinieerde locaties =========
 # Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
@@ -71,6 +71,6 @@ if locatie == "Oosterhout":
                           hectoletter="",
                           korter_dan_24h=True,
                           randen={"L": Rand(rijstrook=1, afstand=0.2),
-                                  "R": Rand(rijstrook=1, afstand=-0.6)},
+                                  "R": Rand(rijstrook=1, afstand=-0.9)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
