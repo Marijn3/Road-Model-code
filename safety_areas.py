@@ -294,9 +294,13 @@ class Werkruimte:
 
         # Determine if expansion is not necessary. When the request goes all the way up
         # to a side of the road, expansion of the request does not need to be determined.
-        if (self.request.first_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]
-                or self.request.last_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]):
+        if self.request.first_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]:
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
+            self.request.open_side = "R"
+            return
+        if self.request.last_lane_nr in [self.request.edges["L"].lane, self.request.edges["R"].lane]:
+            logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid.")
+            self.request.open_side = "L"
             return
 
         self.request.open_side = self.determine_open_side()
