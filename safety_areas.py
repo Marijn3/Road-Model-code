@@ -339,24 +339,27 @@ class Werkruimte:
             side_of_road = "R"
             self.request.open_side = "L"
         elif self.edges["L"].distance <= 0 and self.edges["R"].distance <= 0:
+            crit_dist = -crit_dist  # Obtain positive distance
             side_of_road = "L"
             self.request.open_side = "R"
         else:
             raise Exception("Deze combinatie van randen is niet toegestaan.")
 
-        variable_edge = 1.50  # defined as 0.25-1.50 [m]
+        if not crit_dist >= 0.0:
+            logger.warning(f"Critical distance below 0 ({crit_dist}), this leads to erroneous behaviour.")
 
         if ((self.request.under_24h and side_of_road == "R" and 1.10 < crit_dist <= self.request.sphere_of_influence)
-                or (not self.request.under_24h and side_of_road == "L" and crit_dist < -0.25)
-                or (not self.request.under_24h and side_of_road == "R" and variable_edge < crit_dist <= 2.50)):
+                or (self.request.under_24h and side_of_road == "L" and 1.10 < crit_dist <= 3.50)
+                or (not self.request.under_24h and side_of_road == "L" and 0.25 < crit_dist)
+                or (not self.request.under_24h and side_of_road == "R" and 0.25 < crit_dist <= 2.50)):
             self.category = "A"
 
-        elif ((self.request.under_24h and side_of_road == "L" and -3.50 <= crit_dist)
+        elif ((self.request.under_24h and side_of_road == "L" and 0.0 <= crit_dist <= 1.1)
                 or (self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10)):
             self.category = "B"
 
-        elif ((not self.request.under_24h and side_of_road == "L" and -0.25 <= crit_dist <= 0.0)
-                or (not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= variable_edge)):
+        elif ((not self.request.under_24h and side_of_road == "L" and 0.0 <= crit_dist <= 0.25)
+                or (not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 0.25)):
             self.category = "C"
 
         else:
