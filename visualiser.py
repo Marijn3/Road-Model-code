@@ -194,18 +194,12 @@ class SvgMaker:
                 and section_info.verw_eigs.start_kenmerk[lane_nr] == "Uitrijstrook"):
             change_start = True
             point_to_displace = geom.coords[0]
-            if get_num_coordinates(geom) < 3:
-                delta_x = geom.coords[1][0] - geom.coords[0][0]
-                delta_y = geom.coords[1][1] - geom.coords[0][1]
-            elif get_num_coordinates(geom) < 4:
-                delta_x = geom.coords[2][0] - geom.coords[0][0]
-                delta_y = geom.coords[2][1] - geom.coords[0][1]
-            else:
-                delta_x = geom.coords[3][0] - geom.coords[0][0]
-                delta_y = geom.coords[3][1] - geom.coords[0][1]
-
+            id_upstream = section_info.verw_eigs.sectie_stroomopwaarts
+            other_geom = self.__wegmodel.sections[id_upstream].pos_eigs.geometrie
+            delta_x = other_geom.coords[-2][0] - geom.coords[1][0]
+            delta_y = other_geom.coords[-2][1] - geom.coords[1][1]
             # For the leftmost marking, the direction should be flipped.
-            if leftmost_marking:
+            if not leftmost_marking:
                 delta_x = -delta_x
                 delta_y = -delta_y
 
@@ -214,15 +208,10 @@ class SvgMaker:
                 section_info.verw_eigs.einde_kenmerk[lane_nr] == "Invoegstrook"):
             change_start = False
             point_to_displace = geom.coords[-1]
-            if get_num_coordinates(geom) < 3:
-                delta_x = geom.coords[-1][0] - geom.coords[-2][0]
-                delta_y = geom.coords[-1][1] - geom.coords[-2][1]
-            elif get_num_coordinates(geom) < 4:
-                delta_x = geom.coords[-1][0] - geom.coords[-3][0]
-                delta_y = geom.coords[-1][1] - geom.coords[-3][1]
-            else:
-                delta_x = geom.coords[-1][0] - geom.coords[-4][0]
-                delta_y = geom.coords[-1][1] - geom.coords[-4][1]
+            id_downstream = section_info.verw_eigs.sectie_stroomafwaarts
+            other_geom = self.__wegmodel.sections[id_downstream].pos_eigs.geometrie
+            delta_x = other_geom.coords[1][0] - geom.coords[-2][0]
+            delta_y = other_geom.coords[1][1] - geom.coords[-2][1]
         else:
             return geom
 
