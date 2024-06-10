@@ -79,11 +79,13 @@ class SvgMaker:
         self.__g_road = self.__dwg.add(self.__dwg.g(id="road"))
         self.__g_msi_relations = self.__dwg.add(self.__dwg.g(id="nametags_MSI"))  # Tag for visibility toggle in UI
         self.__g_points = self.__dwg.add(self.__dwg.g(id="points"))
+        self.__g_road_info = self.__dwg.add(self.__dwg.g(id="road_info"))
 
         # Visualise the image part by part
         self.__visualise_background()
         self.__visualise_roads()
         self.__visualise_msis()
+
         self.__save_image()
 
     def __visualise_background(self):
@@ -94,8 +96,22 @@ class SvgMaker:
 
     def __visualise_roads(self):
         logger.info("Sectiedata visualiseren...")
+        ids = []
         for section_id, section_info in self.__wegmodel.sections.items():
-            self.__svg_draw_section(section_id, section_info)
+            added = self.__svg_draw_section(section_id, section_info)
+            if added:
+                ids.append(section_id)
+
+        script_content = """
+        function showInfoBox(id) {
+            document.getElementById('SECTION_INFO_' + id).setAttribute('visibility', 'visible');
+        }
+        function hideInfoBox(id) {
+            document.getElementById('SECTION_INFO_' + id).setAttribute('visibility', 'hidden');
+        }
+        """
+        script_element = self.__dwg.script(content=script_content, type="application/ecmascript")
+        self.__dwg.defs.add(script_element)
 
     def __visualise_msis(self):
         logger.info("MSI-posities visualiseren...")
@@ -331,7 +347,22 @@ class SvgMaker:
         else:
             return LineString([coord for coord in line_geom.coords[:-2]] + [displaced_point.coords[0]])
 
-    def __svg_draw_section(self, section_id: int, section_info: ObjectInfo):
+    def __svg_draw_section_info(self, section_id: int, section_info: ObjectInfo):
+        origin = self.__get_flipped_coords(centroid(section_info.pos_eigs.geometrie))[0]
+        g_infobox = self.__g_road_info.add(self.__dwg.g(id=f"SECTION_INFO_{section_id}", visibility="hidden"))
+
+        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(120, 50),
+                                  fill="white", stroke="black", stroke_width=self.__BASE_STROKE)
+        g_infobox.add(textbox)
+
+        lines = make_info_text(section_info)
+        for nr, line in enumerate(lines):
+            text = self.__dwg.text(line,
+                                   insert=(origin[0]+2, origin[1]+5+5*nr), font_size=self.__TEXT_SIZE/2,
+                                   fill="black", font_family="Arial", dominant_baseline="central")
+            g_infobox.add(text)
+
+    def __svg_draw_section(self, section_id: int, section_info: ObjectInfo) -> bool:
         points_on_line = self.__check_points_on_line(section_id)
 
         if points_on_line:
@@ -347,7 +378,7 @@ class SvgMaker:
 
         if n_main_lanes < 1 or n_total_lanes < 1:
             # These sections are not added. This is fine, because they fall outside the visualisation frame.
-            return
+            return False
 
         # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
         offset = self.__LANE_WIDTH * (n_lanes_left - n_lanes_right) / 2
@@ -356,12 +387,21 @@ class SvgMaker:
         color = self.__get_road_color(section_info)
         width = self.__LANE_WIDTH * n_total_lanes
 
-        self.__g_road.add(self.__dwg.polyline(points=asphalt_coords, stroke=color, fill="none", stroke_width=width))
+        self.__g_road.add(
+            self.__dwg.polyline(
+                id=f"SECTION_{section_id}",
+                points=asphalt_coords, stroke=color, fill="none", stroke_width=width,
+                onmouseover=f"showInfoBox({section_id})", onmouseout=f"hideInfoBox({section_id})"
+            )
+        )
 
         should_have_marking = color not in [self.__C_TRANSPARENT]
 
         if should_have_marking:
             self.__determine_lane_marking(section_info, adjusted_geom)
+
+        self.__svg_draw_section_info(section_id, section_info)
+        return True
 
     def __determine_lane_marking(self, section_info: ObjectInfo,geom: LineString):
         lane_numbers = sorted([nr for nr, lane in section_info.obj_eigs.items() if isinstance(nr, int)])
@@ -765,3 +805,9 @@ def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
     if pos_eigs.hectoletter:
         return f"{pos_eigs.wegnummer} {pos_eigs.km} {pos_eigs.hectoletter}"
     return f"{pos_eigs.wegnummer}  {pos_eigs.km} {pos_eigs.rijrichting}"
+
+
+def make_info_text(section_info: ObjectInfo) -> list[str]:
+    return ([f"Sectie op {section_info.pos_eigs.wegnummer}{section_info.pos_eigs.rijrichting}, {section_info.pos_eigs.km} km",
+            f"Eigenschappen:"] + [f"{lane_number}: {lane_info}" for lane_number, lane_info in section_info.obj_eigs.items()])
+    # [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}", f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
