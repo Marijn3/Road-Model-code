@@ -179,13 +179,19 @@ class SvgMaker:
             return self.__get_flipped_coords(offset_geom)
 
     def __adjust_line_ends(self, section_info: ObjectInfo, geom: LineString, lane_nr: int) -> LineString:
+        if lane_nr == 0:
+            leftmost_marking = True
+            lane_nr = 1
+        else:
+            leftmost_marking = False
+
         if not lane_nr or (lane_nr not in section_info.verw_eigs.start_kenmerk
                            and lane_nr not in section_info.verw_eigs.einde_kenmerk):
             return geom
 
-        if (lane_nr in section_info.verw_eigs.start_kenmerk
+        # Move first point of line
+        if (lane_nr in section_info.verw_eigs.start_kenmerk and (lane_nr != 1 or leftmost_marking)
                 and section_info.verw_eigs.start_kenmerk[lane_nr] == "Uitrijstrook"):
-            # Move first point
             change_start = True
             point_to_displace = geom.coords[0]
             if get_num_coordinates(geom) < 3:
@@ -197,9 +203,15 @@ class SvgMaker:
             else:
                 delta_x = geom.coords[3][0] - geom.coords[0][0]
                 delta_y = geom.coords[3][1] - geom.coords[0][1]
+
+            # For the leftmost marking, the direction should be flipped.
+            if leftmost_marking:
+                delta_x = -delta_x
+                delta_y = -delta_y
+
+        # Move last point of line
         elif (lane_nr in section_info.verw_eigs.einde_kenmerk and
                 section_info.verw_eigs.einde_kenmerk[lane_nr] == "Invoegstrook"):
-            # Move last point
             change_start = False
             point_to_displace = geom.coords[-1]
             if get_num_coordinates(geom) < 3:
@@ -424,7 +436,7 @@ class SvgMaker:
             last_lane_nr = lane_numbers[-2]
 
         # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
-        line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0))
+        line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), 0)
         if section_info.obj_eigs[first_lane_nr] not in ["Vluchtstrook"]:
             self.__draw_markerline(line_coords)
         # Also add puntstuk if it is the very first registration
