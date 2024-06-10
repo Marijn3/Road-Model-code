@@ -143,7 +143,8 @@ class SvgMaker:
         """
         return [(coord[0], self.__north - (coord[1] - self.__north)) for coord in geom.coords]
 
-    def __get_offset_coords(self, geom: LineString, offset: float = 0) -> list[tuple]:
+    def __get_offset_coords(self, section_info: ObjectInfo, geom: LineString,
+                            offset: float = 0, lane_nr: int = None) -> list[tuple]:
         """
         Offsets LineString geometries by a given value and returns the coordinates.
         Also flips the geometries for visualisation.
@@ -154,11 +155,69 @@ class SvgMaker:
         Returns:
             List of coordinates making up the offset geometry.
         """
+        geom = self.__adjust_line_ends(section_info, geom, lane_nr)
         if offset == 0:
             return self.__get_flipped_coords(geom)
         else:
             offset_geom = offset_curve(geom, offset, join_style="mitre", mitre_limit=5)
             return self.__get_flipped_coords(offset_geom)
+
+    def __adjust_line_ends(self, section_info: ObjectInfo, geom: LineString, lane_nr: int) -> LineString:
+        if not lane_nr or (lane_nr not in section_info.verw_eigs.start_kenmerk
+                           and lane_nr not in section_info.verw_eigs.einde_kenmerk):
+            return geom
+
+        if (lane_nr in section_info.verw_eigs.start_kenmerk
+                and section_info.verw_eigs.start_kenmerk[lane_nr] == "Uitrijstrook"):
+            # Move first point
+            change_start = True
+            point_to_displace = geom.coords[0]
+            if get_num_coordinates(geom) < 3:
+                delta_x = geom.coords[1][0] - geom.coords[0][0]
+                delta_y = geom.coords[1][1] - geom.coords[0][1]
+            elif get_num_coordinates(geom) < 4:
+                delta_x = geom.coords[2][0] - geom.coords[0][0]
+                delta_y = geom.coords[2][1] - geom.coords[0][1]
+            else:
+                delta_x = geom.coords[3][0] - geom.coords[0][0]
+                delta_y = geom.coords[3][1] - geom.coords[0][1]
+        elif (lane_nr in section_info.verw_eigs.einde_kenmerk and
+                section_info.verw_eigs.einde_kenmerk[lane_nr] == "Invoegstrook"):
+            # Move last point
+            change_start = False
+            point_to_displace = geom.coords[-1]
+            if get_num_coordinates(geom) < 3:
+                delta_x = geom.coords[-1][0] - geom.coords[-2][0]
+                delta_y = geom.coords[-1][1] - geom.coords[-2][1]
+            elif get_num_coordinates(geom) < 4:
+                delta_x = geom.coords[-1][0] - geom.coords[-3][0]
+                delta_y = geom.coords[-1][1] - geom.coords[-3][1]
+            else:
+                delta_x = geom.coords[-1][0] - geom.coords[-4][0]
+                delta_y = geom.coords[-1][1] - geom.coords[-4][1]
+        else:
+            return geom
+
+        angle_rad = math.atan2(delta_y, delta_x)
+        tangent_vector = [-math.sin(angle_rad), math.cos(angle_rad)]
+
+        displacement = self.__LANE_WIDTH
+
+        displaced_point = Point(point_to_displace[0] + tangent_vector[0] * displacement,
+                                point_to_displace[1] + tangent_vector[1] * displacement)
+
+        if get_num_coordinates(geom) < 3:
+            if change_start:
+                return LineString([displaced_point.coords[0]] + [coord for coord in geom.coords[1:]])
+            else:
+                return LineString([coord for coord in geom.coords[:-1]] + [displaced_point.coords[0]])
+
+        # For section geometries with at least three points, the second (to last) point is removed.
+        # This improves the geometry visualisation.
+        if change_start:
+            return LineString([displaced_point.coords[0]] + [coord for coord in geom.coords[2:]])
+        else:
+            return LineString([coord for coord in geom.coords[:-2]] + [displaced_point.coords[0]])
 
     def __check_points_on_line(self, sid: int) -> list[ObjectInfo]:
         """
@@ -168,7 +227,6 @@ class SvgMaker:
         Returns:
             ObjectInfo of all *vergence points on the section in a list
         """
-        #
         points_info = []
         for point_info in self.__wegmodel.get_points_info("*vergentie"):
             if sid in point_info.verw_eigs.sectie_ids:
@@ -277,9 +335,9 @@ class SvgMaker:
         points_on_line = self.__check_points_on_line(section_id)
 
         if points_on_line:
-            geom = self.__get_changed_geometry(section_id, section_info, points_on_line)
+            adjusted_geom = self.__get_changed_geometry(section_id, section_info, points_on_line)
         else:
-            geom = section_info.pos_eigs.geometrie
+            adjusted_geom = section_info.pos_eigs.geometrie
 
         n_main_lanes, n_total_lanes = self.__wegmodel.get_n_lanes(section_info.obj_eigs)
 
@@ -294,7 +352,7 @@ class SvgMaker:
         # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
         offset = self.__LANE_WIDTH * (n_lanes_left - n_lanes_right) / 2
 
-        asphalt_coords = self.__get_offset_coords(geom, offset)
+        asphalt_coords = self.__get_offset_coords(section_info, adjusted_geom, offset)
         color = self.__get_road_color(section_info)
         width = self.__LANE_WIDTH * n_total_lanes
 
@@ -303,11 +361,10 @@ class SvgMaker:
         should_have_marking = color not in [self.__C_TRANSPARENT]
 
         if should_have_marking:
-            self.__determine_lane_marking(geom, section_info)
+            self.__determine_lane_marking(section_info, adjusted_geom)
 
-    def __determine_lane_marking(self, geom: LineString, section_info: ObjectInfo):
-        prop = section_info.obj_eigs
-        lane_numbers = sorted([nr for nr, lane in prop.items() if isinstance(nr, int)])
+    def __determine_lane_marking(self, section_info: ObjectInfo,geom: LineString):
+        lane_numbers = sorted([nr for nr, lane in section_info.obj_eigs.items() if isinstance(nr, int)])
 
         # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
         marking_offsets = [(self.__LANE_WIDTH * section_info.verw_eigs.aantal_hoofdstroken) / 2
@@ -321,15 +378,15 @@ class SvgMaker:
         next_lane = None
 
         # Exclude puntstuk from counting as the last lane
-        if prop[last_lane_nr] == "Puntstuk":
+        if section_info.obj_eigs[last_lane_nr] == "Puntstuk":
             last_lane_nr = lane_numbers[-2]
 
         # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
-        line_coords = self.__get_offset_coords(geom, marking_offsets.pop(0))
-        if prop[first_lane_nr] not in ["Vluchtstrook"]:
+        line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0))
+        if section_info.obj_eigs[first_lane_nr] not in ["Vluchtstrook"]:
             self.__draw_markerline(line_coords)
         # Also add puntstuk if it is the very first registration
-        if prop[first_lane_nr] == "Puntstuk":
+        if section_info.obj_eigs[first_lane_nr] == "Puntstuk":
             if section_info.verw_eigs.vergentiepunt_start:
                 self.__draw_markerline(line_coords, "Punt-start", direction=-1)
             elif section_info.verw_eigs.vergentiepunt_einde:
@@ -339,8 +396,8 @@ class SvgMaker:
         for this_lane_number in lane_numbers[:-1]:
             next_lane_number = this_lane_number + 1
 
-            this_lane = prop[this_lane_number]
-            next_lane = prop[next_lane_number]
+            this_lane = section_info.obj_eigs[this_lane_number]
+            next_lane = section_info.obj_eigs[next_lane_number]
 
             # Puntstuk has already been drawn
             if this_lane == "Puntstuk":
@@ -348,7 +405,7 @@ class SvgMaker:
 
             # A puntstuk that is not the first lane, is the final lane.
             if next_lane == "Puntstuk":
-                line_coords = self.__get_offset_coords(geom, marking_offsets.pop(0))
+                line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
                 self.__draw_markerline(line_coords)
                 if section_info.verw_eigs.vergentiepunt_start:
                     self.__draw_markerline(line_coords, "Punt-start", direction=1)
@@ -357,7 +414,7 @@ class SvgMaker:
                 break
 
             # Puntstuk cases have been handled, now the normal cases.
-            line_coords = self.__get_offset_coords(geom, marking_offsets.pop(0))
+            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
 
             # An emergency lane is demarcated with a solid line.
             if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
@@ -385,7 +442,7 @@ class SvgMaker:
 
         # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
         # Spitsstrook has special lane marking.
-        line_coords = self.__get_offset_coords(geom, marking_offsets.pop(0))
+        line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), last_lane_nr)
         if next_lane == "Spitsstrook":
             self.__draw_markerline(line_coords, "Dun")
         elif next_lane not in ["Vluchtstrook", "Puntstuk"]:
