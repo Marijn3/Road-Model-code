@@ -1380,6 +1380,7 @@ class WegModel:
 
         angles = []
         for line in overlapping_lines:
+            # TODO: speed up using shapely.boundary()
             line_points = [point for point in line.pos_eigs.geometrie.coords]
             closest_point = min(line_points, key=lambda coord: distance(point_geom, Point(coord)))
             closest_index = line_points.index(closest_point)
