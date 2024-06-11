@@ -616,7 +616,7 @@ class WegModel:
             # logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
             return
 
-        logger.debug(f"Overlapping with {new_info}: {overlap_sections}")
+        logger.debug(f"Overlap tussen {new_info} en secties:\n{overlap_sections}")
 
         other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
@@ -630,14 +630,18 @@ class WegModel:
         sections_to_remove = set()
 
         while True:
-            if not self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs):
+            # If checks fail -> extraction of next section
+            overlap_geometry = self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs)
+            if not overlap_geometry:
                 if not overlap_sections:
                     break
-                else:
-                    other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
+                other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
             if self.__section_combination_invalid(new_info, other_info):
-                continue
+                continue  # Go through above checks again
+
+            logger.debug(f"remaining new geom: {new_info.pos_eigs.km} {new_info.pos_eigs.geometrie}")
+            logger.debug(f"remaining other geom: {other_info.pos_eigs.km} {other_info.pos_eigs.geometrie}")
 
             right_side = other_info.pos_eigs.rijrichting == "R"
             left_side = other_info.pos_eigs.rijrichting == "L"
@@ -647,6 +651,8 @@ class WegModel:
 
             other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
                                   (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
+
+            logger.debug(f"path 1: {new_section_first} {other_section_first}")
 
             if new_section_first:
                 self.__add_differing_part(new_info, other_info, right_side, reference_info=other_info)
@@ -661,9 +667,12 @@ class WegModel:
                 new_section_ends_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
                                         (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
 
+                logger.debug(f"path 2: {other_section_ends_last} {new_section_ends_last}")
+
                 if other_section_ends_last:
-                    remaining_km, remaining_geom = (self.__add_overlapping_part(new_info, other_info, right_side,
-                                                    reference_info=other_info, first_ending_info=new_info))
+                    remaining_km, remaining_geom = (
+                        self.__add_overlapping_part(new_info, other_info, right_side, reference_info=other_info,
+                                                    first_ending_info=new_info, overlapping_geom=overlap_geometry))
 
                     self.__update_section(other_section_index,
                                           new_km=remaining_km,
@@ -671,8 +680,9 @@ class WegModel:
                     break  # This is the final iteration.
 
                 elif new_section_ends_last:
-                    remaining_km, remaining_geom = (self.__add_overlapping_part(other_info, new_info, right_side,
-                                                    reference_info=other_info, first_ending_info=other_info))
+                    remaining_km, remaining_geom = (
+                        self.__add_overlapping_part(other_info, new_info, right_side, reference_info=other_info,
+                                                    first_ending_info=other_info, overlapping_geom=overlap_geometry))
 
                     new_info.pos_eigs.km = remaining_km
                     new_info.pos_eigs.geometrie = remaining_geom
@@ -753,7 +763,8 @@ class WegModel:
             self.__get_first_remainder(first_section_info.pos_eigs.geometrie, differering_geom))
 
     def __add_overlapping_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo, right_side: bool,
-                               reference_info: ObjectInfo, first_ending_info: ObjectInfo) -> tuple[list, LineString]:
+                               reference_info: ObjectInfo, first_ending_info: ObjectInfo,
+                               overlapping_geom: LineString) -> tuple[list, LineString]:
         """
         Creates a section covering the common part between the provided sections.
         Both object properties are applied, other positional properties are copied
@@ -772,7 +783,6 @@ class WegModel:
             km_bereik = [min(first_section_info.pos_eigs.km), max(first_ending_info.pos_eigs.km)]
         else:
             km_bereik = [max(first_section_info.pos_eigs.km), min(first_ending_info.pos_eigs.km)]
-        overlapping_geom = self.__get_overlap(first_section_info.pos_eigs, second_section_info.pos_eigs)
 
         self.__add_section(
             ObjectInfo(
@@ -808,10 +818,10 @@ class WegModel:
             return True
 
         if is_empty(new_info.pos_eigs.geometrie):
-            logger.warning(f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}")
+            logger.warning(f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}. Kloppen de km-registraties?")
             return True
         if is_empty(other_info.pos_eigs.geometrie):
-            logger.warning(f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}")
+            logger.warning(f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}. Kloppen de km-registraties?")
             return True
 
         return False
@@ -827,8 +837,8 @@ class WegModel:
             provided sections. If there are two options, the first remainder
             option is returned, based on the directional order of geom1.
         """
-        assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}"
-        assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}"
+        assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}. Kloppen de km-registraties?"
+        assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}. Kloppen de km-registraties?"
 
         if self.__check_geometry_equality(geom1, geom2):
             raise AssertionError(f"Geometrieën zijn exact aan elkaar gelijk:\n"
@@ -841,8 +851,8 @@ class WegModel:
             return diff
         elif isinstance(diff, MultiLineString) and not diff.is_empty:
             diffs = [geom for geom in diff.geoms]
-            # if get_num_geometries(diff) > 2:
-            #     logger.warning(f"Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}")
+            if get_num_geometries(diff) > 2:
+                logger.warning(f"Meer dan 2 geometrieën resterend. Extra geometrieën: {diffs[2:]}")
             # Return the first geometry (directional order of geom1 is maintained)
             return diffs[0]
         else:
@@ -895,9 +905,29 @@ class WegModel:
         if not determine_range_overlap(pos1.km, pos2.km):
             return None
 
-        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=CALCULATION_PRECISION)
+        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=0.1*CALCULATION_PRECISION)
+        logger.debug(f"test1: {overlap_geometry}")
+
+        if isinstance(overlap_geometry, Point):
+            overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=CALCULATION_PRECISION)
+            logger.debug(f"test2: {overlap_geometry}")
+
+        if isinstance(overlap_geometry, Point):
+            overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=10*CALCULATION_PRECISION)
+            logger.debug(f"test3: {overlap_geometry}")
+
+        # logger.warning(f"Overlap is geen lijn tussen {pos1.geometrie} en {pos2.geometrie}")
+        # if pos1.geometrie.length > pos2.geometrie.length:
+        #     a = line_locate_point(pos1.geometrie, Point(pos2.geometrie.coords[-1]), normalized=True)
+        #     point = line_interpolate_point(pos1.geometrie, a, normalized=True)
+        #     logger.debug(f"{a} {point}")
+        # elif pos1.geometrie.length < pos2.geometrie.length:
+        #     a = line_locate_point(pos2.geometrie, Point(pos1.geometrie.coords[-1]), normalized=True)
+        #     point = line_interpolate_point(pos2.geometrie, a, normalized=True)
+        #     logger.debug(f"{a} {point}")
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
+            logger.debug(line_merge(overlap_geometry))
             return line_merge(overlap_geometry)
         elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return overlap_geometry
@@ -984,6 +1014,10 @@ class WegModel:
         """
         if not new_section.pos_eigs.geometrie or is_empty(new_section.pos_eigs.geometrie):
             logger.warning(f"Poging om een lege lijngeometrie toe te voegen: {new_section.pos_eigs.geometrie}")
+            return
+
+        if isinstance(new_section.pos_eigs.geometrie, MultiLineString):
+            logger.warning(f"Een Multilinestring kan niet worden toegevoegd: {new_section.pos_eigs.geometrie}")
             return
 
         self.sections[self.__section_index] = new_section
