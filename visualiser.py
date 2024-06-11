@@ -37,6 +37,7 @@ markeringen = {
         VLUCHTSTROOK: GEEN_STREEP,
         SPITSSTROOK_LINKS: KANTSTREEP,
         RIJSTROOK: KANTSTREEP,
+        SPLITSING: KANTSTREEP,
         UITRIJSTROOK: KANTSTREEP,
     },
     VLUCHTSTROOK: {
@@ -61,6 +62,7 @@ markeringen = {
     SPLITSING: {
         GEEN_STROOK: KANTSTREEP,
         VLUCHTSTROOK: KANTSTREEP,
+        RIJSTROOK: BLOKSTREEP,
         SPLITSING: DEELSTREEP_3_9,
         INVOEGSTROOK: BLOKSTREEP,
         UITRIJSTROOK: BLOKSTREEP,
@@ -450,18 +452,20 @@ class SvgMaker:
 
     def __svg_draw_section_info(self, section_id: int, section_info: ObjectInfo):
         origin = self.__get_flipped_coords(centroid(section_info.pos_eigs.geometrie))[0]
+        lines = make_info_text(section_info)
+
+        height = 6 * (len(lines) + 1)
         g_infobox = self.__g_road_info.add(self.__dwg.g(id=f"SECTION_INFO_{section_id}", visibility="hidden",
                                                         onmouseover=f"showInfoBox({section_id})",
                                                         onmouseout=f"hideInfoBox({section_id})"))
 
-        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(120, 60),
+        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(120, height),
                                   fill="white", stroke="black", stroke_width=self.__BASE_STROKE)
         g_infobox.add(textbox)
 
-        lines = make_info_text(section_info)
         for nr, line in enumerate(lines):
             text = self.__dwg.text(line,
-                                   insert=(origin[0]+2, origin[1]+5+6*nr), font_size=self.__TEXT_SIZE/2,
+                                   insert=(origin[0]+2, origin[1]+4.5+6*nr), font_size=self.__TEXT_SIZE/2,
                                    fill="black", font_family="Arial", dominant_baseline="central")
             g_infobox.add(text)
 
@@ -538,10 +542,8 @@ class SvgMaker:
                     break
                 continue
 
+            logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
-
-            logger.info(f"{left_lane_type} + {right_lane_type} geeft {lane_marking_type}")
-
             self.__draw_markerline(line_coords, lane_marking_type)
 
     @staticmethod
