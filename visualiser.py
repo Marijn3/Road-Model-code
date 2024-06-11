@@ -2,10 +2,110 @@ from road_model import WegModel, ObjectInfo, PositieEigenschappen
 from msi_relations import MSINetwerk, MSIRow
 import svgwrite
 import os
+from enum import Enum
 from shapely import *
 from utils import *
 
 logger = logging.getLogger(__name__)
+
+# Stroken
+GEEN_STROOK = "Geen-strook"
+VLUCHTSTROOK = "Vluchtstrook"
+SPITSSTROOK_LINKS = "Spitsstrook-links"
+RIJSTROOK = "Rijstrook"
+SPLITSING = "Splitsing"
+SAMENVOEGING = "Samenvoeging"
+INVOEGSTROOK = "Invoegstrook"
+UITRIJSTROOK = "Uitrijstrook"
+WEEFSTROOK = "Weefstrook"
+SPITSSTROOK_RECHTS_NIET_LAATSTE = "Spitsstrook-rechts-niet-laatste"
+SPITSSTROOK_RECHTS_LAATSTE = "Spitsstrook-rechts-laatste"
+
+# Strepen
+KANTSTREEP = 100
+BLOKSTREEP = 101
+SMALLE_KANTSTREEP = 102
+DEELSTREEP_3_9 = 103
+DEELSTREEP_9_3 = 104
+GEEN_STREEP = 105
+PUNTSTUK_START = 106
+PUNTSTUK_EINDE = 107
+PUNTSTUK_BREED = 108
+
+markeringen = {
+    GEEN_STROOK: {
+        VLUCHTSTROOK: GEEN_STREEP,
+        SPITSSTROOK_LINKS: KANTSTREEP,
+        RIJSTROOK: KANTSTREEP,
+        UITRIJSTROOK: KANTSTREEP,
+    },
+    VLUCHTSTROOK: {
+        GEEN_STROOK: GEEN_STREEP,
+        RIJSTROOK: KANTSTREEP,
+    },
+    SPITSSTROOK_LINKS: {
+        RIJSTROOK: DEELSTREEP_9_3,
+    },
+    RIJSTROOK: {
+        GEEN_STROOK: KANTSTREEP,
+        VLUCHTSTROOK: KANTSTREEP,
+        RIJSTROOK: DEELSTREEP_3_9,
+        SPLITSING: BLOKSTREEP,
+        SAMENVOEGING: BLOKSTREEP,
+        INVOEGSTROOK: BLOKSTREEP,
+        UITRIJSTROOK: BLOKSTREEP,
+        WEEFSTROOK: BLOKSTREEP,
+        SPITSSTROOK_RECHTS_NIET_LAATSTE: BLOKSTREEP,
+        SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
+    },
+    SPLITSING: {
+        GEEN_STROOK: KANTSTREEP,
+        VLUCHTSTROOK: KANTSTREEP,
+        SPLITSING: DEELSTREEP_3_9,
+        INVOEGSTROOK: BLOKSTREEP,
+        UITRIJSTROOK: BLOKSTREEP,
+        WEEFSTROOK: BLOKSTREEP,
+        SPITSSTROOK_RECHTS_NIET_LAATSTE: BLOKSTREEP,
+        SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
+    },
+    SAMENVOEGING: {
+        GEEN_STROOK: KANTSTREEP,
+        VLUCHTSTROOK: KANTSTREEP,
+        SAMENVOEGING: DEELSTREEP_3_9,
+        INVOEGSTROOK: BLOKSTREEP,
+        UITRIJSTROOK: BLOKSTREEP,
+        WEEFSTROOK: BLOKSTREEP,
+        SPITSSTROOK_RECHTS_NIET_LAATSTE: BLOKSTREEP,
+        SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
+    },
+    INVOEGSTROOK: {
+        GEEN_STROOK: KANTSTREEP,
+        VLUCHTSTROOK: KANTSTREEP,
+        INVOEGSTROOK: DEELSTREEP_3_9,
+        # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
+    },
+    UITRIJSTROOK: {
+        GEEN_STROOK: KANTSTREEP,
+        VLUCHTSTROOK: KANTSTREEP,
+        RIJSTROOK: BLOKSTREEP,
+        UITRIJSTROOK: DEELSTREEP_3_9,
+        # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
+    },
+    WEEFSTROOK: {
+        GEEN_STROOK: KANTSTREEP,
+        VLUCHTSTROOK: KANTSTREEP,
+        WEEFSTROOK: DEELSTREEP_3_9,
+        # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
+    },
+    SPITSSTROOK_RECHTS_NIET_LAATSTE: {
+        INVOEGSTROOK: BLOKSTREEP,
+        UITRIJSTROOK: BLOKSTREEP,
+        WEEFSTROOK: BLOKSTREEP,
+    },
+    SPITSSTROOK_RECHTS_LAATSTE: {
+        GEEN_STROOK: SMALLE_KANTSTREEP,
+    },
+}
 
 
 class SvgMaker:
@@ -406,105 +506,168 @@ class SvgMaker:
         self.__svg_draw_section_info(section_id, section_info)
         return True
 
-    def __determine_lane_marking(self, section_info: ObjectInfo,geom: LineString):
+    def __determine_lane_marking(self, section_info: ObjectInfo, geom: LineString):
         lane_numbers = sorted([nr for nr, lane in section_info.obj_eigs.items() if isinstance(nr, int)])
+
+        if self.__wegmodel.find_gap(lane_numbers):
+            return  # Lane markings cannot be drawn in this case.
 
         # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
         marking_offsets = [(self.__LANE_WIDTH * section_info.verw_eigs.aantal_hoofdstroken) / 2
                            + self.__LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
                            - self.__LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
-        # TODO: Replace with approach using lane marking table.
+        lane_numbering = lane_numbers.copy()
+        lane_numbering.insert(0, 0)
 
-        first_lane_nr = lane_numbers[0]
-        last_lane_nr = lane_numbers[-1]
-        next_lane = None
+        logger.info(f"Handling this: {section_info}")
 
-        # Exclude puntstuk from counting as the last lane
-        if section_info.obj_eigs[last_lane_nr] == "Puntstuk":
-            last_lane_nr = lane_numbers[-2]
+        for lane_number in lane_numbering:
+            left_lane_number = lane_number
+            right_lane_number = lane_number + 1
 
-        # Add first solid marking (leftmost), except when the first lane is a vluchtstrook.
-        line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), 0)
-        if section_info.obj_eigs[first_lane_nr] not in ["Vluchtstrook"]:
-            self.__draw_markerline(line_coords)
-        # Also add puntstuk if it is the very first registration
-        if section_info.obj_eigs[first_lane_nr] == "Puntstuk":
-            if section_info.verw_eigs.vergentiepunt_start:
-                self.__draw_markerline(line_coords, "Punt-start", direction=-1)
-            elif section_info.verw_eigs.vergentiepunt_einde:
-                self.__draw_markerline(line_coords, "Punt-einde", direction=-1)
+            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), left_lane_number)
 
-        # Add middle markings. All of these markings have a this_lane and a next_lane
-        for this_lane_number in lane_numbers[:-1]:
-            next_lane_number = this_lane_number + 1
+            # Determine lane names left and right of the marking
+            left_lane_type = self.__determine_lane_name(section_info.obj_eigs, left_lane_number)
+            right_lane_type = self.__determine_lane_name(section_info.obj_eigs, right_lane_number)
 
-            this_lane = section_info.obj_eigs[this_lane_number]
-            next_lane = section_info.obj_eigs[next_lane_number]
-
-            # Puntstuk has already been drawn
-            if this_lane == "Puntstuk":
+            if left_lane_type == GEEN_STROOK and right_lane_type == GEEN_STROOK:
                 continue
 
-            # A puntstuk that is not the first lane, is the final lane.
-            if next_lane == "Puntstuk":
-                line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
-                self.__draw_markerline(line_coords)
-                if section_info.verw_eigs.vergentiepunt_start:
-                    self.__draw_markerline(line_coords, "Punt-start", direction=1)
-                elif section_info.verw_eigs.vergentiepunt_einde:
-                    self.__draw_markerline(line_coords, "Punt-einde", direction=1)
-                break
+            if left_lane_type == "Puntstuk" or right_lane_type == "Puntstuk":
+                self.__handle_puntstuk(section_info, line_coords, right_lane_type)
+                if right_lane_type == "Puntstuk":
+                    break
+                continue
 
-            # Puntstuk cases have been handled, now the normal cases.
-            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
+            lane_marking_type = markeringen[left_lane_type][right_lane_type]
 
-            # An emergency lane is demarcated with a solid line.
-            if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
-                self.__draw_markerline(line_coords)
+            logger.info(f"{left_lane_type} + {right_lane_type} geeft {lane_marking_type}")
 
-            # A plus lane is demarcated with a 9-3 dashed line.
-            elif this_lane == "Plusstrook":
-                self.__draw_markerline(line_coords, "Streep-9-3")
+            self.__draw_markerline(line_coords, lane_marking_type)
 
-            # If the next lane is a samenvoeging, use normal dashed lane marking. TODO: Why??
-            # elif next_lane == "Samenvoeging":
-            #     self.__draw_markerline(line_coords, "Streep-3-9")
+        # TODO: Replace with approach using lane marking table.
+        # first_lane_nr = lane_numbers[0]
+        # last_lane_nr = lane_numbers[-1]
+        # next_lane = None
+        #
+        # # Exclude puntstuk from counting as the last lane
+        # if section_info.obj_eigs[last_lane_nr] == "Puntstuk":
+        #     last_lane_nr = lane_numbers[-2]
+        #
+        # # Add first solid marking (leftmost), except when the first lane is a vlucht
+        #
+        # if section_info.obj_eigs[first_lane_nr] not in ["Vluchtstrook"]:
+        #     self.__draw_markerline(line_coords, KANTSTREEP)
+        # # Also add puntstuk if it is the very first registration
+        # if section_info.obj_eigs[first_lane_nr] == "Puntstuk":
+        #     if section_info.verw_eigs.vergentiepunt_start:
+        #         self.__draw_markerline(line_coords, PUNTSTUK_START, direction=-1)
+        #     elif section_info.verw_eigs.vergentiepunt_einde:
+        #         self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=-1)
+        #
+        # # Add middle markings. All of these markings have a this_lane and a next_lane
+        # for this_lane_number in lane_numbers[:-1]:
+        #     next_lane_number = this_lane_number + 1
+        #
+        #     this_lane = section_info.obj_eigs[this_lane_number]
+        #     next_lane = section_info.obj_eigs[next_lane_number]
+        #
+        #     # Puntstuk has already been drawn
+        #     if this_lane == "Puntstuk":
+        #         continue
+        #
+        #     # A puntstuk that is not the first lane, is the final lane.
+        #     if next_lane == "Puntstuk":
+        #         line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
+        #         self.__draw_markerline(line_coords, KANTSTREEP)
+        #         if section_info.verw_eigs.vergentiepunt_start:
+        #             self.__draw_markerline(line_coords, PUNTSTUK_START, direction=1)
+        #         elif section_info.verw_eigs.vergentiepunt_einde:
+        #             self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=1)
+        #         break
+        #
+        #     # Puntstuk cases have been handled, now the normal cases.
+        #     line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
+        #
+        #     # An emergency lane is demarcated with a solid line.
+        #     if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
+        #         self.__draw_markerline(line_coords, KANTSTREEP)
+        #
+        #     # A plus lane is demarcated with a 9-3 dashed line.
+        #     elif this_lane == "Plusstrook":
+        #         self.__draw_markerline(line_coords, DEELSTREEP_9_3)
+        #
+        #     # If the next lane is a samenvoeging, use normal dashed lane marking. TODO: Why??
+        #     # elif next_lane == "Samenvoeging":
+        #     #     self.__draw_markerline(line_coords, "Streep-3-9")
+        #
+        #     # A rush hour lane (on the final lane) has special lines.
+        #     elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
+        #         self.__draw_markerline(line_coords, KANTSTREEP)
+        #
+        #     # All other lanes are separated by dashed lines.
+        #     elif this_lane == next_lane:
+        #         self.__draw_markerline(line_coords, DEELSTREEP_3_9)
+        #
+        #     # If the lane types are not the same, block markings are used.
+        #     else:
+        #         self.__draw_markerline(line_coords, BLOKSTREEP)
+        #
+        # # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
+        # # Spitsstrook has special lane marking.
+        # line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), last_lane_nr)
+        # if next_lane == "Spitsstrook":
+        #     self.__draw_markerline(line_coords, SMALLE_KANTSTREEP)
+        # elif next_lane not in ["Vluchtstrook", "Puntstuk"]:
+        #     self.__draw_markerline(line_coords, KANTSTREEP)
 
-            # A rush hour lane (on the final lane) has special lines.
-            elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
-                self.__draw_markerline(line_coords)
-
-            # All other lanes are separated by dashed lines.
-            elif this_lane == next_lane:
-                self.__draw_markerline(line_coords, "Streep-3-9")
-
-            # If the lane types are not the same, block markings are used.
+    def __determine_lane_name(self, lanes: dict, lane_number: int) -> str:
+        if lane_number not in lanes:
+            return GEEN_STROOK
+        elif lanes[lane_number] == "Spitsstrook":
+            if lane_number == 1:
+                return SPITSSTROOK_LINKS
+            elif lane_number + 1 not in lanes:
+                return SPITSSTROOK_RECHTS_LAATSTE
             else:
-                self.__draw_markerline(line_coords, "Blok")
+                return SPITSSTROOK_RECHTS_NIET_LAATSTE
+        else:
+            return lanes[lane_number]
 
-        # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
-        # Spitsstrook has special lane marking.
-        line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), last_lane_nr)
-        if next_lane == "Spitsstrook":
-            self.__draw_markerline(line_coords, "Dun")
-        elif next_lane not in ["Vluchtstrook", "Puntstuk"]:
-            self.__draw_markerline(line_coords)
+    def __handle_puntstuk(self, section_info, line_coords, right_lane_type):
+        point_direction = 1 if right_lane_type == "Puntstuk" else -1
 
-    def __draw_markerline(self, coords: list[tuple], linetype: str = "full", direction: int = 1):
-        if linetype == "Streep-3-9":
-            self.__draw_line(coords, 0.4, "3 9")
-        elif linetype == "Streep-9-3":
-            self.__draw_line(coords, 0.4, "9 3")
-        elif linetype == "Blok":
+        if section_info.verw_eigs.vergentiepunt_start:
+            self.__draw_markerline(line_coords, PUNTSTUK_START, direction=point_direction)
+        elif section_info.verw_eigs.vergentiepunt_einde:
+            self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=point_direction)
+        else:
+            self.__draw_markerline(line_coords, PUNTSTUK_BREED)
+
+    def __draw_markerline(self, coords: list[tuple], linetype: int, direction: int = 1):
+        if linetype == KANTSTREEP:
+            self.__draw_line(coords, 0.4)
+        elif linetype == BLOKSTREEP:
             self.__draw_line(coords, 0.6, "0.8 4")
-        elif linetype == "Punt-start" or linetype == "Punt-einde":
+        elif linetype == SMALLE_KANTSTREEP:
+            self.__draw_line(coords, 0.2)
+        elif linetype == DEELSTREEP_3_9:
+            self.__draw_line(coords, 0.4, "3 9")
+        elif linetype == DEELSTREEP_9_3:
+            self.__draw_line(coords, 0.4, "9 3")
+        elif linetype == PUNTSTUK_START or linetype == PUNTSTUK_EINDE:
             self.__draw_triangle(coords, linetype, direction)
             self.__draw_line(coords, 0.4)
-        elif linetype == "Dun":
-            self.__draw_line(coords, 0.2)
-        else:
+        elif linetype == PUNTSTUK_BREED:
+            offset_geom = offset_curve(LineString(coords), self.__LANE_WIDTH/2)
+            self.__draw_line([(coord[0], coord[1]) for coord in offset_geom.coords], self.__LANE_WIDTH)
             self.__draw_line(coords, 0.4)
+        elif linetype == GEEN_STREEP:
+            return
+        else:
+            logger.warning(f"Line could not be drawn!!")
 
     def __draw_line(self, coords: list[tuple], width: float, dasharray: str = ""):
         if dasharray:
@@ -514,8 +677,8 @@ class SvgMaker:
             line = self.__dwg.polyline(points=coords, fill="none", stroke=self.__C_WHITE, stroke_width=width)
         self.__g_road.add(line)
 
-    def __draw_triangle(self, coords: list[tuple], linetype: str, direction: int = 1):
-        triangle_end = coords[-1] if linetype == "Punt-start" else coords[0]
+    def __draw_triangle(self, coords: list[tuple], linetype: int, direction: int = 1):
+        triangle_end = coords[-1] if linetype == PUNTSTUK_START else coords[0]
 
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
         mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
