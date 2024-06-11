@@ -466,10 +466,10 @@ class Werkvak:
         return msi_rows_inside
 
 
-def adjust_edges_to(area_to_adjust_to, area, border_surface, positive: bool):
-    area.edges = deepcopy(area_to_adjust_to.edges)
+def adjust_edges_to(area_to_base_on, area, border_surface, positive: bool):
+    area.edges = deepcopy(area_to_base_on.edges)
     move_distance = (1 if positive else -1) * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
-    area.edges[area.request.open_side].move_edge(move_distance, area.request.open_side)
+    area.edges[area.request.open_side].move_edge(move_distance, area.request.open_side)  # TODO : Make side depend on something else
 
 
 def adjust_length_to(area_to_adjust_to, area):
