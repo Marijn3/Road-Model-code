@@ -2,6 +2,14 @@ from copy import deepcopy
 import math
 import logging
 
+locatie = "Vught"
+
+# ========= Gedefinieerde locaties =========
+# Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
+# Verwerkingsfouten : [MultiLineString] Zonzeel
+#                     [MSI relaties] Bavel, Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel
+# * = Na het oplossen van registratiefouten
+
 # Initialize the logger
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
 

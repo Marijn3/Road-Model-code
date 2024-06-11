@@ -3,17 +3,10 @@ from msi_relations import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
 from safety_areas import Rand, Aanvraag, AFZETTINGEN
+from utils import locatie
 
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
-
-locatie = "Vught"
-
-# ========= Gedefinieerde locaties =========
-# Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
-# Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relaties] Bavel, Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel
-# * = Na het oplossen van registratiefouten
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
 dfl = DataFrameLader(locatie, "locaties.csv", "WEGGEG")
@@ -71,6 +64,6 @@ if locatie == "Oosterhout":
                           hectoletter="",
                           korter_dan_24h=True,
                           randen={"L": Rand(rijstrook=1, afstand=0.2),
-                                  "R": Rand(rijstrook=1, afstand=-0.6)},
+                                  "R": Rand(rijstrook=1, afstand=-0.9)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
