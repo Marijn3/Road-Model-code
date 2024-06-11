@@ -547,83 +547,8 @@ class SvgMaker:
 
             self.__draw_markerline(line_coords, lane_marking_type)
 
-        # TODO: Replace with approach using lane marking table.
-        # first_lane_nr = lane_numbers[0]
-        # last_lane_nr = lane_numbers[-1]
-        # next_lane = None
-        #
-        # # Exclude puntstuk from counting as the last lane
-        # if section_info.obj_eigs[last_lane_nr] == "Puntstuk":
-        #     last_lane_nr = lane_numbers[-2]
-        #
-        # # Add first solid marking (leftmost), except when the first lane is a vlucht
-        #
-        # if section_info.obj_eigs[first_lane_nr] not in ["Vluchtstrook"]:
-        #     self.__draw_markerline(line_coords, KANTSTREEP)
-        # # Also add puntstuk if it is the very first registration
-        # if section_info.obj_eigs[first_lane_nr] == "Puntstuk":
-        #     if section_info.verw_eigs.vergentiepunt_start:
-        #         self.__draw_markerline(line_coords, PUNTSTUK_START, direction=-1)
-        #     elif section_info.verw_eigs.vergentiepunt_einde:
-        #         self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=-1)
-        #
-        # # Add middle markings. All of these markings have a this_lane and a next_lane
-        # for this_lane_number in lane_numbers[:-1]:
-        #     next_lane_number = this_lane_number + 1
-        #
-        #     this_lane = section_info.obj_eigs[this_lane_number]
-        #     next_lane = section_info.obj_eigs[next_lane_number]
-        #
-        #     # Puntstuk has already been drawn
-        #     if this_lane == "Puntstuk":
-        #         continue
-        #
-        #     # A puntstuk that is not the first lane, is the final lane.
-        #     if next_lane == "Puntstuk":
-        #         line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
-        #         self.__draw_markerline(line_coords, KANTSTREEP)
-        #         if section_info.verw_eigs.vergentiepunt_start:
-        #             self.__draw_markerline(line_coords, PUNTSTUK_START, direction=1)
-        #         elif section_info.verw_eigs.vergentiepunt_einde:
-        #             self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=1)
-        #         break
-        #
-        #     # Puntstuk cases have been handled, now the normal cases.
-        #     line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), this_lane_number)
-        #
-        #     # An emergency lane is demarcated with a solid line.
-        #     if this_lane == "Vluchtstrook" or next_lane == "Vluchtstrook":
-        #         self.__draw_markerline(line_coords, KANTSTREEP)
-        #
-        #     # A plus lane is demarcated with a 9-3 dashed line.
-        #     elif this_lane == "Plusstrook":
-        #         self.__draw_markerline(line_coords, DEELSTREEP_9_3)
-        #
-        #     # If the next lane is a samenvoeging, use normal dashed lane marking. TODO: Why??
-        #     # elif next_lane == "Samenvoeging":
-        #     #     self.__draw_markerline(line_coords, "Streep-3-9")
-        #
-        #     # A rush hour lane (on the final lane) has special lines.
-        #     elif next_lane == "Spitsstrook" and next_lane_number == last_lane_nr:
-        #         self.__draw_markerline(line_coords, KANTSTREEP)
-        #
-        #     # All other lanes are separated by dashed lines.
-        #     elif this_lane == next_lane:
-        #         self.__draw_markerline(line_coords, DEELSTREEP_3_9)
-        #
-        #     # If the lane types are not the same, block markings are used.
-        #     else:
-        #         self.__draw_markerline(line_coords, BLOKSTREEP)
-        #
-        # # Add last solid marking (rightmost), except when the last lane is a vluchtstrook or puntstuk.
-        # # Spitsstrook has special lane marking.
-        # line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), last_lane_nr)
-        # if next_lane == "Spitsstrook":
-        #     self.__draw_markerline(line_coords, SMALLE_KANTSTREEP)
-        # elif next_lane not in ["Vluchtstrook", "Puntstuk"]:
-        #     self.__draw_markerline(line_coords, KANTSTREEP)
-
-    def __determine_lane_name(self, lanes: dict, lane_number: int) -> str:
+    @staticmethod
+    def __determine_lane_name(lanes: dict, lane_number: int) -> str:
         if lane_number not in lanes:
             return GEEN_STROOK
         elif lanes[lane_number] == "Spitsstrook":
