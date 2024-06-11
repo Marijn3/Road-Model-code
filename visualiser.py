@@ -517,20 +517,17 @@ class SvgMaker:
                            + self.__LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
                            - self.__LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
-        lane_numbering = lane_numbers.copy()
-        lane_numbering.insert(0, 0)
+        # Ensure there is a 'lane number' for the side of the road.
+        lane_numbers.insert(0, min(lane_numbers)-1)
 
         logger.info(f"Handling this: {section_info}")
 
-        for lane_number in lane_numbering:
-            left_lane_number = lane_number
-            right_lane_number = lane_number + 1
-
-            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), left_lane_number)
+        for lane_number in lane_numbers:
+            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), lane_number)
 
             # Determine lane names left and right of the marking
-            left_lane_type = self.__determine_lane_name(section_info.obj_eigs, left_lane_number)
-            right_lane_type = self.__determine_lane_name(section_info.obj_eigs, right_lane_number)
+            left_lane_type = self.__determine_lane_name(section_info.obj_eigs, lane_number)
+            right_lane_type = self.__determine_lane_name(section_info.obj_eigs, lane_number + 1)
 
             if left_lane_type == GEEN_STROOK and right_lane_type == GEEN_STROOK:
                 continue
@@ -562,12 +559,12 @@ class SvgMaker:
             return lanes[lane_number]
 
     def __handle_puntstuk(self, section_info, line_coords, right_lane_type):
-        point_direction = 1 if right_lane_type == "Puntstuk" else -1
+        expansion_direction = 1 if right_lane_type == "Puntstuk" else -1
 
         if section_info.verw_eigs.vergentiepunt_start:
-            self.__draw_markerline(line_coords, PUNTSTUK_START, direction=point_direction)
+            self.__draw_markerline(line_coords, PUNTSTUK_START, direction=expansion_direction)
         elif section_info.verw_eigs.vergentiepunt_einde:
-            self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=point_direction)
+            self.__draw_markerline(line_coords, PUNTSTUK_EINDE, direction=expansion_direction)
         else:
             self.__draw_markerline(line_coords, PUNTSTUK_BREED)
 
