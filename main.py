@@ -9,7 +9,7 @@ ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader(locatie, "locaties.csv", "WEGGEG")
+dfl = DataFrameLader(locatie, "locaties.csv", "WEGGEG-Zuidasdok")
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
 wegmodel = WegModel(dfl)
