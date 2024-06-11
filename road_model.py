@@ -1526,14 +1526,13 @@ class WegModel:
         overlapping_sections = []
         for section_info in self.sections.values():
             if dwithin(point, section_info.pos_eigs.geometrie, DISTANCE_TOLERANCE):
+                if dwithin(point, Point(section_info.pos_eigs.geometrie.coords[0]), DISTANCE_TOLERANCE):
+                    return section_info
                 overlapping_sections.append(section_info)
 
         if len(overlapping_sections) == 1:
             return overlapping_sections[0]
-        else:
-            for section in overlapping_sections:
-                if dwithin(point, Point(section.pos_eigs.geometrie.coords[0]), DISTANCE_TOLERANCE):
-                    return section
+
         raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
 
     @staticmethod
