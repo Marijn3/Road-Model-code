@@ -21,3 +21,8 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Veel lege VNRWOL registraties aangevuld.
 - Registratie 8 en 127 verwijderd (dubbel/ongebruikt)
 - VNRWOL registratie 81 & 82 aangepast van 5 naar 4
+- Km-registratie van samenvoeging op 31.966 km aangepast naar 31.963 km, op 33.071 km aangepast naar 32.071 km.
+- Tussen-km-registratie toegevoegd aan gesplitste registratie in rijstroken-laag tussen 17.28 en 19.466 km.
+- [Niet-opgelost] Vluchtstrookregistratie rond 16.1-16.6 km links lijkt een MultiLineString.
+- Puntstuk op 16.000 km VNRWOL 4 -> 5.
+- Km-registratie van lijnstuk rijstroken (5) op punten 15.382 km en 15.384 km aangepast.
