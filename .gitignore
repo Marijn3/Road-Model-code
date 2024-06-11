@@ -22,6 +22,7 @@ Server/Solution/
 .idea/
 
 stacked_bar.py
+utils.py
 *.00295
 
 relation_comparison_log.txt
