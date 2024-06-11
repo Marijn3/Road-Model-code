@@ -37,6 +37,7 @@ markeringen = {
         VLUCHTSTROOK: GEEN_STREEP,
         SPITSSTROOK_LINKS: KANTSTREEP,
         RIJSTROOK: KANTSTREEP,
+        SPLITSING: KANTSTREEP,
         UITRIJSTROOK: KANTSTREEP,
     },
     VLUCHTSTROOK: {
@@ -61,6 +62,7 @@ markeringen = {
     SPLITSING: {
         GEEN_STROOK: KANTSTREEP,
         VLUCHTSTROOK: KANTSTREEP,
+        RIJSTROOK: BLOKSTREEP,
         SPLITSING: DEELSTREEP_3_9,
         INVOEGSTROOK: BLOKSTREEP,
         UITRIJSTROOK: BLOKSTREEP,
@@ -540,10 +542,8 @@ class SvgMaker:
                     break
                 continue
 
+            logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
-
-            logger.info(f"{left_lane_type} + {right_lane_type} geeft {lane_marking_type}")
-
             self.__draw_markerline(line_coords, lane_marking_type)
 
     @staticmethod
