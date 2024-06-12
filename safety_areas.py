@@ -108,7 +108,7 @@ class Aanvraag:
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange={km_start}, {km_end} randen={randen}, korter dan 24h={korter_dan_24h}.")
+        logger.info(f"Aanvraag met kmrange={km_start} - {km_end} km en randen={randen}, korter dan 24h={korter_dan_24h}.")
 
         self.surface_type = AANVRAAG
         self.requires_lane_narrowing = False
@@ -437,33 +437,46 @@ class Werkvak:
 
         self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
 
-    def obtain_msis_inside(self) -> list:
+    def obtain_msis_inside(self) -> list[tuple]:
         # Determine fully covered lanes
-        if self.edges["L"].lane:
-            left_lane = self.edges["L"].lane if self.edges["L"].distance > 0.0 else self.edges["L"].lane + 1
-        else:
-            left_lane = 0 if self.edges["L"].distance < 0.0 else self.request.n_lanes
-        if self.edges["R"].lane:
-            right_lane = self.edges["R"].lane if self.edges["R"].distance < 0.0 else self.edges["R"].lane + 1
-        else:
-            right_lane = 0 if self.edges["R"].distance < 0.0 else self.request.n_lanes
+        lane = {"L": None, "R": None}
+        for side in lane.keys():
+            if self.edges[side].lane:
+                if not self.request.requires_lane_narrowing:
+                    lane[side] = self.edges[side].lane
+                else:
+                    lane[side] = self.edges[side].lane + 1 if side == "L" else self.edges[side].lane - 1
+            else:
+                if self.edges[side].distance < 0.0:
+                    lane[side] = min(self.request.main_lane_nrs) - 1
+                else:
+                    lane[side] = max(self.request.main_lane_nrs) + 1
 
-        covered_lanes = [lane_number for lane_number in range(left_lane, right_lane+1)]
+        covered_lanes = [lane_number for lane_number in range(lane["L"], lane["R"] + 1)]
+        lanes_for_crosses = [lane_nr for lane_nr in covered_lanes if lane_nr in self.request.all_lane_nrs]
 
         # Determine MSI rows
         msi_rows_inside = []
         if self.request.roadside == "R":
             for msi_info in self.request.roadmodel.get_points_info("MSI"):
                 if self.km[0] <= msi_info.pos_eigs.km < self.km[1]:
-                    msi_rows_inside.append((msi_info, covered_lanes))
+                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
+                    msi_rows_inside.append((msi_info, msis_for_crosses))
         else:  # roadside == "L"
             for msi_info in self.request.roadmodel.get_points_info("MSI"):
                 if self.km[0] < msi_info.pos_eigs.km <= self.km[1]:
-                    msi_rows_inside.append((msi_info, covered_lanes))
+                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
+                    msi_rows_inside.append((msi_info, msis_for_crosses))
 
-        # logger.info(msi_rows_inside)
-
+        logger.info(msi_rows_inside)
         return msi_rows_inside
+
+    def determine_legend_request(self) -> dict:
+        for msi, lane_nrs in self.request.msis_red_cross:
+            if not lane_nrs:
+                continue
+        # TODO
+        return {}
 
 
 def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
