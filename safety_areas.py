@@ -66,11 +66,11 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def move_edge(self, move_distance):
+    def move_edge(self, move_distance, lane_number_right_lane):
         if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
-            self.lane = self.lane + 1 if self.lane else None
+            self.lane = self.lane + 1 if self.lane else 1
         if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
-            self.lane = self.lane - 1 if self.lane else None
+            self.lane = self.lane - 1 if self.lane else lane_number_right_lane
         self.distance = round(self.distance + move_distance, 2)
 
     def make_simple_distance(self, n_lanes) -> float:
@@ -405,7 +405,6 @@ class Werkvak:
         adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, away_from=True)
 
     def adjust_edges_to_road(self) -> None:
-        # TODO: Make exception when lane narrowing present
         if not self.request.requires_lane_narrowing:
             if self.request.open_side == "L":
                 self.edges["L"].distance = POS_ZERO
@@ -473,7 +472,7 @@ def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
                       (area.request.open_side == "L" and not away_from)) else -1
 
     move_distance = direction * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
-    area.edges[area.request.open_side].move_edge(move_distance)
+    area.edges[area.request.open_side].move_edge(move_distance, max(area.request.main_lane_nrs))
 
 
 def adjust_length_to(area_to_adjust_to, area):
