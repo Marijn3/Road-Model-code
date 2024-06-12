@@ -179,9 +179,10 @@ class Aanvraag:
 
     def step_3_generate_measure_request(self):
         self.msis_red_cross = self.werkvak.obtain_msis_inside()
-        self.measure_request = self.werkvak.determine_legend_request()
+        self.measure_request = self.werkvak.determine_measure_request()
 
     def step_4_solve_measure_request(self):
+        logger.info(f"The following should be sent to ILP:\n{self.measure_request}")
         return  # TODO
 
     def step_5_adjust_area_sizes(self):
@@ -471,7 +472,8 @@ class Werkvak:
 
         return msi_rows_inside
 
-    def determine_legend_request(self) -> dict:
+    def determine_measure_request(self) -> dict:
+        # See report JvM page 71 for an explanation of this request structure
         request = {
             "name": "custom request",
             "type": "add",
@@ -484,7 +486,6 @@ class Werkvak:
                 continue
             for lane_nr in lane_nrs:
                 request["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
-        logger.info(request)
         return request
 
 
