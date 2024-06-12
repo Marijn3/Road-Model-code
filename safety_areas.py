@@ -66,11 +66,12 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def move_edge(self, move_distance, side):
-        direction = 1 if side == "R" else -1
-        if self.distance < -move_distance * direction:  # The edge will cross 0
-            self.lane = self.lane + 1 * direction if self.lane else None
-        self.distance = round(self.distance + move_distance * direction, 2)
+    def move_edge(self, move_distance):
+        if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
+            self.lane = self.lane + 1 if self.lane else None
+        if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
+            self.lane = self.lane - 1 if self.lane else None
+        self.distance = round(self.distance + move_distance, 2)
 
     def make_simple_distance(self, n_lanes) -> float:
         if self.lane:
@@ -370,7 +371,7 @@ class Werkruimte:
             logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
     def adjust_edges_to_veiligheidsruimte(self):
-        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, positive=False)
+        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, away_from=False)
 
     def adjust_length_to_veiligheidsruimte(self):
         adjust_length_to(self.request.veiligheidsruimte, self)
@@ -384,10 +385,10 @@ class Veiligheidsruimte:
         self.km = request.km
 
     def adjust_edges_to_werkruimte(self) -> None:
-        adjust_edges_to(self.request.werkruimte, self, self.surface_type, positive=True)
+        adjust_edges_to(self.request.werkruimte, self, self.surface_type, away_from=True)
 
     def adjust_edges_to_werkvak(self) -> None:
-        adjust_edges_to(self.request.werkvak, self, WERKVAK, positive=False)
+        adjust_edges_to(self.request.werkvak, self, WERKVAK, away_from=False)
 
     def adjust_length_to_werkvak(self) -> None:
         adjust_length_to(self.request.werkvak, self)
@@ -401,7 +402,7 @@ class Werkvak:
         self.km = request.km
 
     def adjust_edges_to_veiligheidsruimte(self) -> None:
-        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, positive=True)
+        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, away_from=True)
 
     def adjust_edges_to_road(self) -> None:
         # TODO: Make exception when lane narrowing present
@@ -466,10 +467,13 @@ class Werkvak:
         return msi_rows_inside
 
 
-def adjust_edges_to(area_to_base_on, area, border_surface, positive: bool):
+def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
     area.edges = deepcopy(area_to_base_on.edges)
-    move_distance = (1 if positive else -1) * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
-    area.edges[area.request.open_side].move_edge(move_distance, area.request.open_side)  # TODO : Make side depend on something else
+    direction = 1 if ((area.request.open_side == "R" and away_from) or
+                      (area.request.open_side == "L" and not away_from)) else -1
+
+    move_distance = direction * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
+    area.edges[area.request.open_side].move_edge(move_distance)
 
 
 def adjust_length_to(area_to_adjust_to, area):
