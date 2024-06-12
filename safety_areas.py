@@ -135,15 +135,16 @@ class Aanvraag:
         self.n_main_lanes = len(self.main_lane_nrs)
 
         self.msis_red_cross = []
+        self.measure_request = {}
 
         self.werkruimte = Werkruimte(self)
         self.veiligheidsruimte = Veiligheidsruimte(self)
         self.werkvak = Werkvak(self)
 
-        self.step_1_determine_minimal_werkruimte()
+        self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
-        self.step_3_determine_legend_request()
-        # self.step_4_solve_legend_request()
+        self.step_3_generate_measure_request()
+        # self.step_4_solve_measure_request()
         # self.step_5_adjust_area_sizes()
 
         self.report_request()
@@ -156,7 +157,7 @@ class Aanvraag:
         assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
-    def step_1_determine_minimal_werkruimte(self):
+    def step_1_determine_initial_workspace(self):
         self.werkruimte.determine_minimal_werkruimte_size()
 
     def step_2_determine_area_sizes(self):
@@ -176,11 +177,11 @@ class Aanvraag:
 
         self.plot_areas()
 
-    def step_3_determine_legend_request(self):
+    def step_3_generate_measure_request(self):
         self.msis_red_cross = self.werkvak.obtain_msis_inside()
-        return  # TODO
+        self.measure_request = self.werkvak.determine_legend_request()
 
-    def step_4_solve_legend_request(self):
+    def step_4_solve_measure_request(self):
         return  # TODO
 
     def step_5_adjust_area_sizes(self):
@@ -468,15 +469,37 @@ class Werkvak:
                     msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
                     msi_rows_inside.append((msi_info, msis_for_crosses))
 
-        logger.info(msi_rows_inside)
         return msi_rows_inside
 
     def determine_legend_request(self) -> dict:
+        request = {
+            "name": "custom request",
+            "type": "add",
+            "legend_requests": [],
+            "options": {}
+        }
+
         for msi, lane_nrs in self.request.msis_red_cross:
             if not lane_nrs:
                 continue
-        # TODO
-        return {}
+            for lane_nr in lane_nrs:
+                request["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
+        logger.info(request)
+        return request
+
+
+def make_ILP_name(point_info, nr) -> str:
+    """
+    Makes MSI name using the ILP convention used in the project of Jeroen van Meurs.
+    """
+    if point_info.pos_eigs.hectoletter:
+        return (f"RSU_{point_info.pos_eigs.wegnummer}_"
+                f"{point_info.pos_eigs.hectoletter.upper()}_"
+                f"{point_info.pos_eigs.km:.3f},{nr}")
+    else:
+        return (f"RSU_{point_info.pos_eigs.wegnummer}_"
+                f"{point_info.pos_eigs.rijrichting}_"
+                f"{point_info.pos_eigs.km:.3f},{nr}")
 
 
 def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
