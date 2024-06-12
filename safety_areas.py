@@ -66,11 +66,12 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def move_edge(self, move_distance, side):
-        direction = 1 if side == "R" else -1
-        if self.distance < -move_distance * direction:  # The edge will cross 0
-            self.lane = self.lane + 1 * direction if self.lane else None
-        self.distance = round(self.distance + move_distance * direction, 2)
+    def move_edge(self, move_distance, lane_number_right_lane):
+        if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
+            self.lane = self.lane + 1 if self.lane else 1
+        if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
+            self.lane = self.lane - 1 if self.lane else lane_number_right_lane
+        self.distance = round(self.distance + move_distance, 2)
 
     def make_simple_distance(self, n_lanes) -> float:
         if self.lane:
@@ -107,7 +108,7 @@ class Aanvraag:
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange={km_start}, {km_end} randen={randen}, korter dan 24h={korter_dan_24h}.")
+        logger.info(f"Aanvraag met kmrange={km_start} - {km_end} km en randen={randen}, korter dan 24h={korter_dan_24h}.")
 
         self.surface_type = AANVRAAG
         self.requires_lane_narrowing = False
@@ -134,15 +135,16 @@ class Aanvraag:
         self.n_main_lanes = len(self.main_lane_nrs)
 
         self.msis_red_cross = []
+        self.measure_request = {}
 
         self.werkruimte = Werkruimte(self)
         self.veiligheidsruimte = Veiligheidsruimte(self)
         self.werkvak = Werkvak(self)
 
-        self.step_1_determine_minimal_werkruimte()
+        self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
-        self.step_3_determine_legend_request()
-        # self.step_4_solve_legend_request()
+        self.step_3_generate_measure_request()
+        # self.step_4_solve_measure_request()
         # self.step_5_adjust_area_sizes()
 
         self.report_request()
@@ -155,7 +157,7 @@ class Aanvraag:
         assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
-    def step_1_determine_minimal_werkruimte(self):
+    def step_1_determine_initial_workspace(self):
         self.werkruimte.determine_minimal_werkruimte_size()
 
     def step_2_determine_area_sizes(self):
@@ -175,11 +177,12 @@ class Aanvraag:
 
         self.plot_areas()
 
-    def step_3_determine_legend_request(self):
+    def step_3_generate_measure_request(self):
         self.msis_red_cross = self.werkvak.obtain_msis_inside()
-        return  # TODO
+        self.measure_request = self.werkvak.determine_measure_request()
 
-    def step_4_solve_legend_request(self):
+    def step_4_solve_measure_request(self):
+        logger.info(f"The following should be sent to ILP:\n{self.measure_request}")
         return  # TODO
 
     def step_5_adjust_area_sizes(self):
@@ -370,7 +373,7 @@ class Werkruimte:
             logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
     def adjust_edges_to_veiligheidsruimte(self):
-        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, positive=False)
+        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, away_from=False)
 
     def adjust_length_to_veiligheidsruimte(self):
         adjust_length_to(self.request.veiligheidsruimte, self)
@@ -384,10 +387,10 @@ class Veiligheidsruimte:
         self.km = request.km
 
     def adjust_edges_to_werkruimte(self) -> None:
-        adjust_edges_to(self.request.werkruimte, self, self.surface_type, positive=True)
+        adjust_edges_to(self.request.werkruimte, self, self.surface_type, away_from=True)
 
     def adjust_edges_to_werkvak(self) -> None:
-        adjust_edges_to(self.request.werkvak, self, WERKVAK, positive=False)
+        adjust_edges_to(self.request.werkvak, self, WERKVAK, away_from=False)
 
     def adjust_length_to_werkvak(self) -> None:
         adjust_length_to(self.request.werkvak, self)
@@ -401,10 +404,9 @@ class Werkvak:
         self.km = request.km
 
     def adjust_edges_to_veiligheidsruimte(self) -> None:
-        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, positive=True)
+        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, away_from=True)
 
     def adjust_edges_to_road(self) -> None:
-        # TODO: Make exception when lane narrowing present
         if not self.request.requires_lane_narrowing:
             if self.request.open_side == "L":
                 self.edges["L"].distance = POS_ZERO
@@ -437,39 +439,76 @@ class Werkvak:
 
         self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
 
-    def obtain_msis_inside(self) -> list:
+    def obtain_msis_inside(self) -> list[tuple]:
         # Determine fully covered lanes
-        if self.edges["L"].lane:
-            left_lane = self.edges["L"].lane if self.edges["L"].distance > 0.0 else self.edges["L"].lane + 1
-        else:
-            left_lane = 0 if self.edges["L"].distance < 0.0 else self.request.n_lanes
-        if self.edges["R"].lane:
-            right_lane = self.edges["R"].lane if self.edges["R"].distance < 0.0 else self.edges["R"].lane + 1
-        else:
-            right_lane = 0 if self.edges["R"].distance < 0.0 else self.request.n_lanes
+        lane = {"L": None, "R": None}
+        for side in lane.keys():
+            if self.edges[side].lane:
+                if not self.request.requires_lane_narrowing:
+                    lane[side] = self.edges[side].lane
+                else:
+                    lane[side] = self.edges[side].lane + 1 if side == "L" else self.edges[side].lane - 1
+            else:
+                if self.edges[side].distance < 0.0:
+                    lane[side] = min(self.request.main_lane_nrs) - 1
+                else:
+                    lane[side] = max(self.request.main_lane_nrs) + 1
 
-        covered_lanes = [lane_number for lane_number in range(left_lane, right_lane+1)]
+        covered_lanes = [lane_number for lane_number in range(lane["L"], lane["R"] + 1)]
+        lanes_for_crosses = [lane_nr for lane_nr in covered_lanes if lane_nr in self.request.all_lane_nrs]
 
         # Determine MSI rows
         msi_rows_inside = []
         if self.request.roadside == "R":
             for msi_info in self.request.roadmodel.get_points_info("MSI"):
                 if self.km[0] <= msi_info.pos_eigs.km < self.km[1]:
-                    msi_rows_inside.append((msi_info, covered_lanes))
+                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
+                    msi_rows_inside.append((msi_info, msis_for_crosses))
         else:  # roadside == "L"
             for msi_info in self.request.roadmodel.get_points_info("MSI"):
                 if self.km[0] < msi_info.pos_eigs.km <= self.km[1]:
-                    msi_rows_inside.append((msi_info, covered_lanes))
-
-        # logger.info(msi_rows_inside)
+                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
+                    msi_rows_inside.append((msi_info, msis_for_crosses))
 
         return msi_rows_inside
 
+    def determine_measure_request(self) -> dict:
+        request = {
+            "name": "custom request",
+            "type": "add",
+            "legend_requests": [],
+            "options": {}
+        }
 
-def adjust_edges_to(area_to_base_on, area, border_surface, positive: bool):
+        for msi, lane_nrs in self.request.msis_red_cross:
+            if not lane_nrs:
+                continue
+            for lane_nr in lane_nrs:
+                request["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
+        return request
+
+
+def make_ILP_name(point_info, nr) -> str:
+    """
+    Makes MSI name using the ILP convention used in the project of Jeroen van Meurs.
+    """
+    if point_info.pos_eigs.hectoletter:
+        return (f"RSU_{point_info.pos_eigs.wegnummer}_"
+                f"{point_info.pos_eigs.hectoletter.upper()}_"
+                f"{point_info.pos_eigs.km:.3f},{nr}")
+    else:
+        return (f"RSU_{point_info.pos_eigs.wegnummer}_"
+                f"{point_info.pos_eigs.rijrichting}_"
+                f"{point_info.pos_eigs.km:.3f},{nr}")
+
+
+def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
     area.edges = deepcopy(area_to_base_on.edges)
-    move_distance = (1 if positive else -1) * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
-    area.edges[area.request.open_side].move_edge(move_distance, area.request.open_side)  # TODO : Make side depend on something else
+    direction = 1 if ((area.request.open_side == "R" and away_from) or
+                      (area.request.open_side == "L" and not away_from)) else -1
+
+    move_distance = direction * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
+    area.edges[area.request.open_side].move_edge(move_distance, max(area.request.main_lane_nrs))
 
 
 def adjust_length_to(area_to_adjust_to, area):
