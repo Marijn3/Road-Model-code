@@ -473,6 +473,7 @@ class Werkvak:
         return msi_rows_inside
 
     def determine_measure_request(self) -> dict:
+        # See report JvM page 71 for an explanation of this request structure
         request = {
             "name": "custom request",
             "type": "add",
