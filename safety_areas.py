@@ -21,6 +21,20 @@ COLORMAP = {
     WERKRUIMTE: "#F49510",
 }
 
+RUIMTE_NAMEN = {
+    AANVRAAG: "Aanvraag",
+    WERKVAK: "Werkvak",
+    VEILIGHEIDSRUIMTE: "Veiligheidsruimte",
+    WERKRUIMTE: "Werkruimte",
+}
+
+AREA_NAMES = {
+    AANVRAAG: "Request",
+    WERKVAK: "Closed space",
+    VEILIGHEIDSRUIMTE: "Empty space",
+    WERKRUIMTE: "Workspace",
+}
+
 
 class BREEDTE:
     BARRIER = 0.40  # Estimate, in meters
@@ -226,6 +240,7 @@ class Aanvraag:
         self.plot_area(ax, self.werkruimte)
         self.plot_area(ax, self)
 
+        ax.legend()
         plt.show()
 
     def plot_area(self, ax, area):
@@ -239,7 +254,8 @@ class Aanvraag:
                                             height=area.km[1]-area.km[0],
                                             facecolor=COLORMAP[area.surface_type],
                                             edgecolor=edgecolor,
-                                            linewidth=2.0)
+                                            linewidth=2.0,
+                                            label=AREA_NAMES[area.surface_type])
         ax.add_patch(rect)
 
     def report_request(self):
