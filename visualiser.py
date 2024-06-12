@@ -451,16 +451,19 @@ class SvgMaker:
             return LineString([coord for coord in line_geom.coords[:-2]] + [displaced_point.coords[0]])
 
     def __svg_draw_section_info(self, section_id: int, section_info: ObjectInfo):
-        origin = self.__get_flipped_coords(centroid(section_info.pos_eigs.geometrie))[0]
+        origin = self.__get_flipped_coords(line_interpolate_point(
+            section_info.pos_eigs.geometrie, 0.5, normalized=True))[0]
         lines = make_info_text(section_info)
-
         height = 6 * (len(lines) + 1)
+
         g_infobox = self.__g_road_info.add(self.__dwg.g(id=f"SECTION_INFO_{section_id}", visibility="hidden",
                                                         onmouseover=f"showInfoBox({section_id})",
                                                         onmouseout=f"hideInfoBox({section_id})"))
 
+        indicator_circle = self.__dwg.ellipse(center=(origin[0], origin[1]), r=(3, 3), fill="black")
         textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(120, height),
                                   fill="white", stroke="black", stroke_width=self.__BASE_STROKE)
+        g_infobox.add(indicator_circle)
         g_infobox.add(textbox)
 
         for nr, line in enumerate(lines):
@@ -524,8 +527,7 @@ class SvgMaker:
         # Ensure there is a 'lane number' for the side of the road.
         lane_numbers.insert(0, min(lane_numbers)-1)
 
-        logger.info(f"Handling this: {section_info}")
-
+        logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
         for lane_number in lane_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), lane_number)
 
@@ -847,7 +849,7 @@ class SvgMaker:
                 end_pos = self.__get_square_center_coords(end_msi)
                 rel_type = relation[-1]  # The last letter is enough to distinguish the colors for visualisation.
 
-                # Draw up to the middle of the relation, allowing for visually checking if both directions are the same.
+                # Draw up to the middle of the relation, allowing for visually checking relation direction.
                 mid_pos = ((start_pos[0] + end_pos[0])/2, (start_pos[1] + end_pos[1])/2)
                 self.__draw_msi_relation(rel_type, start_pos, mid_pos)
 
