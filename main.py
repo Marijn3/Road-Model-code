@@ -57,6 +57,16 @@ if locatie == "Oosterhout":
                                   "R": Rand(rijstrook=None, afstand=-0.2)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
+    aanvraagBR = Aanvraag(wegmodel=wegmodel,
+                          km_start=13.80,
+                          km_end=14.03,
+                          wegkant="R",
+                          hectoletter="",
+                          korter_dan_24h=True,
+                          randen={"L": Rand(rijstrook=None, afstand=0.2),
+                                  "R": Rand(rijstrook=None, afstand=1.0)},
+                          afzetting=AFZETTINGEN.BAKENS,
+                          )
     aanvraagCL = Aanvraag(wegmodel=wegmodel,
                           km_start=13.80,
                           km_end=14.03,
@@ -65,6 +75,16 @@ if locatie == "Oosterhout":
                           korter_dan_24h=False,
                           randen={"L": Rand(rijstrook=None, afstand=-1.0),
                                   "R": Rand(rijstrook=None, afstand=-0.2)},
+                          afzetting=AFZETTINGEN.BAKENS,
+                          )
+    aanvraagCR = Aanvraag(wegmodel=wegmodel,
+                          km_start=13.80,
+                          km_end=14.03,
+                          wegkant="R",
+                          hectoletter="",
+                          korter_dan_24h=False,
+                          randen={"L": Rand(rijstrook=None, afstand=0.2),
+                                  "R": Rand(rijstrook=None, afstand=1.0)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
     aanvraagDL = Aanvraag(wegmodel=wegmodel,
