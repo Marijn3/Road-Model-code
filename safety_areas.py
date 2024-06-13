@@ -295,7 +295,8 @@ class Workspace:
         if self.category == "A":
             self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
-            self.make_edge(side=self.request.open_side, lane=min(self.request.main_lane_nrs), distance_r=-0.81)
+            lane = min(self.request.main_lane_nrs) if self.request.open_side == "R" else max(self.request.main_lane_nrs)
+            self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
         elif self.category == "C":
             self.request.requires_lane_narrowing = True
             self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
