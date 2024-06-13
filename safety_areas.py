@@ -9,38 +9,38 @@ logger = logging.getLogger(__name__)
 NEG_ZERO = -0.00001
 POS_ZERO = 0.00001
 
-AANVRAAG = 200
-WERKRUIMTE = 201
-VEILIGHEIDSRUIMTE = 202
-WERKVAK = 203
+REQUEST = 200
+WORKSPACE = 201
+EMPTY_SPACE = 202
+CLOSED_SPACE = 203
 
 COLORMAP = {
-    AANVRAAG: "none",
-    WERKVAK: "#13AFE1",
-    VEILIGHEIDSRUIMTE: "#FBD799",
-    WERKRUIMTE: "#F49510",
+    REQUEST: "none",
+    CLOSED_SPACE: "#13AFE1",
+    EMPTY_SPACE: "#FBD799",
+    WORKSPACE: "#F49510",
 }
 
 RUIMTE_NAMEN = {
-    AANVRAAG: "Aanvraag",
-    WERKVAK: "Werkvak",
-    VEILIGHEIDSRUIMTE: "Veiligheidsruimte",
-    WERKRUIMTE: "Werkruimte",
+    REQUEST: "Aanvraag",
+    CLOSED_SPACE: "Werkvak",
+    EMPTY_SPACE: "Veiligheidsruimte",
+    WORKSPACE: "Werkruimte",
 }
 
 AREA_NAMES = {
-    AANVRAAG: "Request",
-    WERKVAK: "Closed space",
-    VEILIGHEIDSRUIMTE: "Empty space",
-    WERKRUIMTE: "Workspace",
+    REQUEST: "Request",
+    CLOSED_SPACE: "Closed space",
+    EMPTY_SPACE: "Empty space",
+    WORKSPACE: "Workspace",
 }
 
 
-class BREEDTE:
+class WIDTH:
     BARRIER = 0.40  # Estimate, in meters
     GELEIDEBAKENS = 0.25  # Source: "WIU 2020 – Werken op autosnelwegen", p117, in meters
-    RIJSTROOK = 3.50  # Estimate, in meters
-    VLUCHTSTROOK = 2.00  # Estimate, in meters
+    LANE = 3.50  # Estimate, in meters
+    EMERGENCY_LANE = 2.00  # Estimate, in meters
 
 
 class AFZETTINGEN:
@@ -50,21 +50,21 @@ class AFZETTINGEN:
 
 
 # Ruimte aan zijkanten van vakken in meters.
-TUSSENRUIMTE_NAAST = {
-    AFZETTINGEN.BAKENS: {WERKVAK: 0.5 * BREEDTE.GELEIDEBAKENS, VEILIGHEIDSRUIMTE: 0.60},
-    AFZETTINGEN.BARRIER_ONDER_80CM: {WERKVAK: 0.5 * BREEDTE.BARRIER, VEILIGHEIDSRUIMTE: 0.60},
-    AFZETTINGEN.BARRIER_BOVEN_80CM: {WERKVAK: 0.5 * BREEDTE.BARRIER, VEILIGHEIDSRUIMTE: 0.0},
+DISTANCE_BESIDE = {
+    AFZETTINGEN.BAKENS: {CLOSED_SPACE: 0.5 * WIDTH.GELEIDEBAKENS, EMPTY_SPACE: 0.60},
+    AFZETTINGEN.BARRIER_ONDER_80CM: {CLOSED_SPACE: 0.5 * WIDTH.BARRIER, EMPTY_SPACE: 0.60},
+    AFZETTINGEN.BARRIER_BOVEN_80CM: {CLOSED_SPACE: 0.5 * WIDTH.BARRIER, EMPTY_SPACE: 0.0},
 }
 
 # Ruimte aan voor- en achterkanten van vakken in kilometers.
-TUSSENRUIMTE_VOOR = {
-    WERKRUIMTE: 0.150,
-    VEILIGHEIDSRUIMTE: 0.200
+DISTANCE_BEFORE = {
+    WORKSPACE: 0.150,
+    EMPTY_SPACE: 0.200
 }
 
-TUSSENRUIMTE_NA = {
-    WERKRUIMTE: 0.000,
-    VEILIGHEIDSRUIMTE: 0.050
+DISTANCE_AFTER = {
+    WORKSPACE: 0.000,
+    EMPTY_SPACE: 0.050
 }
 
 
@@ -80,19 +80,19 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def move_edge(self, move_distance, lane_number_right_lane):
+    def move(self, move_distance, lane_number_right_lane):
         if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
             self.lane = self.lane + 1 if self.lane else 1
         if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
             self.lane = self.lane - 1 if self.lane else lane_number_right_lane
         self.distance = round(self.distance + move_distance, 2)
 
-    def make_simple_distance(self, n_lanes) -> float:
+    def express_wrt_left_marking(self, n_lanes) -> float:
         if self.lane:
             n_full_lanes = self.lane - 1 if self.distance >= 0.0 else self.lane
         else:
             n_full_lanes = n_lanes if self.distance >= 0.0 else 0
-        return n_full_lanes * BREEDTE.RIJSTROOK + round(self.distance, 2)
+        return n_full_lanes * WIDTH.LANE + round(self.distance, 2)
 
 
 class Aanvraag:
@@ -122,9 +122,10 @@ class Aanvraag:
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange={km_start} - {km_end} km en randen={randen}, korter dan 24h={korter_dan_24h}.")
+        logger.info(f"Aanvraag met kmrange {km_start} - {km_end} km, "
+                    f"randen {randen}, korter dan 24h = {korter_dan_24h}.")
 
-        self.surface_type = AANVRAAG
+        self.surface_type = REQUEST
         self.requires_lane_narrowing = False
         self.open_side = None
 
@@ -151,9 +152,9 @@ class Aanvraag:
         self.msis_red_cross = []
         self.measure_request = {}
 
-        self.werkruimte = Werkruimte(self)
-        self.veiligheidsruimte = Veiligheidsruimte(self)
-        self.werkvak = Werkvak(self)
+        self.workspace = Workspace(self)
+        self.empty_space = EmptySpace(self)
+        self.closed_space = ClosedSpace(self)
 
         self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
@@ -172,28 +173,28 @@ class Aanvraag:
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
     def step_1_determine_initial_workspace(self):
-        self.werkruimte.determine_minimal_werkruimte_size()
+        self.workspace.determine_minimal_workspace()
 
     def step_2_determine_area_sizes(self):
         # Determine minimal width from the original area
-        self.veiligheidsruimte.adjust_edges_to_werkruimte()
-        self.werkvak.adjust_edges_to_veiligheidsruimte()
+        self.empty_space.adjust_edges_to_workspace()
+        self.closed_space.adjust_edges_to_empty_space()
 
         # Determine convenient width in regard to the road
-        self.werkvak.adjust_edges_to_road()
-        self.veiligheidsruimte.adjust_edges_to_werkvak()
-        self.werkruimte.adjust_edges_to_veiligheidsruimte()
+        self.closed_space.adjust_edges_to_road()
+        self.empty_space.adjust_edges_to_closed_space()
+        self.workspace.adjust_edges_to_empty_space()
 
         # Determine minimal length with respect to the MSIs
-        self.werkvak.adjust_length_to_msis()
-        self.veiligheidsruimte.adjust_length_to_werkvak()
-        self.werkruimte.adjust_length_to_veiligheidsruimte()
+        self.closed_space.adjust_length_to_msis()
+        self.empty_space.adjust_length_to_closed_space()
+        self.workspace.adjust_length_to_empty_space()
 
-        self.plot_areas()
+        # self.plot_areas()
 
     def step_3_generate_measure_request(self):
-        self.msis_red_cross = self.werkvak.obtain_msis_inside()
-        self.measure_request = self.werkvak.determine_measure_request()
+        self.msis_red_cross = self.closed_space.obtain_msis_inside()
+        self.measure_request = self.closed_space.determine_measure_request()
 
     def step_4_solve_measure_request(self):
         logger.info(f"The following should be sent to ILP:\n{self.measure_request}")
@@ -209,25 +210,25 @@ class Aanvraag:
         x_min = -3
         x_max = len(self.all_lane_nrs) * 3.5 + 1.5
         # x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
-        y_min = self.werkvak.km[0] - 0.10
-        y_max = self.werkvak.km[1] + 0.10
+        y_min = self.closed_space.km[0] - 0.10
+        y_max = self.closed_space.km[1] + 0.10
 
         plt.xlim([x_min, x_max])
         plt.ylim([y_min, y_max])
         plt.xlabel("Width [m] (estimate for visualization)")
         plt.ylabel("Length [km]")
-        plt.title(f"Safety areas for request with category {self.werkruimte.category}")
+        plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
             south = y_min
-            west = (lane_number - 1) * BREEDTE.RIJSTROOK
+            west = (lane_number - 1) * WIDTH.LANE
             if lane_number not in self.main_lane_nrs:
                 if lane_number == 1:
-                    west += (BREEDTE.VLUCHTSTROOK - BREEDTE.RIJSTROOK)
-                width = BREEDTE.VLUCHTSTROOK
+                    west += (WIDTH.EMERGENCY_LANE - WIDTH.LANE)
+                width = WIDTH.EMERGENCY_LANE
                 color = "darkgrey"
             else:
-                width = BREEDTE.RIJSTROOK
+                width = WIDTH.LANE
                 color = "lightgrey"
             lane = matplotlib.patches.Rectangle(xy=(west + 0.05, south),
                                                 width=width - 0.1,
@@ -235,19 +236,19 @@ class Aanvraag:
                                                 facecolor=color)
             ax.add_patch(lane)
 
-        self.plot_area(ax, self.werkvak)
-        self.plot_area(ax, self.veiligheidsruimte)
-        self.plot_area(ax, self.werkruimte)
+        self.plot_area(ax, self.closed_space)
+        self.plot_area(ax, self.empty_space)
+        self.plot_area(ax, self.workspace)
         self.plot_area(ax, self)
 
         ax.legend()
         plt.show()
 
     def plot_area(self, ax, area):
-        x = area.edges["L"].make_simple_distance(self.n_main_lanes)
-        y = area.edges["R"].make_simple_distance(self.n_main_lanes)
+        x = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
+        y = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
 
-        edgecolor = "brown" if area.surface_type == AANVRAAG else "none"
+        edgecolor = "brown" if area.surface_type == REQUEST else "none"
 
         rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
                                             width=y-x,
@@ -260,20 +261,20 @@ class Aanvraag:
 
     def report_request(self):
         logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
-        logger.info(f"Werkruimte aangemaakt met km {self.werkruimte.km} en randen {self.werkruimte.edges}")
-        logger.info(f"Veiligheidsruimte aangemaakt met km {self.veiligheidsruimte.km} en randen {self.veiligheidsruimte.edges}")
-        logger.info(f"Werkvak aangemaakt met km {self.werkvak.km} en randen {self.werkvak.edges}\n")
+        logger.info(f"Werkruimte aangemaakt met km {self.workspace.km} en randen {self.workspace.edges}")
+        logger.info(f"Veiligheidsruimte aangemaakt met km {self.empty_space.km} en randen {self.empty_space.edges}")
+        logger.info(f"Werkvak aangemaakt met km {self.closed_space.km} en randen {self.closed_space.edges}\n")
 
 
-class Werkruimte:
+class Workspace:
     def __init__(self, request: Aanvraag) -> None:
-        self.surface_type = WERKRUIMTE
+        self.surface_type = WORKSPACE
         self.request = request
         self.edges = deepcopy(request.edges)
         self.km = request.km
         self.category = str()
 
-    def determine_minimal_werkruimte_size(self):
+    def determine_minimal_workspace(self):
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
             self.determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
@@ -283,14 +284,14 @@ class Werkruimte:
         else:
             self.determine_request_category_roadside()
 
-        self.apply_category_measures()
-
-    def apply_category_measures(self):
         if not self.category:
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op de weg).")
         else:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
 
+        self.apply_category_measures()
+
+    def apply_category_measures(self):
         if self.category == "A":
             self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
@@ -300,7 +301,7 @@ class Werkruimte:
             self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
         elif self.category == "D":
             other_side = "R" if self.request.open_side == "L" else "L"
-            self.make_edge(side=other_side, lane=None, distance_r=+BREEDTE.VLUCHTSTROOK)
+            self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
     def make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
         if side == "L":
@@ -377,7 +378,7 @@ class Werkruimte:
                 or (not self.request.under_24h and side_of_road == "R" and 0.25 < crit_dist <= 2.50)):
             self.category = "A"
 
-        elif ((self.request.under_24h and side_of_road == "L" and 0.0 <= crit_dist <= 1.1)
+        elif ((self.request.under_24h and side_of_road == "L" and 0.0 <= crit_dist <= 1.10)
                 or (self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10)):
             self.category = "B"
 
@@ -388,39 +389,39 @@ class Werkruimte:
         else:
             logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
-    def adjust_edges_to_veiligheidsruimte(self):
-        adjust_edges_to(self.request.veiligheidsruimte, self, VEILIGHEIDSRUIMTE, away_from=False)
+    def adjust_edges_to_empty_space(self):
+        adjust_edges_to(self.request.empty_space, self, EMPTY_SPACE, away_from=False)
 
-    def adjust_length_to_veiligheidsruimte(self):
-        adjust_length_to(self.request.veiligheidsruimte, self)
+    def adjust_length_to_empty_space(self):
+        adjust_length_to(self.request.empty_space, self)
 
 
-class Veiligheidsruimte:
+class EmptySpace:
     def __init__(self, request: Aanvraag) -> None:
-        self.surface_type = VEILIGHEIDSRUIMTE
+        self.surface_type = EMPTY_SPACE
         self.request = request
         self.edges = deepcopy(request.edges)
         self.km = request.km
 
-    def adjust_edges_to_werkruimte(self) -> None:
-        adjust_edges_to(self.request.werkruimte, self, self.surface_type, away_from=True)
+    def adjust_edges_to_workspace(self) -> None:
+        adjust_edges_to(self.request.workspace, self, self.surface_type, away_from=True)
 
-    def adjust_edges_to_werkvak(self) -> None:
-        adjust_edges_to(self.request.werkvak, self, WERKVAK, away_from=False)
+    def adjust_edges_to_closed_space(self) -> None:
+        adjust_edges_to(self.request.closed_space, self, CLOSED_SPACE, away_from=False)
 
-    def adjust_length_to_werkvak(self) -> None:
-        adjust_length_to(self.request.werkvak, self)
+    def adjust_length_to_closed_space(self) -> None:
+        adjust_length_to(self.request.closed_space, self)
 
 
-class Werkvak:
+class ClosedSpace:
     def __init__(self, request: Aanvraag) -> None:
-        self.surface_type = WERKVAK
+        self.surface_type = CLOSED_SPACE
         self.request = request
         self.edges = deepcopy(request.edges)
         self.km = request.km
 
-    def adjust_edges_to_veiligheidsruimte(self) -> None:
-        adjust_edges_to(self.request.veiligheidsruimte, self, self.surface_type, away_from=True)
+    def adjust_edges_to_empty_space(self) -> None:
+        adjust_edges_to(self.request.empty_space, self, self.surface_type, away_from=True)
 
     def adjust_edges_to_road(self) -> None:
         if not self.request.requires_lane_narrowing:
@@ -436,11 +437,11 @@ class Werkvak:
         msi_at_lower_km = None
 
         if self.request.roadside == "R":
-            open_space_high_km = TUSSENRUIMTE_NA[WERKRUIMTE] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
-            open_space_low_km = TUSSENRUIMTE_VOOR[WERKRUIMTE] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+            open_space_high_km = DISTANCE_AFTER[WORKSPACE] + DISTANCE_AFTER[EMPTY_SPACE]
+            open_space_low_km = DISTANCE_BEFORE[WORKSPACE] + DISTANCE_BEFORE[EMPTY_SPACE]
         else:
-            open_space_low_km = TUSSENRUIMTE_NA[WERKRUIMTE] + TUSSENRUIMTE_NA[VEILIGHEIDSRUIMTE]
-            open_space_high_km = TUSSENRUIMTE_VOOR[WERKRUIMTE] + TUSSENRUIMTE_VOOR[VEILIGHEIDSRUIMTE]
+            open_space_low_km = DISTANCE_AFTER[WORKSPACE] + DISTANCE_AFTER[EMPTY_SPACE]
+            open_space_high_km = DISTANCE_BEFORE[WORKSPACE] + DISTANCE_BEFORE[EMPTY_SPACE]
 
         for msi_info in self.request.roadmodel.get_points_info("MSI"):
             if self.km[1] + open_space_high_km < msi_info.pos_eigs.km < current_closest_higher_km:
@@ -524,17 +525,17 @@ def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
     direction = 1 if ((area.request.open_side == "R" and away_from) or
                       (area.request.open_side == "L" and not away_from)) else -1
 
-    move_distance = direction * TUSSENRUIMTE_NAAST[area.request.demarcation][border_surface]
-    area.edges[area.request.open_side].move_edge(move_distance, max(area.request.main_lane_nrs))
+    move_distance = direction * DISTANCE_BESIDE[area.request.demarcation][border_surface]
+    area.edges[area.request.open_side].move(move_distance, max(area.request.main_lane_nrs))
 
 
 def adjust_length_to(area_to_adjust_to, area):
     if area.request.roadside == "R":
-        open_space_high_km = TUSSENRUIMTE_NA[area.surface_type]
-        open_space_low_km = TUSSENRUIMTE_VOOR[area.surface_type]
+        open_space_high_km = DISTANCE_AFTER[area.surface_type]
+        open_space_low_km = DISTANCE_BEFORE[area.surface_type]
     else:
-        open_space_low_km = TUSSENRUIMTE_NA[area.surface_type]
-        open_space_high_km = TUSSENRUIMTE_VOOR[area.surface_type]
+        open_space_low_km = DISTANCE_AFTER[area.surface_type]
+        open_space_high_km = DISTANCE_BEFORE[area.surface_type]
 
     area.km = [round(area_to_adjust_to.km[0] + open_space_low_km, 3),
                round(area_to_adjust_to.km[1] - open_space_high_km, 3)]
