@@ -3,7 +3,7 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from road_model import WegModel
+from road_model import WegModel, ObjectInfo
 from utils import *
 
 logger = logging.getLogger(__name__)
@@ -82,14 +82,22 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def relocate(self, move_distance, request_info: 'Aanvraag') -> None:
+    def relocate(self, move_distance: float, request_info: 'Aanvraag') -> None:
         if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
             self.lane = self.lane + 1 if self.lane else request_info.first_main_lane_nr
         if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
             self.lane = self.lane - 1 if self.lane else request_info.last_main_lane_nr
         self.distance = round(self.distance + move_distance, 2)
 
-    def express_wrt_left_marking(self, n_lanes) -> float:
+    def express_wrt_left_marking(self, n_lanes: int) -> float:
+        """
+        Converts despription relative to lane markings into a description relative
+        to the left side of the road. Lane widths are assumed to be constant, known values.
+        Args:
+            n_lanes (int): The amount of lanes present on the road.
+        Returns:
+            Value describing the edge's distance to the left side of the road.
+        """
         if self.lane:
             n_full_lanes = self.lane - 1 if self.distance >= 0.0 else self.lane
         else:
@@ -111,8 +119,8 @@ class Aanvraag:
     }
 
     def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
-                 randen: dict[str: Rand],
-                 maximumsnelheid: int = 70, korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
+                 randen: dict[str: Rand], maximumsnelheid: int = 70,
+                 korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
         self.roadmodel = wegmodel
         self.roadside = wegkant
         self.km = [km_start, km_end]
@@ -163,10 +171,11 @@ class Aanvraag:
         self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
         self.step_3_generate_measure_request()
-        self.step_4_solve_measure_request()
-        # self.step_5_adjust_area_sizes()
 
         self.report_request()
+
+        self.step_4_solve_measure_request()
+        # self.step_5_adjust_area_sizes()
 
     def run_sanity_checks(self) -> None:
         assert len(self.edges) == 2, \
@@ -515,7 +524,7 @@ class ClosedSpace:
         self.request.measure_request = request_options
 
 
-def make_ILP_name(point_info, nr) -> str:
+def make_ILP_name(point_info: ObjectInfo, nr: int) -> str:
     """
     Makes MSI name using the ILP convention used in the project of Jeroen van Meurs.
     """
@@ -529,12 +538,12 @@ def make_ILP_name(point_info, nr) -> str:
                 f"{point_info.pos_eigs.km:.3f},{nr}")
 
 
-def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool) -> None:
+def adjust_edges_to(area_to_base_on, area, border_surface_id: int, away_from: bool) -> None:
     area.edges = deepcopy(area_to_base_on.edges)
     direction = 1 if ((area.request.open_side == "R" and away_from) or
                       (area.request.open_side == "L" and not away_from)) else -1
 
-    move_distance = direction * DISTANCE_BESIDE[area.request.demarcation][border_surface]
+    move_distance = direction * DISTANCE_BESIDE[area.request.demarcation][border_surface_id]
     area.edges[area.request.open_side].relocate(move_distance, area.request)
 
 
