@@ -210,12 +210,15 @@ class Aanvraag:
         self.closed_space.determine_measure_request()
 
     def step_4_solve_measure_request(self) -> None:
-        logger.info(f"The following should be sent to ILP:\n{self.measure_request}")
+        if not self.measure_request["legend_requests"]:
+            logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
+            return
 
+        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd:\n{self.measure_request}")
         with open(f"MeasureRequest.txt", "w") as outfile:
             json.dump(self.measure_request, outfile, indent=2)
 
-        return  # TODO
+        # Add code to communicate with ILP
 
     def step_5_adjust_area_sizes(self) -> None:
         return  # TODO
@@ -280,7 +283,7 @@ class Aanvraag:
         logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
         logger.info(f"Werkruimte aangemaakt met km {self.workspace.km} en randen {self.workspace.edges}")
         logger.info(f"Veiligheidsruimte aangemaakt met km {self.empty_space.km} en randen {self.empty_space.edges}")
-        logger.info(f"Werkvak aangemaakt met km {self.closed_space.km} en randen {self.closed_space.edges}\n")
+        logger.info(f"Werkvak aangemaakt met km {self.closed_space.km} en randen {self.closed_space.edges}")
 
 
 class Workspace:
