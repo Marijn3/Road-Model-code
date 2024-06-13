@@ -82,11 +82,11 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def move(self, move_distance, lane_number_right_lane) -> None:
+    def relocate(self, move_distance, request_info: 'Aanvraag') -> None:
         if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
-            self.lane = self.lane + 1 if self.lane else 1
+            self.lane = self.lane + 1 if self.lane else request_info.first_main_lane_nr
         if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
-            self.lane = self.lane - 1 if self.lane else lane_number_right_lane
+            self.lane = self.lane - 1 if self.lane else request_info.last_main_lane_nr
         self.distance = round(self.distance + move_distance, 2)
 
     def express_wrt_left_marking(self, n_lanes) -> float:
@@ -149,6 +149,8 @@ class Aanvraag:
                               lane_type not in ["Puntstuk", "Vluchtstrook", "Spitsstrook", "Plusstrook"]]
         self.first_lane_nr = min(self.all_lane_nrs)
         self.last_lane_nr = max(self.all_lane_nrs)
+        self.first_main_lane_nr = min(self.main_lane_nrs)
+        self.last_main_lane_nr = max(self.main_lane_nrs)
         self.n_main_lanes = len(self.main_lane_nrs)
 
         self.msis_red_cross = []
@@ -301,7 +303,7 @@ class Workspace:
         if self.category == "A":
             self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
-            lane = min(self.request.main_lane_nrs) if self.request.open_side == "R" else max(self.request.main_lane_nrs)
+            lane = self.request.first_main_lane_nr if self.request.open_side == "R" else self.request.last_main_lane_nr
             self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
         elif self.category == "C":
             self.request.requires_lane_narrowing = True
@@ -343,8 +345,8 @@ class Workspace:
             "Geef een negatieve afstand voor de rechterrand op."
 
     def determine_open_side(self) -> str:
-        n_main_lanes_left = self.request.edges["L"].lane - min(self.request.main_lane_nrs)
-        n_main_lanes_right = max(self.request.main_lane_nrs) - self.request.edges["R"].lane
+        n_main_lanes_left = self.request.edges["L"].lane - self.request.first_main_lane_nr
+        n_main_lanes_right = self.request.last_main_lane_nr - self.request.edges["R"].lane
 
         if n_main_lanes_left < n_main_lanes_right:
             return "R"
@@ -474,9 +476,9 @@ class ClosedSpace:
                     lane[side] = self.edges[side].lane + 1 if side == "L" else self.edges[side].lane - 1
             else:
                 if self.edges[side].distance < 0.0:
-                    lane[side] = min(self.request.main_lane_nrs) - 1
+                    lane[side] = self.request.first_main_lane_nr - 1
                 else:
-                    lane[side] = max(self.request.main_lane_nrs) + 1
+                    lane[side] = self.request.last_main_lane_nr + 1
 
         covered_lanes = [lane_number for lane_number in range(lane["L"], lane["R"] + 1)]
         lanes_for_crosses = [lane_nr for lane_nr in covered_lanes if lane_nr in self.request.all_lane_nrs]
@@ -533,7 +535,7 @@ def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool) -> N
                       (area.request.open_side == "L" and not away_from)) else -1
 
     move_distance = direction * DISTANCE_BESIDE[area.request.demarcation][border_surface]
-    area.edges[area.request.open_side].move(move_distance, max(area.request.main_lane_nrs))
+    area.edges[area.request.open_side].relocate(move_distance, area.request)
 
 
 def adjust_length_to(area_to_adjust_to, area) -> None:
