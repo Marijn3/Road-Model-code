@@ -484,15 +484,15 @@ class ClosedSpace:
         # Determine MSI rows
         msi_rows_inside = []
         if self.request.roadside == "R":
-            for msi_info in self.request.roadmodel.get_points_info("MSI"):
-                if self.km[0] <= msi_info.pos_eigs.km < self.km[1]:
-                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
-                    msi_rows_inside.append((msi_info, msis_for_crosses))
+            for msi in self.request.roadmodel.get_points_info("MSI"):
+                if msi.pos_eigs.rijrichting == self.request.roadside and self.km[0] <= msi.pos_eigs.km < self.km[1]:
+                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi.obj_eigs["Rijstrooknummers"]]
+                    msi_rows_inside.append((msi, msis_for_crosses))
         else:  # roadside == "L"
-            for msi_info in self.request.roadmodel.get_points_info("MSI"):
-                if self.km[0] < msi_info.pos_eigs.km <= self.km[1]:
-                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
-                    msi_rows_inside.append((msi_info, msis_for_crosses))
+            for msi in self.request.roadmodel.get_points_info("MSI"):
+                if msi.pos_eigs.rijrichting == self.request.roadside and self.km[0] < msi.pos_eigs.km <= self.km[1]:
+                    msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi.obj_eigs["Rijstrooknummers"]]
+                    msi_rows_inside.append((msi, msis_for_crosses))
 
         self.request.msis_red_cross = msi_rows_inside
 
