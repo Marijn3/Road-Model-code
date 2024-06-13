@@ -69,7 +69,7 @@ DISTANCE_AFTER = {
 
 
 class Rand:
-    def __init__(self, rijstrook: int | None, afstand: float):
+    def __init__(self, rijstrook: int | None, afstand: float) -> None:
         self.lane = rijstrook
         self.distance = afstand
 
@@ -80,7 +80,7 @@ class Rand:
         else:
             return f"{position} {round(self.distance, 2)}m"
 
-    def move(self, move_distance, lane_number_right_lane):
+    def move(self, move_distance, lane_number_right_lane) -> None:
         if self.distance < 0 < self.distance + move_distance:  # The edge crosses 0
             self.lane = self.lane + 1 if self.lane else 1
         if self.distance > 0 > self.distance + move_distance:  # The edge crosses 0
@@ -164,7 +164,7 @@ class Aanvraag:
 
         self.report_request()
 
-    def run_sanity_checks(self):
+    def run_sanity_checks(self) -> None:
         assert len(self.edges) == 2, \
             "Specificeer beide randen."
         assert self.edges["L"].distance and self.edges["R"].distance, \
@@ -172,10 +172,10 @@ class Aanvraag:
         assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
-    def step_1_determine_initial_workspace(self):
+    def step_1_determine_initial_workspace(self) -> None:
         self.workspace.determine_minimal_workspace()
 
-    def step_2_determine_area_sizes(self):
+    def step_2_determine_area_sizes(self) -> None:
         # Determine minimal width from the original area
         self.empty_space.adjust_edges_to_workspace()
         self.closed_space.adjust_edges_to_empty_space()
@@ -190,20 +190,20 @@ class Aanvraag:
         self.empty_space.adjust_length_to_closed_space()
         self.workspace.adjust_length_to_empty_space()
 
-        # self.plot_areas()
+        self.plot_areas()
 
-    def step_3_generate_measure_request(self):
+    def step_3_generate_measure_request(self) -> None:
         self.msis_red_cross = self.closed_space.obtain_msis_inside()
         self.measure_request = self.closed_space.determine_measure_request()
 
-    def step_4_solve_measure_request(self):
+    def step_4_solve_measure_request(self) -> None:
         logger.info(f"The following should be sent to ILP:\n{self.measure_request}")
         return  # TODO
 
-    def step_5_adjust_area_sizes(self):
+    def step_5_adjust_area_sizes(self) -> None:
         return  # TODO
 
-    def plot_areas(self):
+    def plot_areas(self) -> None:
         fig = plt.figure()
         ax = fig.add_subplot()
 
@@ -244,7 +244,7 @@ class Aanvraag:
         ax.legend()
         plt.show()
 
-    def plot_area(self, ax, area):
+    def plot_area(self, ax, area) -> None:
         x = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
         y = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
 
@@ -259,7 +259,7 @@ class Aanvraag:
                                             label=AREA_NAMES[area.surface_type])
         ax.add_patch(rect)
 
-    def report_request(self):
+    def report_request(self) -> None:
         logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
         logger.info(f"Werkruimte aangemaakt met km {self.workspace.km} en randen {self.workspace.edges}")
         logger.info(f"Veiligheidsruimte aangemaakt met km {self.empty_space.km} en randen {self.empty_space.edges}")
@@ -274,7 +274,7 @@ class Workspace:
         self.km = request.km
         self.category = str()
 
-    def determine_minimal_workspace(self):
+    def determine_minimal_workspace(self) -> None:
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
             self.determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
@@ -291,7 +291,7 @@ class Workspace:
 
         self.apply_category_measures()
 
-    def apply_category_measures(self):
+    def apply_category_measures(self) -> None:
         if self.category == "A":
             self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
@@ -390,10 +390,10 @@ class Workspace:
         else:
             logger.info("Geen passende categorie gevonden voor de gegeven aanvraag.")
 
-    def adjust_edges_to_empty_space(self):
+    def adjust_edges_to_empty_space(self) -> None:
         adjust_edges_to(self.request.empty_space, self, EMPTY_SPACE, away_from=False)
 
-    def adjust_length_to_empty_space(self):
+    def adjust_length_to_empty_space(self) -> None:
         adjust_length_to(self.request.empty_space, self)
 
 
@@ -457,7 +457,7 @@ class ClosedSpace:
 
         self.km = [msi_at_lower_km.pos_eigs.km, msi_at_higher_km.pos_eigs.km]
 
-    def obtain_msis_inside(self) -> list[tuple]:
+    def obtain_msis_inside(self) -> None:
         # Determine fully covered lanes
         lane = {"L": None, "R": None}
         for side in lane.keys():
@@ -490,7 +490,7 @@ class ClosedSpace:
 
         return msi_rows_inside
 
-    def determine_measure_request(self) -> dict:
+    def determine_measure_request(self) -> None:
         # See report JvM page 71 for an explanation of this request structure
         request = {
             "name": "custom request",
@@ -521,7 +521,7 @@ def make_ILP_name(point_info, nr) -> str:
                 f"{point_info.pos_eigs.km:.3f},{nr}")
 
 
-def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
+def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool) -> None:
     area.edges = deepcopy(area_to_base_on.edges)
     direction = 1 if ((area.request.open_side == "R" and away_from) or
                       (area.request.open_side == "L" and not away_from)) else -1
@@ -530,7 +530,7 @@ def adjust_edges_to(area_to_base_on, area, border_surface, away_from: bool):
     area.edges[area.request.open_side].move(move_distance, max(area.request.main_lane_nrs))
 
 
-def adjust_length_to(area_to_adjust_to, area):
+def adjust_length_to(area_to_adjust_to, area) -> None:
     if area.request.roadside == "R":
         open_space_high_km = DISTANCE_AFTER[area.surface_type]
         open_space_low_km = DISTANCE_BEFORE[area.surface_type]
