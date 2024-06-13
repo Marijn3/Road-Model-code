@@ -463,9 +463,9 @@ class MSINetwerk:
         # Adjust shift in case of (dis)appearing lane on the left side of the road
         if 1 in new_annotation.keys():
             if ((downstream and new_annotation[1] == "ExtraRijstrook")
-                    or (not downstream and new_annotation[1] == "Rijstrookbeeindiging")):
+                    or (not downstream and new_annotation[1] == "EindeRijstrook")):
                 shift = shift + 1
-            elif ((downstream and new_annotation[1] == "Rijstrookbeëindiging")
+            elif ((downstream and new_annotation[1] == "EindeRijstrook")
                     or (not downstream and new_annotation[1] == "ExtraRijstrook")):
                 shift = shift - 1
 
@@ -474,10 +474,10 @@ class MSINetwerk:
 
     @staticmethod
     def __update_lane_bounds(current_bounds, lanes, shift, annotation):
-        # Adjust shift in case of an ending taper.
-        if "TaperAfloop" in annotation.values():
+        # Adjust shift in case of an converging taper.
+        if "TaperConvergentie" in annotation.values():
             for lane_number, lane_type in annotation.items():
-                if lane_type == "TaperAfloop" and lane_number + 1 in current_bounds:
+                if lane_type == "TaperConvergentie" and lane_number + 1 in current_bounds:
                     normal_lanes = [lane - shift for lane in lanes if lane < lane_number]
                     shifted_lanes = [lane - shift + 1 for lane in lanes if lane >= lane_number]
                     return [lane for lane in normal_lanes + shifted_lanes if lane in current_bounds]
@@ -507,13 +507,13 @@ class MSINetwerk:
                                    section_verw_eigs.start_kenmerk.items() if keyword == "Special"})
 
                 # Used for cross-relations
-                # if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
-                #     annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                #                        section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
-                #
-                # if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
-                #     annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
-                #                        section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
+                if "Samenvoeging" in section_verw_eigs.start_kenmerk.values():
+                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Samenvoeging"})
+
+                if "Weefstrook" in section_verw_eigs.start_kenmerk.values():
+                    annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
+                                       section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
 
         if not end_skip:
             if "Invoegstrook" in section_verw_eigs.einde_kenmerk.values():
@@ -568,12 +568,12 @@ class MSI:
             "ds": None,  # MSI downstream secondary
             "dt": None,  # MSI downstream taper
             "db": None,  # MSI downstream broadening (extra rijstrook)
-            "dn": None,  # MSI downstream narrowing (rijstrookbeëindiging)
+            "dn": None,  # MSI downstream narrowing (EindeRijstrook)
             "u": None,  # MSI upstream
             "us": None,  # MSI upstream secondary
             "ut": None,  # MSI upstream taper
             "ub": None,  # MSI upstream broadening (extra rijstrook)
-            "un": None,  # MSI upstream narrowing (rijstrookbeëindiging)
+            "un": None,  # MSI upstream narrowing (EindeRijstrook)
 
             "STAT_V": None,  # Static maximum speed
             "DYN_V": None,  # Dynamic maximum speed
@@ -702,13 +702,13 @@ class MSI:
             if 1 in self.row.local_road_properties.keys() and self.row.local_road_properties[1] == "Vluchtstrook":
                 lane_bounds = [lane_number - 1 for lane_number in lane_bounds]
 
-            if "TaperOpkomst" in annotation.values():
-                taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperOpkomst"][0]
+            if "TaperDivergentie" in annotation.values():
+                taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperDivergentie"][0]
                 if self.lane_nr >= taper_lane_nr:
                     this_lane_projected += 1
 
-            if "TaperAfloop" in annotation.values():
-                taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperAfloop"][0]
+            if "TaperConvergentie" in annotation.values():
+                taper_lane_nr = [lane_nr for lane_nr in annotation if annotation[lane_nr] == "TaperConvergentie"][0]
                 if self.lane_nr > taper_lane_nr:
                     this_lane_projected -= 1
                 if self.lane_nr == taper_lane_nr:
@@ -718,7 +718,7 @@ class MSI:
             # Primary relation
             if (this_lane_projected in d_row.MSIs.keys() and not has_taper and self.lane_nr in lane_bounds and (
                     # Prevent downstream primary relation being added when lane ends.
-                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "Rijstrookbeëindiging")):
+                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "EindeRijstrook")):
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:
@@ -738,7 +738,7 @@ class MSI:
                         self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
 
                 # Narrowing relation
-                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "Rijstrookbeëindiging"
+                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "EindeRijstrook"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
                     logger.debug(f"Versmallingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     # self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name

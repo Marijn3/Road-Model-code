@@ -156,7 +156,7 @@ class DataFrameLader:
                         if i == j:
                             value = (i, None)
                         elif i > j:
-                            value = (i, "Rijstrookbeëindiging")
+                            value = (i, "EindeRijstrook")
                         else:
                             value = (i, "ExtraRijstrook")
                     else:  # For direction "T"
@@ -165,19 +165,19 @@ class DataFrameLader:
                         elif i > j:
                             value = (i, "ExtraRijstrook")
                         else:
-                            value = (i, "Rijstrookbeëindiging")
+                            value = (i, "EindeRijstrook")
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
             mapping["1 -> 1.6"] = (1, None)  # "Taper opkomst start")
             mapping["1.6 -> 1"] = (1, None)  # "Taper afloop einde")
-            mapping["2 -> 1.6"] = (2, "TaperAfloop")  # wel 2 stroken breed, want 2 breed bij start
-            mapping["1.6 -> 2"] = (1, "TaperOpkomst")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["2 -> 1.6"] = (2, "TaperConvergentie")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["1.6 -> 2"] = (1, "TaperDivergentie")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
         if direction == "T":
             mapping["1 -> 1.6"] = (1, None)  # "Taper afloop einde")
             mapping["1.6 -> 1"] = (1, None)  # "Taper opkomst start")
-            mapping["2 -> 1.6"] = (1, "TaperOpkomst")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
-            mapping["1.6 -> 2"] = (2, "TaperAfloop")  # wel 2 stroken breed, want 2 breed bij start
+            mapping["2 -> 1.6"] = (1, "TaperDivergentie")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
+            mapping["1.6 -> 2"] = (2, "TaperConvergentie")  # wel 2 stroken breed, want 2 breed bij start
         return mapping
 
     def __get_coords_from_csv(self, location: str) -> dict[str, float]:
