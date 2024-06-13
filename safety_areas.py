@@ -1,3 +1,5 @@
+import json
+
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -159,7 +161,7 @@ class Aanvraag:
         self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
         self.step_3_generate_measure_request()
-        # self.step_4_solve_measure_request()
+        self.step_4_solve_measure_request()
         # self.step_5_adjust_area_sizes()
 
         self.report_request()
@@ -193,11 +195,15 @@ class Aanvraag:
         self.plot_areas()
 
     def step_3_generate_measure_request(self) -> None:
-        self.msis_red_cross = self.closed_space.obtain_msis_inside()
-        self.measure_request = self.closed_space.determine_measure_request()
+        self.closed_space.obtain_msis_inside()
+        self.closed_space.determine_measure_request()
 
     def step_4_solve_measure_request(self) -> None:
         logger.info(f"The following should be sent to ILP:\n{self.measure_request}")
+
+        with open(f"MeasureRequest.txt", "w") as outfile:
+            json.dump(self.measure_request, outfile, indent=2)
+
         return  # TODO
 
     def step_5_adjust_area_sizes(self) -> None:
@@ -488,11 +494,11 @@ class ClosedSpace:
                     msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi_info.obj_eigs["Rijstrooknummers"]]
                     msi_rows_inside.append((msi_info, msis_for_crosses))
 
-        return msi_rows_inside
+        self.request.msis_red_cross = msi_rows_inside
 
     def determine_measure_request(self) -> None:
         # See report JvM page 71 for an explanation of this request structure
-        request = {
+        request_options = {
             "name": "custom request",
             "type": "add",
             "legend_requests": [],
@@ -503,8 +509,8 @@ class ClosedSpace:
             if not lane_nrs:
                 continue
             for lane_nr in lane_nrs:
-                request["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
-        return request
+                request_options["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
+        self.request.measure_request = request_options
 
 
 def make_ILP_name(point_info, nr) -> str:
