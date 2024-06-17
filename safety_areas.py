@@ -186,7 +186,8 @@ class Aanvraag:
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
     def step_1_determine_initial_workspace(self) -> None:
-        self.workspace.determine_minimal_workspace()
+        self.workspace.determine_category()
+        self.workspace.apply_category_measures()
 
     def step_2_determine_area_sizes(self) -> None:
         # Determine minimal width from the original area
@@ -294,13 +295,12 @@ class Workspace:
         self.km = request.km
         self.category = str()
 
-    def determine_minimal_workspace(self) -> None:
+    def determine_category(self) -> None:
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
             self.determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
-            # TODO: Uitwerken wat er in deze situatie moet gebeuren.
+            # TODO: This is still onroad, so still category D. But now certain to expand in the direction of the off-road edge.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
-            return
         else:
             self.determine_request_category_roadside()
 
@@ -308,8 +308,6 @@ class Workspace:
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op de weg).")
         else:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
-
-        self.apply_category_measures()
 
     def apply_category_measures(self) -> None:
         if self.category == "A":
