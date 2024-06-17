@@ -578,6 +578,7 @@ class WegModel:
         Returns:
             Section id, section information and adapted dictionary.
         """
+        # Travel direction is the same for all sections of the road model it could overlap with
         travel_direction = next(iter(sections.values())).pos_eigs.rijrichting
 
         next_section_id = None
@@ -585,20 +586,20 @@ class WegModel:
 
         if travel_direction == "L":
             reference_km = -float('inf')
-            for section_id, section_info in sections.items():
-                max_km = max(section_info.pos_eigs.km)
+            for section_id, section_data in sections.items():
+                max_km = max(section_data.pos_eigs.km)
                 if max_km > reference_km:
                     reference_km = max_km
                     next_section_id = section_id
-                    next_section_info = section_info
-        else:  # travel direction = R
+                    next_section_info = section_data
+        else:  # travel direction == "R"
             reference_km = float('inf')
-            for section_id, section_info in sections.items():
-                min_km = min(section_info.pos_eigs.km)
+            for section_id, section_data in sections.items():
+                min_km = min(section_data.pos_eigs.km)
                 if min_km < reference_km:
                     reference_km = min_km
                     next_section_id = section_id
-                    next_section_info = section_info
+                    next_section_info = section_data
 
         sections.pop(next_section_id)
 
@@ -606,6 +607,7 @@ class WegModel:
 
     def __merge_section(self, new_info: ObjectInfo) -> None:
         """
+        TODO: Rework to use a new strategy.
         Merges the given section with existing sections in self.sections, by iteratively
         partioning the geometry and km-registrations and applying the relevant properties.
         Args:
@@ -867,18 +869,18 @@ class WegModel:
             return set_precision(remainders, CALCULATION_PRECISION)
         elif isinstance(remainders, MultiLineString) and not remainders.is_empty:
             # TODO: Determine more reliable method to extract the correct diff here!
-            start_point_geom1, end_point_geom1 = geom1.boundary.geoms
-            start_point_geom2, end_point_geom2 = geom2.boundary.geoms
+            start_point_geom1, end_point_geom1 = get_endpoints(geom1)
+            start_point_geom2, end_point_geom2 = get_endpoints(geom2)
 
             selected_diff = LineString()
 
             for geom in remainders.geoms:
-                start_point_remainder, end_point_remainder = geom.boundary.geoms
-                passes = (dwithin(start_point_remainder, start_point_geom1, 20*DISTANCE_TOLERANCE) or
-                          dwithin(start_point_remainder, end_point_geom1, 20*DISTANCE_TOLERANCE) and
-                          dwithin(end_point_remainder, end_point_geom2, 20*DISTANCE_TOLERANCE) or
-                          dwithin(start_point_remainder, end_point_geom2, 20*DISTANCE_TOLERANCE) and
-                          dwithin(end_point_remainder, end_point_geom1, 20*DISTANCE_TOLERANCE))
+                start_point_remainder, end_point_remainder = get_endpoints(geom)
+                passes = (dwithin(start_point_remainder, start_point_geom1, 3*DISTANCE_TOLERANCE) or
+                          dwithin(start_point_remainder, end_point_geom1, 3*DISTANCE_TOLERANCE) and
+                          dwithin(end_point_remainder, end_point_geom2, 3*DISTANCE_TOLERANCE) or
+                          dwithin(start_point_remainder, end_point_geom2, 3*DISTANCE_TOLERANCE) and
+                          dwithin(end_point_remainder, end_point_geom1, 3*DISTANCE_TOLERANCE))
                 if passes:
                     logger.info(f"I would select {geom}")
                     selected_diff = geom
@@ -944,20 +946,11 @@ class WegModel:
         if not determine_range_overlap(pos1.km, pos2.km):
             return None
 
-        pos1.geometrie = set_precision(pos1.geometrie, CALCULATION_PRECISION)
-        pos2.geometrie = set_precision(pos2.geometrie, CALCULATION_PRECISION)
-        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=10*CALCULATION_PRECISION)
-        # logger.debug(f"test2: {overlap_geometry}")
+        # Then, check if the overlap between the geometries is of the same dimension as the geometries.
+        # if not overlaps(pos1.geometrie, pos2.geometrie):
+        #     return None
 
-        # logger.warning(f"Overlap is geen lijn tussen {pos1.geometrie} en {pos2.geometrie}")
-        # if pos1.geometrie.length > pos2.geometrie.length:
-        #     a = line_locate_point(pos1.geometrie, Point(pos2.geometrie.coords[-1]), normalized=True)
-        #     point = line_interpolate_point(pos1.geometrie, a, normalized=True)
-        #     logger.debug(f"{a} {point}")
-        # elif pos1.geometrie.length < pos2.geometrie.length:
-        #     a = line_locate_point(pos2.geometrie, Point(pos1.geometrie.coords[-1]), normalized=True)
-        #     point = line_interpolate_point(pos2.geometrie, a, normalized=True)
-        #     logger.debug(f"{a} {point}")
+        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=10*CALCULATION_PRECISION)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             return set_precision(line_merge(overlap_geometry), CALCULATION_PRECISION)
@@ -1009,7 +1002,7 @@ class WegModel:
             new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
 
             for new_lane_number in new_lane_numbers:
-                # TODO: Check if this is the correct implementation
+                # TODO: Check if this is the correct implementation for moving lanes
                 if new_lane_number in orig_lane_numbers:
                     # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
                     if new_obj_eigs[new_lane_number] == "Vluchtstrook":
@@ -1174,21 +1167,22 @@ class WegModel:
                 return reference_info
         return None
 
-    def __get_overlapping_sections(self, section_a: ObjectInfo) -> dict:
+    def __get_overlapping_sections(self, section_info: ObjectInfo) -> dict:
         """
         Finds all sections within self which overlap with the provided section
         and returns them in a list.
         Args:
-            section_a (ObjectInfo): All data pertaining to a section.
+            section_info (ObjectInfo): All data pertaining to a section.
         Returns:
             A list of overlap section data, sorted by start_km depending on
             the driving direction of one of the other sections, which is assumed
             to be representative for all other sections.
         """
         overlapping_sections = {}
-        for section_b_index, section_b in self.sections.items():
-            if self.__get_overlap(section_a.pos_eigs, section_b.pos_eigs):
-                overlapping_sections[section_b_index] = section_b
+        for other_section_index, other_section_info in self.sections.items():
+            overlap_geometry = self.__get_overlap(section_info.pos_eigs, other_section_info.pos_eigs)
+            if overlap_geometry:
+                overlapping_sections[other_section_index] = other_section_info
         return overlapping_sections
 
     def __post_process_data(self) -> None:
@@ -1581,9 +1575,8 @@ class WegModel:
 
     def get_one_section_at_point(self, point: Point) -> ObjectInfo:
         """
-        Returns the properties of a road section at a specific point.
-        If there are multiple sections close to the point, the downstream
-        section is returned.
+        Returns the properties of a road section at a specific point. If there
+        are multiple sections close to the point, the downstream section is returned.
         Args:
             point (Point): Geometric position of the point.
         Returns:
@@ -1596,10 +1589,13 @@ class WegModel:
                     return section_info
                 overlapping_sections.append(section_info)
 
-        if len(overlapping_sections) == 1:
+        if len(overlapping_sections) > 1:
+            logger.warning(f"Meerdere secties gevonden in de buurt van dit punt: {point}\n{overlapping_sections}")
+
+        if overlapping_sections:
             return overlapping_sections[0]
 
-        raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point}")
+        raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point} {overlapping_sections}")
 
     @staticmethod
     def find_gap(numbers: list[int]) -> int | None:
@@ -1652,3 +1648,13 @@ def same_direction(geom1: LineString, geom2: LineString) -> bool:
                        f"{line_distance_a, line_distance_b}. Dit geeft mogelijk verwerkingsfouten.")
 
     return line_distance_a < line_distance_b
+
+
+def get_endpoints(geom: LineString) -> tuple[Point, Point]:
+    if geom.boundary.geoms:
+        start_point, end_point = geom.boundary.geoms
+    else:  # Catch in case of a circular linestring
+        start_point = Point(geom.coords[0])
+        end_point = Point(geom.coords[-1])
+    return start_point, end_point
+
