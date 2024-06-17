@@ -527,7 +527,7 @@ class SvgMaker:
         # Ensure there is a 'lane number' for the side of the road.
         lane_numbers.insert(0, min(lane_numbers)-1)
 
-        logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
+        #logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
         for lane_number in lane_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), lane_number)
 
@@ -544,7 +544,7 @@ class SvgMaker:
                     break
                 continue
 
-            logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
+            #logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
             self.__draw_markerline(line_coords, lane_marking_type)
 

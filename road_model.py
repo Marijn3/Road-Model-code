@@ -612,11 +612,12 @@ class WegModel:
             new_info (ObjectInfo): Information related to the new section.
         """
         overlap_sections = self.__get_overlapping_sections(new_info)
+
         if not overlap_sections:
-            # logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
+            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
             return
 
-        logger.debug(f"Overlap tussen {new_info} en secties:\n{overlap_sections}")
+        logger.debug(f"Overlap tussen {new_info} en secties: {overlap_sections}")
 
         other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
 
@@ -801,6 +802,8 @@ class WegModel:
         else:
             km_remaining = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
         other_geom = self.__get_first_remainder(second_section_info.pos_eigs.geometrie, overlapping_geom)
+
+        logger.debug(f"The remainder between {second_section_info.pos_eigs.geometrie}\n and {overlapping_geom}\n is {other_geom}")
 
         return km_remaining, other_geom
 
