@@ -850,8 +850,9 @@ class WegModel:
         overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=10*CALCULATION_PRECISION)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
-            return set_precision(line_merge(overlap_geometry), CALCULATION_PRECISION)
-        elif isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
+            overlap_geometry = set_precision(line_merge(overlap_geometry), CALCULATION_PRECISION)
+
+        if isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return set_precision(overlap_geometry, CALCULATION_PRECISION)
         else:
             return None
@@ -1078,11 +1079,8 @@ class WegModel:
         overlapping_sections = {}
         for other_section_index, other_section_info in self.sections.items():
             overlap_geometry = self.__get_overlap(section_info.pos_eigs, other_section_info.pos_eigs)
-            if overlap_geometry and isinstance(overlap_geometry, LineString):
+            if overlap_geometry:
                 overlapping_sections[other_section_index] = (other_section_info, overlap_geometry)
-            elif overlap_geometry:
-                logger.warning(f"A non-linestring overlap could not be added: {overlap_geometry}")
-                # overlapping_sections[other_section_index] = (other_section_info, overlap_geometry)
         return overlapping_sections
 
     def __post_process_data(self) -> None:
@@ -1159,6 +1157,7 @@ class WegModel:
             start_sections = self.get_sections_by_point(start_point)
             end_sections = self.get_sections_by_point(end_point)
 
+            # TODO: Check how this functions with non-imported MultiLineStrings
             main_up, div_up = self.__separate_main_and_div(start_sections, section_index, section_info)
             main_down, div_down = self.__separate_main_and_div(end_sections, section_index, section_info)
 
