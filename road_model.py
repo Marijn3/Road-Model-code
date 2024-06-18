@@ -77,7 +77,7 @@ class ObjectInfo:
 
     def __repr__(self):
         typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
-        return (f"{typename} op positie {self.pos_eigs} en eigenschappen:\n"
+        return (f"{typename} op positie {self.pos_eigs} en eigenschappen: "
                 f"{self.obj_eigs}")
 
 
@@ -567,44 +567,43 @@ class WegModel:
 
         return section_info
 
-    @staticmethod
-    def __extract_next_section(sections: dict) -> tuple[int, ObjectInfo, LineString, dict]:
-        """
-        Obtains the next section from a dict of (ObjectInfo) sections. Uses the
-        "L" or "R" driving direction to determine which section is next. Removes
-        the section from the provided dict.
-        Args:
-            sections (dict): All sections, in the format {id: ObjectInfo}.
-        Returns:
-            Section id, section information and adapted dictionary.
-        """
-        # Travel direction is the same for all sections of the road model it could overlap with
-        travel_direction = next(iter(sections.values())).pos_eigs.rijrichting
-
-        next_section_id = None
-
-        if travel_direction == "L":
-            reference_km = -float('inf')
-            for section_id, section_data in sections.items():
-                max_km = max(section_data[0].pos_eigs.km)
-                if max_km > reference_km:
-                    reference_km = max_km
-                    next_section_id = section_id
-        else:  # travel direction == "R"
-            reference_km = float('inf')
-            for section_id, section_data in sections.items():
-                min_km = min(section_data[0].pos_eigs.km)
-                if min_km < reference_km:
-                    reference_km = min_km
-                    next_section_id = section_id
-
-        next_section_info, overlap_geometry = sections.pop(next_section_id)
-
-        return next_section_id, deepcopy(next_section_info), overlap_geometry, sections
+    # @staticmethod
+    # def __extract_next_section(sections: dict) -> tuple[int, ObjectInfo, LineString, dict]:
+    #     """
+    #     Obtains the next section from a dict of (ObjectInfo) sections. Uses the
+    #     "L" or "R" driving direction to determine which section is next. Removes
+    #     the section from the provided dict.
+    #     Args:
+    #         sections (dict): All sections, in the format {id: ObjectInfo}.
+    #     Returns:
+    #         Section id, section information and adapted dictionary.
+    #     """
+    #     # Travel direction is the same for all sections of the road model it could overlap with
+    #     travel_direction = next(iter(sections.values())).pos_eigs.rijrichting
+    #
+    #     next_section_id = None
+    #
+    #     if travel_direction == "L":
+    #         reference_km = -float('inf')
+    #         for section_id, section_data in sections.items():
+    #             max_km = max(section_data[0].pos_eigs.km)
+    #             if max_km > reference_km:
+    #                 reference_km = max_km
+    #                 next_section_id = section_id
+    #     else:  # travel direction == "R"
+    #         reference_km = float('inf')
+    #         for section_id, section_data in sections.items():
+    #             min_km = min(section_data[0].pos_eigs.km)
+    #             if min_km < reference_km:
+    #                 reference_km = min_km
+    #                 next_section_id = section_id
+    #
+    #     next_section_info, overlap_geometry = sections.pop(next_section_id)
+    #
+    #     return next_section_id, deepcopy(next_section_info), overlap_geometry, sections
 
     def __merge_section(self, new_info: ObjectInfo) -> None:
         """
-        TODO: Rework to use a new strategy.
         Merges the given section with existing sections in self.sections, by iteratively
         partioning the geometry and km-registrations and applying the relevant properties.
         Args:
@@ -616,14 +615,13 @@ class WegModel:
             logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
             return
 
-        logger.debug(f"Overlap tussen {new_info} en secties: {overlap_sections}")
+        logger.debug(f"Overlap tussen {new_info} en secties: \n {overlap_sections}")
 
-        sections_to_remove = set()
         first_time = True
 
-        while overlap_sections:
-            # TODO: Below may be replaced, since the order is not important any more.
-            other_section_index, other_info, overlap_geometry, overlap_sections = self.__extract_next_section(overlap_sections)
+        for other_section_index, other_section_data in overlap_sections.items():
+            other_info = other_section_data[0]
+            overlap_geometry = other_section_data[1]
 
             if first_time:
                 # Align new section range and geometry according to other section. This only needs to be done once,
@@ -655,30 +653,7 @@ class WegModel:
                 logger.warning("Secties met ongelijke vorm hebben gelijk begin- en eindpunt.")
                 self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
 
-            # Case 2: overlap and road model section end at the same point, but road model section starts earlier
-            if endpoint_overlap and linedist_overlap_start_on_other > TINY_DEVIATION_LOW:
-                remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
-                km_registrations = [
-                    other_info.pos_eigs.km[0],
-                    new_info.pos_eigs.km[0],
-                    other_info.pos_eigs.km[1]
-                ]
-                self.__add_section(
-                    ObjectInfo(
-                        pos_eigs=PositieEigenschappen(
-                            rijrichting=other_info.pos_eigs.rijrichting,
-                            wegnummer=other_info.pos_eigs.wegnummer,
-                            hectoletter=other_info.pos_eigs.hectoletter,
-                            km=[km_registrations[0], km_registrations[1]],
-                            geometrie=remainder_geometry),
-                        obj_eigs=other_info.obj_eigs)
-                )
-                self.__update_section(other_section_index,
-                                      new_km=[km_registrations[1], km_registrations[2]],
-                                      new_obj_eigs=new_info.obj_eigs,
-                                      new_geometrie=overlap_geometry)
-
-            # Case 3: overlap and road model section start at the same point, but overlap ends earlier
+            # Case 2: overlap and road model section start at the same point, but overlap ends earlier
             if startpoint_overlap and linedist_overlap_end_on_other <= TINY_DEVIATION_HIGH:
                 remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
                 km_registrations = [
@@ -701,10 +676,32 @@ class WegModel:
                         obj_eigs=other_info.obj_eigs)
                 )
 
-            # Case 4: overlap is a subgeometry of the road model section
+            # Case 3: overlap and road model section end at the same point, but overlap starts later
+            if endpoint_overlap and linedist_overlap_start_on_other > TINY_DEVIATION_LOW:
+                remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
+                km_registrations = [
+                    other_info.pos_eigs.km[0],
+                    new_info.pos_eigs.km[0],
+                    other_info.pos_eigs.km[1]
+                ]
+                self.__add_section(
+                    ObjectInfo(
+                        pos_eigs=PositieEigenschappen(
+                            rijrichting=other_info.pos_eigs.rijrichting,
+                            wegnummer=other_info.pos_eigs.wegnummer,
+                            hectoletter=other_info.pos_eigs.hectoletter,
+                            km=[km_registrations[0], km_registrations[1]],
+                            geometrie=remainder_geometry),
+                        obj_eigs=other_info.obj_eigs)
+                )
+                self.__update_section(other_section_index,
+                                      new_km=[km_registrations[1], km_registrations[2]],
+                                      new_obj_eigs=new_info.obj_eigs,
+                                      new_geometrie=overlap_geometry)
+
+            # Case 4: the overlap start and end are encased by the road model section
             if linedist_overlap_end_on_other < TINY_DEVIATION_HIGH and linedist_overlap_start_on_other > TINY_DEVIATION_LOW:
-                # TODO: Obtain remainder of both geometries
-                remainder_geometry = self.__get_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
+                remainder_geometries = self.__get_remainders(other_info.pos_eigs.geometrie, overlap_geometry)
                 km_registrations = [
                     other_info.pos_eigs.km[0],
                     new_info.pos_eigs.km[0],
@@ -718,7 +715,7 @@ class WegModel:
                             wegnummer=other_info.pos_eigs.wegnummer,
                             hectoletter=other_info.pos_eigs.hectoletter,
                             km=[km_registrations[0], km_registrations[1]],
-                            geometrie=remainder_geometry[0]),
+                            geometrie=remainder_geometries[0]),
                         obj_eigs=other_info.obj_eigs)
                 )
                 self.__update_section(other_section_index,
@@ -732,246 +729,221 @@ class WegModel:
                             wegnummer=other_info.pos_eigs.wegnummer,
                             hectoletter=other_info.pos_eigs.hectoletter,
                             km=[km_registrations[2], km_registrations[3]],
-                            geometrie=remainder_geometry[1]),
+                            geometrie=remainder_geometries[1]),
                         obj_eigs=other_info.obj_eigs)
                 )
 
+        # sections_to_remove = set()
+        #
+        # while True:
+        #     # If checks fail -> extraction of next section
+        #     overlap_geometry = self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs)
+        #
+        #     if not overlap_geometry or self.__section_combination_invalid(new_info, other_info):  # or isinstance(overlap_geometry, MultiLineString) or...
+        #         # logger.debug("Moving on to next other section...")
+        #         if not overlap_sections:
+        #             break
+        #         other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
+        #         continue  # Go through above checks again
+        #
+        #     new_info.pos_eigs.geometrie = set_precision(new_info.pos_eigs.geometrie, CALCULATION_PRECISION)
+        #     other_info.pos_eigs.geometrie = set_precision(other_info.pos_eigs.geometrie, CALCULATION_PRECISION)
+        #
+        #     logger.debug(f"remaining new geom: {new_info.pos_eigs.km} {new_info.pos_eigs.geometrie}")
+        #     logger.debug(f"remaining other geom: {other_info.pos_eigs.km} {other_info.pos_eigs.geometrie}")
+        #     logger.debug(f"overlap: {overlap_geometry}")
+        #
+        #     right_side = other_info.pos_eigs.rijrichting == "R"
+        #     left_side = other_info.pos_eigs.rijrichting == "L"
+        #
+        #     new_section_first = (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and right_side) or (
+        #                         (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and left_side))
+        #
+        #     other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
+        #                           (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
+        #
+        #     # logger.debug(f"path 1: {new_section_first} {other_section_first}")
+        #
+        #     if new_section_first:
+        #         self.__add_differing_part(new_info, other_info, right_side, reference_info=other_info)
+        #         continue
+        #
+        #     if other_section_first:
+        #         self.__add_differing_part(other_info, new_info, right_side, reference_info=other_info)
+        #         continue
+        #
+        #     # Both sections have the same starting km registration, so investigate the ending registration.
+        #     other_section_ends_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
+        #                               (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
+        #
+        #     new_section_ends_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
+        #                             (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
+        #
+        #     # logger.debug(f"path 2: {other_section_ends_last} {new_section_ends_last}")
+        #
+        #     if other_section_ends_last:
+        #         remaining_km, remaining_geom = (
+        #             self.__add_overlapping_part(new_info, other_info, right_side, reference_info=other_info,
+        #                                         first_ending_info=new_info, overlapping_geom=overlap_geometry))
+        #
+        #         self.__update_section(other_section_index,
+        #                               new_km=remaining_km,
+        #                               new_geometrie=remaining_geom)
+        #         break  # This is the final iteration.
+        #
+        #     elif new_section_ends_last:
+        #         remaining_km, remaining_geom = (
+        #             self.__add_overlapping_part(other_info, new_info, right_side, reference_info=other_info,
+        #                                         first_ending_info=other_info, overlapping_geom=overlap_geometry))
+        #
+        #         # logger.debug(f"Remaining for next iteration: {remaining_km} {remaining_geom}")
+        #
+        #         new_info.pos_eigs.km = remaining_km
+        #         new_info.pos_eigs.geometrie = remaining_geom
+        #
+        #         # The old other_section can be removed from the road model. It has now been completely 'used up'.
+        #         sections_to_remove.add(other_section_index)
+        #
+        #         # Continue iteration if there are more overlapping sections to deal with.
+        #         if overlap_sections:
+        #             continue
+        #
+        #         # Add final section with new section properties
+        #         self.__add_section(
+        #             ObjectInfo(
+        #                 pos_eigs=PositieEigenschappen(
+        #                     rijrichting=other_info.pos_eigs.rijrichting,
+        #                     wegnummer=other_info.pos_eigs.wegnummer,
+        #                     hectoletter=other_info.pos_eigs.hectoletter,
+        #                     km=new_info.pos_eigs.km,
+        #                     geometrie=new_info.pos_eigs.geometrie),
+        #                 obj_eigs=new_info.obj_eigs)
+        #         )
+        #         break  # This is the final iteration.
+        #
+        #     # Both sections have the same ending km registration.
+        #     if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
+        #         self.__update_section(other_section_index,
+        #                               new_km=new_info.pos_eigs.km,
+        #                               new_obj_eigs=new_info.obj_eigs,
+        #                               new_geometrie=other_info.pos_eigs.geometrie)
+        #     else:
+        #         logger.warning(f"Twee geometrieën met gelijke beginkm en eindkm komen niet helemaal overeen: "
+        #                        f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}\n"
+        #                        f"Gebaseerd op: {new_info}\n{other_info}")
+        #         self.__update_section(other_section_index,
+        #                               new_obj_eigs=new_info.obj_eigs)
+        #     break  # This is the final iteration.
+        #
+        # self.__remove_sections(sections_to_remove)
 
+    # def __add_differing_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
+    #                          right_side: bool, reference_info: ObjectInfo) -> None:
+    #     """
+    #     Adds a trimmed portion of the first provided section to the model.
+    #     A new section is made and added to the road model, which contains only the part
+    #     that does not appear in the second section. Then the first section is trimmed down.
+    #     Note that the first section is edited in place.
+    #     Args:
+    #         first_section_info (ObjectInfo): The first section encountered.
+    #         second_section_info (ObjectInfo): The other section, that is encountered next.
+    #         right_side (bool): Indicates whether the section is on the right side or the left side.
+    #         reference_info (ObjectInfo): Section info for which the data has been checked before.
+    #             Generally, this is the section already existing in the road model.
+    #     """
+    #     if right_side:
+    #         km_bereik = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
+    #     else:
+    #         km_bereik = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
+    #     differering_geom = (
+    #         self.__get_first_remainder(first_section_info.pos_eigs.geometrie, second_section_info.pos_eigs.geometrie))
+    #
+    #     self.__add_section(
+    #         ObjectInfo(
+    #             pos_eigs=PositieEigenschappen(
+    #                 rijrichting=reference_info.pos_eigs.rijrichting,
+    #                 wegnummer=reference_info.pos_eigs.wegnummer,
+    #                 hectoletter=reference_info.pos_eigs.hectoletter,
+    #                 km=km_bereik,
+    #                 geometrie=differering_geom),
+    #             obj_eigs=first_section_info.obj_eigs)
+    #     )
+    #
+    #     # Trim the km-registration and geometry for next iteration
+    #     if right_side:
+    #         first_section_info.pos_eigs.km = [min(second_section_info.pos_eigs.km), max(first_section_info.pos_eigs.km)]
+    #     else:
+    #         first_section_info.pos_eigs.km = [max(second_section_info.pos_eigs.km), min(first_section_info.pos_eigs.km)]
+    #     first_section_info.pos_eigs.geometrie = (
+    #         self.__get_first_remainder(first_section_info.pos_eigs.geometrie, differering_geom))
+    #
+    # def __add_overlapping_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo, right_side: bool,
+    #                            reference_info: ObjectInfo, first_ending_info: ObjectInfo,
+    #                            overlapping_geom: LineString) -> tuple[list, LineString]:
+    #     """
+    #     Creates a section covering the common part between the provided sections.
+    #     Both object properties are applied, other positional properties are copied
+    #     from the reference section that is provided.
+    #     Args:
+    #         first_section_info (ObjectInfo): The first section encountered.
+    #         second_section_info (ObjectInfo): The other section, that is encountered next.
+    #         right_side (bool): Indicates whether the section is on the right side or the left side.
+    #         reference_info (ObjectInfo): Section info for which the data has been checked before.
+    #             Generally, this is the section already existing in the road model.
+    #         first_ending_info (ObjectInfo): Section info of the section which ends first.
+    #     Returns:
+    #          Added geometry, for trimming a section.
+    #     """
+    #     if right_side:
+    #         km_bereik = [min(first_section_info.pos_eigs.km), max(first_ending_info.pos_eigs.km)]
+    #     else:
+    #         km_bereik = [max(first_section_info.pos_eigs.km), min(first_ending_info.pos_eigs.km)]
+    #
+    #     self.__add_section(
+    #         ObjectInfo(
+    #             pos_eigs=PositieEigenschappen(
+    #                 rijrichting=reference_info.pos_eigs.rijrichting,
+    #                 wegnummer=reference_info.pos_eigs.wegnummer,
+    #                 hectoletter=reference_info.pos_eigs.hectoletter,
+    #                 km=km_bereik,
+    #                 geometrie=overlapping_geom),
+    #             obj_eigs={**second_section_info.obj_eigs, **first_section_info.obj_eigs})
+    #     )
+    #
+    #     # Determine the remaining km-registration and geometry
+    #     if right_side:
+    #         km_remaining = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
+    #     else:
+    #         km_remaining = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
+    #     other_geom = self.__get_first_remainder(second_section_info.pos_eigs.geometrie, overlapping_geom)
+    #
+    #     logger.debug(f"The remainder between {second_section_info.pos_eigs.geometrie}\n and {overlapping_geom}\n is {other_geom}")
+    #
+    #     return km_remaining, other_geom
+    #
+    # @staticmethod
+    # def __section_combination_invalid(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
+    #     if not determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km):
+    #         logger.warning(f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
+    #         return True
+    #
+    #     if not isinstance(new_info.pos_eigs.geometrie, LineString):
+    #         logger.warning(f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}")
+    #         return True
+    #     if not isinstance(other_info.pos_eigs.geometrie, LineString):
+    #         logger.warning(f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}")
+    #         return True
+    #
+    #     if is_empty(new_info.pos_eigs.geometrie):
+    #         logger.warning(f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}. Kloppen de km-registraties?")
+    #         return True
+    #     if is_empty(other_info.pos_eigs.geometrie):
+    #         logger.warning(f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}. Kloppen de km-registraties?")
+    #         return True
+    #
+    #     return False
 
-
-
-        while True:
-            # If checks fail -> extraction of next section
-            overlap_geometry = self.__get_overlap(new_info.pos_eigs, other_info.pos_eigs)
-
-            if not overlap_geometry or self.__section_combination_invalid(new_info, other_info):  # or isinstance(overlap_geometry, MultiLineString) or...
-                # logger.debug("Moving on to next other section...")
-                if not overlap_sections:
-                    break
-                other_section_index, other_info, overlap_sections = self.__extract_next_section(overlap_sections)
-                continue  # Go through above checks again
-
-            new_info.pos_eigs.geometrie = set_precision(new_info.pos_eigs.geometrie, CALCULATION_PRECISION)
-            other_info.pos_eigs.geometrie = set_precision(other_info.pos_eigs.geometrie, CALCULATION_PRECISION)
-
-            logger.debug(f"remaining new geom: {new_info.pos_eigs.km} {new_info.pos_eigs.geometrie}")
-            logger.debug(f"remaining other geom: {other_info.pos_eigs.km} {other_info.pos_eigs.geometrie}")
-            logger.debug(f"overlap: {overlap_geometry}")
-
-            right_side = other_info.pos_eigs.rijrichting == "R"
-            left_side = other_info.pos_eigs.rijrichting == "L"
-
-            new_section_first = (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and right_side) or (
-                                (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and left_side))
-
-            other_section_first = (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and right_side) or (
-                                  (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and left_side))
-
-            # logger.debug(f"path 1: {new_section_first} {other_section_first}")
-
-            if new_section_first:
-                self.__add_differing_part(new_info, other_info, right_side, reference_info=other_info)
-                continue
-
-            if other_section_first:
-                self.__add_differing_part(other_info, new_info, right_side, reference_info=other_info)
-                continue
-
-            # Both sections have the same starting km registration, so investigate the ending registration.
-            other_section_ends_last = (max(new_info.pos_eigs.km) < max(other_info.pos_eigs.km) and right_side) or (
-                                      (min(new_info.pos_eigs.km) > min(other_info.pos_eigs.km) and left_side))
-
-            new_section_ends_last = (max(new_info.pos_eigs.km) > max(other_info.pos_eigs.km) and right_side) or (
-                                    (min(new_info.pos_eigs.km) < min(other_info.pos_eigs.km) and left_side))
-
-            # logger.debug(f"path 2: {other_section_ends_last} {new_section_ends_last}")
-
-            if other_section_ends_last:
-                remaining_km, remaining_geom = (
-                    self.__add_overlapping_part(new_info, other_info, right_side, reference_info=other_info,
-                                                first_ending_info=new_info, overlapping_geom=overlap_geometry))
-
-                self.__update_section(other_section_index,
-                                      new_km=remaining_km,
-                                      new_geometrie=remaining_geom)
-                break  # This is the final iteration.
-
-            elif new_section_ends_last:
-                remaining_km, remaining_geom = (
-                    self.__add_overlapping_part(other_info, new_info, right_side, reference_info=other_info,
-                                                first_ending_info=other_info, overlapping_geom=overlap_geometry))
-
-                # logger.debug(f"Remaining for next iteration: {remaining_km} {remaining_geom}")
-
-                new_info.pos_eigs.km = remaining_km
-                new_info.pos_eigs.geometrie = remaining_geom
-
-                # The old other_section can be removed from the road model. It has now been completely 'used up'.
-                sections_to_remove.add(other_section_index)
-
-                # Continue iteration if there are more overlapping sections to deal with.
-                if overlap_sections:
-                    continue
-
-                # Add final section with new section properties
-                self.__add_section(
-                    ObjectInfo(
-                        pos_eigs=PositieEigenschappen(
-                            rijrichting=other_info.pos_eigs.rijrichting,
-                            wegnummer=other_info.pos_eigs.wegnummer,
-                            hectoletter=other_info.pos_eigs.hectoletter,
-                            km=new_info.pos_eigs.km,
-                            geometrie=new_info.pos_eigs.geometrie),
-                        obj_eigs=new_info.obj_eigs)
-                )
-                break  # This is the final iteration.
-
-            # Both sections have the same ending km registration.
-            if self.__check_geometry_equality(new_info.pos_eigs.geometrie, other_info.pos_eigs.geometrie):
-                self.__update_section(other_section_index,
-                                      new_km=new_info.pos_eigs.km,
-                                      new_obj_eigs=new_info.obj_eigs,
-                                      new_geometrie=other_info.pos_eigs.geometrie)
-            else:
-                logger.warning(f"Twee geometrieën met gelijke beginkm en eindkm komen niet helemaal overeen: "
-                               f"{new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}\n"
-                               f"Gebaseerd op: {new_info}\n{other_info}")
-                self.__update_section(other_section_index,
-                                      new_obj_eigs=new_info.obj_eigs)
-            break  # This is the final iteration.
-
-        self.__remove_sections(sections_to_remove)
-
-    def __add_differing_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo,
-                             right_side: bool, reference_info: ObjectInfo) -> None:
-        """
-        Adds a trimmed portion of the first provided section to the model.
-        A new section is made and added to the road model, which contains only the part
-        that does not appear in the second section. Then the first section is trimmed down.
-        Note that the first section is edited in place.
-        Args:
-            first_section_info (ObjectInfo): The first section encountered.
-            second_section_info (ObjectInfo): The other section, that is encountered next.
-            right_side (bool): Indicates whether the section is on the right side or the left side.
-            reference_info (ObjectInfo): Section info for which the data has been checked before.
-                Generally, this is the section already existing in the road model.
-        """
-        if right_side:
-            km_bereik = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
-        else:
-            km_bereik = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
-        differering_geom = (
-            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, second_section_info.pos_eigs.geometrie))
-
-        self.__add_section(
-            ObjectInfo(
-                pos_eigs=PositieEigenschappen(
-                    rijrichting=reference_info.pos_eigs.rijrichting,
-                    wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hectoletter,
-                    km=km_bereik,
-                    geometrie=differering_geom),
-                obj_eigs=first_section_info.obj_eigs)
-        )
-
-        # Trim the km-registration and geometry for next iteration
-        if right_side:
-            first_section_info.pos_eigs.km = [min(second_section_info.pos_eigs.km), max(first_section_info.pos_eigs.km)]
-        else:
-            first_section_info.pos_eigs.km = [max(second_section_info.pos_eigs.km), min(first_section_info.pos_eigs.km)]
-        first_section_info.pos_eigs.geometrie = (
-            self.__get_first_remainder(first_section_info.pos_eigs.geometrie, differering_geom))
-
-    def __add_overlapping_part(self, first_section_info: ObjectInfo, second_section_info: ObjectInfo, right_side: bool,
-                               reference_info: ObjectInfo, first_ending_info: ObjectInfo,
-                               overlapping_geom: LineString) -> tuple[list, LineString]:
-        """
-        Creates a section covering the common part between the provided sections.
-        Both object properties are applied, other positional properties are copied
-        from the reference section that is provided.
-        Args:
-            first_section_info (ObjectInfo): The first section encountered.
-            second_section_info (ObjectInfo): The other section, that is encountered next.
-            right_side (bool): Indicates whether the section is on the right side or the left side.
-            reference_info (ObjectInfo): Section info for which the data has been checked before.
-                Generally, this is the section already existing in the road model.
-            first_ending_info (ObjectInfo): Section info of the section which ends first.
-        Returns:
-             Added geometry, for trimming a section.
-        """
-        if right_side:
-            km_bereik = [min(first_section_info.pos_eigs.km), max(first_ending_info.pos_eigs.km)]
-        else:
-            km_bereik = [max(first_section_info.pos_eigs.km), min(first_ending_info.pos_eigs.km)]
-
-        self.__add_section(
-            ObjectInfo(
-                pos_eigs=PositieEigenschappen(
-                    rijrichting=reference_info.pos_eigs.rijrichting,
-                    wegnummer=reference_info.pos_eigs.wegnummer,
-                    hectoletter=reference_info.pos_eigs.hectoletter,
-                    km=km_bereik,
-                    geometrie=overlapping_geom),
-                obj_eigs={**second_section_info.obj_eigs, **first_section_info.obj_eigs})
-        )
-
-        # Determine the remaining km-registration and geometry
-        if right_side:
-            km_remaining = [max(first_section_info.pos_eigs.km), max(second_section_info.pos_eigs.km)]
-        else:
-            km_remaining = [min(first_section_info.pos_eigs.km), min(second_section_info.pos_eigs.km)]
-        other_geom = self.__get_first_remainder(second_section_info.pos_eigs.geometrie, overlapping_geom)
-
-        logger.debug(f"The remainder between {second_section_info.pos_eigs.geometrie}\n and {overlapping_geom}\n is {other_geom}")
-
-        return km_remaining, other_geom
-
-    @staticmethod
-    def __section_combination_invalid(new_info: ObjectInfo, other_info: ObjectInfo) -> bool:
-        if not determine_range_overlap(new_info.pos_eigs.km, other_info.pos_eigs.km):
-            logger.warning(f"Bereiken overlappen niet: {new_info.pos_eigs.km}, {other_info.pos_eigs.km}")
-            return True
-
-        if not isinstance(new_info.pos_eigs.geometrie, LineString):
-            logger.warning(f"Nieuwe geometrie is geen linestring: {new_info.pos_eigs.geometrie}")
-            return True
-        if not isinstance(other_info.pos_eigs.geometrie, LineString):
-            logger.warning(f"Andere geometrie is geen linestring: {other_info.pos_eigs.geometrie}")
-            return True
-
-        if is_empty(new_info.pos_eigs.geometrie):
-            logger.warning(f"Nieuwe geometrie is leeg: {new_info.pos_eigs.geometrie}. Kloppen de km-registraties?")
-            return True
-        if is_empty(other_info.pos_eigs.geometrie):
-            logger.warning(f"Andere geometrie is leeg: {other_info.pos_eigs.geometrie}. Kloppen de km-registraties?")
-            return True
-
-        return False
-
-    def __get_remainder(self, geom1, geom2) -> list:
-        assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}. Kloppen de km-registraties?"
-        assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}. Kloppen de km-registraties?"
-        assert isinstance(geom1, LineString), f"Kan niet werken met MultiLineString registratie: {geom1}"
-        assert isinstance(geom2, LineString), f"Kan niet werken met MultiLineString registratie: {geom2}"
-
-        if self.__check_geometry_equality(geom1, geom2):
-            raise AssertionError(f"Geometrieën zijn exact aan elkaar gelijk:\n"
-                                 f"{geom1}\n{geom2}\n"
-                                 f"Zijn de kilometerregistraties juist?\n")
-        # TODO: fill in
-        return []
-
-    def __get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
-        """
-        Finds the first geometry that two Shapely LineStrings do NOT have in common.
-        Args:
-            geom1 (LineString): The first Shapely LineString.
-            geom2 (LineString): The second Shapely LineString.
-        Returns:
-            A LineString describing the difference geometry between the two
-            provided sections. If there are two options, the first remainder
-            option is returned, based on the directional order of geom1.
-        """
+    def __get_remainders(self, geom1, geom2) -> list[LineString]:
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}. Kloppen de km-registraties?"
         assert geom2 and not is_empty(geom2), f"Geometrie is leeg: {geom2}. Kloppen de km-registraties?"
         assert isinstance(geom1, LineString), f"Kan niet werken met MultiLineString registratie: {geom1}"
@@ -984,18 +956,36 @@ class WegModel:
 
         geom1 = set_precision(geom1, CALCULATION_PRECISION)
         geom2 = set_precision(geom2, CALCULATION_PRECISION)
-        remainders = difference(geom1, geom2, grid_size=10*CALCULATION_PRECISION)
+        remainders = difference(geom1, geom2, grid_size=10 * CALCULATION_PRECISION)
 
-        if isinstance(remainders, LineString) and not remainders.is_empty:
-            return set_precision(remainders, CALCULATION_PRECISION)
-        elif isinstance(remainders, MultiLineString) and not remainders.is_empty:
+        if isinstance(remainders, LineString):
+            return [remainders]
+        if isinstance(remainders, MultiLineString):
+            return [geom for geom in remainders.geoms]
+
+    def __get_first_remainder(self, geom1: LineString, geom2: LineString) -> LineString:
+        """
+        Finds the first geometry that two Shapely LineStrings do NOT have in common.
+        Args:
+            geom1 (LineString): The first Shapely LineString.
+            geom2 (LineString): The second Shapely LineString.
+        Returns:
+            A LineString describing the difference geometry between the two
+            provided sections. If there are two options, the first remainder
+            option is returned, based on the directional order of geom1.
+        """
+        remainders = self.__get_remainders(geom1, geom2)
+
+        if len(remainders) == 1 and not remainders[0].is_empty:
+            return set_precision(remainders[0], CALCULATION_PRECISION)
+        elif len(remainders) > 1 and not remainders[0].is_empty:
             # TODO: Determine more reliable method to extract the correct diff here!
             start_point_geom1, end_point_geom1 = get_endpoints(geom1)
             start_point_geom2, end_point_geom2 = get_endpoints(geom2)
 
             selected_diff = LineString()
 
-            for geom in remainders.geoms:
+            for geom in remainders:
                 start_point_remainder, end_point_remainder = get_endpoints(geom)
                 passes = (dwithin(start_point_remainder, start_point_geom1, 3*DISTANCE_TOLERANCE) or
                           dwithin(start_point_remainder, end_point_geom1, 3*DISTANCE_TOLERANCE) and
@@ -1010,7 +1000,7 @@ class WegModel:
             if is_empty(selected_diff):
                 # By default, select the first geometry (directional order of geom1 is maintained)
                 logger.warning(f"I have no clue based on {start_point_geom1} {end_point_geom1}-{end_point_geom2} and {remainders}, so I will pick the first remaining geometry.")
-                selected_diff = remainders.geoms[0]
+                selected_diff = remainders[0]
                 logger.warning(f"I picked {selected_diff}")
 
             # if get_num_geometries(remainders) > 2:
