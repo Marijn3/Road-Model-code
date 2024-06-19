@@ -587,9 +587,9 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.debug(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel. "
-                         f"Op deze positie is waarschijnlijk een MultiLineString geregistreerd, "
-                         f"welke niet wordt meegenomen in het wegmodel.")
+            logger.debug(f"Sectie {new_info.pos_eigs} heeft geen overlap met de referentie-laag. "
+                         f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
+                         f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
             return
 
         first_time = True
@@ -967,7 +967,9 @@ class WegModel:
 
         if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            logger.debug(f"Sectie overlapt niet met referentie, dus wordt niet toegevoegd: {section_info.pos_eigs}")
+            logger.debug(f"Sectie {section_info.pos_eigs} heeft geen overlap met de referentie-laag. "
+                         f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
+                         f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
             return
 
         # Ensure the first geometries are oriented in driving direction according to the reference layer.
@@ -1114,7 +1116,7 @@ class WegModel:
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                logger.debug(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
+                logger.debug(f"Sectie heeft een gat in registratie rijstroken op {gap_number}: {section_info}")
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
 
@@ -1122,7 +1124,7 @@ class WegModel:
                     section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
                 section_info.obj_eigs.pop(max(lane_numbers))
 
-                if self.find_gap(lane_numbers):
+                if not self.find_gap(lane_numbers):
                     logger.debug(f"Gat opgelost: {section_info}")
                 else:
                     logger.warning(f"Gat in registratie rijstroken {section_info} is niet opgelost."
