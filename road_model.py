@@ -251,8 +251,8 @@ class DataFrameLader:
         s1 = len(dataframe)
 
         # Try to convert any MultiLineStrings to LineStrings.
-        dataframe.loc[:, "geometry"] = dataframe["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
-                                                                   if isinstance(geom, MultiLineString) else geom)
+        # dataframe.loc[:, "geometry"] = dataframe["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
+        #                                                            if isinstance(geom, MultiLineString) else geom)
 
         # Filter so only entries are imported where the geometry column contains a LineString or Point
         dataframe = dataframe[dataframe["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))]
@@ -478,9 +478,11 @@ class WegModel:
         Returns:
             Point info in generalised dict format.
         """
-        assert isinstance(row["geometry"], Point), f"Dit is geen simpele puntgeometrie: {row}"
-
         point_info = ObjectInfo(lijn=False)
+
+        if not isinstance(row["geometry"], Point):
+            logger.warning(f"Data bevat geen simpele puntgeometrie:\n{row}")
+            return point_info
 
         section_info = self.get_one_section_at_point(row["geometry"])
         point_info.pos_eigs.rijrichting = section_info.pos_eigs.rijrichting
@@ -506,9 +508,11 @@ class WegModel:
         Returns:
             Line info in generalised dict format.
         """
-        assert isinstance(row["geometry"], LineString), f"Dit is geen simpele puntgeometrie: {row}"
+        section_info = ObjectInfo(lijn=True)
 
-        section_info = ObjectInfo()
+        if not isinstance(row["geometry"], LineString):
+            logger.warning(f"Data bevat geen simpele puntgeometrie:\n{row}")
+            return section_info
 
         section_info.pos_eigs.km = [round(min(row["BEGINKM"], row["EINDKM"]), 3),
                                     round(max(row["BEGINKM"], row["EINDKM"]), 3)]
@@ -578,7 +582,9 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
+            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel."
+                           f"Op deze positie is waarschijnlijk een MultiLineString geregistreerd, "
+                           f"welke niet wordt meegenomen in het wegmodel.")
             return
 
         first_time = True
