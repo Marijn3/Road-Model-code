@@ -32,7 +32,7 @@ class PositieEigenschappen:
     def __repr__(self):
         wegnr_repr = self.wegnummer if self.wegnummer else "?"
         richting_repr = self.rijrichting if self.rijrichting else "?"
-        hecto_repr = self.hectoletter if self.hectoletter else ""
+        hecto_repr = self.hectoletter if self.hectoletter else " "
         km_repr = f"[{self.km[0]:<7.3f}, {self.km[1]:<7.3f}]" if isinstance(self.km, list) else f"{self.km:<7.3f}"
         return f"{wegnr_repr}{richting_repr} {hecto_repr}\t{km_repr} km \t"
 
@@ -581,8 +581,6 @@ class WegModel:
             logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel.")
             return
 
-        logger.debug(f"Overlap length: {len(overlap_sections)}")
-
         first_time = True
         reverse_overlap_geom = False
 
@@ -604,8 +602,8 @@ class WegModel:
             if reverse_overlap_geom:
                 overlap_geometry = reverse(overlap_geometry)
 
-            logger.debug(f"Overlap tussen {new_info} en\n\tSectie {other_section_index}: {other_info}")
-            logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
+            logger.debug(f"Overlap tussen {new_info} en wegmodel sectie {other_section_index}: {other_info}")
+            # logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
 
             # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
             if self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry):
@@ -1015,8 +1013,8 @@ class WegModel:
             index (int): Index of point to log info for.
         """
         logger.debug(f"Punt {index} toegevoegd: \t"
-                     f"{self.__points[index]} en geometrie:\n"
-                     f"\t\t\t\t\t\t\t{self.__points[index].pos_eigs.geometrie}")
+                     f"{self.__points[index]} en geometrie:\t"
+                     f"{self.__points[index].pos_eigs.geometrie}")
 
     def __log_reference(self, index: int) -> None:
         """
@@ -1024,10 +1022,10 @@ class WegModel:
         Args:
             index (int): Index of section to log info for.
         """
-        logger.debug(f"Referentie {index} toegevoegd:  \t"
+        logger.debug(f"Referentie {index} toegevoegd:   \t"
                      f"{self.__reference[index].pos_eigs.wegnummer}\t"
-                     f"{self.__reference[index].pos_eigs.hectoletter}\n"
-                     f"\t\t\t\t\t\t\t\t{self.__reference[index].pos_eigs.geometrie}")
+                     f"{self.__reference[index].pos_eigs.hectoletter}\t"
+                     f"{self.__reference[index].pos_eigs.geometrie}")
 
     def __log_section(self, index: int, changed: bool = False) -> None:
         """
@@ -1037,8 +1035,8 @@ class WegModel:
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
         logger.debug(f"Sectie {index} {wording[changed]}\t"
-                     f"{self.sections[index]} en geometrie:\n"
-                     f"\t\t\t\t\t\t\t\t{self.sections[index].pos_eigs.geometrie}")
+                     f"{self.sections[index]} en {round(self.sections[index].pos_eigs.geometrie.length)} m geometrie:\t"
+                     f"{self.sections[index].pos_eigs.geometrie}")
 
     def __get_overlapping_reference_info(self, section_info: ObjectInfo) -> ObjectInfo | None:
         """
