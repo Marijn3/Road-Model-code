@@ -35,6 +35,13 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Vluchtstrook links (118) tussen 15.828-15.914 km verwijderd (inconsistent met andere data).
 - Vluchtstrook overlappend met puntstuk (136) verwijderd.
 - Maximumsnelheid van registratie vluchtstrook (49) verwijderd. VNRWOL van 4 naar 5 veranderd.
+- Uitrijstrook tussen 19.669-17.530 km aangepast naar 18.500-17.530 km.
+- Taper op 17.530 km aangepast naar fijnere vorm voor verwerking.
+- Vluchtstrook rond 17.530 km verwijderd omdat deze geom gesplitst zou moeten worden.
+- Splitsing registratie 16.678-17.166 km verwijderd omdat de geometrie niet juist is. en... v
+- Risjtroken registratie (1) van 3->3 naar 5->5 gezet ter compensatie van de splitsing.
+
+
 
 
 
