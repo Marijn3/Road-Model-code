@@ -30,15 +30,11 @@ class PositieEigenschappen:
         self.geometrie = geometrie
 
     def __repr__(self):
-        if isinstance(self.km, list):
-            km_repr = f"[{self.km[0]:<7.3f}, {self.km[1]:<7.3f}]"
-        else:
-            km_repr = f"{self.km:<7.3f}"
-        if self.hectoletter:
-            return (f"{self.wegnummer}{self.rijrichting} {self.hectoletter}, "
-                    f"{km_repr} km")
-        else:
-            return f"{self.wegnummer}{self.rijrichting} {km_repr} km"
+        wegnr_repr = self.wegnummer if self.wegnummer else "?"
+        richting_repr = self.rijrichting if self.rijrichting else "?"
+        hecto_repr = self.hectoletter if self.hectoletter else ""
+        km_repr = f"[{self.km[0]:<7.3f}, {self.km[1]:<7.3f}]" if isinstance(self.km, list) else f"{self.km:<7.3f}"
+        return f"{wegnr_repr}{richting_repr} {hecto_repr}\t{km_repr} km \t"
 
 
 class LijnVerwerkingsEigenschappen:
@@ -81,8 +77,8 @@ class ObjectInfo:
         self.verw_eigs = LijnVerwerkingsEigenschappen() if lijn else PuntVerwerkingsEigenschappen()
 
     def __repr__(self):
-        typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
-        return (f"{typename} op positie {self.pos_eigs} en eigenschappen: "
+        typename = "sectie" if isinstance(self.pos_eigs.km, list) else "punt"
+        return (f"{typename} op {self.pos_eigs} met eigenschappen: "
                 f"{self.obj_eigs}")
 
 
@@ -406,7 +402,7 @@ class WegModel:
         self.__reference_index = 0
         self.sections = {}
         self.__section_index = 0
-        self.points = {}
+        self.__points = {}
         self.__point_index = 0
 
         self.__has_reference_layer = False
@@ -874,8 +870,8 @@ class WegModel:
             indices (set): Set of indices at which to remove points.
         """
         for index in indices:
-            logger.debug(f"Punt {index} verwijderd: {self.points[index]}\n")
-            self.points.pop(index)
+            logger.debug(f"Punt {index} verwijderd: {self.__points[index]}\n")
+            self.__points.pop(index)
 
     def __update_section(self, index: int,
                          new_km: list = None, new_obj_eigs: dict = None, new_geom: LineString = None) -> None:
@@ -1006,7 +1002,7 @@ class WegModel:
         assert not is_empty(point_info.pos_eigs.geometrie), \
             f"Poging om een lege puntgeometrie toe te voegen: {point_info}"
 
-        self.points[self.__point_index] = point_info
+        self.__points[self.__point_index] = point_info
         self.__log_point(self.__point_index)
         self.__point_index += 1
 
@@ -1017,12 +1013,8 @@ class WegModel:
             index (int): Index of point to log info for.
         """
         logger.debug(f"Punt {index} toegevoegd: \t"
-                     f"{self.points[index].pos_eigs.km:<7.3f} km \t"
-                     f"{self.points[index].pos_eigs.wegnummer}\t"
-                     f"{self.points[index].pos_eigs.rijrichting}\t"
-                     f"{self.points[index].pos_eigs.hectoletter}\t"
-                     f"{self.points[index].obj_eigs} \n"
-                     f"\t\t\t\t\t\t\t{self.points[index].pos_eigs.geometrie}")
+                     f"{self.__points[index]} en geometrie:\n"
+                     f"\t\t\t\t\t\t\t{self.__points[index].pos_eigs.geometrie}")
 
     def __log_reference(self, index: int) -> None:
         """
@@ -1043,11 +1035,7 @@ class WegModel:
         """
         wording = {True: "veranderd:  ", False: "toegevoegd: "}
         logger.debug(f"Sectie {index} {wording[changed]}\t"
-                     f"[{self.sections[index].pos_eigs.km[0]:<7.3f}, {self.sections[index].pos_eigs.km[1]:<7.3f}] km \t"
-                     f"{self.sections[index].pos_eigs.wegnummer}\t"
-                     f"{self.sections[index].pos_eigs.rijrichting}\t"
-                     f"{self.sections[index].pos_eigs.hectoletter}\t"
-                     f"{self.sections[index].obj_eigs} \n"
+                     f"{self.sections[index]} en geometrie:\n"
                      f"\t\t\t\t\t\t\t\t{self.sections[index].pos_eigs.geometrie}")
 
     def __get_overlapping_reference_info(self, section_info: ObjectInfo) -> ObjectInfo | None:
@@ -1092,17 +1080,15 @@ class WegModel:
                 continue
 
             # [2] Throw out sections that do not have at least one normal lane in them.
-            if not [key for key in section_info.obj_eigs.keys()
-                    if isinstance(key, int) and section_info.obj_eigs[key] == "Rijstrook"]:
+            if not [key for key in section_info.obj_eigs.keys() if section_info.obj_eigs[key] == "Rijstrook"]:
                 sections_to_remove.add(section_index)
                 continue
 
         self.__remove_sections(sections_to_remove)
 
-        # [3] Special code to fill in registration issues in the case of outgoing taper registrations.
         for section_index, section_info in self.sections.items():
+            # [3] Special code to fill in registration issues in the case of outgoing taper registrations.
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
-
             if "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
                 # Section has a singular lane registered for the taper
                 special_lane_nr = section_info.obj_eigs["Special"][1]
@@ -1113,10 +1099,10 @@ class WegModel:
                     for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
                         section_info.obj_eigs[lane_number + 1] = section_info.obj_eigs[lane_number]
 
+            # [4] Manual gap fix. Move lanes to fill the gap
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
-                # [4] Manual gap fix. Move lanes to fill the gap
                 logger.debug(f"Sectie heeft een gat in registratie rijstroken: {section_info}")
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
@@ -1188,7 +1174,7 @@ class WegModel:
             self.sections[section_index].verw_eigs = section_verw_eigs
 
         points_to_remove = set()
-        for point_index, point_info in self.points.items():
+        for point_index, point_info in self.__points.items():
             point_verw_eigs = PuntVerwerkingsEigenschappen()
 
             overlapping_sections = self.get_sections_by_point(point_info.pos_eigs.geometrie)
@@ -1232,7 +1218,7 @@ class WegModel:
                 # This point should not be added at all. Remove it later.
                 points_to_remove.add(point_index)
 
-            self.points[point_index].verw_eigs = point_verw_eigs
+            self.__points[point_index].verw_eigs = point_verw_eigs
 
         self.__remove_points(points_to_remove)
 
@@ -1284,7 +1270,10 @@ class WegModel:
                 return None, None
             return connected[0], None
 
-        assert len(adjacent_sections) == 2, "Er moeten twee secties verbonden zijn aan een puntstuk."
+        assert len(adjacent_sections) == 2, ("Er moeten twee secties verbonden zijn aan een puntstuk.\n"
+                                             f"Fout aangetroffen met sectie {section_index}: {section_info},\n"
+                                             f"verbonden secties: {connecting_sections}.\n"
+                                             f"Adjacent sections: {adjacent_sections}")
 
         # If one of the other sections is puntstuk, act accordingly.
         # Extract sections from dict
@@ -1437,11 +1426,11 @@ class WegModel:
             List of all point information.
         """
         if specifier == "MSI":
-            return [point for point in self.points.values() if point.obj_eigs["Type"] == "Signalering"]
+            return [point for point in self.__points.values() if point.obj_eigs["Type"] == "Signalering"]
         elif specifier == "*vergentie":
-            return [point for point in self.points.values() if point.obj_eigs["Type"] != "Signalering"]
+            return [point for point in self.__points.values() if point.obj_eigs["Type"] != "Signalering"]
         else:
-            return [point for point in self.points.values()]
+            return [point for point in self.__points.values()]
 
     def get_section_by_bps(self, km: list, side: str, hecto: str = "") -> dict:
         """
