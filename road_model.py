@@ -34,7 +34,7 @@ class PositieEigenschappen:
         richting_repr = self.rijrichting if self.rijrichting else "?"
         hecto_repr = self.hectoletter if self.hectoletter else " "
         km_repr = f"[{self.km[0]:<7.3f}, {self.km[1]:<7.3f}]" if isinstance(self.km, list) else f"{self.km:<7.3f}"
-        return f"{wegnr_repr}{richting_repr} {hecto_repr}\t{km_repr} km \t"
+        return f"{wegnr_repr}{richting_repr} {hecto_repr} \t{km_repr} km \t"
 
 
 class LijnVerwerkingsEigenschappen:
@@ -450,7 +450,7 @@ class WegModel:
             elif isinstance(feature_info.pos_eigs.geometrie, LineString):
                 self.__merge_section(feature_info)
             else:
-                logger.warning(f"Het volgende wordt niet toegevoegd: {row}")
+                logger.warning(f"Het volgende wordt niet toegevoegd. Controleer dit onderdeel in WEGGEG-data:\n{row}")
 
         if df_name == "Wegvakken":
             self.__has_reference_layer = True
@@ -587,7 +587,7 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.debug(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel."
+            logger.debug(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel. "
                          f"Op deze positie is waarschijnlijk een MultiLineString geregistreerd, "
                          f"welke niet wordt meegenomen in het wegmodel.")
             return

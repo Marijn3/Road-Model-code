@@ -152,7 +152,7 @@ class MSINetwerk:
         for msi_row in self.MSIrows:
             for msi in msi_row.MSIs.values():
                 filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
-                logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
+                # logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
 
     def travel_roadmodel(self, msi_row: 'MSIRow', downstream: bool) -> list:
         """
