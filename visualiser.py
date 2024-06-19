@@ -411,10 +411,12 @@ class SvgMaker:
         other_is_continuous = (other_section_info.obj_eigs[other_section_max_lane_nr] == "Puntstuk"
                                or this_section_info.obj_eigs[1] == "Puntstuk")
 
-        assert not (this_is_continuous and other_is_continuous),\
-            f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
-        assert (this_is_continuous or other_is_continuous),\
-            f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
+        if this_is_continuous and other_is_continuous:
+            logger.warning(f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
+            return line_geom
+        if not (this_is_continuous or other_is_continuous):
+            logger.warning(f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
+            return line_geom
 
         displacement = 0
         n_lanes_largest = point_info.verw_eigs.aantal_hoofdstroken

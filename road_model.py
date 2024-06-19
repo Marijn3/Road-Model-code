@@ -637,7 +637,7 @@ class WegModel:
 
             # Case 1B: Backup for case above.
             if startpoint_overlap and endpoint_overlap:
-                logger.warning("Secties met ongelijke vorm hebben gelijk begin- en eindpunt.")
+                # logger.warning("Secties met ongelijke vorm hebben gelijk begin- en eindpunt.")
                 self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
 
             # Case 2: overlap and road model section start at the same point, but overlap ends earlier
@@ -669,6 +669,8 @@ class WegModel:
             # Case 3: overlap and road model section end at the same point, but overlap starts later
             elif endpoint_overlap and linedist_overlap_start_on_other > TINY_DEVIATION_LOW:
                 logger.debug("This overlap falls under case 3")
+                logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
+
                 remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
                 other_properties = deepcopy(other_info.obj_eigs)
                 km_registrations = [
@@ -730,7 +732,9 @@ class WegModel:
                 )
 
             else:
-                logger.warning("Not sure how to handle this case.")
+                logger.warning(f"Not sure how to handle this case: {new_info} {other_info}.")
+                logger.warning(f"Geometries: {new_info.pos_eigs.geometrie} {other_info.pos_eigs.geometrie}.")
+                logger.warning(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
     def __get_remainders(self, geom1, geom2) -> list[LineString]:
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}. Kloppen de km-registraties?"
@@ -857,7 +861,7 @@ class WegModel:
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             overlap_geometry = line_merge(overlap_geometry)
 
-        if isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
+        if isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty and overlap_geometry.length > 0.1:
             return set_precision(overlap_geometry, CALCULATION_PRECISION)
         else:
             return None
@@ -1302,8 +1306,8 @@ class WegModel:
 
         assert len(adjacent_sections) == 2, ("Er moeten twee secties verbonden zijn aan een puntstuk.\n"
                                              f"Fout aangetroffen met sectie {section_index}: {section_info},\n"
-                                             f"verbonden secties: {connecting_sections}.\n"
-                                             f"Adjacent sections: {adjacent_sections}")
+                                             f"Verbonden secties: {connecting_sections}.\n"
+                                             f"Aangrenzende secties: {adjacent_sections}")
 
         # If one of the other sections is puntstuk, act accordingly.
         # Extract sections from dict
