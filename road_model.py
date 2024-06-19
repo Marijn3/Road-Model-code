@@ -614,34 +614,31 @@ class WegModel:
                 overlap_geometry = reverse(overlap_geometry)
 
             logger.debug(f"Overlap tussen {new_info} en wegmodel sectie {other_section_index}: {other_info}")
-            logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
-
-            # # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
-            # if self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry):
-            #     logger.debug("This overlap falls under case 1")
-            #     self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
-            #     continue
+            # logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
 
             linedist_overlap_start_on_other = line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[0]), normalized=True)
             linedist_overlap_end_on_other = line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[-1]), normalized=True)
             linedist_other_start_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True)
             linedist_other_end_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True)
 
-            # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
+            # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} "
+            #              f"{linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
             TINY_DEVIATION_LOW = 0.001
             TINY_DEVIATION_HIGH = 0.999
 
             startpoint_overlap = linedist_overlap_start_on_other < TINY_DEVIATION_LOW and linedist_other_start_on_overlap < TINY_DEVIATION_LOW
             endpoint_overlap = linedist_overlap_end_on_other > TINY_DEVIATION_HIGH and linedist_other_end_on_overlap > TINY_DEVIATION_HIGH
+            overlap_ends_earlier = linedist_overlap_end_on_other < TINY_DEVIATION_HIGH
+            overlap_starts_later = linedist_overlap_start_on_other > TINY_DEVIATION_LOW
 
-            # Case 1B: Backup for case above.
+            # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
+            # Alternatively: self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry)
             if startpoint_overlap and endpoint_overlap:
-                # logger.warning("Secties met ongelijke vorm hebben gelijk begin- en eindpunt.")
                 self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
 
             # Case 2: overlap and road model section start at the same point, but overlap ends earlier
-            elif startpoint_overlap and linedist_overlap_end_on_other <= TINY_DEVIATION_HIGH:
+            elif startpoint_overlap and overlap_ends_earlier:
                 logger.debug("This overlap falls under case 2")
                 remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
                 other_properties = deepcopy(other_info.obj_eigs)
@@ -667,7 +664,7 @@ class WegModel:
                 )
 
             # Case 3: overlap and road model section end at the same point, but overlap starts later
-            elif endpoint_overlap and linedist_overlap_start_on_other > TINY_DEVIATION_LOW:
+            elif endpoint_overlap and overlap_starts_later:
                 logger.debug("This overlap falls under case 3")
                 logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
@@ -695,7 +692,7 @@ class WegModel:
                                       new_geom=overlap_geometry)
 
             # Case 4: the overlap start and end are encased by the road model section
-            elif linedist_overlap_end_on_other < TINY_DEVIATION_HIGH and linedist_overlap_start_on_other > TINY_DEVIATION_LOW:
+            elif overlap_ends_earlier and overlap_starts_later:
                 logger.debug("This overlap falls under case 4")
                 remainder_geometries = self.__get_remainders(other_info.pos_eigs.geometrie, overlap_geometry)
                 # logger.debug(f"Remainder geoms: {remainder_geometries}")
