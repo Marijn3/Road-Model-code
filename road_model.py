@@ -614,18 +614,18 @@ class WegModel:
                 overlap_geometry = reverse(overlap_geometry)
 
             logger.debug(f"Overlap tussen {new_info} en wegmodel sectie {other_section_index}: {other_info}")
-            # logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
+            logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
 
-            # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
-            if self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry):
-                logger.debug("This overlap falls under case 1")
-                self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
-                continue
+            # # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
+            # if self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry):
+            #     logger.debug("This overlap falls under case 1")
+            #     self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
+            #     continue
 
-            linedist_overlap_start_on_other = round(line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[0]), normalized=True), 3)
-            linedist_overlap_end_on_other = round(line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[-1]), normalized=True), 3)
-            linedist_other_start_on_overlap = round(line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True), 3)
-            linedist_other_end_on_overlap = round(line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True), 3)
+            linedist_overlap_start_on_other = line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[0]), normalized=True)
+            linedist_overlap_end_on_other = line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[-1]), normalized=True)
+            linedist_other_start_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True)
+            linedist_other_end_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True)
 
             # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
