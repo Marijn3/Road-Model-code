@@ -638,7 +638,7 @@ class SvgMaker:
         hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w"] else self.__LANE_WIDTH * 25
         displacement = 0
 
-        for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:
+        for nr in msi_row.rijstrooknummers:
             msi_name = make_name(msi_row.info, nr)
             displacement = (info_offset + self.__VISUAL_PLAY + (nr - 1) *
                             (self.__VISUAL_PLAY + self.__MSIBOX_SIZE) + hecto_offset)

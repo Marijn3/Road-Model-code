@@ -31,15 +31,20 @@ class MSIRow:
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
                                     if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]])
         self.n_lanes = len(self.lane_numbers)
-        self.n_msis = len(self.rijstrooknummers)
 
+        # Exclude MSI registrations over emergency lanes.
+        if self.local_road_properties[max(self.rijstrooknummers)] == "Vluchtstrook":
+            self.rijstrooknummers.remove(max(self.rijstrooknummers))
+
+        # Determine MSI number properties
+        self.n_msis = len(self.rijstrooknummers)
         self.lowest_msi_number = min(self.rijstrooknummers)
         self.highest_msi_number = max(self.rijstrooknummers)
 
-        # Create all MSIs in row, passing the parent row class as argument (self)
-        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.rijstrooknummers}
+        # Create all MSIs in row, passing the parent row class as argument (self).
+        self.MSIs = {msi_number: MSI(self, msi_number) for msi_number in self.rijstrooknummers}
 
-        # # Move MSI number registration in case of left emergency lane
+        # # Move MSI number registration in case of left emergency lane (could be moved above along with the other emergency lane exception)
         # if 1 in self.local_road_properties.keys() and self.local_road_properties[1] == "Vluchtstrook":
         #     self.MSIs = {msi_numbering: MSI(self, msi_numbering + 1) for msi_numbering in self.rijstrooknummers}
         # else:
