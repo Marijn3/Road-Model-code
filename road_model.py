@@ -159,14 +159,14 @@ class DataFrameLader:
                         elif i > j:
                             value = (i, "EindeRijstrook")
                         else:
-                            value = (i, "ExtraRijstrook")
+                            value = (j, "ExtraRijstrook")
                     else:  # For direction "T"
                         if i == j:
                             value = (i, None)
                         elif i > j:
                             value = (i, "ExtraRijstrook")
                         else:
-                            value = (i, "EindeRijstrook")
+                            value = (j, "EindeRijstrook")
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
@@ -901,13 +901,34 @@ class WegModel:
         if new_km:
             self.sections[index].pos_eigs.km = new_km
         if new_obj_eigs:
-            self.sections[index].obj_eigs = {**self.sections[index].obj_eigs, **new_obj_eigs}
-            # orig_lane_numbers = [key for key in self.sections[index].obj_eigs.keys() if isinstance(key, int)]
-            # new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
-            #
+            self.sections[index].obj_eigs = self.__merge_lane_dicts(self.sections[index].obj_eigs, new_obj_eigs)
+        if new_geom:
+            self.sections[index].pos_eigs.geometrie = new_geom
+
+        self.__log_section(index, True)
+
+    @staticmethod
+    def __merge_lane_dicts(dict_model, dict_new):
+        lane_numbers_1 = [key for key in dict_model.keys() if isinstance(key, int)]
+        lane_numbers_2 = [key for key in dict_new.keys() if isinstance(key, int)]
+
+        overlap_numbers = [key for key in lane_numbers_1 if key in lane_numbers_2]
+
+        if not overlap_numbers:
+            return {**dict_model, **dict_new}
+        else:
+            logger.debug(f"Overlappende rijstrooknummers {overlap_numbers} tussen {dict_model} en {dict_new}.")
+
+            overlap_number = overlap_numbers[0]
+            if dict_new[overlap_number] == "Vluchtstrook":
+                dict_new = {lane_nr + 1: lane_type for lane_nr, lane_type in dict_new.items()}
+                logger.debug(f"Overlap aangepakt door vluchtstrook op te schuiven: {dict_new}")
+
+            return {**dict_model, **dict_new}
+
             # for new_lane_number in new_lane_numbers:
             #     # TODO: Check if this is the correct implementation for moving lanes, and if there is no aliasing?
-            #     if new_lane_number in orig_lane_numbers:
+            #     if new_lane_number in lane_numbers_1:
             #         # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
             #         if new_obj_eigs[new_lane_number] == "Vluchtstrook":
             #             new_obj_eigs[new_lane_number + 1] = "Vluchtstrook"
@@ -927,12 +948,6 @@ class WegModel:
             #             )
             #             self.sections[index].verw_eigs.heeft_verwerkingsfout = True
             #     else:
-            #         ...
-            #
-        if new_geom:
-            self.sections[index].pos_eigs.geometrie = new_geom
-
-        self.__log_section(index, True)
 
     def __add_section(self, new_section: ObjectInfo) -> None:
         """
@@ -1123,6 +1138,8 @@ class WegModel:
                 for lane_number in range(gap_number, max(lane_numbers)):
                     section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
                 section_info.obj_eigs.pop(max(lane_numbers))
+
+                lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
 
                 if not self.find_gap(lane_numbers):
                     logger.debug(f"Gat opgelost: {section_info}")
