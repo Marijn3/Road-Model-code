@@ -1140,8 +1140,8 @@ class WegModel:
                                                        if value in ["Uitrijstrook", "Splitsing", "Weefstrook"]}
                     skip_end_check = True
 
-            start_sections = self.get_sections_by_point(start_point)
-            end_sections = self.get_sections_by_point(end_point)
+            start_sections = self.get_sections_by_endpoint(start_point, start=True)
+            end_sections = self.get_sections_by_endpoint(end_point, start=False)
 
             # TODO: Check how this functions with non-imported MultiLineStrings
             main_up, div_up = self.__separate_main_and_div(start_sections, section_index, section_info)
@@ -1227,7 +1227,8 @@ class WegModel:
         lane_numbers = [lane_nr for lane_nr in lanes.keys() if isinstance(lane_nr, int)]
         return min(lane_numbers), max(lane_numbers)
 
-    def __separate_main_and_div(self, connecting_sections: dict, section_index: int, section_info: ObjectInfo) -> tuple:
+    def __separate_main_and_div(self, connecting_sections: dict, section_index: int,
+                                section_info: ObjectInfo) -> tuple[int | None, int | None]:
         """
         When the road model splits into two sections, this function can separate the two
         connecting sections into the main section and the diverging section.
@@ -1450,13 +1451,27 @@ class WegModel:
                 sections[section_index] = section_info
         return sections
 
+    def get_sections_by_endpoint(self, point: Point, start: bool = None) -> dict[int: dict]:
+        """
+        Finds sections in self.sections that start or end in the given point.
+        Args:
+            point (Point): Geometric position of the point.
+            start (bool): Value indicating whether the start point of a geometry has been passed.
+                If true, sections which end in this point will be filtered for.
+        Returns:
+            dict[int, dict]: Attributes of all road sections that start or end at the specified point.
+        """
+        point_index = -1 if start else 0
+        return {index: section for index, section in self.sections.items() if
+                dwithin(point, Point(section.pos_eigs.geometrie.coords[point_index]), DISTANCE_TOLERANCE)}
+
     def get_sections_by_point(self, point: Point) -> dict[int: dict]:
         """
         Finds sections in self.sections that overlap the given point.
         Args:
             point (Point): Geometric position of the point.
         Returns:
-            dict[int, dict]: Attributes of the (first) road section at the specified kilometer point.
+            dict[int, dict]: Attributes of all road sections that are close to the specified point.
         """
         return {index: section for index, section in self.sections.items() if
                 dwithin(point, section.pos_eigs.geometrie, DISTANCE_TOLERANCE)}
