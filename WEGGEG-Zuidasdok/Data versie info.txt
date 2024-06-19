@@ -34,6 +34,7 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Rijstrokenregistratie 2 -> 2 verwijderd: overlapt met 4 -> 4 registratie.
 - Vluchtstrook links (118) tussen 15.828-15.914 km verwijderd (inconsistent met andere data).
 - Vluchtstrook overlappend met puntstuk (136) verwijderd.
+- Maximumsnelheid van registratie vluchtstrook (49) verwijderd. VNRWOL van 4 naar 5 veranderd.
 
 
 
