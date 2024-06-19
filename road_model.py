@@ -858,7 +858,7 @@ class WegModel:
             indices (set): Set of indices at which to remove sections.
         """
         for index in indices:
-            logger.debug(f"Sectie {index} verwijderd.\n")
+            logger.debug(f"Sectie {index} verwijderd.")
             self.sections.pop(index)
 
     def __remove_points(self, indices: set[int]) -> None:
@@ -1140,12 +1140,11 @@ class WegModel:
                                                        if value in ["Uitrijstrook", "Splitsing", "Weefstrook"]}
                     skip_end_check = True
 
-            start_sections = self.get_sections_by_endpoint(start_point, start=True)
-            end_sections = self.get_sections_by_endpoint(end_point, start=False)
+            start_sections = self.get_sections_by_point(start_point)
+            end_sections = self.get_sections_by_point(end_point)
 
-            # TODO: Check how this functions with non-imported MultiLineStrings
-            main_up, div_up = self.__separate_main_and_div(start_sections, section_index, section_info)
-            main_down, div_down = self.__separate_main_and_div(end_sections, section_index, section_info)
+            main_up, div_up = self.__select_main_and_div(start_sections, section_index, section_info)
+            main_down, div_down = self.__select_main_and_div(end_sections, section_index, section_info)
 
             section_verw_eigs.sectie_stroomopwaarts = main_up
             section_verw_eigs.sectie_stroomafwaarts = main_down
@@ -1227,8 +1226,8 @@ class WegModel:
         lane_numbers = [lane_nr for lane_nr in lanes.keys() if isinstance(lane_nr, int)]
         return min(lane_numbers), max(lane_numbers)
 
-    def __separate_main_and_div(self, connecting_sections: dict, section_index: int,
-                                section_info: ObjectInfo) -> tuple[int | None, int | None]:
+    def __select_main_and_div(self, connecting_sections: dict, section_index: int,
+                              section_info: ObjectInfo) -> tuple[int | None, int | None]:
         """
         When the road model splits into two sections, this function can separate the two
         connecting sections into the main section and the diverging section.
@@ -1450,20 +1449,6 @@ class WegModel:
                      min(section_info.pos_eigs.km) <= km[1] <= max(section_info.pos_eigs.km))):
                 sections[section_index] = section_info
         return sections
-
-    def get_sections_by_endpoint(self, point: Point, start: bool = None) -> dict[int: dict]:
-        """
-        Finds sections in self.sections that start or end in the given point.
-        Args:
-            point (Point): Geometric position of the point.
-            start (bool): Value indicating whether the start point of a geometry has been passed.
-                If true, sections which end in this point will be filtered for.
-        Returns:
-            dict[int, dict]: Attributes of all road sections that start or end at the specified point.
-        """
-        point_index = -1 if start else 0
-        return {index: section for index, section in self.sections.items() if
-                dwithin(point, Point(section.pos_eigs.geometrie.coords[point_index]), DISTANCE_TOLERANCE)}
 
     def get_sections_by_point(self, point: Point) -> dict[int: dict]:
         """
