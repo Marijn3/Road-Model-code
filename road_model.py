@@ -618,7 +618,7 @@ class WegModel:
             linedist_other_start_on_overlap = round(line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True), 3)
             linedist_other_end_on_overlap = round(line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True), 3)
 
-            logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
+            # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
             TINY_DEVIATION_LOW = 0.001
             TINY_DEVIATION_HIGH = 0.999
@@ -892,32 +892,34 @@ class WegModel:
         if new_km:
             self.sections[index].pos_eigs.km = new_km
         if new_obj_eigs:
-            orig_lane_numbers = [key for key in self.sections[index].obj_eigs.keys() if isinstance(key, int)]
-            new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
-
-            for new_lane_number in new_lane_numbers:
-                # TODO: Check if this is the correct implementation for moving lanes, and if there is no aliasing?
-                if new_lane_number in orig_lane_numbers:
-                    # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
-                    if new_obj_eigs[new_lane_number] == "Vluchtstrook":
-                        new_obj_eigs[new_lane_number + 1] = "Vluchtstrook"
-                        new_obj_eigs.pop(new_lane_number)
-                        self.sections[index].obj_eigs.update(new_obj_eigs)
-                    elif self.sections[index].obj_eigs[new_lane_number] == "Vluchtstrook":
-                        self.sections[index].obj_eigs[new_lane_number + 1] = "Vluchtstrook"
-                        self.sections[index].obj_eigs.pop(new_lane_number)
-                        self.sections[index].obj_eigs.update(new_obj_eigs)
-                    else:
-                        logger.warning(
-                            f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
-                            f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
-                            f"{self.sections[index].obj_eigs}\n"
-                            f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
-                            f"De strook wordt niet toegevoegd."
-                        )
-                        self.sections[index].verw_eigs.heeft_verwerkingsfout = True
-                else:
-                   self.sections[index].obj_eigs = {**self.sections[index].obj_eigs, **new_obj_eigs}
+            self.sections[index].obj_eigs = {**self.sections[index].obj_eigs, **new_obj_eigs}
+            # orig_lane_numbers = [key for key in self.sections[index].obj_eigs.keys() if isinstance(key, int)]
+            # new_lane_numbers = [key for key in new_obj_eigs.keys() if isinstance(key, int)]
+            #
+            # for new_lane_number in new_lane_numbers:
+            #     # TODO: Check if this is the correct implementation for moving lanes, and if there is no aliasing?
+            #     if new_lane_number in orig_lane_numbers:
+            #         # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
+            #         if new_obj_eigs[new_lane_number] == "Vluchtstrook":
+            #             new_obj_eigs[new_lane_number + 1] = "Vluchtstrook"
+            #             new_obj_eigs.pop(new_lane_number)
+            #             self.sections[index].obj_eigs.update(new_obj_eigs)
+            #         elif self.sections[index].obj_eigs[new_lane_number] == "Vluchtstrook":
+            #             self.sections[index].obj_eigs[new_lane_number + 1] = "Vluchtstrook"
+            #             self.sections[index].obj_eigs.pop(new_lane_number)
+            #             self.sections[index].obj_eigs.update(new_obj_eigs)
+            #         else:
+            #             logger.warning(
+            #                 f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
+            #                 f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
+            #                 f"{self.sections[index].obj_eigs}\n"
+            #                 f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
+            #                 f"De strook wordt niet toegevoegd."
+            #             )
+            #             self.sections[index].verw_eigs.heeft_verwerkingsfout = True
+            #     else:
+            #         ...
+            #
         if new_geom:
             self.sections[index].pos_eigs.geometrie = new_geom
 
