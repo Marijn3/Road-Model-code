@@ -734,7 +734,7 @@ class WegModel:
 
         geom1 = set_precision(geom1, CALCULATION_PRECISION)
         geom2 = set_precision(geom2, CALCULATION_PRECISION)
-        remainders = difference(geom1, geom2, grid_size=10 * CALCULATION_PRECISION)
+        remainders = difference(geom1, geom2, grid_size=CALCULATION_PRECISION)
 
         if isinstance(remainders, LineString) and not remainders.is_empty:
             return [remainders]
@@ -841,10 +841,10 @@ class WegModel:
         # if not overlaps(pos1.geometrie, pos2.geometrie):
         #     return None
 
-        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=10*CALCULATION_PRECISION)
+        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=CALCULATION_PRECISION)
 
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
-            overlap_geometry = set_precision(line_merge(overlap_geometry), CALCULATION_PRECISION)
+            overlap_geometry = line_merge(overlap_geometry)
 
         if isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty:
             return set_precision(overlap_geometry, CALCULATION_PRECISION)
