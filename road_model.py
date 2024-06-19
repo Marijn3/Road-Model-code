@@ -445,9 +445,9 @@ class WegModel:
                 self.__add_initial_section(feature_info)
                 continue
 
-            if isinstance(row["geometry"], Point):
+            if isinstance(feature_info.pos_eigs.geometrie, Point):
                 self.__add_point(feature_info)
-            elif isinstance(row["geometry"], LineString):
+            elif isinstance(feature_info.pos_eigs.geometrie, LineString):
                 self.__merge_section(feature_info)
             else:
                 logger.warning(f"Het volgende wordt niet toegevoegd: {row}")
@@ -481,10 +481,15 @@ class WegModel:
         point_info = ObjectInfo(lijn=False)
 
         if not isinstance(row["geometry"], Point):
-            logger.warning(f"Data bevat geen simpele puntgeometrie:\n{row}")
+            logger.debug(f"Data bevat geen simpele puntgeometrie:\n{row}")
             return point_info
 
         section_info = self.get_one_section_at_point(row["geometry"])
+
+        if not section_info:
+            logger.debug(f"Punt in data overlapt niet met secties:\n{row}")
+            return point_info
+
         point_info.pos_eigs.rijrichting = section_info.pos_eigs.rijrichting
         point_info.pos_eigs.wegnummer = section_info.pos_eigs.wegnummer
         point_info.pos_eigs.hectoletter = section_info.pos_eigs.hectoletter
@@ -582,9 +587,9 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.warning(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel."
-                           f"Op deze positie is waarschijnlijk een MultiLineString geregistreerd, "
-                           f"welke niet wordt meegenomen in het wegmodel.")
+            logger.debug(f"Sectie {new_info.pos_eigs} heeft geen overlap met het wegmodel."
+                         f"Op deze positie is waarschijnlijk een MultiLineString geregistreerd, "
+                         f"welke niet wordt meegenomen in het wegmodel.")
             return
 
         first_time = True
@@ -1467,7 +1472,7 @@ class WegModel:
         return {index: section for index, section in self.sections.items() if
                 dwithin(point, section.pos_eigs.geometrie, DISTANCE_TOLERANCE)}
 
-    def get_one_section_at_point(self, point: Point) -> ObjectInfo:
+    def get_one_section_at_point(self, point: Point) -> ObjectInfo | None:
         """
         Returns the properties of a road section at a specific point. If there
         are multiple sections close to the point, the downstream section is returned.
@@ -1489,7 +1494,7 @@ class WegModel:
         if overlapping_sections:
             return overlapping_sections[0]
 
-        raise ReferenceError(f"Geen sectie gevonden in de buurt van dit punt: {point} {overlapping_sections}")
+        return None
 
     @staticmethod
     def find_gap(numbers: list[int]) -> int | None:
