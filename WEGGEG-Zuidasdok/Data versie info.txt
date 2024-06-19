@@ -26,3 +26,14 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - [Niet-opgelost] Vluchtstrookregistratie rond 16.1-16.6 km links lijkt een MultiLineString.
 - Puntstuk op 16.000 km VNRWOL 4 -> 5.
 - Km-registratie van lijnstuk rijstroken (5) op punten 15.382 km en 15.384 km aangepast.
+- VNRWOL aangepast en toegevoegd op traject 16.678-17.53 km, hecto s. Hier ook... v
+- Rijstroken 4 -> 4 VNRWOL 1 en Splitsing 2 -> 2 VNRWOL 5 aangepast naar 2 -> 2, 1 en 2 -> 2, 3.
+- Overlappende vluchtstrook verwijderd, overlappend met puntstuk tussen 17.246-17.53 km.
+- Vluchtstroken in één punt geregistreerd rond 17.246-17.53 km verwijderd.
+- Vluchtstrook met (onjuiste) km-registratie 16.000-16.678 km en korte lengte verwijderd.
+- Rijstrokenregistratie 2 -> 2 verwijderd: overlapt met 4 -> 4 registratie.
+- Vluchtstrook links (118) tussen 15.828-15.914 km verwijderd (inconsistent met andere data).
+- Vluchtstrook overlappend met puntstuk (136) verwijderd.
+
+
+
