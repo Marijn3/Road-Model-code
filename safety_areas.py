@@ -7,6 +7,7 @@ from datetime import datetime
 from road_model import WegModel, ObjectInfo
 from ilp_communication import ILPSender
 from utils import *
+from Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)
 
@@ -217,19 +218,25 @@ class Aanvraag:
             logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
             return
 
-        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd:\n{self.measure_request}")
+        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.measure_request}")
 
         scenario = {
-            "name": "SafetyAreaOosterhout",
+            "name": "SafetyAreaA27",
             "dataset": "WEGGEG-based data",
-            "step": {"name": "SafetyAreaRequest", "type": "add"},
+            "step": {"name": "SafetyAreaBasedRequest", "type": "add"},
             "result": {}
         }
 
         # Add code to communicate with ILP
         ilp = ILPSender()
-        response = ilp.send_request(scenario, {"SafetyAreaRequest": self.measure_request})
+        response = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
         logger.info(response)
+
+        # Visualise response in svg
+        svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
+        toggle_visibility(svg_file, response)
+        logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
+
 
     def step_5_adjust_area_sizes(self) -> None:
         return  # TODO
@@ -521,7 +528,7 @@ class ClosedSpace:
     def determine_measure_request(self) -> None:
         # See report JvM page 71 for an explanation of this request structure
         request_options = {
-            "name": "SafetyAreaRequest",  # f"Request_{datetime.now().strftime('%H:%M:%S')}.{datetime.now().strftime('%f')[:3]}",
+            "name": "SafetyAreaBasedRequest",  # f"Request_{datetime.now().strftime('%H:%M:%S')}.{datetime.now().strftime('%f')[:3]}",
             "type": "add",
             "legend_requests": [],
             "options": {}

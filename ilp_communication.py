@@ -10,7 +10,6 @@ class ILPSender:
     def __init__(self):
         self.scenarios = None
         self.requests = None
-        self.data = None
         self.response = {}
 
     def send_request(self, scenario: dict, request: dict):
@@ -25,7 +24,7 @@ class ILPSender:
         if not self.init_model(model):
             print("Error loading model.")
             quit(1)
-        logger.info("Executing scenario %s:" % scenario["name"])
+        logger.info(f"Aanvraag {scenario['name']} wordt uitgevoerd.")
 
         self.execute_step(scenario["step"])
         return self.determine_group_names(self.response)
@@ -152,5 +151,4 @@ class ILPSender:
         self.response = self._request({"type": "init", "datasetId": str(model_number)})
         if self.response is None:
             return False
-        self.data = self.response["data"]
         return True
