@@ -855,13 +855,26 @@ class WegModel:
 
         overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=CALCULATION_PRECISION)
 
+        # Attempt to convert to linestring if necessary
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
             overlap_geometry = line_merge(overlap_geometry)
 
-        if isinstance(overlap_geometry, LineString) and not overlap_geometry.is_empty and overlap_geometry.length > 0.1:
-            return set_precision(overlap_geometry, CALCULATION_PRECISION)
-        else:
+        if not isinstance(overlap_geometry, LineString) or overlap_geometry.is_empty or overlap_geometry.length < 0.1:
             return None
+
+        # Catch code in case the first point or the last point of the geometries overlap,
+        # but is not added to the overlap geometry due to precision errors
+        if (dwithin(Point(pos1.geometrie.coords[0]), Point(pos2.geometrie.coords[0]), DISTANCE_TOLERANCE) and not
+        dwithin(Point(pos1.geometrie.coords[0]), Point(overlap_geometry.coords[0]), DISTANCE_TOLERANCE)):
+            overlap_geometry = LineString([pos1.geometrie.coords[0]] + [coord for coord in overlap_geometry.coords])
+
+        if (dwithin(Point(pos1.geometrie.coords[-1]), Point(pos2.geometrie.coords[-1]), DISTANCE_TOLERANCE) and not
+        dwithin(Point(pos1.geometrie.coords[-1]), Point(overlap_geometry.coords[-1]), DISTANCE_TOLERANCE)):
+            overlap_geometry = LineString(
+                [coord for coord in overlap_geometry.coords] + [pos1.geometrie.coords[-1]])
+
+        return set_precision(overlap_geometry, CALCULATION_PRECISION)
+
 
     def __remove_sections(self, indices: set[int]) -> None:
         """
@@ -983,16 +996,22 @@ class WegModel:
 
         if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            logger.debug(f"Sectie {section_info.pos_eigs} heeft geen overlap met de referentie-laag. "
+            logger.debug(f"Sectie {section_info} heeft geen overlap met de referentie-laag. "
                          f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
                          f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
             return
 
-        # Ensure the first geometries are oriented in driving direction according to the reference layer.
-        if same_direction(section_info.pos_eigs.geometrie, reference_info.pos_eigs.geometrie):
-            geom = section_info.pos_eigs.geometrie
+        # Ensure the kilometer registrations are oriented in driving direction.
+        if section_info.pos_eigs.rijrichting == "L":
+            section_info.pos_eigs.km = [max(section_info.pos_eigs.km), min(section_info.pos_eigs.km)]
         else:
+            section_info.pos_eigs.km = [min(section_info.pos_eigs.km), max(section_info.pos_eigs.km)]
+
+        # Ensure the first geometries are oriented in driving direction according to the reference layer.
+        if not same_direction(reference_info.pos_eigs.geometrie, section_info.pos_eigs.geometrie):
             geom = reverse(section_info.pos_eigs.geometrie)
+        else:
+            geom = section_info.pos_eigs.geometrie
 
         self.__add_section(
             ObjectInfo(
