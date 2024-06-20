@@ -620,6 +620,11 @@ class WegModel:
             linedist_other_start_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True)
             linedist_other_end_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True)
 
+            # logger.debug(
+            #     f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
+            # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} "
+            #              f"{linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
+
             TINY_DEVIATION_LOW = 0.001
             TINY_DEVIATION_HIGH = 0.999
 
@@ -631,6 +636,7 @@ class WegModel:
             # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
             # Alternatively: self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry)
             if startpoint_overlap and endpoint_overlap:
+                logger.debug("This overlap falls under case 1")
                 self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
 
             # Case 2: overlap and road model section start at the same point, but overlap ends earlier
@@ -696,12 +702,6 @@ class WegModel:
             elif overlap_ends_earlier and overlap_starts_later:
                 logger.debug("This overlap falls under case 4")
                 remainder_geometries = self.__get_remainders(other_info.pos_eigs.geometrie, overlap_geometry)
-
-                logger.debug(
-                    f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
-                logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} "
-                             f"{linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
-
                 other_properties = deepcopy(other_info.obj_eigs)
                 km_registrations = [
                     other_info.pos_eigs.km[0],
