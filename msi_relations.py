@@ -802,8 +802,8 @@ class MSI:
                 #
                 #     self.make_secondary_connection(self, u_row.MSIs[u_row.lowest_msi_number])
                 else:
-                    logger.warning(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
-                                   f"omdat dit geval nog niet ingeprogrammeerd is.")
+                    logger.debug(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
+                                 f"omdat dit geval nog niet ingeprogrammeerd is.")
 
     @staticmethod
     def make_connection(row1, row2, relation_type_letter: str = ""):

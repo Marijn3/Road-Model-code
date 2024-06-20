@@ -587,9 +587,9 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.debug(f"Sectie {new_info.pos_eigs} heeft geen overlap met de referentie-laag. "
-                         f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
-                         f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
+            logger.warning(f"Sectie {new_info} heeft geen overlap met het wegmodel. "
+                           f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
+                           f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
             return
 
         first_time = True
@@ -614,15 +614,11 @@ class WegModel:
                 overlap_geometry = reverse(overlap_geometry)
 
             logger.debug(f"Overlap tussen {new_info} en wegmodel sectie {other_section_index}: {other_info}")
-            # logger.debug(f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
 
             linedist_overlap_start_on_other = line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[0]), normalized=True)
             linedist_overlap_end_on_other = line_locate_point(other_info.pos_eigs.geometrie, Point(overlap_geometry.coords[-1]), normalized=True)
             linedist_other_start_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True)
             linedist_other_end_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True)
-
-            # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} "
-            #              f"{linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
             TINY_DEVIATION_LOW = 0.001
             TINY_DEVIATION_HIGH = 0.999
@@ -648,6 +644,9 @@ class WegModel:
                     new_info.pos_eigs.km[1],
                     other_info.pos_eigs.km[1]
                 ]
+                if km_registrations[2] == km_registrations[3]:
+                    logger.warning(f"Fout in de verwerking of in de km-registraties van {new_info} / {other_info}.")
+
                 self.__update_section(other_section_index,
                                       new_km=[km_registrations[0], km_registrations[1]],
                                       new_obj_eigs=new_info.obj_eigs,
@@ -666,16 +665,18 @@ class WegModel:
             # Case 3: overlap and road model section end at the same point, but overlap starts later
             elif endpoint_overlap and overlap_starts_later:
                 logger.debug("This overlap falls under case 3")
-                logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} {linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
-
                 remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
                 other_properties = deepcopy(other_info.obj_eigs)
+
                 km_registrations = [
                     other_info.pos_eigs.km[0],
                     new_info.pos_eigs.km[0],
                     new_info.pos_eigs.km[0],
                     other_info.pos_eigs.km[1]
                 ]
+                if km_registrations[0] == km_registrations[1]:
+                    logger.warning(f"Fout in de verwerking of in de km-registraties van {new_info} / {other_info}.")
+
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
@@ -695,7 +696,12 @@ class WegModel:
             elif overlap_ends_earlier and overlap_starts_later:
                 logger.debug("This overlap falls under case 4")
                 remainder_geometries = self.__get_remainders(other_info.pos_eigs.geometrie, overlap_geometry)
-                # logger.debug(f"Remainder geoms: {remainder_geometries}")
+
+                logger.debug(
+                    f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
+                logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} "
+                             f"{linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
+
                 other_properties = deepcopy(other_info.obj_eigs)
                 km_registrations = [
                     other_info.pos_eigs.km[0],
@@ -703,6 +709,9 @@ class WegModel:
                     new_info.pos_eigs.km[1],
                     other_info.pos_eigs.km[1]
                 ]
+                if km_registrations[0] == km_registrations[1] or km_registrations[2] == km_registrations[3]:
+                    logger.warning(f"Fout in de verwerking of in de km-registraties van {new_info} / {other_info}.")
+
                 self.__add_section(
                     ObjectInfo(
                         pos_eigs=PositieEigenschappen(
