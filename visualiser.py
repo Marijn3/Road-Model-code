@@ -909,7 +909,8 @@ def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
 def make_info_text(section_info: ObjectInfo) -> list[str]:
     lane_keys = sorted([key for key in section_info.obj_eigs.keys() if isinstance(key, int)])
     other_keys = sorted([key for key in section_info.obj_eigs.keys() if not isinstance(key, int)])
-    return ([f"Sectie {section_info.pos_eigs.wegnummer} {section_info.pos_eigs.rijrichting}, "
+    return ([f"Sectie {section_info.pos_eigs.wegnummer} "
+             f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
