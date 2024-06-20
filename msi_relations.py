@@ -467,11 +467,11 @@ class MSINetwerk:
 
         # Adjust shift in case of (dis)appearing lane on the left side of the road
         if 1 in new_annotation.keys():
-            if ((downstream and new_annotation[1] == "ExtraRijstrook")
-                    or (not downstream and new_annotation[1] == "EindeRijstrook")):
+            if ((downstream and new_annotation[1] == "StrookStart")
+                    or (not downstream and new_annotation[1] == "StrookEinde")):
                 shift = shift + 1
-            elif ((downstream and new_annotation[1] == "EindeRijstrook")
-                    or (not downstream and new_annotation[1] == "ExtraRijstrook")):
+            elif ((downstream and new_annotation[1] == "StrookEinde")
+                    or (not downstream and new_annotation[1] == "StrookStart")):
                 shift = shift - 1
 
         # Join dicts while preventing aliasing issues.
@@ -573,12 +573,12 @@ class MSI:
             "ds": None,  # MSI downstream secondary
             "dt": None,  # MSI downstream taper
             "db": None,  # MSI downstream broadening (extra rijstrook)
-            "dn": None,  # MSI downstream narrowing (EindeRijstrook)
+            "dn": None,  # MSI downstream narrowing (StrookEinde)
             "u": None,  # MSI upstream
             "us": None,  # MSI upstream secondary
             "ut": None,  # MSI upstream taper
             "ub": None,  # MSI upstream broadening (extra rijstrook)
-            "un": None,  # MSI upstream narrowing (EindeRijstrook)
+            "un": None,  # MSI upstream narrowing (StrookEinde)
 
             "STAT_V": None,  # Static maximum speed
             "DYN_V": None,  # Dynamic maximum speed
@@ -723,7 +723,7 @@ class MSI:
             # Primary relation
             if (this_lane_projected in d_row.MSIs.keys() and not has_taper and self.lane_nr in lane_bounds and (
                     # Prevent downstream primary relation being added when lane ends.
-                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "EindeRijstrook")):
+                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "StrookEinde")):
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:
@@ -732,7 +732,7 @@ class MSI:
 
                 # Broadening relation
                 if (self.lane_nr in lane_numbers
-                        and annotation[self.lane_nr] == "ExtraRijstrook"):
+                        and annotation[self.lane_nr] == "StrookStart"):
                     # Left side
                     if self.lane_nr == 1 and this_lane_projected - 1 in d_row.MSIs.keys():
                         logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
@@ -743,7 +743,7 @@ class MSI:
                         self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
 
                 # Narrowing relation
-                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "EindeRijstrook"
+                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "StrookEinde"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
                     logger.debug(f"Versmallingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     # self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name

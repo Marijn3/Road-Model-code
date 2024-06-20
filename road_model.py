@@ -157,16 +157,16 @@ class DataFrameLader:
                         if i == j:
                             value = (i, None)
                         elif i > j:
-                            value = (i, "EindeRijstrook")
+                            value = (i, "StrookEinde")
                         else:
-                            value = (j, "ExtraRijstrook")
+                            value = (j, "StrookStart")
                     else:  # For direction "T"
                         if i == j:
                             value = (i, None)
                         elif i > j:
-                            value = (i, "ExtraRijstrook")
+                            value = (i, "StrookStart")
                         else:
-                            value = (j, "EindeRijstrook")
+                            value = (j, "StrookEinde")
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
