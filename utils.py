@@ -27,5 +27,7 @@ external_logger = logging.getLogger('fiona')
 external_logger.setLevel(logging.INFO)
 external_logger2 = logging.getLogger('matplotlib')
 external_logger2.setLevel(logging.INFO)
+external_logger3 = logging.getLogger('urllib3')
+external_logger3.setLevel(logging.INFO)
 
 DISTANCE_TOLERANCE = 0.1  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
