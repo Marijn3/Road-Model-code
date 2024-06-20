@@ -39,9 +39,9 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Taper op 17.530 km aangepast naar fijnere vorm voor verwerking.
 - Vluchtstrook rond 17.530 km verwijderd omdat deze geom gesplitst zou moeten worden.
 - Splitsing registratie 16.678-17.166 km verwijderd omdat de geometrie niet juist is. en... v
-- Risjtroken registratie (1) van 3->3 naar 5->5 gezet ter compensatie van de splitsing.
-
-
-
+- Rijstroken registratie (1) van 3->3 naar 5->5 gezet ter compensatie van de splitsing.
+- Puntstuk (124 & 141), vluchtstrook (126) km aangepast naar passende waarde bij geometrie.
+- Invoegstrook tussen 15.660-15.871 km aangepast naar 15.790-15.871 km.
+- Puntstuk (8) VNRWOl van 5 naar 4.
 
 
