@@ -125,6 +125,7 @@ def initRSUData(RSU, rsu_data, road_layout):
     }
     return rsu_data
 
+
 def initTSData(msi_data):
     ts_data = {}
 
@@ -170,11 +171,7 @@ def initTSData(msi_data):
     return ts_data
 
 
-
-
-
 def initMSIData(RSU, MSI, model, road_layout):
-    # TODO: This initialisation could potentially be done directly using the MSI Network, avoiding the .json file.
     d = road_layout[RSU]["MSI"][MSI]["Downstream"]["Primary"]
     ds = road_layout[RSU]["MSI"][MSI]["Downstream"]["Secondary"]
     dt = road_layout[RSU]["MSI"][MSI]["Downstream"]["Taper"]
@@ -285,10 +282,8 @@ def initMSIData(RSU, MSI, model, road_layout):
 
 
 def createJSON(all_data, MSI_data):
-
     all_data[MSI_data['c']] = {key: value for key,
                                value in MSI_data.items()}
-
     return all_data
 
 

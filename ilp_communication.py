@@ -1,33 +1,51 @@
 import requests
-
-from Server.Library import read_json_file
+from utils import *
 
 HOST = "http://127.0.0.1:5000"
-LEGENDS = {"x": "><", "r": "->", "l": "<-", "o": "__",
-           "e": "50", "g": "70", "h": "80", "i": "90", "j": "100", "k": "110",
-           "y": "\\/", "z": "//", "Blank": "  "}
+
+logger = logging.getLogger(__name__)
 
 
 class ILPSender:
     def __init__(self):
-        self.plan = None
+        self.scenarios = None
+        self.requests = None
         self.data = None
+        self.response = {}
 
-    def send_request(self, plan_filepath: str):
+    def send_request(self, scenario: dict, request: dict):
+        self.scenario = scenario
+        self.requests = request
+
         if not self.test_connection():
             quit(1)
-        self.plan = read_json_file(plan_filepath)
 
-        for scenario in self.plan["scenarios"]:
-            model = self.get_dataset(scenario["dataset"])
+        model = self.get_dataset(self.scenario["dataset"])
 
-            if not self.init_model(model):
-                print("Error loading model.")
-                quit(1)
-            print("Executing scenario %s:" % scenario["name"])
-            self.response = None
-            for step in scenario["steps"]:
-                self.execute_step(step)
+        if not self.init_model(model):
+            print("Error loading model.")
+            quit(1)
+        logger.info("Executing scenario %s:" % scenario["name"])
+
+        self.execute_step(scenario["step"])
+        return self.determine_group_names(self.response)
+
+    def translate_jvm_to_mtm(self, name_jvm: str) -> str:
+        rsu, wegnummer, rijrichting_or_hecto, km = name_jvm.split("_")
+        if rijrichting_or_hecto in ["L", "R"]:
+            return f"{wegnummer}{rijrichting_or_hecto}:{km}"
+        else:
+            return f"{wegnummer}_{rijrichting_or_hecto}:{km}"
+
+    def determine_group_names(self, name_to_legend: dict) -> list:
+        group_names = []
+        for jvm_name, legend_list in name_to_legend.items():
+            mtm_name = self.translate_jvm_to_mtm(jvm_name)
+            for msi_nr, legend_name in enumerate(legend_list):
+                legend_name = legend_name[0]  # Take out of its list
+                if legend_name != "Blank":
+                    group_names.append(f"{legend_name}[{mtm_name}:{msi_nr+1}]")
+        return group_names
 
     def test_connection(self, timeout=1.0, verbose=False):
         """
@@ -56,11 +74,12 @@ class ILPSender:
         return False
 
     def execute_step(self, step, verbose=False):
+        self.response = {}
         name = step["name"]
         if step["type"] == "add":
             if verbose:
                 print("  Add %s" % name)
-            request = self.plan["requests"][name]
+            request = self.requests[name]
             self.response = self._request(request)
             if self.response is None:
                 quit(1)
@@ -134,31 +153,4 @@ class ILPSender:
         if self.response is None:
             return False
         self.data = self.response["data"]
-        self.print_legends()
         return True
-
-    def print_legends(self):
-        """
-        Print received data in a more user-friendly format.
-
-        :param: data The received data.
-        """
-        for rsu_name, rsu in self.data.items():
-            value = [self.get_legend(msi) for msi in rsu]
-            for legend in value:
-                if legend != "    ":
-                    print(f"{rsu_name} shows [{'|'.join(value)}]")
-                    break
-
-    def get_legend(self, state):
-        """
-        Convert received 'State' into a text-based legend image.
-
-        :param: state The State value of the MSI.
-        """
-        legend = LEGENDS[state[0]]
-        if 'a' in state:
-            return "*%s*" % legend
-        if 'b' in state:
-            return "(%s)" % legend
-        return " %s " % legend

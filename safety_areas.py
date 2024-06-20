@@ -222,23 +222,14 @@ class Aanvraag:
         scenario = {
             "name": "SafetyAreaOosterhout",
             "dataset": "WEGGEG-based data",
-            "steps": [
-                {"name": "SafetyAreaRequest", "type": "add"}
-            ],
+            "step": {"name": "SafetyAreaRequest", "type": "add"},
             "result": {}
         }
 
-        export_dict = {
-            "scenarios": [scenario],
-            "requests": {"SafetyAreaRequest" : self.measure_request}
-        }
-
-        with open("Server/MeasureRequest.json", "w") as outfile:
-            json.dump(export_dict, outfile, indent=2)
-
         # Add code to communicate with ILP
         ilp = ILPSender()
-        ilp.send_request("Server/MeasureRequest.json")
+        response = ilp.send_request(scenario, {"SafetyAreaRequest": self.measure_request})
+        logger.info(response)
 
     def step_5_adjust_area_sizes(self) -> None:
         return  # TODO
