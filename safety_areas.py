@@ -121,12 +121,12 @@ class Aanvraag:
         50: 4.5
     }
 
-    def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
+    def __init__(self, wegmodel: WegModel, wegkant: str, km: list[float], hectoletter: str,
                  randen: dict[str: Rand], maximumsnelheid: int = 70,
                  korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
         self.roadmodel = wegmodel
         self.roadside = wegkant
-        self.km = [km_start, km_end]
+        self.km = [min(km), max(km)]
         self.hecto_character = hectoletter
         self.edges = randen
         self.max_v = maximumsnelheid
@@ -135,7 +135,7 @@ class Aanvraag:
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange {km_start} - {km_end} km, "
+        logger.info(f"Aanvraag met kmrange {km[0]} - {km[1]} km, "
                     f"randen {randen}, korter dan 24h = {korter_dan_24h}.")
 
         self.surface_type = REQUEST
