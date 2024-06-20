@@ -3,7 +3,9 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from datetime import datetime
 from road_model import WegModel, ObjectInfo
+from ilp_communication import ILPSender
 from utils import *
 
 logger = logging.getLogger(__name__)
@@ -216,10 +218,27 @@ class Aanvraag:
             return
 
         logger.info(f"De volgende aanvraag wordt naar ILP gestuurd:\n{self.measure_request}")
-        with open(f"MeasureRequest.txt", "w") as outfile:
-            json.dump(self.measure_request, outfile, indent=2)
+
+        scenario = {
+            "name": "SafetyAreaOosterhout",
+            "dataset": "WEGGEG-based data",
+            "steps": [
+                {"name": "SafetyAreaRequest", "type": "add"}
+            ],
+            "result": {}
+        }
+
+        export_dict = {
+            "scenarios": [scenario],
+            "requests": {"SafetyAreaRequest" : self.measure_request}
+        }
+
+        with open("Server/MeasureRequest.json", "w") as outfile:
+            json.dump(export_dict, outfile, indent=2)
 
         # Add code to communicate with ILP
+        ilp = ILPSender()
+        ilp.send_request("Server/MeasureRequest.json")
 
     def step_5_adjust_area_sizes(self) -> None:
         return  # TODO
@@ -511,7 +530,7 @@ class ClosedSpace:
     def determine_measure_request(self) -> None:
         # See report JvM page 71 for an explanation of this request structure
         request_options = {
-            "name": "custom request",
+            "name": "SafetyAreaRequest",  # f"Request_{datetime.now().strftime('%H:%M:%S')}.{datetime.now().strftime('%f')[:3]}",
             "type": "add",
             "legend_requests": [],
             "options": {}
