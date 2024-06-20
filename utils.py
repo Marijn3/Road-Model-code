@@ -15,7 +15,7 @@ if case_study:
     data_folder = "WEGGEG-Zuidasdok"
     CALCULATION_PRECISION = 0.0001  # [m] Aangepast op grid van case study data.
 else:
-    locatie = "A27"
+    locatie = "A27Recht"
     data_folder = "WEGGEG"
     CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometrieën.
 

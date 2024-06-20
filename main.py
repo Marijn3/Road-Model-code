@@ -26,7 +26,7 @@ ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
 generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
 
 # Instantieer een aanvraag (A27 Oosterhout)
-if locatie == "A27":
+if locatie == "A27Recht":
     # aanvraagAL = Aanvraag(wegmodel=wegmodel,
     #                       km_start=13.85,
     #                       km_end=14.40,
@@ -108,8 +108,8 @@ if locatie == "A27":
     #                       afzetting=AFZETTINGEN.BAKENS,
     #                       )
     aanvraagDR = Aanvraag(wegmodel=wegmodel,
-                          km=[9.10, 9.55],
-                          wegkant="L",
+                          km=[16.1, 16.6],
+                          wegkant="R",
                           hectoletter="",
                           korter_dan_24h=True,
                           randen={"L": Rand(rijstrook=2, afstand=0.9),
