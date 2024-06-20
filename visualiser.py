@@ -411,10 +411,12 @@ class SvgMaker:
         other_is_continuous = (other_section_info.obj_eigs[other_section_max_lane_nr] == "Puntstuk"
                                or this_section_info.obj_eigs[1] == "Puntstuk")
 
-        assert not (this_is_continuous and other_is_continuous),\
-            f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
-        assert (this_is_continuous or other_is_continuous),\
-            f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}"
+        if this_is_continuous and other_is_continuous:
+            logger.warning(f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
+            return line_geom
+        if not (this_is_continuous or other_is_continuous):
+            logger.warning(f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
+            return line_geom
 
         displacement = 0
         n_lanes_largest = point_info.verw_eigs.aantal_hoofdstroken
@@ -527,7 +529,7 @@ class SvgMaker:
         # Ensure there is a 'lane number' for the side of the road.
         lane_numbers.insert(0, min(lane_numbers)-1)
 
-        logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
+        #logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
         for lane_number in lane_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), lane_number)
 
@@ -544,7 +546,7 @@ class SvgMaker:
                     break
                 continue
 
-            logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
+            #logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
             self.__draw_markerline(line_coords, lane_marking_type)
 
@@ -633,10 +635,15 @@ class SvgMaker:
 
     def __display_MSI_roadside(self, msi_row: MSIRow, coords: tuple, info_offset: float, rotate_angle: float):
         g_msi_row = self.__g_points.add(self.__dwg.g())
-        hecto_offset = 0 if msi_row.info.pos_eigs.hectoletter in ["", "w"] else self.__LANE_WIDTH * 25
+        if msi_row.info.pos_eigs.hectoletter in ["", "w"]:
+            hecto_offset = 0
+        elif msi_row.info.pos_eigs.hectoletter in ["n"]:
+            hecto_offset = self.__LANE_WIDTH * 40
+        else:
+            hecto_offset = self.__LANE_WIDTH * 25
         displacement = 0
 
-        for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:
+        for nr in msi_row.rijstrooknummers:
             msi_name = make_name(msi_row.info, nr)
             displacement = (info_offset + self.__VISUAL_PLAY + (nr - 1) *
                             (self.__VISUAL_PLAY + self.__MSIBOX_SIZE) + hecto_offset)
@@ -902,7 +909,8 @@ def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
 def make_info_text(section_info: ObjectInfo) -> list[str]:
     lane_keys = sorted([key for key in section_info.obj_eigs.keys() if isinstance(key, int)])
     other_keys = sorted([key for key in section_info.obj_eigs.keys() if not isinstance(key, int)])
-    return ([f"Sectie {section_info.pos_eigs.wegnummer} {section_info.pos_eigs.rijrichting}, "
+    return ([f"Sectie {section_info.pos_eigs.wegnummer} "
+             f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])

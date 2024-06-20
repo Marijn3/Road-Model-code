@@ -31,15 +31,20 @@ class MSIRow:
         self.lane_numbers = sorted([lane_nr for lane_nr, lane_type in self.local_road_properties.items()
                                     if isinstance(lane_nr, int) and lane_type not in ["Puntstuk"]])
         self.n_lanes = len(self.lane_numbers)
-        self.n_msis = len(self.rijstrooknummers)
 
+        # Exclude MSI registrations over emergency lanes.
+        if self.local_road_properties[max(self.rijstrooknummers)] == "Vluchtstrook":
+            self.rijstrooknummers.remove(max(self.rijstrooknummers))
+
+        # Determine MSI number properties
+        self.n_msis = len(self.rijstrooknummers)
         self.lowest_msi_number = min(self.rijstrooknummers)
         self.highest_msi_number = max(self.rijstrooknummers)
 
-        # Create all MSIs in row, passing the parent row class as argument (self)
-        self.MSIs = {msi_numbering: MSI(self, msi_numbering) for msi_numbering in self.rijstrooknummers}
+        # Create all MSIs in row, passing the parent row class as argument (self).
+        self.MSIs = {msi_number: MSI(self, msi_number) for msi_number in self.rijstrooknummers}
 
-        # # Move MSI number registration in case of left emergency lane
+        # # Move MSI number registration in case of left emergency lane (could be moved above along with the other emergency lane exception)
         # if 1 in self.local_road_properties.keys() and self.local_road_properties[1] == "Vluchtstrook":
         #     self.MSIs = {msi_numbering: MSI(self, msi_numbering + 1) for msi_numbering in self.rijstrooknummers}
         # else:
@@ -152,7 +157,7 @@ class MSINetwerk:
         for msi_row in self.MSIrows:
             for msi in msi_row.MSIs.values():
                 filtered_properties = {key: value for key, value in msi.properties.items() if value is not None}
-                logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
+                # logger.debug(f"{msi.name} heeft de volgende eigenschappen:\n{filtered_properties}")
 
     def travel_roadmodel(self, msi_row: 'MSIRow', downstream: bool) -> list:
         """
@@ -462,11 +467,11 @@ class MSINetwerk:
 
         # Adjust shift in case of (dis)appearing lane on the left side of the road
         if 1 in new_annotation.keys():
-            if ((downstream and new_annotation[1] == "ExtraRijstrook")
-                    or (not downstream and new_annotation[1] == "EindeRijstrook")):
+            if ((downstream and new_annotation[1] == "StrookStart")
+                    or (not downstream and new_annotation[1] == "StrookEinde")):
                 shift = shift + 1
-            elif ((downstream and new_annotation[1] == "EindeRijstrook")
-                    or (not downstream and new_annotation[1] == "ExtraRijstrook")):
+            elif ((downstream and new_annotation[1] == "StrookEinde")
+                    or (not downstream and new_annotation[1] == "StrookStart")):
                 shift = shift - 1
 
         # Join dicts while preventing aliasing issues.
@@ -568,12 +573,12 @@ class MSI:
             "ds": None,  # MSI downstream secondary
             "dt": None,  # MSI downstream taper
             "db": None,  # MSI downstream broadening (extra rijstrook)
-            "dn": None,  # MSI downstream narrowing (EindeRijstrook)
+            "dn": None,  # MSI downstream narrowing (StrookEinde)
             "u": None,  # MSI upstream
             "us": None,  # MSI upstream secondary
             "ut": None,  # MSI upstream taper
             "ub": None,  # MSI upstream broadening (extra rijstrook)
-            "un": None,  # MSI upstream narrowing (EindeRijstrook)
+            "un": None,  # MSI upstream narrowing (StrookEinde)
 
             "STAT_V": None,  # Static maximum speed
             "DYN_V": None,  # Dynamic maximum speed
@@ -718,7 +723,7 @@ class MSI:
             # Primary relation
             if (this_lane_projected in d_row.MSIs.keys() and not has_taper and self.lane_nr in lane_bounds and (
                     # Prevent downstream primary relation being added when lane ends.
-                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "EindeRijstrook")):
+                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "StrookEinde")):
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:
@@ -727,7 +732,7 @@ class MSI:
 
                 # Broadening relation
                 if (self.lane_nr in lane_numbers
-                        and annotation[self.lane_nr] == "ExtraRijstrook"):
+                        and annotation[self.lane_nr] == "StrookStart"):
                     # Left side
                     if self.lane_nr == 1 and this_lane_projected - 1 in d_row.MSIs.keys():
                         logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
@@ -738,7 +743,7 @@ class MSI:
                         self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
 
                 # Narrowing relation
-                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "EindeRijstrook"
+                if (self.lane_nr in lane_numbers and annotation[self.lane_nr] == "StrookEinde"
                         and this_lane_projected + 1 in d_row.MSIs.keys()):
                     logger.debug(f"Versmallingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                     # self.properties["dn"] = d_row.MSIs[this_lane_projected + 1].name
@@ -797,8 +802,8 @@ class MSI:
                 #
                 #     self.make_secondary_connection(self, u_row.MSIs[u_row.lowest_msi_number])
                 else:
-                    logger.warning(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
-                                   f"omdat dit geval nog niet ingeprogrammeerd is.")
+                    logger.debug(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
+                                 f"omdat dit geval nog niet ingeprogrammeerd is.")
 
     @staticmethod
     def make_connection(row1, row2, relation_type_letter: str = ""):

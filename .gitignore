@@ -22,7 +22,7 @@ Server/Solution/
 .idea/
 
 stacked_bar.py
-utils.py
+vis-matplot.py
 *.00295
 
 relation_comparison_log.txt
@@ -31,4 +31,3 @@ msi_relations_cggtop.txt
 
 MeasureRequest.txt
 
-vis-matplot.py
