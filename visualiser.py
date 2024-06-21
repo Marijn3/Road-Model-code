@@ -34,6 +34,7 @@ PUNTSTUK_BREED = 108
 
 markeringen = {
     GEEN_STROOK: {
+        GEEN_STROOK: GEEN_STREEP,
         VLUCHTSTROOK: GEEN_STREEP,
         SPITSSTROOK_LINKS: KANTSTREEP,
         RIJSTROOK: KANTSTREEP,
@@ -521,12 +522,15 @@ class SvgMaker:
         if self.__wegmodel.find_gap(lane_numbers):
             return  # Lane markings cannot be drawn in this case.
 
-        # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-        marking_offsets = [(self.__LANE_WIDTH * section_info.verw_eigs.aantal_hoofdstroken) / 2
-                           + self.__LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
-                           - self.__LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
 
-        # Ensure there is a 'lane number' for the side of the road.
+        n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
+        n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
+        n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
+
+        # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
+        marking_offsets = [self.__LANE_WIDTH * (n_lanes_left + n_main_lanes / 2 - i) for i in range(len(lane_numbers) + 1)]
+
+        # Ensure there is a 'lane number' for the left side of the road.
         lane_numbers.insert(0, min(lane_numbers)-1)
 
         #logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
@@ -537,14 +541,13 @@ class SvgMaker:
             left_lane_type = self.__determine_lane_name(section_info.obj_eigs, lane_number)
             right_lane_type = self.__determine_lane_name(section_info.obj_eigs, lane_number + 1)
 
-            if left_lane_type == GEEN_STROOK and right_lane_type == GEEN_STROOK:
-                continue
-
-            if left_lane_type == "Puntstuk" or right_lane_type == "Puntstuk":
+            # Handle wedge exceptions
+            if left_lane_type == "Puntstuk":
                 self.__handle_puntstuk(section_info, line_coords, right_lane_type)
-                if right_lane_type == "Puntstuk":
-                    break
                 continue
+            if right_lane_type == "Puntstuk":
+                self.__handle_puntstuk(section_info, line_coords, right_lane_type)
+                break
 
             #logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
