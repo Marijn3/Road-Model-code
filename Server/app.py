@@ -1,11 +1,12 @@
 import json
 import os
 
-from flask import Flask, request
+import requests
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from Initial_model_creation import create_model
-from Request_handling import main as apply_legend_request, get_changes
+from Request_handling import main as applyLegendRequest, get_changes
 from Request_handling import request_light
 
 app = Flask(__name__)
@@ -52,9 +53,10 @@ def listDataSets():
 
 @app.route("/initModel", methods=['GET', 'POST'])
 def initModel():
+    
     if request.method == 'POST':
-        data_sets = request.get_json()
-        result = create_model(data_sets["datasetId"])
+        data_set = request.get_json()
+        result = create_model(data_set["datasetId"])
         return result
 
 
@@ -62,7 +64,7 @@ def initModel():
 def runModel():
     if request.method == 'POST':
         legend_request = json.loads(request.files['files[]'].stream.read())
-        result = apply_legend_request(legend_request)
+        result = applyLegendRequest(legend_request)
         return result
 
 
@@ -71,7 +73,7 @@ def runNewRequest():
     print(request.data)
     if request.method == 'POST':
         legend_request = request.get_json()
-        result = apply_legend_request(legend_request)
+        result = applyLegendRequest(legend_request)
         return result
 
 
@@ -79,7 +81,7 @@ def runNewRequest():
 def removeRequest():
     if request.method == 'POST':
         legend_request = request.get_json()
-        result = apply_legend_request(legend_request)
+        result = applyLegendRequest(legend_request)
         return result
 
 
@@ -89,7 +91,6 @@ def getChanges():
         legend_request = request.get_json()
         result = get_changes(legend_request)
         return result
-
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", threaded=False, processes=1)

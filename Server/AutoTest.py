@@ -189,4 +189,3 @@ if __name__ == "__main__":
         for step in scenario["steps"]:
             response = execute_step(step)
         compare_results(scenario["result"], response)
-

@@ -3,8 +3,11 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from datetime import datetime
 from road_model import WegModel, ObjectInfo
+from ilp_communication import ILPSender
 from utils import *
+from Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)
 
@@ -118,12 +121,12 @@ class Aanvraag:
         50: 4.5
     }
 
-    def __init__(self, wegmodel: WegModel, wegkant: str, km_start: float, km_end: float, hectoletter: str,
+    def __init__(self, wegmodel: WegModel, wegkant: str, km: list[float], hectoletter: str,
                  randen: dict[str: Rand], maximumsnelheid: int = 70,
                  korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
         self.roadmodel = wegmodel
         self.roadside = wegkant
-        self.km = [km_start, km_end]
+        self.km = [min(km), max(km)]
         self.hecto_character = hectoletter
         self.edges = randen
         self.max_v = maximumsnelheid
@@ -132,7 +135,7 @@ class Aanvraag:
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange {km_start} - {km_end} km, "
+        logger.info(f"Aanvraag met kmrange {km[0]} - {km[1]} km, "
                     f"randen {randen}, korter dan 24h = {korter_dan_24h}.")
 
         self.surface_type = REQUEST
@@ -186,7 +189,8 @@ class Aanvraag:
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
     def step_1_determine_initial_workspace(self) -> None:
-        self.workspace.determine_minimal_workspace()
+        self.workspace.determine_category()
+        self.workspace.apply_category_measures()
 
     def step_2_determine_area_sizes(self) -> None:
         # Determine minimal width from the original area
@@ -214,11 +218,25 @@ class Aanvraag:
             logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
             return
 
-        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd:\n{self.measure_request}")
-        with open(f"MeasureRequest.txt", "w") as outfile:
-            json.dump(self.measure_request, outfile, indent=2)
+        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.measure_request}")
+
+        scenario = {
+            "name": "SafetyAreaA27",
+            "dataset": "WEGGEG-based data",
+            "step": {"name": "SafetyAreaBasedRequest", "type": "add"},
+            "result": {}
+        }
 
         # Add code to communicate with ILP
+        ilp = ILPSender()
+        response = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
+        logger.info(response)
+
+        # Visualise response in svg
+        svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
+        toggle_visibility(svg_file, response)
+        logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
+
 
     def step_5_adjust_area_sizes(self) -> None:
         return  # TODO
@@ -294,13 +312,12 @@ class Workspace:
         self.km = request.km
         self.category = str()
 
-    def determine_minimal_workspace(self) -> None:
+    def determine_category(self) -> None:
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
             self.determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
-            # TODO: Uitwerken wat er in deze situatie moet gebeuren.
+            # TODO: This is still onroad, so still category D. But now certain to expand in the direction of the off-road edge.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
-            return
         else:
             self.determine_request_category_roadside()
 
@@ -308,8 +325,6 @@ class Workspace:
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op de weg).")
         else:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
-
-        self.apply_category_measures()
 
     def apply_category_measures(self) -> None:
         if self.category == "A":
@@ -513,7 +528,7 @@ class ClosedSpace:
     def determine_measure_request(self) -> None:
         # See report JvM page 71 for an explanation of this request structure
         request_options = {
-            "name": "custom request",
+            "name": "SafetyAreaBasedRequest",  # f"Request_{datetime.now().strftime('%H:%M:%S')}.{datetime.now().strftime('%f')[:3]}",
             "type": "add",
             "legend_requests": [],
             "options": {}
