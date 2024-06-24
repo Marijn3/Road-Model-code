@@ -30,8 +30,8 @@ class PositieEigenschappen:
         self.geometrie = geometrie
 
     def __repr__(self):
-        wegnr_repr = self.wegnummer if self.wegnummer else "?"
-        richting_repr = self.rijrichting if self.rijrichting else "?"
+        wegnr_repr = self.wegnummer if self.wegnummer else " "
+        richting_repr = self.rijrichting if self.rijrichting else " "
         hecto_repr = self.hectoletter if self.hectoletter else " "
         km_repr = f"[{self.km[0]:<7.3f}, {self.km[1]:<7.3f}]" if isinstance(self.km, list) else f"{self.km:<7.3f}"
         return f"{wegnr_repr}{richting_repr} {hecto_repr} \t{km_repr} km \t"
@@ -77,7 +77,7 @@ class ObjectInfo:
         self.verw_eigs = LijnVerwerkingsEigenschappen() if lijn else PuntVerwerkingsEigenschappen()
 
     def __repr__(self):
-        typename = "sectie" if isinstance(self.pos_eigs.km, list) else "punt"
+        typename = "Sectie" if isinstance(self.pos_eigs.km, list) else "Punt"
         return (f"{typename} op {self.pos_eigs} met eigenschappen: "
                 f"{self.obj_eigs}")
 
@@ -588,7 +588,7 @@ class WegModel:
         overlap_sections = self.__get_overlapping_sections(new_info)
 
         if not overlap_sections:
-            logger.warning(f"Sectie {new_info} heeft geen overlap met het wegmodel. "
+            logger.warning(f"{new_info} heeft geen overlap met het wegmodel. "
                            f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
                            f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
             return
@@ -879,12 +879,10 @@ class WegModel:
             overlap_geometry = LineString([pos1.geometrie.coords[0]] + [coord for coord in overlap_geometry.coords])
 
         if (dwithin(Point(pos1.geometrie.coords[-1]), Point(pos2.geometrie.coords[-1]), DISTANCE_TOLERANCE) and not
-        dwithin(Point(pos1.geometrie.coords[-1]), Point(overlap_geometry.coords[-1]), DISTANCE_TOLERANCE)):
-            overlap_geometry = LineString(
-                [coord for coord in overlap_geometry.coords] + [pos1.geometrie.coords[-1]])
+                dwithin(Point(pos1.geometrie.coords[-1]), Point(overlap_geometry.coords[-1]), DISTANCE_TOLERANCE)):
+            overlap_geometry = LineString([coord for coord in overlap_geometry.coords] + [pos1.geometrie.coords[-1]])
 
         return set_precision(overlap_geometry, CALCULATION_PRECISION)
-
 
     def __remove_sections(self, indices: set[int]) -> None:
         """
@@ -903,7 +901,7 @@ class WegModel:
             indices (set): Set of indices at which to remove points.
         """
         for index in indices:
-            logger.debug(f"Punt {index} verwijderd: {self.__points[index]}\n")
+            logger.debug(f"Punt {index} verwijderd: {self.__points[index]}.")
             self.__points.pop(index)
 
     def __update_section(self, index: int,
@@ -925,53 +923,36 @@ class WegModel:
         if new_km:
             self.sections[index].pos_eigs.km = new_km
         if new_obj_eigs:
-            self.sections[index].obj_eigs = self.__merge_lane_dicts(self.sections[index].obj_eigs, new_obj_eigs)
+            self.sections[index].obj_eigs = self.__merge_lane_dicts(self.sections[index], new_obj_eigs)
         if new_geom:
             self.sections[index].pos_eigs.geometrie = new_geom
 
         self.__log_section(index, True)
 
     @staticmethod
-    def __merge_lane_dicts(dict_model, dict_new):
+    def __merge_lane_dicts(roadmodel_section, dict_new):
+        dict_model = roadmodel_section.obj_eigs
         lane_numbers_1 = [key for key in dict_model.keys() if isinstance(key, int)]
         lane_numbers_2 = [key for key in dict_new.keys() if isinstance(key, int)]
 
         overlap_numbers = [key for key in lane_numbers_1 if key in lane_numbers_2]
 
-        if not overlap_numbers:
-            return {**dict_model, **dict_new}
-        else:
+        if overlap_numbers:
             logger.debug(f"Overlappende rijstrooknummers {overlap_numbers} tussen {dict_model} en {dict_new}.")
 
+            change_made = False
             overlap_number = overlap_numbers[0]
             if dict_new[overlap_number] == "Vluchtstrook":
                 dict_new = {lane_nr + 1: lane_type for lane_nr, lane_type in dict_new.items()}
+                change_made = True
+
+            if change_made:
                 logger.debug(f"Overlap aangepakt door vluchtstrook op te schuiven: {dict_new}")
+            else:
+                logger.warning(f"Onopgeloste overlappende rijstrooknummers {overlap_numbers} "
+                               f"tussen {dict_model} en {dict_new}. Dit gebeurt voor {roadmodel_section.pos_eigs}.")
 
-            return {**dict_model, **dict_new}
-
-            # for new_lane_number in new_lane_numbers:
-            #     # TODO: Check if this is the correct implementation for moving lanes, and if there is no aliasing?
-            #     if new_lane_number in lane_numbers_1:
-            #         # Handle some registration mistakes in WEGGEG by moving the emergency lane 1 over.
-            #         if new_obj_eigs[new_lane_number] == "Vluchtstrook":
-            #             new_obj_eigs[new_lane_number + 1] = "Vluchtstrook"
-            #             new_obj_eigs.pop(new_lane_number)
-            #             self.sections[index].obj_eigs.update(new_obj_eigs)
-            #         elif self.sections[index].obj_eigs[new_lane_number] == "Vluchtstrook":
-            #             self.sections[index].obj_eigs[new_lane_number + 1] = "Vluchtstrook"
-            #             self.sections[index].obj_eigs.pop(new_lane_number)
-            #             self.sections[index].obj_eigs.update(new_obj_eigs)
-            #         else:
-            #             logger.warning(
-            #                 f"Een strook in {new_obj_eigs} bestaat al in sectie {self.sections[index].pos_eigs.wegnummer}, "
-            #                 f"{self.sections[index].pos_eigs.rijrichting}, {self.sections[index].pos_eigs.km}, "
-            #                 f"{self.sections[index].obj_eigs}\n"
-            #                 f"Controleer de data. Kloppen de stroken? Klopt de verwerking van de km-registraties? "
-            #                 f"De strook wordt niet toegevoegd."
-            #             )
-            #             self.sections[index].verw_eigs.heeft_verwerkingsfout = True
-            #     else:
+        return {**dict_model, **dict_new}
 
     def __add_section(self, new_section: ObjectInfo) -> None:
         """
@@ -1006,7 +987,7 @@ class WegModel:
 
         if not reference_info:
             # Do NOT add the section, as there is no guarantee the geometry direction is correct.
-            logger.debug(f"Sectie {section_info} heeft geen overlap met de referentie-laag. "
+            logger.debug(f"{section_info} heeft geen overlap met de referentie-laag. "
                          f"Op deze positie is waarschijnlijk niets geregistreerd, of de registratie "
                          f"is een MultiLineString, welke niet wordt meegenomen in het wegmodel.")
             return
@@ -1145,13 +1126,20 @@ class WegModel:
         self.__remove_sections(sections_to_remove)
 
         for section_index, section_info in self.sections.items():
-            # [3] Special code to fill in registration issues in the case of outgoing taper registrations.
-            lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
-            if "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
+            # [3] Special code to fill in lane registration gaps in the case of 'special' registrations.
+            # Assumes there is only one special registration per section.
+            if "Special" in section_info.obj_eigs.keys():  # and "Taper" in section_info.obj_eigs["Special"][0]:
+                logger.debug(f"Consider {section_info.obj_eigs}")
                 # Section has a singular lane registered for the taper
+                lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 special_lane_nr = section_info.obj_eigs["Special"][1]
+
+                if special_lane_nr not in section_info.obj_eigs.keys():  # In case special lane number is the unregistered lane
+                    section_info.obj_eigs[special_lane_nr] = section_info.obj_eigs[special_lane_nr - 1]
+
                 if special_lane_nr + 1 not in section_info.obj_eigs.keys():  # In case of gap or final lane
                     section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
+
                 elif section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
                     # Move lane registrations one lane to the right
                     for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
@@ -1174,7 +1162,7 @@ class WegModel:
                 if not self.find_gap(lane_numbers):
                     logger.debug(f"Gat opgelost: {section_info}")
                 else:
-                    logger.warning(f"Gat in registratie rijstroken {section_info} is niet opgelost."
+                    logger.warning(f"Gat in registratie rijstroken {section_info} is niet opgelost. "
                                    f"Deze sectie wordt in de visualisatie doorzichtig weergegeven.")
 
         for section_index, section_info in self.sections.items():
