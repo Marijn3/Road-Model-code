@@ -43,5 +43,9 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Puntstuk (124 & 141), vluchtstrook (126) km aangepast naar passende waarde bij geometrie.
 - Invoegstrook tussen 15.660-15.871 km aangepast naar 15.790-15.871 km.
 - Puntstuk (8) VNRWOl van 5 naar 4.
-
-
+- Vluchtstrook (126) verwijderd vanwege problemen in overlap met naastliggend puntstuk.
+- VNRWOL rijstroken (34) van 4 naar 1 gezet.
+- Registratie vluchstrook (64) verwijderd omdat deze overlapt met puntstuk.
+- Registratie rijstroken (46) van 4 -> 4 aangepast naar 2 -> 2.
+- Aantal rijstroken tusen 31.4 - 31.9 km van 1 naar 2 gebracht (logischer in context).
+- Signalering op 31.315 km strooknummers aangepast van 1 naar 12 (logischer in context).
