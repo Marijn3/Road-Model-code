@@ -1138,7 +1138,8 @@ class WegModel:
                     section_info.obj_eigs[special_lane_nr] = section_info.obj_eigs[special_lane_nr - 1]
 
                 if special_lane_nr + 1 not in section_info.obj_eigs.keys():  # In case of gap or final lane
-                    section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
+                    continue
+                    # section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
 
                 elif section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
                     # Move lane registrations one lane to the right
