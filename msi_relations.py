@@ -479,7 +479,7 @@ class MSINetwerk:
 
     @staticmethod
     def __update_lane_bounds(current_bounds, lanes, shift, annotation):
-        # Adjust shift in case of an converging taper.
+        # Adjust shift in case of a converging taper.
         if "TaperConvergentie" in annotation.values():
             for lane_number, lane_type in annotation.items():
                 if lane_type == "TaperConvergentie" and lane_number + 1 in current_bounds:

@@ -64,12 +64,12 @@ DISTANCE_BESIDE = {
 # Ruimte aan voor- en achterkanten van vakken in kilometers.
 DISTANCE_BEFORE = {
     WORKSPACE: 0.150,
-    EMPTY_SPACE: 0.200
+    EMPTY_SPACE: 0.200  # Up to 250 m
 }
 
 DISTANCE_AFTER = {
-    WORKSPACE: 0.000,
-    EMPTY_SPACE: 0.050
+    WORKSPACE: 0.100,
+    EMPTY_SPACE: 0.050  # Up to 300 m
 }
 
 

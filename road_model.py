@@ -105,6 +105,7 @@ class DataFrameLader:
             locatie (str or dict): The name of the location or a dict of coordinates,
                 indicating the bounding box to the area to be loaded.
             locations_csv_pad (str): Path towards csv file defining locations by coordinates.
+            data_folder (str): Path to WEGGEG data folder.
         Example:
             dfl = DataFrameLader("Everdingen")
             dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
