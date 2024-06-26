@@ -115,7 +115,6 @@ class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
     __C_HIGHLIGHT = "#D06E7C"
-    __C_NARROWING = "#736D55"
     __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
@@ -240,11 +239,8 @@ class SvgMaker:
         """
         if self.__wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif "Special" in section_info.obj_eigs.keys():
-            if "Taper" in section_info.obj_eigs["Special"][0]:
-                return self.__C_TAPER
-            else:
-                return self.__C_NARROWING
+        elif "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
+            return self.__C_TAPER
         elif section_info.verw_eigs.heeft_verwerkingsfout:
             return self.__C_HIGHLIGHT
         else:
@@ -282,21 +278,44 @@ class SvgMaker:
         return self.__get_flipped_coords(adjusted_geom)
 
     def __adjust_line_ends(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
-        if not marking_number:
+        if marking_number is None:
             return geom
-        elif marking_number == 0:
+
+        adjusted_geom_step_1 = self.__adjust_for_exit_entry(section_info, geom, marking_number)
+        adjusted_geom_step_2 = self.__adjust_for_lane_specials(section_info, adjusted_geom_step_1, marking_number)
+        return adjusted_geom_step_2
+
+    def __adjust_for_lane_specials(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
+        if "Special" not in section_info.obj_eigs.keys():
+            return geom
+
+        if section_info.obj_eigs["Special"][1] > marking_number:
+            adjacent_lane_offset = -0.5 * self.__LANE_WIDTH
+        else:
+            adjacent_lane_offset = 0.5 * self.__LANE_WIDTH
+
+        if section_info.obj_eigs["Special"][0] in ["StrookStart", "TaperDivergentie"]:
+            change_start = True
+        elif section_info.obj_eigs["Special"][0] in ["StrookEinde", "TaperConvergentie"]:
+            change_start = False
+        else:
+            change_start = False
+            logger.warning(f"Marking movement for {section_info.obj_eigs['Special'][0]} overlooked.")
+
+        offset_adjacent = offset_curve(geom, adjacent_lane_offset, join_style="mitre", mitre_limit=5)
+
+        return self.__move_geometry_endpoint(geom, offset_adjacent, change_start)
+
+    def __adjust_for_exit_entry(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
+        if marking_number == 0:
             adjacent_lane_offset = -self.__LANE_WIDTH
             lane_number = 1
         else:
             adjacent_lane_offset = self.__LANE_WIDTH
             lane_number = marking_number
 
-        if not (lane_number in section_info.verw_eigs.start_kenmerk or
-                lane_number in section_info.verw_eigs.einde_kenmerk):
-            return geom
-
         # Move first point of line
-        change_start = (lane_number in section_info.verw_eigs.start_kenmerk.keys() and
+        change_start = (lane_number in section_info.verw_eigs.start_kenmerk.keys() and marking_number != 1 and
                         section_info.verw_eigs.start_kenmerk[lane_number] == "Uitrijstrook")
         # Move last point of line
         change_end = (lane_number in section_info.verw_eigs.einde_kenmerk.keys() and
@@ -307,19 +326,23 @@ class SvgMaker:
 
         offset_adjacent = offset_curve(geom, adjacent_lane_offset, join_style="mitre", mitre_limit=5)
 
+        return self.__move_geometry_endpoint(geom, offset_adjacent, change_start)
+
+    @staticmethod
+    def __move_geometry_endpoint(original_geom: LineString, offset_geom: LineString, change_start: bool):
         # For section geometries a small amount of points, it looks ugly to remove more than one point.
         # For geometries with many points, removing geometries improves the marking visualisation, making it smoother.
-        if get_num_coordinates(geom) < 3:
+        if get_num_coordinates(original_geom) < 3:
             points_dropped = 1
-        elif get_num_coordinates(geom) < 4:
+        elif get_num_coordinates(original_geom) < 4:
             points_dropped = 2
         else:
             points_dropped = 3
 
         if change_start:
-            return LineString([offset_adjacent.coords[0]] + [coord for coord in geom.coords[points_dropped:]])
-        elif change_end:
-            return LineString([coord for coord in geom.coords[:-points_dropped]] + [offset_adjacent.coords[-1]])
+            return LineString([offset_geom.coords[0]] + [coord for coord in original_geom.coords[points_dropped:]])
+        else:
+            return LineString([coord for coord in original_geom.coords[:-points_dropped]] + [offset_geom.coords[-1]])
 
     def __check_points_on_line(self, sid: int) -> list[ObjectInfo]:
         """
@@ -499,23 +522,23 @@ class SvgMaker:
         return True
 
     def __determine_lane_marking(self, section_info: ObjectInfo, geom: LineString):
-        marking_numbers = sorted([nr for nr, lane in section_info.obj_eigs.items() if isinstance(nr, int)])
+        lane_numbers = sorted([nr for nr, lane in section_info.obj_eigs.items() if isinstance(nr, int)])
 
-        if self.__wegmodel.find_gap(marking_numbers):
+        if self.__wegmodel.find_gap(lane_numbers):
             return  # Lane markings cannot be drawn in this case.
-
 
         n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
         n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
         n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
 
         # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-        marking_offsets = [self.__LANE_WIDTH * (n_lanes_left + n_main_lanes / 2 - i) for i in range(len(marking_numbers) + 1)]
+        marking_offsets = [self.__LANE_WIDTH * (n_lanes_left + n_main_lanes / 2 - i) for i in range(len(lane_numbers) + 1)]
 
         # Ensure there is a 'lane number' for the left side of the road.
-        marking_numbers.insert(0, min(marking_numbers) - 1)
+        marking_numbers = lane_numbers.copy()
+        marking_numbers.insert(0, min(lane_numbers) - 1)
 
-        #logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
+        # logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
         for marking_number in marking_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), marking_number)
 
@@ -531,7 +554,7 @@ class SvgMaker:
                 self.__handle_puntstuk(section_info, line_coords, right_lane_type)
                 break
 
-            #logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
+            # logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
             self.__draw_markerline(line_coords, lane_marking_type)
 
