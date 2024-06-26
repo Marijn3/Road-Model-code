@@ -2,7 +2,6 @@ from road_model import WegModel, ObjectInfo, PositieEigenschappen
 from msi_relations import MSINetwerk, MSIRow
 import svgwrite
 import os
-from enum import Enum
 from shapely import *
 from utils import *
 
@@ -115,7 +114,6 @@ class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
     __C_HIGHLIGHT = "#D06E7C"
-    __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
 
@@ -239,8 +237,6 @@ class SvgMaker:
         """
         if self.__wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
-            return self.__C_TAPER
         elif section_info.verw_eigs.heeft_verwerkingsfout:
             return self.__C_HIGHLIGHT
         else:
@@ -921,6 +917,6 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
-            + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-               f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
+            # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
+            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
