@@ -2,7 +2,6 @@ from road_model import WegModel, ObjectInfo, PositieEigenschappen
 from msi_relations import MSINetwerk, MSIRow
 import svgwrite
 import os
-from enum import Enum
 from shapely import *
 from utils import *
 
@@ -101,6 +100,9 @@ markeringen = {
         # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
     },
     SPITSSTROOK_RECHTS_NIET_LAATSTE: {
+        VLUCHTSTROOK: KANTSTREEP,
+        SPLITSING: BLOKSTREEP,
+        SAMENVOEGING: BLOKSTREEP,
         INVOEGSTROOK: BLOKSTREEP,
         UITRIJSTROOK: BLOKSTREEP,
         WEEFSTROOK: BLOKSTREEP,
@@ -115,7 +117,6 @@ class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
     __C_HIGHLIGHT = "#D06E7C"
-    __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
 
@@ -239,8 +240,6 @@ class SvgMaker:
         """
         if self.__wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
-            return self.__C_TAPER
         elif section_info.verw_eigs.heeft_verwerkingsfout:
             return self.__C_HIGHLIGHT
         else:
@@ -538,7 +537,6 @@ class SvgMaker:
         marking_numbers = lane_numbers.copy()
         marking_numbers.insert(0, min(lane_numbers) - 1)
 
-        # logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
         for marking_number in marking_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), marking_number)
 
@@ -554,8 +552,11 @@ class SvgMaker:
                 self.__handle_puntstuk(section_info, line_coords, right_lane_type)
                 break
 
-            # logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
-            lane_marking_type = markeringen[left_lane_type][right_lane_type]
+            lane_marking_type = markeringen[left_lane_type].get(right_lane_type, None)
+            if lane_marking_type is None:
+                logger.warning(f"Lijn tussen {left_lane_type} en {right_lane_type} niet gevonden. "
+                               f"Wegmarkering werd uitgewerkt voor: {section_info}")
+
             self.__draw_markerline(line_coords, lane_marking_type)
 
     @staticmethod
@@ -565,7 +566,7 @@ class SvgMaker:
         elif lanes[lane_number] == "Spitsstrook":
             if lane_number == 1:
                 return SPITSSTROOK_LINKS
-            elif lane_number + 1 not in lanes:
+            elif lane_number + 1 not in lanes or lanes[lane_number + 1] == "Puntstuk":
                 return SPITSSTROOK_RECHTS_LAATSTE
             else:
                 return SPITSSTROOK_RECHTS_NIET_LAATSTE
@@ -921,6 +922,6 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
-            + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-               f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
+            # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
+            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
