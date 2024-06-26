@@ -875,7 +875,7 @@ class WegModel:
         # Catch code in case the first point or the last point of the geometries overlap,
         # but is not added to the overlap geometry due to precision errors
         if (dwithin(Point(pos1.geometrie.coords[0]), Point(pos2.geometrie.coords[0]), DISTANCE_TOLERANCE) and not
-        dwithin(Point(pos1.geometrie.coords[0]), Point(overlap_geometry.coords[0]), DISTANCE_TOLERANCE)):
+                dwithin(Point(pos1.geometrie.coords[0]), Point(overlap_geometry.coords[0]), DISTANCE_TOLERANCE)):
             overlap_geometry = LineString([pos1.geometrie.coords[0]] + [coord for coord in overlap_geometry.coords])
 
         if (dwithin(Point(pos1.geometrie.coords[-1]), Point(pos2.geometrie.coords[-1]), DISTANCE_TOLERANCE) and not
@@ -1141,10 +1141,12 @@ class WegModel:
                     if "Taper" in section_info.obj_eigs["Special"][0]:  # In case of gap or final lane
                         section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
 
-                elif section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
+                elif "Taper" in section_info.obj_eigs["Special"][0] and section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
                     # Move lane registrations one lane to the right
                     for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
                         section_info.obj_eigs[lane_number + 1] = section_info.obj_eigs[lane_number]
+
+                logger.debug(f"Result {section_info.obj_eigs}")
 
             # [4] Manual gap fix. Move lanes to fill the gap
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
@@ -1154,8 +1156,11 @@ class WegModel:
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
 
+                gap_width = lane_numbers[-1] - lane_numbers[-2]
+
                 for lane_number in range(gap_number, max(lane_numbers)):
-                    section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
+                    if lane_number + gap_width - 1 in section_info.obj_eigs.keys():
+                        section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + gap_width - 1]
                 section_info.obj_eigs.pop(max(lane_numbers))
 
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
