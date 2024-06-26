@@ -537,7 +537,6 @@ class SvgMaker:
         marking_numbers = lane_numbers.copy()
         marking_numbers.insert(0, min(lane_numbers) - 1)
 
-        # logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
         for marking_number in marking_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), marking_number)
 
@@ -553,8 +552,11 @@ class SvgMaker:
                 self.__handle_puntstuk(section_info, line_coords, right_lane_type)
                 break
 
-            # logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
-            lane_marking_type = markeringen[left_lane_type][right_lane_type]
+            lane_marking_type = markeringen[left_lane_type].get(right_lane_type, None)
+            if lane_marking_type is None:
+                logger.warning(f"Lijn tussen {left_lane_type} en {right_lane_type} niet gevonden. "
+                               f"Wegmarkering werd uitgewerkt voor: {section_info}")
+
             self.__draw_markerline(line_coords, lane_marking_type)
 
     @staticmethod
