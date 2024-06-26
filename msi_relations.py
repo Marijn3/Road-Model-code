@@ -33,7 +33,8 @@ class MSIRow:
         self.n_lanes = len(self.lane_numbers)
 
         # Exclude MSI registrations over emergency lanes.
-        if self.local_road_properties[max(self.rijstrooknummers)] == "Vluchtstrook":
+        if (max(self.rijstrooknummers) not in self.lane_numbers
+                or self.local_road_properties[max(self.rijstrooknummers)] == "Vluchtstrook"):
             self.rijstrooknummers.remove(max(self.rijstrooknummers))
 
         # Determine MSI number properties
