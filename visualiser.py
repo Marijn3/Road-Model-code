@@ -34,6 +34,7 @@ PUNTSTUK_BREED = 108
 
 markeringen = {
     GEEN_STROOK: {
+        GEEN_STROOK: GEEN_STREEP,
         VLUCHTSTROOK: GEEN_STREEP,
         SPITSSTROOK_LINKS: KANTSTREEP,
         RIJSTROOK: KANTSTREEP,
@@ -114,7 +115,6 @@ class SvgMaker:
     
     __C_TRANSPARENT = "#6D876D"
     __C_HIGHLIGHT = "#D06E7C"
-    __C_NARROWING = "#736D55"
     __C_TAPER = "#73677C"
     __C_ASPHALT = "grey"
     __C_WHITE = "#faf8f5"
@@ -239,11 +239,8 @@ class SvgMaker:
         """
         if self.__wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif "Special" in section_info.obj_eigs.keys():
-            if "Taper" in section_info.obj_eigs["Special"][0]:
-                return self.__C_TAPER
-            else:
-                return self.__C_NARROWING
+        elif "Special" in section_info.obj_eigs.keys() and "Taper" in section_info.obj_eigs["Special"][0]:
+            return self.__C_TAPER
         elif section_info.verw_eigs.heeft_verwerkingsfout:
             return self.__C_HIGHLIGHT
         else:
@@ -262,7 +259,7 @@ class SvgMaker:
         return [(coord[0], self.__north - (coord[1] - self.__north)) for coord in geom.coords]
 
     def __get_offset_coords(self, section_info: ObjectInfo, geom: LineString,
-                            offset: float = 0, lane_nr: int = None) -> list[tuple]:
+                            offset: float = 0.0, marking_number: int = None) -> list[tuple]:
         """
         Offsets LineString geometries by a given value and returns the coordinates.
         Also flips the geometries for visualisation.
@@ -273,70 +270,79 @@ class SvgMaker:
         Returns:
             List of coordinates making up the offset geometry.
         """
-        geom = self.__adjust_line_ends(section_info, geom, lane_nr)
-        if offset == 0:
-            return self.__get_flipped_coords(geom)
-        else:
+        if offset != 0.0:
             offset_geom = offset_curve(geom, offset, join_style="mitre", mitre_limit=5)
-            return self.__get_flipped_coords(offset_geom)
-
-    def __adjust_line_ends(self, section_info: ObjectInfo, geom: LineString, lane_nr: int) -> LineString:
-        if lane_nr == 0:
-            leftmost_marking = True
-            lane_nr = 1
         else:
-            leftmost_marking = False
+            offset_geom = geom
+        adjusted_geom = self.__adjust_line_ends(section_info, offset_geom, marking_number)
+        return self.__get_flipped_coords(adjusted_geom)
 
-        if not lane_nr or (lane_nr not in section_info.verw_eigs.start_kenmerk
-                           and lane_nr not in section_info.verw_eigs.einde_kenmerk):
+    def __adjust_line_ends(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
+        if marking_number is None:
             return geom
+
+        adjusted_geom_step_1 = self.__adjust_for_exit_entry(section_info, geom, marking_number)
+        adjusted_geom_step_2 = self.__adjust_for_lane_specials(section_info, adjusted_geom_step_1, marking_number)
+        return adjusted_geom_step_2
+
+    def __adjust_for_lane_specials(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
+        if "Special" not in section_info.obj_eigs.keys():
+            return geom
+
+        if section_info.obj_eigs["Special"][1] > marking_number:
+            adjacent_lane_offset = -0.5 * self.__LANE_WIDTH
+        else:
+            adjacent_lane_offset = 0.5 * self.__LANE_WIDTH
+
+        if section_info.obj_eigs["Special"][0] in ["StrookStart", "TaperDivergentie"]:
+            change_start = True
+        elif section_info.obj_eigs["Special"][0] in ["StrookEinde", "TaperConvergentie"]:
+            change_start = False
+        else:
+            change_start = False
+            logger.warning(f"Marking movement for {section_info.obj_eigs['Special'][0]} overlooked.")
+
+        offset_adjacent = offset_curve(geom, adjacent_lane_offset, join_style="mitre", mitre_limit=5)
+
+        return self.__move_geometry_endpoint(geom, offset_adjacent, change_start)
+
+    def __adjust_for_exit_entry(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
+        if marking_number == 0:
+            adjacent_lane_offset = -self.__LANE_WIDTH
+            lane_number = 1
+        else:
+            adjacent_lane_offset = self.__LANE_WIDTH
+            lane_number = marking_number
 
         # Move first point of line
-        if (lane_nr in section_info.verw_eigs.start_kenmerk and (lane_nr != 1 or leftmost_marking)
-                and section_info.verw_eigs.start_kenmerk[lane_nr] == "Uitrijstrook"):
-            change_start = True
-            point_to_displace = geom.coords[0]
-            id_upstream = section_info.verw_eigs.sectie_stroomopwaarts
-            other_geom = self.__wegmodel.sections[id_upstream].pos_eigs.geometrie
-            delta_x = other_geom.coords[-2][0] - geom.coords[1][0]
-            delta_y = other_geom.coords[-2][1] - geom.coords[1][1]
-            # For the leftmost marking, the direction should be flipped.
-            if not leftmost_marking:
-                delta_x = -delta_x
-                delta_y = -delta_y
-
+        change_start = (lane_number in section_info.verw_eigs.start_kenmerk.keys() and marking_number != 1 and
+                        section_info.verw_eigs.start_kenmerk[lane_number] == "Uitrijstrook")
         # Move last point of line
-        elif (lane_nr in section_info.verw_eigs.einde_kenmerk and
-                section_info.verw_eigs.einde_kenmerk[lane_nr] == "Invoegstrook"):
-            change_start = False
-            point_to_displace = geom.coords[-1]
-            id_downstream = section_info.verw_eigs.sectie_stroomafwaarts
-            other_geom = self.__wegmodel.sections[id_downstream].pos_eigs.geometrie
-            delta_x = other_geom.coords[1][0] - geom.coords[-2][0]
-            delta_y = other_geom.coords[1][1] - geom.coords[-2][1]
-        else:
+        change_end = (lane_number in section_info.verw_eigs.einde_kenmerk.keys() and
+                      section_info.verw_eigs.einde_kenmerk[lane_number] == "Invoegstrook")
+
+        if not (change_start or change_end):
             return geom
 
-        angle_rad = math.atan2(delta_y, delta_x)
-        tangent_vector = [-math.sin(angle_rad), math.cos(angle_rad)]
+        offset_adjacent = offset_curve(geom, adjacent_lane_offset, join_style="mitre", mitre_limit=5)
 
-        displacement = self.__LANE_WIDTH
+        return self.__move_geometry_endpoint(geom, offset_adjacent, change_start)
 
-        displaced_point = Point(point_to_displace[0] + tangent_vector[0] * displacement,
-                                point_to_displace[1] + tangent_vector[1] * displacement)
-
-        if get_num_coordinates(geom) < 3:
-            if change_start:
-                return LineString([displaced_point.coords[0]] + [coord for coord in geom.coords[1:]])
-            else:
-                return LineString([coord for coord in geom.coords[:-1]] + [displaced_point.coords[0]])
-
-        # For section geometries with at least three points, the second (to last) point is removed.
-        # This improves the geometry visualisation.
-        if change_start:
-            return LineString([displaced_point.coords[0]] + [coord for coord in geom.coords[2:]])
+    @staticmethod
+    def __move_geometry_endpoint(original_geom: LineString, offset_geom: LineString, change_start: bool):
+        # For section geometries a small amount of points, it looks ugly to remove more than one point.
+        # For geometries with many points, removing geometries improves the marking visualisation, making it smoother.
+        if get_num_coordinates(original_geom) < 3:
+            points_dropped = 1
+        elif get_num_coordinates(original_geom) < 4:
+            points_dropped = 2
         else:
-            return LineString([coord for coord in geom.coords[:-2]] + [displaced_point.coords[0]])
+            points_dropped = 3
+
+        if change_start:
+            return LineString([offset_geom.coords[0]] + [coord for coord in original_geom.coords[points_dropped:]])
+        else:
+            return LineString([coord for coord in original_geom.coords[:-points_dropped]] + [offset_geom.coords[-1]])
 
     def __check_points_on_line(self, sid: int) -> list[ObjectInfo]:
         """
@@ -521,32 +527,34 @@ class SvgMaker:
         if self.__wegmodel.find_gap(lane_numbers):
             return  # Lane markings cannot be drawn in this case.
 
+        n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
+        n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
+        n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
+
         # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-        marking_offsets = [(self.__LANE_WIDTH * section_info.verw_eigs.aantal_hoofdstroken) / 2
-                           + self.__LANE_WIDTH * section_info.verw_eigs.aantal_rijstroken_links
-                           - self.__LANE_WIDTH * i for i in range(len(lane_numbers) + 1)]
+        marking_offsets = [self.__LANE_WIDTH * (n_lanes_left + n_main_lanes / 2 - i) for i in range(len(lane_numbers) + 1)]
 
-        # Ensure there is a 'lane number' for the side of the road.
-        lane_numbers.insert(0, min(lane_numbers)-1)
+        # Ensure there is a 'lane number' for the left side of the road.
+        marking_numbers = lane_numbers.copy()
+        marking_numbers.insert(0, min(lane_numbers) - 1)
 
-        #logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
-        for lane_number in lane_numbers:
-            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), lane_number)
+        # logger.debug(f"Wegmarkering wordt uitgewerkt voor: {section_info}")
+        for marking_number in marking_numbers:
+            line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), marking_number)
 
             # Determine lane names left and right of the marking
-            left_lane_type = self.__determine_lane_name(section_info.obj_eigs, lane_number)
-            right_lane_type = self.__determine_lane_name(section_info.obj_eigs, lane_number + 1)
+            left_lane_type = self.__determine_lane_name(section_info.obj_eigs, marking_number)
+            right_lane_type = self.__determine_lane_name(section_info.obj_eigs, marking_number + 1)
 
-            if left_lane_type == GEEN_STROOK and right_lane_type == GEEN_STROOK:
-                continue
-
-            if left_lane_type == "Puntstuk" or right_lane_type == "Puntstuk":
+            # Handle wedge exceptions
+            if left_lane_type == "Puntstuk":
                 self.__handle_puntstuk(section_info, line_coords, right_lane_type)
-                if right_lane_type == "Puntstuk":
-                    break
                 continue
+            if right_lane_type == "Puntstuk":
+                self.__handle_puntstuk(section_info, line_coords, right_lane_type)
+                break
 
-            #logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
+            # logger.debug(f"Lijn tussen {left_lane_type} en {right_lane_type}")
             lane_marking_type = markeringen[left_lane_type][right_lane_type]
             self.__draw_markerline(line_coords, lane_marking_type)
 
@@ -913,6 +921,6 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
-            # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
+            + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
+               f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
