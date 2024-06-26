@@ -1137,9 +1137,9 @@ class WegModel:
                 if special_lane_nr not in section_info.obj_eigs.keys():  # In case special lane number is the unregistered lane
                     section_info.obj_eigs[special_lane_nr] = section_info.obj_eigs[special_lane_nr - 1]
 
-                if (special_lane_nr + 1 not in section_info.obj_eigs.keys()
-                        and "Taper" in section_info.obj_eigs["Special"][0]):  # In case of gap or final lane
-                    section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
+                if special_lane_nr + 1 not in section_info.obj_eigs.keys():
+                    if "Taper" in section_info.obj_eigs["Special"][0]:  # In case of gap or final lane
+                        section_info.obj_eigs[special_lane_nr + 1] = section_info.obj_eigs[special_lane_nr]
 
                 elif section_info.obj_eigs[special_lane_nr] != section_info.obj_eigs[special_lane_nr + 1]:
                     # Move lane registrations one lane to the right
