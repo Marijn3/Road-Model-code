@@ -100,6 +100,9 @@ markeringen = {
         # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
     },
     SPITSSTROOK_RECHTS_NIET_LAATSTE: {
+        VLUCHTSTROOK: KANTSTREEP,
+        SPLITSING: BLOKSTREEP,
+        SAMENVOEGING: BLOKSTREEP,
         INVOEGSTROOK: BLOKSTREEP,
         UITRIJSTROOK: BLOKSTREEP,
         WEEFSTROOK: BLOKSTREEP,
@@ -561,7 +564,7 @@ class SvgMaker:
         elif lanes[lane_number] == "Spitsstrook":
             if lane_number == 1:
                 return SPITSSTROOK_LINKS
-            elif lane_number + 1 not in lanes:
+            elif lane_number + 1 not in lanes or lanes[lane_number + 1] == "Puntstuk":
                 return SPITSSTROOK_RECHTS_LAATSTE
             else:
                 return SPITSSTROOK_RECHTS_NIET_LAATSTE
