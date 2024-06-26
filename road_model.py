@@ -942,7 +942,7 @@ class WegModel:
 
             change_made = False
             overlap_number = overlap_numbers[0]
-            if dict_new[overlap_number] in ["Vluchtstrook", "Uitrijstrook"]:
+            if dict_new[overlap_number] in ["Vluchtstrook", "Uitrijstrook", "Splitsing"]:
                 dict_new = {lane_nr + 1: lane_type for lane_nr, lane_type in dict_new.items() if isinstance(lane_nr, int)}
                 change_made = True
 
