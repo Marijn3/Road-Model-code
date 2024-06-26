@@ -160,14 +160,14 @@ class DataFrameLader:
                         elif i > j:
                             value = (i, "StrookEinde")
                         else:
-                            value = (i, "StrookStart")
+                            value = (j, "StrookStart")
                     else:  # For direction "T"
                         if i == j:
                             value = (i, None)
                         elif i > j:
                             value = (i, "StrookStart")
                         else:
-                            value = (i, "StrookEinde")
+                            value = (j, "StrookEinde")
                     mapping[key] = value
         # Special taper registrations, added outside the loop to improve readability.
         if direction == "H":
@@ -1150,13 +1150,11 @@ class WegModel:
             gap_number = self.find_gap(lane_numbers)
             if gap_number:
                 logger.debug(f"Sectie heeft een gat in registratie rijstroken op {gap_number}: {section_info}")
+                lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
 
-                gap_width = lane_numbers[-1] - lane_numbers[-2]
-
                 for lane_number in range(gap_number, max(lane_numbers)):
-                    if lane_number + gap_width - 1 in section_info.obj_eigs.keys():
-                        section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + gap_width - 1]
+                    section_info.obj_eigs[lane_number] = section_info.obj_eigs[lane_number + 1]
                 section_info.obj_eigs.pop(max(lane_numbers))
 
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
