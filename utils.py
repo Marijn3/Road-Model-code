@@ -3,9 +3,9 @@ import math
 import logging
 
 # ========= Gedefinieerde locaties =========
-# Volledig correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27
+# Correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relaties] Bavel, Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel*
+#                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel*
 # * = Na het oplossen van registratiefouten
 
 case_study = False
@@ -15,12 +15,12 @@ if case_study:
     data_folder = "WEGGEG-Zuidasdok"
     CALCULATION_PRECISION = 0.0001  # [m] Aangepast op grid van case study data.
 else:
-    locatie = "A2VK"
+    locatie = {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}  # "A2VK"
     data_folder = "WEGGEG"
     CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometrieën.
 
 # Initialize the logger
-logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
 
 # Set a higher level for external libraries such as fiona to filter out their debug messages
 external_logger = logging.getLogger('fiona')

@@ -54,7 +54,8 @@ class MSIRow:
         self.determine_carriageways()
 
     def get_msi_names(self, lane_numbers: set) -> list:
-        if self.local_road_properties[1] in ["Vluchtstrook"]:  # All MSI registrations should move 1 lane in this case.
+        first_lane = min([lane_nr for lane_nr in self.local_road_properties.keys()])
+        if self.local_road_properties[first_lane] in ["Vluchtstrook"]:  # All MSI registrations should move 1 lane in this case.
             return [self.MSIs[i-1].name for i in lane_numbers if i-1 in self.rijstrooknummers]
         else:
             return [self.MSIs[i].name for i in lane_numbers if i in self.rijstrooknummers]
@@ -115,7 +116,8 @@ class MSIRow:
 
 
 class MSINetwerk:
-    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, alle_secundaire_relaties: bool = True):
+    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500,
+                 kruisrelaties: bool = True, alle_secundaire_relaties: bool = True):
         """
         Instantiates an MSI network based on the provided road model and settings.
             wegmodel (WegModel): The road model on which the lane signalling relations will be based.
@@ -125,8 +127,9 @@ class MSINetwerk:
                 secundary relation types, which are not in the guidelines, should be added.
         """
         self.wegmodel = wegmodel
-        self.add_secondary_relations = alle_secundaire_relaties
         self.max_search_distance = maximale_zoekafstand
+        self.add_cross_relations = kruisrelaties
+        self.add_secondary_relations = alle_secundaire_relaties
 
         self.MSIrows = []
         self.__construct_msi_network()
@@ -743,11 +746,9 @@ class MSI:
 
                 # Narrowing relation
                 if self.lane_nr in special_lane_numbers and annotation[self.lane_nr] == "StrookEinde":
-                    # Left side
-                    if self.lane_nr == 1 and this_lane_projected + 1 in d_row.MSIs.keys():
+                    if self.lane_nr == 1 and this_lane_projected + 1 in d_row.MSIs.keys():  # Left side
                         self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "n")
-                    # Right side
-                    if self.lane_nr > 1 and this_lane_projected - 1 in d_row.MSIs.keys():
+                    if self.lane_nr > 1 and this_lane_projected - 1 in d_row.MSIs.keys():  # Right side
                         self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "n")
 
                 # Secondary
@@ -762,22 +763,22 @@ class MSI:
                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
                 # MSIs that encounter a samenvoeging or weefstrook downstream could have a cross relation.
-                if ("Samenvoeging" in special_lane_types or "Weefstrook" in special_lane_types) and True:
-                    # Relation from weave/merge lane to normal lane
-                    if self.lane_nr in special_lane_numbers and annotation[self.lane_nr] in ["Samenvoeging", "Weefstrook"]:
-                        if this_lane_projected - 1 in d_row.local_road_properties.keys():
-                            if d_row.local_road_properties[this_lane_projected - 1] != annotation[self.lane_nr]:
-                                if this_lane_projected - 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Kruisrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
-                                    self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
-                    # Relation from normal lane to weave/merge lane
-                    if (self.lane_nr + 1 in special_lane_numbers
-                            and annotation[self.lane_nr + 1] in ["Samenvoeging", "Weefstrook"]):
-                        if self.lane_nr + 1 in d_row.local_road_properties.keys():
-                            if d_row.local_road_properties[self.lane_nr] != annotation[self.lane_nr + 1]:
-                                if this_lane_projected + 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Kruisrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
-                                    self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
+                if self.row.msi_network.add_cross_relations:
+                    if ("Samenvoeging" in special_lane_types or "Weefstrook" in special_lane_types):
+                        # Relation from weave/merge lane to normal lane
+                        if self.lane_nr in special_lane_numbers and annotation[self.lane_nr] in ["Samenvoeging", "Weefstrook"]:
+                            if this_lane_projected - 1 in d_row.local_road_properties.keys():
+                                if d_row.local_road_properties[this_lane_projected - 1] != annotation[self.lane_nr]:
+                                    if this_lane_projected - 1 in d_row.MSIs.keys():
+                                        logger.debug(f"Kruisrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                                        self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
+                        # Relation from normal lane to weave/merge lane
+                        if (self.lane_nr + 1 in special_lane_numbers and annotation[self.lane_nr + 1] in ["Samenvoeging", "Weefstrook"]):
+                            if self.lane_nr + 1 in d_row.local_road_properties.keys():
+                                if d_row.local_road_properties[self.lane_nr] != annotation[self.lane_nr + 1]:
+                                    if this_lane_projected + 1 in d_row.MSIs.keys():
+                                        logger.debug(f"Kruisrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                                        self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
     def ensure_upstream_relation(self):
         # MSIs that do not have any upstream relation, get a secondary relation
