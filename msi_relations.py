@@ -281,7 +281,6 @@ class MSINetwerk:
 
         # Base case 3: Maximum depth reached.
         current_distance += round(current_section.pos_eigs.geometrie.length, 3)
-        logger.debug(f"Zoekdiepte: {current_distance}")
         if current_distance >= self.max_search_distance:
             logger.debug(f"De maximale zoekdiepte is overschreden: {current_distance}")
             return {None: (shift, annotation, lane_bounds)}
@@ -578,12 +577,12 @@ class MSI:
             "ds": None,  # MSI downstream secondary
             "dt": None,  # MSI downstream taper
             "db": None,  # MSI downstream broadening (extra rijstrook)
-            "dn": None,  # MSI downstream narrowing (StrookEinde)
+            "dn": None,  # MSI downstream narrowing (einde rijstrook)
             "u": None,  # MSI upstream
             "us": None,  # MSI upstream secondary
             "ut": None,  # MSI upstream taper
             "ub": None,  # MSI upstream broadening (extra rijstrook)
-            "un": None,  # MSI upstream narrowing (StrookEinde)
+            "un": None,  # MSI upstream narrowing (einde rijstrook)
 
             "STAT_V": None,  # Static maximum speed
             "DYN_V": None,  # Dynamic maximum speed
@@ -738,16 +737,14 @@ class MSI:
                 # Broadening relation
                 if self.lane_nr in special_lane_numbers and annotation[self.lane_nr] == "StrookStart":
                     if self.lane_nr == 1 and this_lane_projected - 1 in d_row.MSIs.keys():  # Left side
-                        logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                         self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
                     elif self.lane_nr > 1 and this_lane_projected + 1 in d_row.MSIs.keys():  # Right side
-                        logger.debug(f"Verbredingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                         self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
 
                 # Narrowing relation
                 if self.lane_nr in special_lane_numbers and annotation[self.lane_nr] == "StrookEinde":
                     # Left side
-                    logger.debug(f"Versmallingsrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                    if self.lane_nr == 1 and this_lane_projected + 1 in d_row.MSIs.keys():
                         self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "n")
                     # Right side
                     if self.lane_nr > 1 and this_lane_projected - 1 in d_row.MSIs.keys():
@@ -771,8 +768,7 @@ class MSI:
                         if this_lane_projected - 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[this_lane_projected - 1] != annotation[self.lane_nr]:
                                 if this_lane_projected - 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Kruisrelatie tussen "
-                                                 f"{self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
+                                    logger.debug(f"Kruisrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected - 1], self)
                     # Relation from normal lane to weave/merge lane
                     if (self.lane_nr + 1 in special_lane_numbers
@@ -780,8 +776,7 @@ class MSI:
                         if self.lane_nr + 1 in d_row.local_road_properties.keys():
                             if d_row.local_road_properties[self.lane_nr] != annotation[self.lane_nr + 1]:
                                 if this_lane_projected + 1 in d_row.MSIs.keys():
-                                    logger.debug(f"Kruisrelatie tussen "
-                                                 f"{self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
+                                    logger.debug(f"Kruisrelatie tussen {self.name} - {d_row.MSIs[this_lane_projected + 1].name}")
                                     self.make_secondary_connection(d_row.MSIs[this_lane_projected + 1], self)
 
     def ensure_upstream_relation(self):
@@ -813,6 +808,7 @@ class MSI:
         """
         First entry is the row that should have an upstream relation to the second entry.
         """
+        logger.debug(f"Relatie {relation_type_letter} tussen {row1.name} - {row2.name}")
         row1.properties[f"u{relation_type_letter}"] = row2.name
         row2.properties[f"d{relation_type_letter}"] = row1.name
 
