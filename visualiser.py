@@ -150,7 +150,7 @@ class SvgMaker:
             os.makedirs(output_folder)
 
         # Visualiser parameters (constants)
-        self.__LANE_WIDTH = 3.5
+        self.__LANE_WIDTH = 2.75
 
         if msis_boven_weg_tekenen:
             self.__MSIBOX_SIZE = self.__LANE_WIDTH * 0.8
@@ -648,6 +648,8 @@ class SvgMaker:
             hecto_offset = 0
         elif msi_row.info.pos_eigs.hectoletter in ["n"]:
             hecto_offset = self.__LANE_WIDTH * 40
+        elif msi_row.info.pos_eigs.hectoletter in ["s"]:
+            hecto_offset = self.__LANE_WIDTH * 15
         else:
             hecto_offset = self.__LANE_WIDTH * 25
         displacement = 0
