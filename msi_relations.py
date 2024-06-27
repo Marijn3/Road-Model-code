@@ -54,8 +54,7 @@ class MSIRow:
         self.determine_carriageways()
 
     def get_msi_names(self, lane_numbers: set) -> list:
-        first_lane = min([lane_nr for lane_nr in self.local_road_properties.keys()])
-        if self.local_road_properties[first_lane] in ["Vluchtstrook"]:  # All MSI registrations should move 1 lane in this case.
+        if self.local_road_properties[min(self.lane_numbers)] in ["Vluchtstrook"]:  # All MSI registrations should move 1 lane in this case.
             return [self.MSIs[i-1].name for i in lane_numbers if i-1 in self.rijstrooknummers]
         else:
             return [self.MSIs[i].name for i in lane_numbers if i in self.rijstrooknummers]
@@ -619,11 +618,12 @@ class MSI:
         }
 
     def determine_properties(self):
-        if "Maximumsnelheid" in self.row.local_road_properties.keys():
-            self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
+        # The stat-v and dyn-v property should actually not be added to output,
+        # as they are used differently in request handling.
 
-        # Code to add DYN_V if it is applied, and it is smaller than STAT_V.
-        # The dyn-v property should actually not be added to output, as it is used differently in request handling.
+        # if "Maximumsnelheid" in self.row.local_road_properties.keys():
+        #     self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
+
         # dyn_v1, dyn_v2 = None, None
         # if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
         #     dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
@@ -635,6 +635,8 @@ class MSI:
         #     self.properties["DYN_V"] = dyn_v1
         # elif dyn_v2:
         #     self.properties["DYN_V"] = dyn_v2
+
+        self.properties["STAT_V"] = 100
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
         #  This is implemented as a continue-V relation with the upstream RSUs.
@@ -690,9 +692,9 @@ class MSI:
                 "Plusstrook" in self.row.local_road_properties.values()):
             self.properties["RHL_neighbor"] = True
 
-        if self.lane_nr < self.row.n_lanes and self.row.local_road_properties[self.lane_nr + 1] == "Vluchtstrook":
+        if self.lane_nr + 1 in self.row.local_road_properties.keys() and self.row.local_road_properties[self.lane_nr + 1] == "Vluchtstrook":
             self.properties["Hard_shoulder_right"] = True
-        if self.lane_nr > 1 and self.row.local_road_properties[self.lane_nr - 1] == "Vluchtstrook":
+        if self.lane_nr - 1 in self.row.local_road_properties.keys() and self.row.local_road_properties[self.lane_nr - 1] == "Vluchtstrook":
             self.properties["Hard_shoulder_left"] = True
 
     def determine_relations(self):
@@ -751,7 +753,7 @@ class MSI:
                     if self.lane_nr > 1 and this_lane_projected - 1 in d_row.MSIs.keys():  # Right side
                         self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "n")
 
-                # Secondary
+                # Secondary relation
                 if (self.lane_nr in special_lane_numbers and annotation[self.lane_nr] == "Invoegstrook"
                         and this_lane_projected - 1 in d_row.MSIs.keys()):
                     logger.debug(f"Invoegstrook tussen {self.name} - {d_row.MSIs[this_lane_projected - 1].name}")
@@ -791,7 +793,7 @@ class MSI:
             if self.row.msi_network.add_secondary_relations:
                 u_row, desc = next(iter(self.row.upstream.items()))
                 shift, annotation, lane_bounds = desc
-                if u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
+                if lane_bounds and u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
                     logger.debug(f"Relatie wordt toegepast.")
                     self.make_secondary_connection(self, u_row.MSIs[min(max(lane_bounds), u_row.highest_msi_number)])
                 # elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
