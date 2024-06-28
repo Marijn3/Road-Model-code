@@ -1,7 +1,7 @@
 msi_rel_file = "msi_relations_roadmodel.txt"
 cggtop_rel_file = "msi_relations_cggtop.txt"
 
-ALLOWED_KM_DIFFERENCE = 0.035
+ALLOWED_KM_DIFFERENCE = 0.100
 
 roadmodel_dataset_extent = dict()
 found_relations_log = list()
@@ -11,6 +11,7 @@ cggtop_msi_relations = dict()
 
 roadmodel_line_numbers_found = list()
 cggtop_line_numbers_found = list()
+km_diff_found = set()
 
 # --------------------------------------------
 # Load road model relations
@@ -59,7 +60,7 @@ with open(cggtop_rel_file, "r") as file:
             km_min1, km_max1 = roadmodel_dataset_extent.get(roadnumber1, (0.0, 0.0))
             km_min2, km_max2 = roadmodel_dataset_extent.get(roadnumber2, (0.0, 0.0))
             if (km_min1 - ALLOWED_KM_DIFFERENCE <= float(km1) <= km_max1 + ALLOWED_KM_DIFFERENCE
-                and km_min2 - ALLOWED_KM_DIFFERENCE <= float(km2) <= km_max2 + ALLOWED_KM_DIFFERENCE):
+                    and km_min2 - ALLOWED_KM_DIFFERENCE <= float(km2) <= km_max2 + ALLOWED_KM_DIFFERENCE):
                 cggtop_msi_relations[cggtop_index] = {
                     "roadnumber1": roadnumber1, "km1": km1, "lanenumber1": lanenumber1,
                     "rel": relation,
@@ -96,6 +97,9 @@ for cggtop_index, cggtop_msi_relation in cggtop_msi_relations.items():
                                        f"{int(km1_difference * 1000)}m and {int(km2_difference * 1000)}m)")
             roadmodel_line_numbers_found.append(roadmodel_index)
             cggtop_line_numbers_found.append(cggtop_index)
+
+            # Log the km-difference (temporary)
+            km_diff_found.add((cggtop_msi_relation["km1"], int(km1_difference * 1000)))
             break
 
 roadmodel_line_numbers_found.sort(reverse=True)
@@ -154,3 +158,6 @@ with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"[Road model MSI relation]\t\t\t\t   [CGGTOP MSI relation]\n")
     for line in found_relations_log:
         outfile.write(f"{line}\n")
+
+# Output km-difference for a nice bar chart (temporary)
+print([item[1] for item in km_diff_found])
