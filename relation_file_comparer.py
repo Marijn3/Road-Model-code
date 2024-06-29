@@ -1,7 +1,7 @@
 msi_rel_file = "msi_relations_roadmodel.txt"
 cggtop_rel_file = "msi_relations_cggtop.txt"
 
-ALLOWED_KM_DIFFERENCE = 0.100
+ALLOWED_KM_DIFFERENCE = 0.080
 
 roadmodel_dataset_extent = dict()
 found_relations_log = list()
