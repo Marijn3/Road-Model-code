@@ -36,10 +36,10 @@ with open(msi_rel_file, "r") as file:
         if roadnumber2 not in roadmodel_dataset_extent.keys():
             roadmodel_dataset_extent[roadnumber2] = (km2, km2)  # Min and max so far
         else:
-            km_min, km_max = roadmodel_dataset_extent.get(roadnumber1)
+            km_min, km_max = roadmodel_dataset_extent.get(roadnumber2)
             new_km_min = float(km_min) if float(km_min) <= float(km2) else float(km2)
             new_km_max = float(km_max) if float(km_max) >= float(km2) else float(km2)
-            roadmodel_dataset_extent[roadnumber1] = (new_km_min, new_km_max)
+            roadmodel_dataset_extent[roadnumber2] = (new_km_min, new_km_max)
 
         roadmodel_msi_relations[roadmodel_index] = {"roadnumber1": roadnumber1, "km1": km1, "lanenumber1": lanenumber1,
                                                     "rel": relation,
