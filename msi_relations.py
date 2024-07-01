@@ -123,7 +123,7 @@ class MSINetwerk:
             maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
                 at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
             alle_secundaire_relaties (bool): Indication whether all additionally determined
-                secundary relation types, which are not in the guidelines, should be added.
+                secondary relation types, which are not in the guidelines, should be added.
         """
         self.wegmodel = wegmodel
         self.max_search_distance = maximale_zoekafstand
@@ -511,11 +511,12 @@ class MSINetwerk:
         """
         annotation = {}
 
-        crosses_section_start = not first_iter or (first_iter and not downstream)
-        crosses_section_end = not final_iter or (final_iter and not downstream)
+        skip_section_start = downstream and first_iter or not downstream and final_iter
+        skip_section_end = not downstream and first_iter or downstream and final_iter
 
-        if crosses_section_start:
-            if "Special" in section_verw_eigs.start_kenmerk.keys():
+        if not skip_section_start:
+            if ("Special" in section_verw_eigs.start_kenmerk.keys()
+                    and section_verw_eigs.start_kenmerk["Special"][0] in ["TaperDivergentie", "StrookStart"]):
                 annotation.update({value[1] - shift: value[0] for keyword, value in
                                    section_verw_eigs.start_kenmerk.items() if keyword == "Special"})
 
@@ -532,12 +533,13 @@ class MSINetwerk:
                 annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                    section_verw_eigs.start_kenmerk.items() if lane_type == "Weefstrook"})
 
-        if crosses_section_end:
+        if not skip_section_end:
             if "Invoegstrook" in section_verw_eigs.einde_kenmerk.values():
                 annotation.update({lane_nr - shift: lane_type for lane_nr, lane_type in
                                    section_verw_eigs.einde_kenmerk.items() if lane_type == "Invoegstrook"})
 
-            if "Special" in section_verw_eigs.einde_kenmerk.keys():
+            if ("Special" in section_verw_eigs.einde_kenmerk.keys()
+                    and section_verw_eigs.einde_kenmerk["Special"][0] in ["TaperConvergentie", "StrookEinde"]):
                 annotation.update({value[1] - shift: value[0] for keyword, value in
                                    section_verw_eigs.einde_kenmerk.items() if keyword == "Special"})
 
@@ -789,14 +791,12 @@ class MSI:
                 u_row, desc = next(iter(self.row.upstream.items()))
                 shift, annotation, lane_bounds = desc
                 if lane_bounds and u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
+                    lane_to_connect_to = min(max(lane_bounds), u_row.highest_msi_number)
+                    if check(annotation, self.lane_nr, "TaperDivergentie"):
+                        lane_to_connect_to -= 1
+
                     logger.debug(f"Relatie wordt toegepast.")
-                    self.make_secondary_connection(self, u_row.MSIs[min(max(lane_bounds), u_row.highest_msi_number)])
-                # elif (u_row.local_road_info.pos_eigs.hectoletter != self.row.local_road_info.pos_eigs.hectoletter
-                #       and self.lane_nr == 1):
-                #     # This should not occur in the Netherlands, but is here for safety.
-                #     logger.warning(f"Relatie wordt toegepast (onverwachte situatie). Zie debug info.")
-                #
-                #     self.make_secondary_connection(self, u_row.MSIs[u_row.lowest_msi_number])
+                    self.make_secondary_connection(self, u_row.MSIs[lane_to_connect_to])
                 else:
                     logger.debug(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
                                  f"omdat dit geval nog niet ingeprogrammeerd is.")
