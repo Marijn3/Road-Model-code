@@ -21,7 +21,7 @@ for index, line in enumerate([linestring1, linestring2, linestring3]):
 ax.set_title('Visualization of geometries')
 ax.set_xlabel('X (m)')
 ax.set_ylabel('Y (m)')
-ax.legend(["New geometry", "Other geometry", "Overlap"])
+ax.legend(["New feature geometry", "Road model geometry", "Overlap"])
 ax.grid(True)
 
 # Show the plot
