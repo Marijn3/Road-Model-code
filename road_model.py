@@ -6,6 +6,10 @@ from utils import *
 logger = logging.getLogger(__name__)
 
 
+TINY_DEVIATION_LOW = 0.001
+TINY_DEVIATION_HIGH = 1.0 - TINY_DEVIATION_LOW
+
+
 class PositieEigenschappen:
     """Positional properties for sections and points in the road model."""
 
@@ -626,29 +630,24 @@ class WegModel:
 
             logger.debug(f"Overlap tussen {feature_info} en wegmodel sectie {road_model_index}: {road_model_info}")
 
-            linedist_overlap_start_on_model = line_locate_point(road_model_info.pos_eigs.geometrie, Point(overlap_geometry.coords[0]), normalized=True)
-            linedist_overlap_end_on_model = line_locate_point(road_model_info.pos_eigs.geometrie, Point(overlap_geometry.coords[-1]), normalized=True)
-            linedist_model_start_on_overlap = line_locate_point(overlap_geometry, Point(road_model_info.pos_eigs.geometrie.coords[0]), normalized=True)
-            linedist_model_end_on_overlap = line_locate_point(overlap_geometry, Point(road_model_info.pos_eigs.geometrie.coords[-1]), normalized=True)
+            overlap_start_on_model = line_locate_point(road_model_info.pos_eigs.geometrie, Point(overlap_geometry.coords[0]), normalized=True)
+            overlap_end_on_model = line_locate_point(road_model_info.pos_eigs.geometrie, Point(overlap_geometry.coords[-1]), normalized=True)
+            model_start_on_overlap = line_locate_point(overlap_geometry, Point(road_model_info.pos_eigs.geometrie.coords[0]), normalized=True)
+            model_end_on_overlap = line_locate_point(overlap_geometry, Point(road_model_info.pos_eigs.geometrie.coords[-1]), normalized=True)
 
-            logger.debug(
-                f"Nieuwe geom: {feature_info.pos_eigs.geometrie}\nAndere geom: {road_model_info.pos_eigs.geometrie}\nOverlap geom: {overlap_geometry}")
-            logger.debug(f"See {linedist_overlap_start_on_model}, {linedist_overlap_end_on_model} "
-                         f"{linedist_model_start_on_overlap} {linedist_model_end_on_overlap}")
+            if model_start_on_overlap > model_end_on_overlap:
+                overlap_start_on_model, overlap_end_on_model = overlap_end_on_model, overlap_start_on_model
+                model_start_on_overlap, model_end_on_overlap = model_end_on_overlap, model_start_on_overlap
 
-            if linedist_model_start_on_overlap > linedist_model_end_on_overlap:
-                logger.warning("This seems weird.")
-                temp = linedist_overlap_end_on_model
-                linedist_overlap_end_on_model = linedist_overlap_start_on_model
-                linedist_overlap_start_on_model = temp
+            startpoint_overlap = overlap_start_on_model < TINY_DEVIATION_LOW and model_start_on_overlap < TINY_DEVIATION_LOW
+            endpoint_overlap = overlap_end_on_model > TINY_DEVIATION_HIGH and model_end_on_overlap > TINY_DEVIATION_HIGH
+            overlap_ends_earlier = overlap_end_on_model < TINY_DEVIATION_HIGH
+            overlap_starts_later = overlap_start_on_model > TINY_DEVIATION_LOW
 
-            TINY_DEVIATION_LOW = 0.001
-            TINY_DEVIATION_HIGH = 1.0 - TINY_DEVIATION_LOW
-
-            startpoint_overlap = linedist_overlap_start_on_model < TINY_DEVIATION_LOW and linedist_model_start_on_overlap < TINY_DEVIATION_LOW
-            endpoint_overlap = linedist_overlap_end_on_model > TINY_DEVIATION_HIGH and linedist_model_end_on_overlap > TINY_DEVIATION_HIGH
-            overlap_ends_earlier = linedist_overlap_end_on_model < TINY_DEVIATION_HIGH
-            overlap_starts_later = linedist_overlap_start_on_model > TINY_DEVIATION_LOW
+            # logger.debug(
+            #     f"Nieuwe geom: {feature_info.pos_eigs.geometrie}\nAndere geom: {road_model_info.pos_eigs.geometrie}\nOverlap geom: {overlap_geometry}")
+            # logger.debug(f"See {linedist_overlap_start_on_model}, {linedist_overlap_end_on_model} "
+            #              f"{linedist_model_start_on_overlap} {linedist_model_end_on_overlap}")
 
             # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
             if startpoint_overlap and endpoint_overlap:
@@ -761,7 +760,7 @@ class WegModel:
             else:
                 logger.warning(f"Not sure how to handle this case: {feature_info} {road_model_info}.")
                 logger.warning(f"Geometries: {feature_info.pos_eigs.geometrie} {road_model_info.pos_eigs.geometrie}.")
-                logger.warning(f"See {linedist_overlap_start_on_model}, {linedist_overlap_end_on_model} {linedist_model_start_on_overlap} {linedist_model_end_on_overlap}")
+                logger.warning(f"See {overlap_start_on_model}, {overlap_end_on_model} {model_start_on_overlap} {model_end_on_overlap}")
 
     def __get_remainders(self, geom1, geom2) -> list[LineString]:
         assert geom1 and not is_empty(geom1), f"Geometrie is leeg: {geom1}. Kloppen de km-registraties?"
@@ -1150,7 +1149,7 @@ class WegModel:
             # [3] Special code to fill in lane registration gaps in the case of 'special' registrations.
             # Assumes there is only one special registration per section.
             if "Special" in section_info.obj_eigs.keys():  # and "Taper" in section_info.obj_eigs["Special"][0]:
-                logger.debug(f"Consider {section_info.obj_eigs}")
+                # logger.debug(f"Consider {section_info.obj_eigs}")
                 # Section has a singular lane registered for the taper
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 special_lane_nr = section_info.obj_eigs["Special"][1]
@@ -1167,7 +1166,7 @@ class WegModel:
                     for lane_number in range(max(lane_numbers), special_lane_nr - 1, -1):
                         section_info.obj_eigs[lane_number + 1] = section_info.obj_eigs[lane_number]
 
-                logger.debug(f"Result {section_info.obj_eigs}")
+                # logger.debug(f"Result {section_info.obj_eigs}")
 
             # [4] Manual gap fix. Move lanes to fill the gap
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
