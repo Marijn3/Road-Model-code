@@ -42,10 +42,14 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Registratie rijstroken (46) van 4 -> 4 aangepast naar 2 -> 2.
 - Aantal rijstroken tusen 31.4 - 31.9 km van 1 naar 2 gebracht (logischer in context).
 - Signalering op 31.315 km strooknummers aangepast van 1 naar 12 (logischer in context).
+- Rijstroken registratie (113 / 114) 4 -> 3 aangepast naar 3 -> 4, want kantcode = T en logischer in context.
+- Registratie 1.6 -> 2 aangepast naar 1 -> 1 door registratie toe te voegen (logischer in context).
+- Rijstroken registratie (46) 2 -> 2 aangepast naar 4 -> 4 (logischer in context).
 
 
 - Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
 - Geometrie van Rijstroken 5 -> 5 rond 16.678 km klein beetje ingekort om interne overlap te voorkomen.
+- Geometrie van rijstroken-laag aangepast zodat deze overlapt met andere lagen op 15.87 - 15.91 km.
 
 
 - Overlappende vluchtstrook verwijderd, overlappend met puntstuk tussen 17.246-17.53 km.
