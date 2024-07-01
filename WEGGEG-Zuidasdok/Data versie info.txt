@@ -4,44 +4,67 @@
 Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Folder Strksgnlring hernoemd naar Rijstrooksignaleringen.
 - De geopackage bestanden in rijstroken en kantstroken geconverteerd naar shapefiles met QGIS > Exporteren > Objecten opslaan als... > ESRI-shape gegevens.
-- Kilometerregistraties in divergentiepunten op 16.7 km in alle lagen aangepast naar 16.678 km.
-- Km-registraties bij convergentiepunt 16.5 km in alle lagen aangepast zodat ze op convergentiepunt aansluiten, ipv 15.563 km.
-- Convergentiepunt 16.00 km hetzelfde als bovenstaande.
-- Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
+
+
+- Km-registraties aangepast in divergentiepunten op 16.7 km naar 16.678 km (alle lagen).
+- Km-registraties aangepast bij convergentiepunt 16.50 km in alle lagen zodat ze op convergentiepunt aansluiten, ipv 15.563 km.
+- Km-registraties aangepast bij convergentiepunt 16.00 km in alle lagen zodat ze op convergentiepunt aansluiten.
 - Registratie rond 15.871 km gelijk getrokken.
 - Convergentiepunt van 17.350 km naar 17.246 km aangepast.
 - Convergentiepunt van 17.650 km naar 17.530 km aangepast.
-- Km-registraties rond divergentiepunt 15.526 km aangepast.
-- Km-registraties rond convergentie 31.5 km aangepast.
-- Km-registraties rond divergentiepunt 15.330 km aangepast.
-- Km-registraties bij 15.828 km gelijk getrokken.
-- VNRWOL toegevoegd aan registratie 135 (Vluchtstrook)
-- Rijstroken 5 -> 5 rond 16.678 km aangepast naar 3 -> 3, want 2 stroken horen bij splitsing.
-- Geometrie van bovenstaande klein beetje ingekort om interne overlap te voorkomen.
-- Veel lege VNRWOL registraties aangevuld.
-- Registratie 8 en 127 verwijderd (dubbel/ongebruikt)
-- VNRWOL registratie 81 & 82 aangepast van 5 naar 4
+- Km-registraties aangepast rond divergentiepunt 15.526 km.
+- Km-registraties aangepast rond convergentie 31.5 km.
+- Km-registraties aangepast rond divergentiepunt 15.330 km.
+- Km-registraties aangepast bij 15.828 km (gelijkgetrokken).
 - Km-registratie van samenvoeging op 31.966 km aangepast naar 31.963 km, op 33.071 km aangepast naar 32.071 km.
 - Tussen-km-registratie toegevoegd aan gesplitste registratie in rijstroken-laag tussen 17.28 en 19.466 km.
-- [Niet-opgelost] Vluchtstrookregistratie rond 16.1-16.6 km links lijkt een MultiLineString.
-- Puntstuk op 16.000 km VNRWOL 4 -> 5.
 - Km-registratie van lijnstuk rijstroken (5) op punten 15.382 km en 15.384 km aangepast.
-- VNRWOL aangepast en toegevoegd op traject 16.678-17.53 km, hecto s. Hier ook... v
+- Uitrijstrook tussen 19.669-17.530 km aangepast naar 18.500-17.530 km.
+- Taperregistratie stroken op 17.530 km aangepast naar fijnere vorm voor verwerking.
+- Puntstuk (124 & 141), vluchtstrook (126) km aangepast naar passende waarde bij geometrie.
+- Invoegstrook tussen 15.660-15.871 km aangepast naar 15.790-15.871 km.
+
+
+- Veel lege VNRWOL registraties aangevuld.
+- Puntstuk (8) VNRWOl van 5 naar 4.
+- VNRWOL rijstroken (34) van 4 naar 1 gezet.
+- VNRWOL toegevoegd aan Vluchtstrook (135).
+- Puntstuk op 16.000 km VNRWOL van 4 naar 5 gezet.
+- VNRWOL registratie 81 & 82 aangepast van 5 naar 4
 - Rijstroken 4 -> 4 VNRWOL 1 en Splitsing 2 -> 2 VNRWOL 5 aangepast naar 2 -> 2, 1 en 2 -> 2, 3.
+- Registratie vluchtstrook (49) VNRWOL van 4 naar 5 veranderd.
+- VNRWOL aangepast en toegevoegd op feature 16.678-17.53 km, hecto s.
+
+
+- Rijstroken 5 -> 5 rond 16.678 km aangepast naar 3 -> 3, want 2 stroken horen bij splitsing.
+- Maximumsnelheid van registratie vluchtstrook (49) verwijderd. VNRWOL van 4 naar 5 veranderd.
+- Rijstroken registratie (1) van 3 -> 3 naar 5 -> 5 gezet ter compensatie van verwijderde Splitsing registratie 16.678-17.166 km.
+- Registratie rijstroken (46) van 4 -> 4 aangepast naar 2 -> 2.
+- Aantal rijstroken tusen 31.4 - 31.9 km van 1 naar 2 gebracht (logischer in context).
+- Signalering op 31.315 km strooknummers aangepast van 1 naar 12 (logischer in context).
+- Rijstroken registratie (113 / 114) 4 -> 3 aangepast naar 3 -> 4, want kantcode = T en logischer in context.
+- Registratie 1.6 -> 2 aangepast naar 1 -> 1 door registratie toe te voegen (logischer in context).
+- Rijstroken registratie (46) 2 -> 2 aangepast naar 4 -> 4 (logischer in context).
+
+
+- Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
+- Geometrie van Rijstroken 5 -> 5 rond 16.678 km klein beetje ingekort om interne overlap te voorkomen.
+- Geometrie van rijstroken-laag op 15.87 - 15.91 km aangepast zodat deze overlapt met andere lagen.
+- Geometrie van puntstuk (143) aangepast zodat deze overlap met andere lagen.
+
+
 - Overlappende vluchtstrook verwijderd, overlappend met puntstuk tussen 17.246-17.53 km.
 - Vluchtstroken in één punt geregistreerd rond 17.246-17.53 km verwijderd.
 - Vluchtstrook met (onjuiste) km-registratie 16.000-16.678 km en korte lengte verwijderd.
 - Rijstrokenregistratie 2 -> 2 verwijderd: overlapt met 4 -> 4 registratie.
 - Vluchtstrook links (118) tussen 15.828-15.914 km verwijderd (inconsistent met andere data).
 - Vluchtstrook overlappend met puntstuk (136) verwijderd.
-- Maximumsnelheid van registratie vluchtstrook (49) verwijderd. VNRWOL van 4 naar 5 veranderd.
-- Uitrijstrook tussen 19.669-17.530 km aangepast naar 18.500-17.530 km.
-- Taper op 17.530 km aangepast naar fijnere vorm voor verwerking.
+- Registratie 8 en 127 verwijderd (dubbel/ongebruikt).
 - Vluchtstrook rond 17.530 km verwijderd omdat deze geom gesplitst zou moeten worden.
-- Splitsing registratie 16.678-17.166 km verwijderd omdat de geometrie niet juist is. en... v
-- Rijstroken registratie (1) van 3->3 naar 5->5 gezet ter compensatie van de splitsing.
-- Puntstuk (124 & 141), vluchtstrook (126) km aangepast naar passende waarde bij geometrie.
-- Invoegstrook tussen 15.660-15.871 km aangepast naar 15.790-15.871 km.
-- Puntstuk (8) VNRWOl van 5 naar 4.
+- Splitsing registratie 16.678-17.166 km verwijderd omdat de geometrie niet juist is.
+- Vluchtstrook (126) verwijderd vanwege problemen in overlap met naastliggend puntstuk.
+- Registratie vluchstrook (64) verwijderd omdat deze overlapt met puntstuk.
+
+
 
 

@@ -150,7 +150,7 @@ class SvgMaker:
             os.makedirs(output_folder)
 
         # Visualiser parameters (constants)
-        self.__LANE_WIDTH = 3.5
+        self.__LANE_WIDTH = 2.75
 
         if msis_boven_weg_tekenen:
             self.__MSIBOX_SIZE = self.__LANE_WIDTH * 0.8
@@ -408,13 +408,18 @@ class SvgMaker:
         angle_radians = math.radians(point_info.verw_eigs.lokale_hoek)
         tangent_vector = [-math.sin(angle_radians), math.cos(angle_radians)]  # Rotated by 90 degrees
 
-        this_section_max_lane_nr = max([key for key in this_section_info.obj_eigs.keys() if isinstance(key, int)])
-        other_section_max_lane_nr = max([key for key in other_section_info.obj_eigs.keys() if isinstance(key, int)])
+        this_section_lane_numbers = [key for key in this_section_info.obj_eigs.keys() if isinstance(key, int)]
+        other_section_lane_numbers = [key for key in other_section_info.obj_eigs.keys() if isinstance(key, int)]
+
+        this_section_min_lane_nr = min(this_section_lane_numbers)
+        this_section_max_lane_nr = max(this_section_lane_numbers)
+        other_section_min_lane_nr = min(other_section_lane_numbers)
+        other_section_max_lane_nr = max(other_section_lane_numbers)
 
         this_is_continuous = (this_section_info.obj_eigs[this_section_max_lane_nr] == "Puntstuk"
-                              or other_section_info.obj_eigs[1] == "Puntstuk")
+                              or other_section_info.obj_eigs[other_section_min_lane_nr] == "Puntstuk")
         other_is_continuous = (other_section_info.obj_eigs[other_section_max_lane_nr] == "Puntstuk"
-                               or this_section_info.obj_eigs[1] == "Puntstuk")
+                               or this_section_info.obj_eigs[this_section_min_lane_nr] == "Puntstuk")
 
         if this_is_continuous and other_is_continuous:
             logger.warning(f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
@@ -647,7 +652,11 @@ class SvgMaker:
         if msi_row.info.pos_eigs.hectoletter in ["", "w"]:
             hecto_offset = 0
         elif msi_row.info.pos_eigs.hectoletter in ["n"]:
-            hecto_offset = self.__LANE_WIDTH * 40
+            hecto_offset = self.__LANE_WIDTH * 45
+        elif msi_row.info.pos_eigs.hectoletter in ["s"]:
+            hecto_offset = self.__LANE_WIDTH * 20
+        elif msi_row.info.pos_eigs.hectoletter in ["t"]:
+            hecto_offset = self.__LANE_WIDTH * 30
         else:
             hecto_offset = self.__LANE_WIDTH * 25
         displacement = 0
