@@ -49,6 +49,10 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 
 - Uitrijstrook op 14.278 - 14.601 km naar weefstrook veranderd (WEGGEG-correctie).
 - Invoegstrook op 16.552 - 16.828 km naar weefstrook veranderd (WEGGEG-correctie)
+- Weefstrookregistratie op 16.828 - 16.880 km van 2 -> 1 naar 2 -> 2 veranderd (WEGGEG-correctie).
+- Registratie aantal MSIs op 17.893 km bijgewerkt van 123 naar 1234 (WEGGEG-correctie).
+- Registratie aantal MSIs op 17.137 km bijgewerkt van 1234 naar 12345 (WEGGEG-correctie).
+- Registratie aantal MSIs op 16.896 km bijgewerkt van 1234 naar 12345 (WEGGEG-correctie).
 
 
 - Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
