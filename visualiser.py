@@ -647,9 +647,11 @@ class SvgMaker:
         if msi_row.info.pos_eigs.hectoletter in ["", "w"]:
             hecto_offset = 0
         elif msi_row.info.pos_eigs.hectoletter in ["n"]:
-            hecto_offset = self.__LANE_WIDTH * 40
+            hecto_offset = self.__LANE_WIDTH * 45
         elif msi_row.info.pos_eigs.hectoletter in ["s"]:
-            hecto_offset = self.__LANE_WIDTH * 15
+            hecto_offset = self.__LANE_WIDTH * 20
+        elif msi_row.info.pos_eigs.hectoletter in ["t"]:
+            hecto_offset = self.__LANE_WIDTH * 30
         else:
             hecto_offset = self.__LANE_WIDTH * 25
         displacement = 0
