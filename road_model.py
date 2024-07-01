@@ -539,7 +539,7 @@ class WegModel:
             first_lane_number = row["VNRWOL"]
             n_lanes, special = row["LANE_INFO"]
 
-            if not first_lane_number:
+            if math.isnan(first_lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
 
             # Indicate lane number and type of lane. Example: {1: "Rijstrook", 2: "Rijstrook"}
@@ -555,7 +555,7 @@ class WegModel:
             # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
             lane_number = row["VNRWOL"]
 
-            if not lane_number:
+            if math.isnan(lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
 
             section_info.obj_eigs[lane_number] = row["OMSCHR"]
@@ -566,7 +566,7 @@ class WegModel:
             first_lane_number = row["VNRWOL"]
             n_lanes, special = row["LANE_INFO"]
 
-            if not first_lane_number:
+            if math.isnan(first_lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
 
             # Indicate lane number and type of lane. Example: {4: "Weefstrook"}
@@ -631,13 +631,13 @@ class WegModel:
             linedist_other_start_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[0]), normalized=True)
             linedist_other_end_on_overlap = line_locate_point(overlap_geometry, Point(other_info.pos_eigs.geometrie.coords[-1]), normalized=True)
 
-            # logger.debug(
-            #     f"Check: {new_info.pos_eigs.geometrie}\n{overlap_geometry}\n{other_info.pos_eigs.geometrie}")
+            logger.debug(
+                f"Nieuwe geom: {new_info.pos_eigs.geometrie}\nAndere geom: {other_info.pos_eigs.geometrie}\nOverlap geom: {overlap_geometry}")
             # logger.debug(f"See {linedist_overlap_start_on_other}, {linedist_overlap_end_on_other} "
             #              f"{linedist_other_start_on_overlap} {linedist_other_end_on_overlap}")
 
             TINY_DEVIATION_LOW = 0.001
-            TINY_DEVIATION_HIGH = 0.999
+            TINY_DEVIATION_HIGH = 1.0 - TINY_DEVIATION_LOW
 
             startpoint_overlap = linedist_overlap_start_on_other < TINY_DEVIATION_LOW and linedist_other_start_on_overlap < TINY_DEVIATION_LOW
             endpoint_overlap = linedist_overlap_end_on_other > TINY_DEVIATION_HIGH and linedist_other_end_on_overlap > TINY_DEVIATION_HIGH
@@ -645,16 +645,13 @@ class WegModel:
             overlap_starts_later = linedist_overlap_start_on_other > TINY_DEVIATION_LOW
 
             # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
-            # Alternatively: self.__check_geometry_equality(other_info.pos_eigs.geometrie, overlap_geometry)
             if startpoint_overlap and endpoint_overlap:
-                logger.debug("This overlap falls under case 1")
+                logger.debug("Deze overlap valt onder situatie 1")
                 self.__update_section(other_section_index, new_obj_eigs=new_info.obj_eigs)
 
             # Case 2: overlap and road model section start at the same point, but overlap ends earlier
             elif startpoint_overlap and overlap_ends_earlier:
-                logger.debug("This overlap falls under case 2")
-                remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
-                other_properties = deepcopy(other_info.obj_eigs)
+                logger.debug("Deze overlap valt onder situatie 2")
                 km_registrations = [
                     other_info.pos_eigs.km[0],
                     new_info.pos_eigs.km[1],
@@ -663,6 +660,10 @@ class WegModel:
                 ]
                 if km_registrations[2] == km_registrations[3]:
                     logger.warning(f"Fout in de verwerking of in de km-registraties van {new_info} / {other_info}.")
+                    continue
+
+                remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
+                other_properties = deepcopy(other_info.obj_eigs)
 
                 self.__update_section(other_section_index,
                                       new_km=[km_registrations[0], km_registrations[1]],
@@ -681,10 +682,7 @@ class WegModel:
 
             # Case 3: overlap and road model section end at the same point, but overlap starts later
             elif endpoint_overlap and overlap_starts_later:
-                logger.debug("This overlap falls under case 3")
-                remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
-                other_properties = deepcopy(other_info.obj_eigs)
-
+                logger.debug("Deze overlap valt onder situatie 3")
                 km_registrations = [
                     other_info.pos_eigs.km[0],
                     new_info.pos_eigs.km[0],
@@ -693,6 +691,10 @@ class WegModel:
                 ]
                 if km_registrations[0] == km_registrations[1]:
                     logger.warning(f"Fout in de verwerking of in de km-registraties van {new_info} / {other_info}.")
+                    continue
+
+                remainder_geometry = self.__get_first_remainder(other_info.pos_eigs.geometrie, overlap_geometry)
+                other_properties = deepcopy(other_info.obj_eigs)
 
                 self.__add_section(
                     ObjectInfo(
@@ -711,9 +713,7 @@ class WegModel:
 
             # Case 4: the overlap start and end are encased by the road model section
             elif overlap_ends_earlier and overlap_starts_later:
-                logger.debug("This overlap falls under case 4")
-                remainder_geometries = self.__get_remainders(other_info.pos_eigs.geometrie, overlap_geometry)
-                other_properties = deepcopy(other_info.obj_eigs)
+                logger.debug("Deze overlap valt onder situatie 4")
                 km_registrations = [
                     other_info.pos_eigs.km[0],
                     new_info.pos_eigs.km[0],
@@ -722,6 +722,10 @@ class WegModel:
                 ]
                 if km_registrations[0] == km_registrations[1] or km_registrations[2] == km_registrations[3]:
                     logger.warning(f"Fout in de verwerking of in de km-registraties van {new_info} / {other_info}.")
+                    continue
+
+                remainder_geometries = self.__get_remainders(other_info.pos_eigs.geometrie, overlap_geometry)
+                other_properties = deepcopy(other_info.obj_eigs)
 
                 self.__add_section(
                     ObjectInfo(
@@ -1145,7 +1149,7 @@ class WegModel:
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 special_lane_nr = section_info.obj_eigs["Special"][1]
 
-                if special_lane_nr not in section_info.obj_eigs.keys():  # In case special lane number is the unregistered lane
+                if special_lane_nr not in section_info.obj_eigs.keys() and special_lane_nr - 1 in section_info.obj_eigs.keys():  # In case special lane number is the unregistered lane
                     section_info.obj_eigs[special_lane_nr] = section_info.obj_eigs[special_lane_nr - 1]
 
                 if special_lane_nr + 1 not in section_info.obj_eigs.keys():
@@ -1335,10 +1339,12 @@ class WegModel:
                 return None, None
             return connected[0], None
 
-        assert len(adjacent_sections) == 2, ("Er moeten twee secties verbonden zijn aan een puntstuk.\n"
-                                             f"Fout aangetroffen met sectie {section_index}: {section_info},\n"
-                                             f"Verbonden secties: {connecting_sections}.\n"
-                                             f"Aangrenzende secties: {adjacent_sections}")
+        if not len(adjacent_sections) == 2:
+            logger.warning(f"Er moeten twee secties verbonden zijn aan een puntstuk.\n"
+                           f"Fout aangetroffen met sectie {section_index}: {section_info},\n"
+                           f"Verbonden secties: ({len(connecting_sections)}) {connecting_sections}.\n"
+                           f"Aangrenzende secties: ({len(adjacent_sections)}) {adjacent_sections}")
+            return None, None
 
         # If one of the other sections is puntstuk, act accordingly.
         # Extract sections from dict
