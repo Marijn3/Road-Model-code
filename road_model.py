@@ -382,7 +382,7 @@ class WegModel:
     __LAYER_NAMES = [
         "Wegvakken",  # Used as 'reference layer'
         "Rijstroken",  # Used as 'initial layer'
-        "Mengstroken", "Kantstroken", "Maximum snelheid",  # Contain line geometries
+        "Maximum snelheid", "Kantstroken", "Mengstroken",  # Contain line geometries
         "Rijstrooksignaleringen", "Convergenties", "Divergenties"  # Contain point geometries
     ]
 

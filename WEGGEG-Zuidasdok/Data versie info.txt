@@ -49,7 +49,8 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 
 - Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
 - Geometrie van Rijstroken 5 -> 5 rond 16.678 km klein beetje ingekort om interne overlap te voorkomen.
-- Geometrie van rijstroken-laag aangepast zodat deze overlapt met andere lagen op 15.87 - 15.91 km.
+- Geometrie van rijstroken-laag op 15.87 - 15.91 km aangepast zodat deze overlapt met andere lagen.
+- Geometrie van puntstuk (143) aangepast zodat deze overlap met andere lagen.
 
 
 - Overlappende vluchtstrook verwijderd, overlappend met puntstuk tussen 17.246-17.53 km.
