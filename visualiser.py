@@ -473,7 +473,7 @@ class SvgMaker:
                                                         onmouseout=f"hideInfoBox({section_id})"))
 
         indicator_circle = self.__dwg.ellipse(center=(origin[0], origin[1]), r=(3, 3), fill="black")
-        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(120, height),
+        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(140, height),
                                   fill="white", stroke="black", stroke_width=self.__BASE_STROKE)
         g_infobox.add(indicator_circle)
         g_infobox.add(textbox)
@@ -931,6 +931,6 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
-            # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
+            + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
+               f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
