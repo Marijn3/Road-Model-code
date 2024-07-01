@@ -1,4 +1,4 @@
-01-05-2024 kenmerkniveau
+ 01-05-2024 kenmerkniveau
 31 mei aangepast naar toekomstige situatie door Ramon Donkers.
 
 Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
@@ -47,7 +47,8 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Rijstroken registratie (46) 2 -> 2 aangepast naar 4 -> 4 (logischer in context).
 
 
-- Uitrijstrook op 14.278 - 14.601 km naar weefstrook veranderd (WEGGEG-fout!!!).
+- Uitrijstrook op 14.278 - 14.601 km naar weefstrook veranderd (WEGGEG-correctie).
+- Invoegstrook op 16.552 - 16.828 km naar weefstrook veranderd (WEGGEG-correctie)
 
 
 - Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
