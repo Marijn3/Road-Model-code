@@ -47,6 +47,9 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Rijstroken registratie (46) 2 -> 2 aangepast naar 4 -> 4 (logischer in context).
 
 
+- Uitrijstrook op 14.278 - 14.601 km naar weefstrook veranderd (WEGGEG-fout!!!).
+
+
 - Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.
 - Geometrie van Rijstroken 5 -> 5 rond 16.678 km klein beetje ingekort om interne overlap te voorkomen.
 - Geometrie van rijstroken-laag op 15.87 - 15.91 km aangepast zodat deze overlapt met andere lagen.
