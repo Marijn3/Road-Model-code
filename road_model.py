@@ -870,6 +870,7 @@ class WegModel:
             return None
 
         # Then, check if the overlap between the geometries is of the same dimension as the geometries.
+        # (This not used, as it is too strict)
         # if not overlaps(pos1.geometrie, pos2.geometrie):
         #     return None
 
@@ -1102,22 +1103,22 @@ class WegModel:
                 return reference_info
         return None
 
-    def __get_overlapping_sections(self, section_info: ObjectInfo) -> dict:
+    def __get_overlapping_sections(self, new_section_info: ObjectInfo) -> dict:
         """
         Finds all sections within self which overlap with the provided section
         and returns them in a list.
         Args:
-            section_info (ObjectInfo): All data pertaining to a section.
+            new_section_info (ObjectInfo): All data pertaining to a section.
         Returns:
             A list of overlap section data, sorted by start_km depending on
             the driving direction of one of the other sections, which is assumed
             to be representative for all other sections.
         """
         overlapping_sections = {}
-        for other_section_index, other_section_info in self.sections.items():
-            overlap_geometry = self.__get_overlap(section_info.pos_eigs, other_section_info.pos_eigs)
+        for road_model_index, road_model_section_info in self.sections.items():
+            overlap_geometry = self.__get_overlap(new_section_info.pos_eigs, road_model_section_info.pos_eigs)
             if overlap_geometry:
-                overlapping_sections[other_section_index] = (other_section_info, overlap_geometry)
+                overlapping_sections[road_model_index] = (road_model_section_info, overlap_geometry)
         return overlapping_sections
 
     def __post_process_data(self) -> None:
