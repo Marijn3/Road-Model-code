@@ -240,8 +240,8 @@ class SvgMaker:
         """
         if self.__wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif section_info.verw_eigs.heeft_verwerkingsfout:
-            return self.__C_HIGHLIGHT
+        # elif section_info.verw_eigs.heeft_verwerkingsfout:
+        #     return self.__C_HIGHLIGHT
         else:
             return self.__C_ASPHALT
 

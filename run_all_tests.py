@@ -14,7 +14,7 @@ for locatie in locaties:
         logger.info(f"{locatie} verwerken...")
         dfl = DataFrameLader(locatie, "locaties.csv", "WEGGEG")
         wegmodel = WegModel(dfl)
-        MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, kruisrelaties=True, alle_secundaire_relaties=True)
+        MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, kruisrelaties=True, bovenstrooms_secundaire_relaties=True)
     except Exception:
         logger.error(f"Error bij het verwerken van {locatie}: {traceback.format_exc()}")
     else:
