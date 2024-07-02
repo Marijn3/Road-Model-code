@@ -709,15 +709,14 @@ class MSI:
         if self.lane_nr - 1 in self.row.MSIs.keys():
             self.properties["l"] = self.row.MSIs[self.lane_nr - 1].name
 
-        has_taper = False
-
         # Downstream relations
         for d_row, desc in self.row.downstream.items():
+            has_taper = False
             shift, annotation, lane_bounds = desc
             this_lane_projected = self.lane_nr + shift
 
-            # # Move MSI number registration in case of left emergency lane
-            if 1 in self.row.local_road_properties.keys() and self.row.local_road_properties[1] == "Vluchtstrook":
+            # Move MSI number registration in case of left emergency lane
+            if check(self.row.local_road_properties, 1, "Vluchtstrook"):
                 lane_bounds = [lane_number - 1 for lane_number in lane_bounds]
 
             if "TaperDivergentie" in annotation.values():
