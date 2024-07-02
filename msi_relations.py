@@ -707,7 +707,7 @@ class MSI:
         if self.lane_nr - 1 in self.row.MSIs.keys():
             self.properties["l"] = self.row.MSIs[self.lane_nr - 1].name
 
-        # Downstream relations
+        # Considering all relations in downstream direction. Makes MSI connection in both directions when relation found
         for d_row, desc in self.row.downstream.items():
             has_taper = False
             shift, annotation, lane_bounds = desc
@@ -731,9 +731,9 @@ class MSI:
                     has_taper = True
 
             # Primary relation
-            if (this_lane_projected in d_row.MSIs.keys() and not has_taper and self.lane_nr in lane_bounds and (
+            if (this_lane_projected in d_row.MSIs.keys() and not has_taper and self.lane_nr in lane_bounds and
                     # Prevent downstream primary relation being added when lane ends.
-                    self.lane_nr not in annotation.keys() or annotation[self.lane_nr] != "StrookEinde")):
+                    not check(annotation, self.lane_nr, "StrookEinde")):
                 self.make_connection(d_row.MSIs[this_lane_projected], self)
 
             if annotation:
