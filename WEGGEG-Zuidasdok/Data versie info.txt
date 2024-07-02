@@ -1,7 +1,9 @@
-01-05-2024 kenmerkniveau
+ 01-05-2024 kenmerkniveau
 31 mei aangepast naar toekomstige situatie door Ramon Donkers.
 
 Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
+
+
 - Folder Strksgnlring hernoemd naar Rijstrooksignaleringen.
 - De geopackage bestanden in rijstroken en kantstroken geconverteerd naar shapefiles met QGIS > Exporteren > Objecten opslaan als... > ESRI-shape gegevens.
 
@@ -42,9 +44,18 @@ Lijst van sindsdien gemaakte aanpassingen aan de bestanden:
 - Registratie rijstroken (46) van 4 -> 4 aangepast naar 2 -> 2.
 - Aantal rijstroken tusen 31.4 - 31.9 km van 1 naar 2 gebracht (logischer in context).
 - Signalering op 31.315 km strooknummers aangepast van 1 naar 12 (logischer in context).
+- Signalering op 15.570 km strooknummers aangepast van 123 naar 1234 (logischer in context).
 - Rijstroken registratie (113 / 114) 4 -> 3 aangepast naar 3 -> 4, want kantcode = T en logischer in context.
 - Registratie 1.6 -> 2 aangepast naar 1 -> 1 door registratie toe te voegen (logischer in context).
 - Rijstroken registratie (46) 2 -> 2 aangepast naar 4 -> 4 (logischer in context).
+
+
+- Uitrijstrook op 14.278 - 14.601 km naar weefstrook veranderd (WEGGEG-correctie).
+- Invoegstrook op 16.552 - 16.828 km naar weefstrook veranderd (WEGGEG-correctie)
+- Weefstrookregistratie op 16.828 - 16.880 km van 2 -> 1 naar 2 -> 2 veranderd (WEGGEG-correctie).
+- Registratie aantal MSIs op 17.893 km bijgewerkt van 123 naar 1234 (WEGGEG-correctie).
+- Registratie aantal MSIs op 17.137 km bijgewerkt van 1234 naar 12345 (WEGGEG-correctie).
+- Registratie aantal MSIs op 16.896 km bijgewerkt van 1234 naar 12345 (WEGGEG-correctie).
 
 
 - Geometrie puntstuk op 16.00 km ingekort tot aan convergentiepunt.

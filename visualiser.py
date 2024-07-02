@@ -240,8 +240,8 @@ class SvgMaker:
         """
         if self.__wegmodel.find_gap([lane for lane in section_info.obj_eigs.keys() if isinstance(lane, int)]):
             return self.__C_TRANSPARENT
-        elif section_info.verw_eigs.heeft_verwerkingsfout:
-            return self.__C_HIGHLIGHT
+        # elif section_info.verw_eigs.heeft_verwerkingsfout:
+        #     return self.__C_HIGHLIGHT
         else:
             return self.__C_ASPHALT
 
@@ -473,7 +473,7 @@ class SvgMaker:
                                                         onmouseout=f"hideInfoBox({section_id})"))
 
         indicator_circle = self.__dwg.ellipse(center=(origin[0], origin[1]), r=(3, 3), fill="black")
-        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(120, height),
+        textbox = self.__dwg.rect(insert=(origin[0], origin[1]), size=(140, height),
                                   fill="white", stroke="black", stroke_width=self.__BASE_STROKE)
         g_infobox.add(indicator_circle)
         g_infobox.add(textbox)
@@ -666,17 +666,17 @@ class SvgMaker:
             displacement = (info_offset + self.__VISUAL_PLAY + (nr - 1) *
                             (self.__VISUAL_PLAY + self.__MSIBOX_SIZE) + hecto_offset)
             box_pos = (coords[0] + displacement, coords[1] - self.__MSIBOX_SIZE / 2)
-            square = self.__draw_msi(box_pos, msi_row.MSIs[nr].properties["CW_num"])
+
+            square = self.__draw_msi(box_pos, msi_row.MSIs[nr].properties["CW_num"], msi_name)
             g_msi_row.add(square)
             self.__element_by_id[msi_name] = square, rotate_angle, coords
 
-            # Extra elements
             box_center = (coords[0] + displacement + self.__MSIBOX_SIZE / 2, coords[1])
             self.__draw_all_legends(g_msi_row, msi_name, box_pos, box_center, self.__MSIBOX_SIZE)
 
         text_coords = (coords[0] + displacement + self.__MSIBOX_SIZE * 1.3, coords[1])
 
-        g_msi_text = self.__draw_msi_text(msi_row.info, text_coords, rotate_angle)
+        g_msi_text = self.__draw_msi_label(msi_row.info, text_coords, rotate_angle)
         g_msi_row.add(g_msi_text)
         g_msi_row.rotate(rotate_angle, center=coords)
 
@@ -689,37 +689,38 @@ class SvgMaker:
             msi_name = make_name(msi_row.info, nr)
             displacement = self.__LANE_WIDTH * (nr - 1) - msi_row.info.verw_eigs.aantal_hoofdstroken * self.__LANE_WIDTH / 2
             box_pos = (coords[0] + displacement + play, coords[1] - self.__MSIBOX_SIZE / 2)
-            square = self.__draw_msi(box_pos, msi_row.MSIs[nr].properties["CW_num"])
+
+            square = self.__draw_msi(box_pos, msi_row.MSIs[nr].properties["CW_num"], msi_name)
             g_msi_row.add(square)
             self.__element_by_id[msi_name] = square, rotate_angle, coords
 
-            # Extra elements
             box_center = (coords[0] + displacement + play + self.__MSIBOX_SIZE / 2, coords[1])
             self.__draw_all_legends(g_msi_row, msi_name, box_pos, box_center, self.__MSIBOX_SIZE)
 
         text_coords = (coords[0] + 2 + displacement + self.__MSIBOX_SIZE, coords[1])
         
-        g_msi_text = self.__draw_msi_text(msi_row.info, text_coords, rotate_angle)
+        g_msi_text = self.__draw_msi_label(msi_row.info, text_coords, rotate_angle)
         g_msi_row.add(g_msi_text)
         g_msi_row.rotate(rotate_angle, center=coords)
 
-    def __draw_msi(self, box_pos, cw_number: int):
+    def __draw_msi(self, box_pos, cw_number: int, msi_name: str):
         stroke_color = self.__CARRIAGEWAY_COLORMAP.get(cw_number, "black")
-        return self.__dwg.rect(insert=box_pos,
+        return self.__dwg.rect(id=f"{msi_name}",
+                               insert=box_pos,
                                size=(self.__MSIBOX_SIZE, self.__MSIBOX_SIZE),
                                fill="#1e1b17", stroke=stroke_color, stroke_width=self.__BASE_STROKE,
                                onmouseover="evt.target.setAttribute('fill', 'darkslategrey');",
                                onmouseout="evt.target.setAttribute('fill', '#1e1b17');")
     
-    def __draw_msi_text(self, point_info, text_coords, rotate_angle):
-        g_text = self.__dwg.g()
+    def __draw_msi_label(self, point_info, text_coords, rotate_angle):
+        g_label = self.__dwg.g()
         anchorpoint = "start" if -90 < rotate_angle < 90 else "end"
         text = self.__dwg.text(make_msi_text(point_info.pos_eigs),
                                insert=text_coords, text_anchor=anchorpoint, font_size=self.__TEXT_SIZE,
                                fill="white", font_family="Arial", dominant_baseline="central")
-        g_text.add(text)
-        g_text.rotate(-rotate_angle, center=text_coords)
-        return g_text
+        g_label.add(text)
+        g_label.rotate(-rotate_angle, center=text_coords)
+        return g_label
 
     def __draw_all_legends(self, g_msi_row: svgwrite.container.Group, msi_name: str,
                            box_coords: tuple, center_coords: tuple, box_size: float):
@@ -931,6 +932,6 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
-            # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
+            + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
+               f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
