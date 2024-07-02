@@ -1171,7 +1171,7 @@ class WegModel:
             # [4] Manual gap fix. Move lanes to fill the gap
             lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
             gap_number = self.find_gap(lane_numbers)
-            if gap_number:
+            if gap_number is not None:
                 logger.debug(f"Sectie heeft een gat in registratie rijstroken op {gap_number}: {section_info}")
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
                 section_info.verw_eigs.heeft_verwerkingsfout = True
@@ -1225,11 +1225,11 @@ class WegModel:
             section_verw_eigs.sectie_afbuigend_stroomopwaarts = div_up
             section_verw_eigs.sectie_afbuigend_stroomafwaarts = div_down
 
-            if main_up and not skip_start_check:
+            if main_up is not None and not skip_start_check:
                 section_verw_eigs.start_kenmerk = (
                     self.__get_difference(section_info.obj_eigs, self.sections[main_up].obj_eigs))
 
-            if main_down and not skip_end_check:
+            if main_down is not None and not skip_end_check:
                 section_verw_eigs.einde_kenmerk = (
                     self.__get_difference(section_info.obj_eigs, self.sections[main_down].obj_eigs))
 
@@ -1389,7 +1389,7 @@ class WegModel:
             Dictionary with all key-value pairs from the first argument that do not occur in the second argument.
         """
         return {lane_nr: lane_type for lane_nr, lane_type in props1.items()
-                if (lane_nr not in props2) or (lane_nr in props2 and props2[lane_nr] != lane_type)}
+                if lane_nr not in props2.keys() or props2[lane_nr] != lane_type}
 
     def __get_local_angle(self, overlapping_ids: list, point_geom: Point) -> float:
         """
