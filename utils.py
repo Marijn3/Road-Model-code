@@ -8,14 +8,14 @@ import logging
 #                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel*
 # * = Na het oplossen van registratiefouten
 
-case_study = True
+case_study = False
 
 if case_study:
     locatie = "Amstel"
     data_folder = "WEGGEG-Zuidasdok"
     CALCULATION_PRECISION = 0.0001  # [m] Aangepast op grid van case study data.
 else:
-    locatie = "Bavel"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
+    locatie = "Vught"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
     data_folder = "WEGGEG"
     CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometrieën.
 
