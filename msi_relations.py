@@ -626,31 +626,27 @@ class MSI:
         }
 
     def determine_properties(self):
-        # The stat-v and dyn-v property should actually not be added to output,
-        # as they are used differently in request handling.
+        if "Maximumsnelheid" in self.row.local_road_properties.keys():
+            self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
 
-        # if "Maximumsnelheid" in self.row.local_road_properties.keys():
-        #     self.properties["STAT_V"] = self.row.local_road_properties["Maximumsnelheid"]
-
-        # dyn_v1, dyn_v2 = None, None
-        # if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
-        #     dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
-        # if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
-        #     dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
-        # if dyn_v1 and dyn_v2:
-        #     self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
-        # elif dyn_v1:
-        #     self.properties["DYN_V"] = dyn_v1
-        # elif dyn_v2:
-        #     self.properties["DYN_V"] = dyn_v2
-
-        self.properties["STAT_V"] = 100
+        dyn_v1, dyn_v2 = None, None
+        if "Maximumsnelheid_Open_Spitsstrook" in self.row.local_road_properties.keys():
+            dyn_v1 = self.row.local_road_properties["Maximumsnelheid_Open_Spitsstrook"]
+        if "Maximumsnelheid_Beperkt_Overdag" in self.row.local_road_properties.keys():
+            dyn_v2 = self.row.local_road_properties["Maximumsnelheid_Beperkt_Overdag"]
+        if dyn_v1 and dyn_v2:
+            self.properties["DYN_V"] = min(dyn_v1, dyn_v2)
+        elif dyn_v1:
+            self.properties["DYN_V"] = dyn_v1
+        elif dyn_v2:
+            self.properties["DYN_V"] = dyn_v2
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
-        #  This is implemented as a continue-V relation with the upstream RSUs.
-        #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations.
-        self.properties["C_X"] = False
-        self.properties["C_V"] = False
+        #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations,
+        #  as described in the report. Additionally, MSIs which are nearby each other have
+        #  a continue-X relation with the upstream MSI rows.
+        self.properties["C_X"] = False  # Unfinished
+        self.properties["C_V"] = False  # Unfinished
 
         self.properties["N_row"] = self.row.n_msis
 
@@ -688,9 +684,11 @@ class MSI:
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
         if check(self.row.local_road_properties, self.lane_nr, ["Spitsstrook", "Plusstrook"]):
-            self.properties["RHL"] = True  # TODO: Replace with RHL section name! See report JvM p67.
+            # TODO: Replace 'True' with RHL section name. See report J. van Meurs p67 for a description.
+            self.properties["RHL"] = True  # Unfinished
             if self.row.n_lanes > self.lane_nr > 1:
-                self.properties["Exit_Entry"] = True  # This is true if there are lanes on both sides of the RHL.
+                # This is true if there are lanes on both sides of the RHL.
+                self.properties["Exit_Entry"] = True
 
         if ("Spitsstrook" in self.row.local_road_properties.values() or
                 "Plusstrook" in self.row.local_road_properties.values()):
