@@ -677,8 +677,8 @@ class MSI:
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
         if check(self.row.local_road_properties, self.lane_nr, ["Spitsstrook", "Plusstrook"]):
-            # TODO: Replace 'True' with RHL section name. See report J. van Meurs p67 for a description.
-            self.properties["RHL"] = True  # Unfinished
+            # TODO: Replace 'self.name' with RHL trajectory name. See report J. van Meurs p67 for a description.
+            self.properties["RHL"] = self.name  # Unfinished
             if self.row.n_lanes > self.lane_nr > 1:
                 # This is true if there are lanes on both sides of the RHL.
                 self.properties["Exit_Entry"] = True
