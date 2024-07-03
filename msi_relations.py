@@ -246,7 +246,7 @@ class MSINetwerk:
 
         current_section = self.wegmodel.sections[current_section_id]
 
-        section_lanes, _ = self.wegmodel.get_lane_numbers(current_section.obj_eigs)
+        _, section_lanes = self.wegmodel.get_lane_numbers(current_section.obj_eigs)
 
         if lane_bounds is None:
             lane_bounds = section_lanes
@@ -289,7 +289,6 @@ class MSINetwerk:
 
         # Recursive case 1: No other points on the section.
         if not other_points_on_section:
-            logger.debug(f"Geen punten vastgelegd op sectie {current_section_id}")
             if downstream:
                 connecting_section_ids = [sid for sid in (current_section.verw_eigs.sectie_stroomafwaarts,
                                                           current_section.verw_eigs.sectie_afbuigend_stroomafwaarts)
@@ -312,7 +311,6 @@ class MSINetwerk:
             else:
                 # Find an MSI row in the next section.
                 next_section_id = connecting_section_ids[0]
-                logger.debug(f"Zoeken in volgende sectie, {next_section_id}")
                 lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
                 shift, annotation = self.__update_trackers(
                     shift, annotation, current_section.verw_eigs, downstream, first_iteration
@@ -332,7 +330,7 @@ class MSINetwerk:
                     geometrie=next_point_geom
                 )
 
-                return self.__find_msi_recursive(connecting_section_ids[0], next_point_pos_eigs, downstream,
+                return self.__find_msi_recursive(next_section_id, next_point_pos_eigs, downstream,
                                                  shift, current_distance, lane_bounds, annotation)
 
         assert len(other_points_on_section) == 1 or len(other_points_on_section) == 2, \
@@ -379,7 +377,6 @@ class MSINetwerk:
                 shift, annotation, current_section.verw_eigs, downstream, first_iteration
             )
 
-            logger.debug(f"*vergentiepunt gevonden, vervolg in sectie {next_section_id} met shift +{shift}")
 
             return self.__find_msi_recursive(next_section_id, other_point.pos_eigs, downstream,
                                              shift, current_distance, lane_bounds, annotation)
@@ -387,11 +384,9 @@ class MSINetwerk:
         if upstream_split:
             cont_section_id = current_section.verw_eigs.sectie_stroomopwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomopwaarts
-            logger.debug(f"*vergentiepunt gevonden, bovenstroomse splitsing in {cont_section_id} en {div_section_id}")
         else:  # downstream_split = True
             cont_section_id = current_section.verw_eigs.sectie_stroomafwaarts
             div_section_id = current_section.verw_eigs.sectie_afbuigend_stroomafwaarts
-            logger.debug(f"*vergentiepunt gevonden, benedenstroomse splitsing in {cont_section_id} en {div_section_id}")
 
         assert cont_section_id is not None and div_section_id is not None,\
             "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
@@ -405,11 +400,9 @@ class MSINetwerk:
         )
 
         # Make it do the recursive function twice.
-        logger.debug(f"Zoek nu verder in sectie {cont_section_id}")
         option_continuation = self.__find_msi_recursive(cont_section_id, other_point.pos_eigs, downstream,
                                                         shift, current_distance, lane_bounds, annotation)
 
-        logger.debug(f"Zoek nu verder in sectie {div_section_id} met shift -{shift_div}")
         option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs, downstream,
                                                      shift - shift_div, current_distance, lane_bounds, annotation)
 
