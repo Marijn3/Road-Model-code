@@ -564,7 +564,7 @@ class WegModel:
 
             section_info.obj_eigs[lane_number] = row["OMSCHR"]
             if row["MAX_SNELH"]:
-                section_info.obj_eigs["Maximumsnelheid_Open_Spitsstrook"] = row["MAX_SNELH"]
+                section_info.obj_eigs["Maximumsnelheid_Open_Spitsstrook"] = int(row["MAX_SNELH"])
 
         elif name == "Mengstroken":
             first_lane_number = row["VNRWOL"]
@@ -584,9 +584,9 @@ class WegModel:
         elif name == "Maximum snelheid":
             if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
                     or row["BEGINTIJD"] == 19):
-                section_info.obj_eigs["Maximumsnelheid"] = row["OMSCHR"]
+                section_info.obj_eigs["Maximumsnelheid"] = int(row["OMSCHR"])
             elif row["BEGINTIJD"] == 6:
-                section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = row["OMSCHR"]
+                section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = int(row["OMSCHR"])
             else:
                 raise Exception(f"Deze begintijd is niet in het model verwerkt: {row['BEGINTIJD']}")
 
