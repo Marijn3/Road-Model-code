@@ -11,7 +11,6 @@ cggtop_msi_relations = dict()
 
 roadmodel_line_numbers_found = list()
 cggtop_line_numbers_found = list()
-km_diff_found = set()
 
 # --------------------------------------------
 # Load road model relations
@@ -97,9 +96,6 @@ for cggtop_index, cggtop_msi_relation in cggtop_msi_relations.items():
                                        f"{int(km1_difference * 1000)}m and {int(km2_difference * 1000)}m)")
             roadmodel_line_numbers_found.append(roadmodel_index)
             cggtop_line_numbers_found.append(cggtop_index)
-
-            # Log the km-difference (temporary)
-            km_diff_found.add((cggtop_msi_relation["km1"], int(km1_difference * 1000)))
             break
 
 roadmodel_line_numbers_found.sort(reverse=True)
@@ -158,6 +154,3 @@ with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"[Road model MSI relation]\t\t\t\t   [CGGTOP MSI relation]\n")
     for line in found_relations_log:
         outfile.write(f"{line}\n")
-
-# Output km-difference for a nice bar chart (temporary)
-print([item[1] for item in km_diff_found])
