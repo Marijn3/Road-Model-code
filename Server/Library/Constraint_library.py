@@ -571,7 +571,7 @@ def sideDependentRHLConstraints(model, c, d, u, dn, arrow_to_rhl, arrow_to_road,
             model.addConstr(c.exit_lane == 0, f"{c.name}_exit_lane_absent")
         if u:
             if u.exit_lane:
-                model.addConstr((c.rhl_closed == 1) >> (c.exit_lane + u.exit_lane - arrow_to_road <= 1),
+                model.addConstr((c.rhl_closed == 1) >> (c.exit_lane + u.exit_lane - arrow_to_road - c.x <= 1),
                                 f"{c.name}_rhl_closed_arrow")
         model.addConstr((c.rhl_closed == 1) >> (c.exit_lane + c.x_rhl == 1), f"{c.name}_rhl_closed_cross")
 
