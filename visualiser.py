@@ -150,7 +150,7 @@ class SvgMaker:
             os.makedirs(output_folder)
 
         # Visualiser parameters (constants)
-        self.__LANE_WIDTH = 2.75
+        self.__LANE_WIDTH = 3.5
 
         if msis_boven_weg_tekenen:
             self.__MSIBOX_SIZE = self.__LANE_WIDTH * 0.8
@@ -932,6 +932,6 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
-            + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-               f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
+            # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
+            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
