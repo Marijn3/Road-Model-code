@@ -4,9 +4,9 @@ import time
 import logging
 
 # ========= Gedefinieerde locaties =========
-# Correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel
+# Correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel, A27Recht, A2VK*
 # Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [MSI relaties] Grijsoord*, Zuidasdok*, Everdingen*, A2VK*, Lankhorst, Amstel*
+#                     [Veel MSI-relaties] Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*
 # * = Na het oplossen van registratiefouten
 
 case_study = False
@@ -16,7 +16,7 @@ if case_study:
     data_folder = "WEGGEG-Zuidasdok"
     CALCULATION_PRECISION = 0.0001  # [m] Aangepast op grid van case study data.
 else:
-    locatie = "A2VK"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
+    locatie = "A27Recht"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
     data_folder = "WEGGEG"
     CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometrieën.
 
