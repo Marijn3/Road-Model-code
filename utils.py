@@ -1,5 +1,6 @@
 from copy import deepcopy
 import math
+import time
 import logging
 
 # ========= Gedefinieerde locaties =========
@@ -15,7 +16,7 @@ if case_study:
     data_folder = "WEGGEG-Zuidasdok"
     CALCULATION_PRECISION = 0.0001  # [m] Aangepast op grid van case study data.
 else:
-    locatie = "Vught"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
+    locatie = "A2VK"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
     data_folder = "WEGGEG"
     CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometrieën.
 

@@ -11,7 +11,6 @@ cggtop_msi_relations = dict()
 
 roadmodel_line_numbers_found = list()
 cggtop_line_numbers_found = list()
-km_diff_found = set()
 
 # --------------------------------------------
 # Load road model relations
@@ -97,9 +96,6 @@ for cggtop_index, cggtop_msi_relation in cggtop_msi_relations.items():
                                        f"{int(km1_difference * 1000)}m and {int(km2_difference * 1000)}m)")
             roadmodel_line_numbers_found.append(roadmodel_index)
             cggtop_line_numbers_found.append(cggtop_index)
-
-            # Log the km-difference (temporary)
-            km_diff_found.add((cggtop_msi_relation["km1"], int(km1_difference * 1000)))
             break
 
 roadmodel_line_numbers_found.sort(reverse=True)
@@ -137,10 +133,12 @@ with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
                   f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
     outfile.write(f"Roads in road model dataset: {roadmodel_dataset_extent}\n\n")
-    outfile.write(f"Found matches: {len(found_relations_log)}\n")
-    outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
+    outfile.write(f"Found matches: {int(len(found_relations_log)/2)}\n")
+    outfile.write(f"Relations from road model without match: "
+                  f"{int(len(roadmodel_lines)/2)}/{int(len(original_roadmodel_lines)/2)}\n")
     outfile.write(f"Relations from CGGTOP without match: "
-                  f"{len(cggtop_lines_filtered)}/{len(cggtop_msi_relations)} (filtered by road numbers and km)\n")
+                  f"{int(len(cggtop_lines_filtered)/2)}/{int(len(cggtop_msi_relations)/2)} "
+                  f"(filtered by road numbers and km)\n")
 
     outfile.write(f"\nROAD MODEL UNMATCHED RELATIONS:\n")
     if not roadmodel_lines:
@@ -158,6 +156,3 @@ with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"[Road model MSI relation]\t\t\t\t   [CGGTOP MSI relation]\n")
     for line in found_relations_log:
         outfile.write(f"{line}\n")
-
-# Output km-difference for a nice bar chart (temporary)
-print([item[1] for item in km_diff_found])

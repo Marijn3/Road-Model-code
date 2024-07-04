@@ -564,7 +564,7 @@ class WegModel:
 
             section_info.obj_eigs[lane_number] = row["OMSCHR"]
             if row["MAX_SNELH"]:
-                section_info.obj_eigs["Maximumsnelheid_Open_Spitsstrook"] = row["MAX_SNELH"]
+                section_info.obj_eigs["Maximumsnelheid_Open_Spitsstrook"] = int(row["MAX_SNELH"])
 
         elif name == "Mengstroken":
             first_lane_number = row["VNRWOL"]
@@ -584,9 +584,9 @@ class WegModel:
         elif name == "Maximum snelheid":
             if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
                     or row["BEGINTIJD"] == 19):
-                section_info.obj_eigs["Maximumsnelheid"] = row["OMSCHR"]
+                section_info.obj_eigs["Maximumsnelheid"] = int(row["OMSCHR"])
             elif row["BEGINTIJD"] == 6:
-                section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = row["OMSCHR"]
+                section_info.obj_eigs["Maximumsnelheid_Beperkt_Overdag"] = int(row["OMSCHR"])
             else:
                 raise Exception(f"Deze begintijd is niet in het model verwerkt: {row['BEGINTIJD']}")
 
@@ -1227,11 +1227,11 @@ class WegModel:
 
             if main_up is not None and not skip_start_check:
                 section_verw_eigs.start_kenmerk = (
-                    self.__get_difference(section_info.obj_eigs, self.sections[main_up].obj_eigs))
+                    self.__get_start_or_end_prop(section_info.obj_eigs, self.sections[main_up].obj_eigs))
 
             if main_down is not None and not skip_end_check:
                 section_verw_eigs.einde_kenmerk = (
-                    self.__get_difference(section_info.obj_eigs, self.sections[main_down].obj_eigs))
+                    self.__get_start_or_end_prop(section_info.obj_eigs, self.sections[main_down].obj_eigs))
 
             hoofdstrooknummers, strooknummers = self.get_lane_numbers(section_info.obj_eigs)
             strooknummers_links = [lane_nr for lane_nr in strooknummers if
@@ -1377,6 +1377,24 @@ class WegModel:
 
         # This connection must be an intersection, which will be treated as an end point.
         return None, None
+
+    def __get_start_or_end_prop(self, props1: dict, props2: dict) -> dict:
+        """
+        Finds the key-value pairs from the first property dictionary
+        that start or end in this section, given the other dictionary.
+        Makes an exception to account for when a spitsstrook starts or ends:
+        this is not a new lane, but a continuation of an existing lane.
+        Args:
+            props1 (dict): First lane composition dictionary.
+            props2 (dict): Second lane composition dictionary.
+        Returns:
+            Dictionary with all lanes from the first dictionary that start or end, given the second dictionary.
+        """
+        diff = self.__get_difference(props1, props2)
+        for lane_nr, lane_type in props2.items():
+            if lane_type == "Spitsstrook" and lane_nr in diff.keys():
+                diff.pop(lane_nr)
+        return diff
 
     @staticmethod
     def __get_difference(props1: dict, props2: dict) -> dict:
