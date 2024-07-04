@@ -316,32 +316,32 @@ class Aanvraag:
         fig = plt.figure()
         ax = fig.add_subplot()
 
-        x_min = -3
-        x_max = len(self.all_lane_nrs) * 3.5 + 1.5
-        # x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
-        y_min = self.closed_space.km[0] - 0.10
-        y_max = self.closed_space.km[1] + 0.10
+        y_min = -3
+        y_max = len(self.all_lane_nrs) * 3.5 + 1.5
+        # y_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
+        x_min = self.closed_space.km[0] - 0.10
+        x_max = self.closed_space.km[1] + 0.10
 
         plt.xlim([x_min, x_max])
         plt.ylim([y_min, y_max])
-        plt.xlabel("Width [m] (estimate for visualization)")
-        plt.ylabel("Length [km]")
+        plt.xlabel("Length [km]")
+        plt.ylabel("Width [m] (estimate for visualization)")
         plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
-            south = y_min
-            west = (lane_number - 1) * WIDTH.LANE
+            west = y_min
+            south = (lane_number - 1) * WIDTH.LANE
             if lane_number not in self.main_lane_nrs:
                 if lane_number == 1:
-                    west += (WIDTH.EMERGENCY_LANE - WIDTH.LANE)
-                width = WIDTH.EMERGENCY_LANE
+                    south += (WIDTH.EMERGENCY_LANE - WIDTH.LANE)
+                height = WIDTH.EMERGENCY_LANE
                 color = "darkgrey"
             else:
-                width = WIDTH.LANE
+                height = WIDTH.LANE
                 color = "lightgrey"
-            lane = matplotlib.patches.Rectangle(xy=(west + 0.05, south),
-                                                width=width - 0.1,
-                                                height=y_max - y_min,
+            lane = matplotlib.patches.Rectangle(xy=(x_min, south + 0.05),
+                                                width=x_max - x_min,
+                                                height=height - 0.1,
                                                 facecolor=color)
             ax.add_patch(lane)
 
@@ -350,18 +350,20 @@ class Aanvraag:
         self.plot_area(ax, self.workspace)
         self.plot_area(ax, self)
 
+        plt.gca().invert_yaxis()
+
         ax.legend()
         plt.show()
 
     def plot_area(self, ax, area) -> None:
-        x = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
-        y = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
+        y = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
+        x = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
 
         edgecolor = "brown" if area.surface_type == REQUEST else "none"
 
-        rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
-                                            width=y-x,
-                                            height=area.km[1]-area.km[0],
+        rect = matplotlib.patches.Rectangle(xy=(area.km[0], y),
+                                            width=area.km[1]-area.km[0],
+                                            height=x-y,
                                             facecolor=COLORMAP[area.surface_type],
                                             edgecolor=edgecolor,
                                             linewidth=2.0,
@@ -398,6 +400,10 @@ class Workspace:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
 
     def apply_category_measures(self) -> None:
+        other_side = "R" if self.request.open_side == "L" else "L"
+        if self.edges[other_side].distance < WIDTH.EMERGENCY_LANE:
+            self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
+
         if self.category == "A":
             self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
@@ -407,7 +413,6 @@ class Workspace:
             self.request.requires_lane_narrowing = True
             self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
         elif self.category == "D":
-            other_side = "R" if self.request.open_side == "L" else "L"
             self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
     def make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
