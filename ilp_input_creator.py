@@ -103,10 +103,8 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
 
         for msi in row.MSIs.values():
             road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
-            road_dict[row_name]["MSI"][msi.lane_nr]["Rush_hour_lane"] = None  # msi.properties["RHL"]
-            # (overwritten because RHL trajectories need to be given a name in ILP)
-            road_dict[row_name]["MSI"][msi.lane_nr]["Exit-Entry"] = None  # msi.properties["Exit_Entry"]
-            # (overwritten because RHL trajectories are not included, see above)
+            road_dict[row_name]["MSI"][msi.lane_nr]["Rush_hour_lane"] = msi.properties["RHL"]
+            road_dict[row_name]["MSI"][msi.lane_nr]["Exit-Entry"] = msi.properties["Exit_Entry"]
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = str(msi.properties["TS_num"]) if msi.properties["TS_num"] else "99"
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Left"] = msi.properties["DIF_V_left"]
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
