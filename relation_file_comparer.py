@@ -133,10 +133,12 @@ with open("relation_comparison_log.txt", "w") as outfile:
     outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
                   f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
     outfile.write(f"Roads in road model dataset: {roadmodel_dataset_extent}\n\n")
-    outfile.write(f"Found matches: {len(found_relations_log)}\n")
-    outfile.write(f"Relations from road model without match: {len(roadmodel_lines)}/{len(original_roadmodel_lines)}\n")
+    outfile.write(f"Found matches: {int(len(found_relations_log)/2)}\n")
+    outfile.write(f"Relations from road model without match: "
+                  f"{int(len(roadmodel_lines)/2)}/{int(len(original_roadmodel_lines)/2)}\n")
     outfile.write(f"Relations from CGGTOP without match: "
-                  f"{len(cggtop_lines_filtered)}/{len(cggtop_msi_relations)} (filtered by road numbers and km)\n")
+                  f"{int(len(cggtop_lines_filtered)/2)}/{int(len(cggtop_msi_relations)/2)} "
+                  f"(filtered by road numbers and km)\n")
 
     outfile.write(f"\nROAD MODEL UNMATCHED RELATIONS:\n")
     if not roadmodel_lines:
