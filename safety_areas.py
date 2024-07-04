@@ -171,14 +171,18 @@ class Aanvraag:
         self.empty_space = EmptySpace(self)
         self.closed_space = ClosedSpace(self)
 
+        self.legend_pattern = []
+
+        self.final_workspaces = set()
+        self.final_empty_spaces = set()
+        self.final_closed_spaces = set()
+
         self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
         self.step_3_generate_measure_request()
 
-        self.report_request()
-
         self.step_4_solve_measure_request()
-        # self.step_5_adjust_area_sizes()
+        self.step_5_adjust_area_sizes()
 
     def run_sanity_checks(self) -> None:
         assert len(self.edges) == 2, \
@@ -212,6 +216,7 @@ class Aanvraag:
     def step_3_generate_measure_request(self) -> None:
         self.closed_space.obtain_msis_inside()
         self.closed_space.determine_measure_request()
+        self.report_request()
 
     def step_4_solve_measure_request(self) -> None:
         if not self.measure_request["legend_requests"]:
@@ -229,48 +234,126 @@ class Aanvraag:
 
         # Add code to communicate with ILP
         ilp = ILPSender()
-        response = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
-        logger.info(response)
+        self.legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
+        logger.info(f"Antwoord van ILP: {self.legend_pattern}")
 
         # Visualise response in svg
         svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
-        toggle_visibility(svg_file, response)
+        toggle_visibility(svg_file, self.legend_pattern)
         logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
 
-
     def step_5_adjust_area_sizes(self) -> None:
-        return  # TODO
+        self.final_closed_spaces.add(self.closed_space)
+        self.final_empty_spaces.add(self.empty_space)
+        self.final_workspaces.add(self.workspace)
+
+        if not self.legend_pattern:
+            logger.info("De gebieden veranderen niet, want er is geen effect op de signaalgevers.")
+            return
+
+        cross_locations = {}
+
+        for legend in self.legend_pattern:
+            if legend[0] == "x":  # Filter for cross legends
+                lane_number = int(legend[-2])
+                km = float(legend[-9:-3])
+                if km in cross_locations.keys():
+                    cross_locations[km].append(lane_number)
+                else:
+                    cross_locations[km] = [lane_number]
+
+        # Post-processing on lane numbers
+        for km, lane_numbers in cross_locations.items():
+            lane_nrs_sorted = sorted(lane_numbers)
+            adjusted_lanes = deepcopy(lane_nrs_sorted)
+            for lane in lane_nrs_sorted:
+                if lane == 1:
+                    adjusted_lanes.insert(0, None)
+                if lane == self.last_main_lane_nr:
+                    adjusted_lanes.append(None)
+            cross_locations[km] = [adjusted_lanes[0], adjusted_lanes[-1]]
+
+        km_registrations = sorted(cross_locations.keys(), reverse=self.roadside == "L")
+
+        change_analysis = []
+        km_string = []
+        current_lanes = []
+        for km in km_registrations:
+            lane_numbers = cross_locations[km]
+
+            if not km_string:
+                km_string.append(km)
+                current_lanes = lane_numbers
+                continue
+
+            if lane_numbers == current_lanes:
+                km_string.append(km)
+            else:
+                # Close previous round
+                km_range = [km_string[0], km_string[1]]
+                change_analysis.append((km_range, current_lanes))
+
+                # New round
+                km_string = [km]
+                current_lanes = lane_numbers
+
+        # Add final round
+        km_range = [km_string[0], km_string[1]]
+        change_analysis.append((km_range, current_lanes))
+
+        logger.info(change_analysis)
+
+        for change_data in change_analysis:
+            km_range, lanes = change_data
+            if self.open_side == "L":
+                edges = {"L": Rand(rijstrook=lanes[0], afstand=+0.0),
+                         "R": Rand(rijstrook=lanes[1], afstand=+2.0)}
+            else:  # self.open_side == "R":
+                edges = {"L": Rand(rijstrook=lanes[0], afstand=-2.0),
+                         "R": Rand(rijstrook=lanes[1], afstand=-0.0)}
+
+            km_range_covered = \
+                ((km_range[0] <= self.closed_space.km[0] and km_range[1] >= self.closed_space.km[1]
+                  and self.roadside == "L")
+                or (km_range[0] >= self.closed_space.km[0] and km_range[1] <= self.closed_space.km[1]
+                    and self.roadside == "R"))
+
+            if not edges == self.closed_space.edges and not km_range_covered:
+                partial_closed_space = ClosedSpace(self, edges, km_range)
+                self.final_closed_spaces.add(partial_closed_space)
+
+        logger.info([(space.edges, space.km) for space in self.final_closed_spaces])
 
     def plot_areas(self) -> None:
         fig = plt.figure()
         ax = fig.add_subplot()
 
-        x_min = -3
-        x_max = len(self.all_lane_nrs) * 3.5 + 1.5
-        # x_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
-        y_min = self.closed_space.km[0] - 0.10
-        y_max = self.closed_space.km[1] + 0.10
+        y_min = -3
+        y_max = len(self.all_lane_nrs) * 3.5 + 1.5
+        # y_max = self.werkvak.edges["R"].make_simple_distance(self.n_main_lanes) + 2
+        x_min = self.closed_space.km[0] - 0.10
+        x_max = self.closed_space.km[1] + 0.10
 
         plt.xlim([x_min, x_max])
         plt.ylim([y_min, y_max])
-        plt.xlabel("Width [m] (estimate for visualization)")
-        plt.ylabel("Length [km]")
+        plt.xlabel("Length [km]")
+        plt.ylabel("Width [m] (estimate for visualization)")
         plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
-            south = y_min
-            west = (lane_number - 1) * WIDTH.LANE
+            west = y_min
+            south = (lane_number - 1) * WIDTH.LANE
             if lane_number not in self.main_lane_nrs:
                 if lane_number == 1:
-                    west += (WIDTH.EMERGENCY_LANE - WIDTH.LANE)
-                width = WIDTH.EMERGENCY_LANE
+                    south += (WIDTH.EMERGENCY_LANE - WIDTH.LANE)
+                height = WIDTH.EMERGENCY_LANE
                 color = "darkgrey"
             else:
-                width = WIDTH.LANE
+                height = WIDTH.LANE
                 color = "lightgrey"
-            lane = matplotlib.patches.Rectangle(xy=(west + 0.05, south),
-                                                width=width - 0.1,
-                                                height=y_max - y_min,
+            lane = matplotlib.patches.Rectangle(xy=(x_min, south + 0.05),
+                                                width=x_max - x_min,
+                                                height=height - 0.1,
                                                 facecolor=color)
             ax.add_patch(lane)
 
@@ -279,18 +362,20 @@ class Aanvraag:
         self.plot_area(ax, self.workspace)
         self.plot_area(ax, self)
 
+        plt.gca().invert_yaxis()
+
         ax.legend()
         plt.show()
 
     def plot_area(self, ax, area) -> None:
-        x = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
-        y = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
+        y = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
+        x = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
 
         edgecolor = "brown" if area.surface_type == REQUEST else "none"
 
-        rect = matplotlib.patches.Rectangle(xy=(x, area.km[0]),
-                                            width=y-x,
-                                            height=area.km[1]-area.km[0],
+        rect = matplotlib.patches.Rectangle(xy=(area.km[0], y),
+                                            width=area.km[1]-area.km[0],
+                                            height=x-y,
                                             facecolor=COLORMAP[area.surface_type],
                                             edgecolor=edgecolor,
                                             linewidth=2.0,
@@ -327,6 +412,10 @@ class Workspace:
             logger.info(f"Deze situatie valt onder categorie {self.category}.")
 
     def apply_category_measures(self) -> None:
+        other_side = "R" if self.request.open_side == "L" else "L"
+        if self.edges[other_side].distance < WIDTH.EMERGENCY_LANE:
+            self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
+
         if self.category == "A":
             self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
@@ -336,7 +425,6 @@ class Workspace:
             self.request.requires_lane_narrowing = True
             self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
         elif self.category == "D":
-            other_side = "R" if self.request.open_side == "L" else "L"
             self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
     def make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
@@ -450,11 +538,11 @@ class EmptySpace:
 
 
 class ClosedSpace:
-    def __init__(self, request: Aanvraag) -> None:
+    def __init__(self, request: Aanvraag, edges: dict[str: Rand] = None, km: list[float] = None) -> None:
         self.surface_type = CLOSED_SPACE
         self.request = request
-        self.edges = deepcopy(request.edges)
-        self.km = request.km
+        self.edges = deepcopy(request.edges) if edges is None else edges
+        self.km = request.km if km is None else km
 
     def adjust_edges_to_empty_space(self) -> None:
         adjust_edges_to(self.request.empty_space, self, self.surface_type, away_from=True)
@@ -526,9 +614,9 @@ class ClosedSpace:
         self.request.msis_red_cross = msi_rows_inside
 
     def determine_measure_request(self) -> None:
-        # See report JvM page 71 for an explanation of this request structure
+        # See report J. van Meurs page 71 for an explanation of this request structure
         request_options = {
-            "name": "SafetyAreaBasedRequest",  # f"Request_{datetime.now().strftime('%H:%M:%S')}.{datetime.now().strftime('%f')[:3]}",
+            "name": "SafetyAreaBasedRequest",
             "type": "add",
             "legend_requests": [],
             "options": {}
