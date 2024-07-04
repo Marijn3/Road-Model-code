@@ -173,16 +173,16 @@ class Aanvraag:
 
         self.legend_pattern = []
 
-        self.final_workspaces = []
-        self.final_empty_spaces = []
-        self.final_closed_spaces = []
+        self.final_workspaces = set()
+        self.final_empty_spaces = set()
+        self.final_closed_spaces = set()
 
         self.step_1_determine_initial_workspace()
         self.step_2_determine_area_sizes()
         self.step_3_generate_measure_request()
 
         self.step_4_solve_measure_request()
-        # self.step_5_adjust_area_sizes()
+        self.step_5_adjust_area_sizes()
 
     def run_sanity_checks(self) -> None:
         assert len(self.edges) == 2, \
@@ -243,7 +243,13 @@ class Aanvraag:
         logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
 
     def step_5_adjust_area_sizes(self) -> None:
-        self.final_closed_spaces.append(self.closed_space)
+        self.final_closed_spaces.add(self.closed_space)
+        self.final_empty_spaces.add(self.empty_space)
+        self.final_workspaces.add(self.workspace)
+
+        if not self.legend_pattern:
+            logger.info("De gebieden veranderen niet, want er is geen effect op de signaalgevers.")
+            return
 
         cross_locations = {}
 
@@ -258,20 +264,20 @@ class Aanvraag:
 
         # Post-processing on lane numbers
         for km, lane_numbers in cross_locations.items():
-            adjusted_lanes = sorted(lane_numbers)
-            for index, lane in enumerate(adjusted_lanes):
+            lane_nrs_sorted = sorted(lane_numbers)
+            adjusted_lanes = deepcopy(lane_nrs_sorted)
+            for lane in lane_nrs_sorted:
                 if lane == 1:
                     adjusted_lanes.insert(0, None)
                 if lane == self.last_main_lane_nr:
                     adjusted_lanes.append(None)
             cross_locations[km] = [adjusted_lanes[0], adjusted_lanes[-1]]
 
-        print(cross_locations)
-
-        km_registrations = sorted(cross_locations.keys(), reverse=self.roadside=="L")
+        km_registrations = sorted(cross_locations.keys(), reverse=self.roadside == "L")
 
         change_analysis = []
         km_string = []
+        current_lanes = []
         for km in km_registrations:
             lane_numbers = cross_locations[km]
 
@@ -295,22 +301,28 @@ class Aanvraag:
         km_range = [km_string[0], km_string[1]]
         change_analysis.append((km_range, current_lanes))
 
-        print(change_analysis)
+        logger.info(change_analysis)
 
         for change_data in change_analysis:
             km_range, lanes = change_data
-            print(km_range)
-            print(lanes)
             if self.open_side == "L":
                 edges = {"L": Rand(rijstrook=lanes[0], afstand=+0.0),
                          "R": Rand(rijstrook=lanes[1], afstand=+2.0)}
             else:  # self.open_side == "R":
                 edges = {"L": Rand(rijstrook=lanes[0], afstand=-2.0),
                          "R": Rand(rijstrook=lanes[1], afstand=-0.0)}
-            partial_closed_space = ClosedSpace(self, edges, km_range)
-            self.final_closed_spaces.append(partial_closed_space)
 
-        print(self.final_closed_spaces)
+            km_range_covered = \
+                ((km_range[0] <= self.closed_space.km[0] and km_range[1] >= self.closed_space.km[1]
+                  and self.roadside == "L")
+                or (km_range[0] >= self.closed_space.km[0] and km_range[1] <= self.closed_space.km[1]
+                    and self.roadside == "R"))
+
+            if not edges == self.closed_space.edges and not km_range_covered:
+                partial_closed_space = ClosedSpace(self, edges, km_range)
+                self.final_closed_spaces.add(partial_closed_space)
+
+        logger.info([(space.edges, space.km) for space in self.final_closed_spaces])
 
     def plot_areas(self) -> None:
         fig = plt.figure()
