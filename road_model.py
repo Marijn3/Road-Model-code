@@ -543,8 +543,9 @@ class WegModel:
             first_lane_number = row["VNRWOL"]
             n_lanes, special = row["LANE_INFO"]
 
-            if math.isnan(first_lane_number):
+            if pd.isna(first_lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
+                first_lane_number = 1
 
             # Indicate lane number and type of lane. Example: {1: "Rijstrook", 2: "Rijstrook"}
             for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
@@ -559,8 +560,9 @@ class WegModel:
             # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
             lane_number = row["VNRWOL"]
 
-            if math.isnan(lane_number):
+            if pd.isna(lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
+                first_lane_number = 1
 
             section_info.obj_eigs[lane_number] = row["OMSCHR"]
             if row["MAX_SNELH"]:
@@ -570,8 +572,9 @@ class WegModel:
             first_lane_number = row["VNRWOL"]
             n_lanes, special = row["LANE_INFO"]
 
-            if math.isnan(first_lane_number):
+            if pd.isna(first_lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
+                first_lane_number = 1
 
             # Indicate lane number and type of lane. Example: {4: "Weefstrook"}
             for lane_nr in range(first_lane_number, first_lane_number + n_lanes):
@@ -582,7 +585,7 @@ class WegModel:
                 section_info.obj_eigs["Special"] = (special, first_lane_number)
 
         elif name == "Maximum snelheid":
-            if (not row["BEGINTIJD"] or math.isnan(row["BEGINTIJD"])
+            if (not row["BEGINTIJD"] or pd.isna(row["BEGINTIJD"])
                     or row["BEGINTIJD"] == 19):
                 section_info.obj_eigs["Maximumsnelheid"] = int(row["OMSCHR"])
             elif row["BEGINTIJD"] == 6:
