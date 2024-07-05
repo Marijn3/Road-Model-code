@@ -803,7 +803,7 @@ class WegModel:
         if len(remainders) == 1 and not remainders[0].is_empty:
             return set_precision(remainders[0], CALCULATION_PRECISION)
         elif len(remainders) > 1 and not remainders[0].is_empty:
-            # TODO: Determine more reliable method to extract the correct diff here!
+            # TODO: There may be a more reliable method to extract the correct diff.
             start_point_geom1, end_point_geom1 = get_endpoints(geom1)
             start_point_geom2, end_point_geom2 = get_endpoints(geom2)
 
@@ -877,7 +877,7 @@ class WegModel:
         # First, check whether the sections have an overlapping range at all, which
         # means the more complex intersection() function doesn't need to be called.
         if not determine_range_overlap(pos1.km, pos2.km):
-            return None
+            return None  # TODO : Check whether this should stay or go.
 
         # Then, check if the overlap between the geometries is of the same dimension as the geometries.
         # (This not used, as it is too strict)
