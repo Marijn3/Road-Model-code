@@ -774,7 +774,7 @@ class MSI:
         has_upstream_relation = (self.properties["u"] or self.properties["us"]
                                  or self.properties["ub"] or self.properties["un"] or self.properties["ut"])
 
-        if self.row.upstream and not has_upstream_relation:
+        if self.row.upstream and not has_upstream_relation and not self.row.local_road_properties[self.lane_nr] == "Invoegstrook":
             logger.debug(f"{self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
             if self.row.msi_network.add_secondary_relations:
