@@ -37,7 +37,7 @@ class PositieEigenschappen:
         wegnr_repr = self.wegnummer if self.wegnummer else " "
         richting_repr = self.rijrichting if self.rijrichting else " "
         hecto_repr = self.hectoletter if self.hectoletter else " "
-        km_repr = f"[{self.km[0]:<7.3f}, {self.km[1]:<7.3f}]" if isinstance(self.km, list) else f"{self.km:<7.3f}"
+        km_repr = f"[{self.km[0]:7.3f}, {self.km[1]:7.3f}]" if isinstance(self.km, list) else f"{self.km:<7.3f}"
         return f"{wegnr_repr}{richting_repr} {hecto_repr} \t{km_repr} km \t"
 
 
@@ -817,18 +817,16 @@ class WegModel:
                           dwithin(start_point_remainder, end_point_geom2, 3*DISTANCE_TOLERANCE) and
                           dwithin(end_point_remainder, end_point_geom1, 3*DISTANCE_TOLERANCE))
                 if passes:
-                    logger.info(f"I would select {geom}")
                     selected_diff = geom
                     break
 
             if is_empty(selected_diff):
                 # By default, select the first geometry (directional order of geom1 is maintained)
-                logger.warning(f"I have no clue based on {start_point_geom1} {end_point_geom1}-{end_point_geom2} and {remainders}, so I will pick the first remaining geometry.")
+                logger.warning(f"Geen duidelijke overgebleven geometrie met start- en eindpunten: "
+                               f"{start_point_geom1}-{start_point_geom2} {end_point_geom1}-{end_point_geom2}. "
+                               f"De opties zijn {remainders}, waarvan de eerste nu gekozen wordt.")
                 selected_diff = remainders[0]
-                logger.warning(f"I picked {selected_diff}")
-
-            # if get_num_geometries(remainders) > 2:
-            #     logger.warning(f"Meer dan 2 geometrieën resterend. Extra geometrieën: {remainders.geoms}")
+                logger.debug(f"Gekozen geometrie: {selected_diff}")
 
             return set_precision(selected_diff, CALCULATION_PRECISION)
         else:

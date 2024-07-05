@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
 MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
 
+print(f"Proces voor {locatie} gestart...")
 start_time = time.time()
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
@@ -33,13 +34,17 @@ ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
 generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
 ilp_creation_time = time.time()
 
-logger.info("")
-logger.info(f"Data geïmporteerd in {import_time - start_time:.2f} seconden.")
-logger.info(f"Wegmodel opgesteld in {wegmodel_time - import_time :.2f} seconden.")
-logger.info(f"MSI netwerk opgesteld in {msi_network_time - wegmodel_time :.2f} seconden.")
-logger.info(f"Afbeelding gemaakt in {visualization_time - msi_network_time :.2f} seconden.")
-logger.info(f"ILP input gemaakt in {ilp_creation_time - visualization_time :.2f} seconden.")
-logger.info(f"Totale tijd: {ilp_creation_time - start_time :.2f} seconden.")
+logger.info(f"\n==============================================\n"
+            f"Data import gedaan in {import_time - start_time:.2f} seconden.\n"
+            f"Wegmodel opgesteld in {wegmodel_time - import_time :.2f} seconden.\n"
+            f"MSI netwerk opgesteld in {msi_network_time - wegmodel_time :.2f} seconden.\n"
+            f"Afbeelding gemaakt in {visualization_time - msi_network_time :.2f} seconden.\n"
+            f"ILP input gemaakt in {ilp_creation_time - visualization_time :.2f} seconden.\n"
+            f"Totale tijd: {ilp_creation_time - start_time :.2f} seconden.\n"
+            f"==============================================")
+
+print(f"Proces succesvol afgerond in {ilp_creation_time - start_time :.2f} seconden. "
+      f"Zie voor meer informatie het log-bestand.")
 
 # Instantieer een aanvraag (A27 Oosterhout)
 if locatie == "A27Recht":

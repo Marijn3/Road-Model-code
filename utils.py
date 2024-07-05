@@ -5,8 +5,7 @@ import logging
 
 # ========= Gedefinieerde locaties =========
 # Correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel, A27Recht, A2VK*
-# Verwerkingsfouten : [MultiLineString] Zonzeel
-#                     [Veel MSI-relaties] Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*
+# Verwerkingsfouten in MSI-relaties : Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*, Zonzeel
 # * = Na het oplossen van registratiefouten
 
 case_study = False
@@ -16,12 +15,15 @@ if case_study:
     data_folder = "WEGGEG-Zuidasdok"
     CALCULATION_PRECISION = 0.0001  # [m] Aangepast op grid van case study data.
 else:
-    locatie = "A27Recht"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
+    locatie = "Vught"  # {"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831}
     data_folder = "WEGGEG"
     CALCULATION_PRECISION = 0.00001  # [m] Precisie van coordinaten van lijngeometrieën.
 
 # Initialize the logger
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
+logging.basicConfig(filename="data_processing_log.txt",
+                    filemode="w",
+                    level=logging.INFO,
+                    format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
 
 # Set a higher level for external libraries such as fiona to filter out their debug messages
 external_logger = logging.getLogger('fiona')
