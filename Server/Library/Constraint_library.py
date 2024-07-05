@@ -573,7 +573,7 @@ def sideDependentRHLConstraints(model, c, d, u, dn, arrow_to_rhl, arrow_to_road,
             if u.exit_lane:
                 model.addConstr((c.rhl_closed == 1) >> (c.exit_lane + u.exit_lane - arrow_to_road - c.x <= 1),
                                 f"{c.name}_rhl_closed_arrow")
-        model.addConstr((c.rhl_closed == 1) >> (c.exit_lane + c.x_rhl == 1), f"{c.name}_rhl_closed_cross")
+        model.addConstr((c.rhl_closed == 1) >> (c.exit_lane + c.x + c.x_rhl == 1), f"{c.name}_rhl_closed_cross")
 
 
 def addIslandConstraints(model, json_data, c, l, r, d, u, row, cw, cw_l, cw_r):
