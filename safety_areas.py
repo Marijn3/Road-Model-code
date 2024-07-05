@@ -3,7 +3,6 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from datetime import datetime
 from road_model import WegModel, ObjectInfo
 from ilp_communication import ILPSender
 from utils import *

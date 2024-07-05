@@ -90,7 +90,7 @@ if locatie == "A27Recht":
                           hectoletter="",
                           korter_dan_24h=False,
                           randen={"L": Rand(rijstrook=None, afstand=-1.0),
-                                  "R": Rand(rijstrook=None, afstand=-0.2)},
+                                  "R": Rand(rijstrook=None, afstand=-0.22)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
     aanvraagCR = Aanvraag(wegmodel=wegmodel,
@@ -98,7 +98,7 @@ if locatie == "A27Recht":
                           wegkant="R",
                           hectoletter="",
                           korter_dan_24h=False,
-                          randen={"L": Rand(rijstrook=None, afstand=0.2),
+                          randen={"L": Rand(rijstrook=None, afstand=0.22),
                                   "R": Rand(rijstrook=None, afstand=1.0)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
@@ -107,8 +107,8 @@ if locatie == "A27Recht":
                           wegkant="R",
                           hectoletter="",
                           korter_dan_24h=True,
-                          randen={"L": Rand(rijstrook=1, afstand=0.2),
-                                  "R": Rand(rijstrook=1, afstand=-0.9)},
+                          randen={"L": Rand(rijstrook=1, afstand=0.3),
+                                  "R": Rand(rijstrook=1, afstand=-1.1)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
     aanvraagDR = Aanvraag(wegmodel=wegmodel,
@@ -116,7 +116,7 @@ if locatie == "A27Recht":
                           wegkant="R",
                           hectoletter="",
                           korter_dan_24h=True,
-                          randen={"L": Rand(rijstrook=2, afstand=0.9),
+                          randen={"L": Rand(rijstrook=2, afstand=1.1),
                                   "R": Rand(rijstrook=2, afstand=-0.3)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
