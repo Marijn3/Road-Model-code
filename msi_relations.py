@@ -678,7 +678,8 @@ class MSI:
 
         if check(self.row.local_road_properties, self.lane_nr, ["Spitsstrook", "Plusstrook"]):
             # TODO: Replace 'self.name' with RHL trajectory name. See report J. van Meurs p67 for a description.
-            self.properties["RHL"] = f"{self.row.local_road_info.pos_eigs.wegnummer}{self.row.local_road_info.pos_eigs.rijrichting}"  # Unfinished
+            self.properties["RHL"] = (f"{self.row.local_road_info.pos_eigs.wegnummer}"
+                                      f"{self.row.local_road_info.pos_eigs.rijrichting}")  # Unfinished
             if self.row.n_lanes > self.lane_nr > 1:
                 # This is true if there are lanes on both sides of the RHL.
                 self.properties["Exit_Entry"] = True
