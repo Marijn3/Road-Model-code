@@ -57,7 +57,6 @@ class LijnVerwerkingsEigenschappen:
         self.aantal_hoofdstroken = None
         self.aantal_rijstroken_links = None
         self.aantal_rijstroken_rechts = None
-        self.heeft_verwerkingsfout = False
 
 
 class PuntVerwerkingsEigenschappen:
@@ -1175,7 +1174,6 @@ class WegModel:
             if gap_number is not None:
                 logger.debug(f"Sectie heeft een gat in registratie rijstroken op {gap_number}: {section_info}")
                 lane_numbers = [key for key in section_info.obj_eigs.keys() if isinstance(key, int)]
-                section_info.verw_eigs.heeft_verwerkingsfout = True
 
                 gap_width = lane_numbers[-1] - lane_numbers[-2]
 
@@ -1194,8 +1192,6 @@ class WegModel:
 
         for section_index, section_info in self.sections.items():
             section_verw_eigs = LijnVerwerkingsEigenschappen()
-
-            section_verw_eigs.heeft_verwerkingsfout = section_info.verw_eigs.heeft_verwerkingsfout
 
             skip_start_check = False
             skip_end_check = False
