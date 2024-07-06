@@ -21,7 +21,7 @@ wegmodel = WegModel(dfl)
 wegmodel_time = time.time()
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, kruisrelaties=False, bovenstroomse_secundaire_relaties=True)
+MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, kruisrelaties=False)
 MSIs.make_print(MSI_RELATIONS_FILE)  # Deze regel weglaten bij handmatig aanpassen bestand.
 msi_network_time = time.time()
 

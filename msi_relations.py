@@ -115,8 +115,7 @@ class MSIRow:
 
 
 class MSINetwerk:
-    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500,
-                 kruisrelaties: bool = True, bovenstroomse_secundaire_relaties: bool = True):
+    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, kruisrelaties: bool = True):
         """
         Instantiates an MSI network based on the provided road model and settings.
             wegmodel (WegModel): The road model on which the lane signalling relations will be based.
@@ -128,7 +127,6 @@ class MSINetwerk:
         self.wegmodel = wegmodel
         self.max_search_depth = maximale_zoekafstand
         self.add_cross_relations = kruisrelaties
-        self.add_secondary_relations = bovenstroomse_secundaire_relaties
 
         self.MSIrows = []
         self.__construct_msi_network()
@@ -778,19 +776,18 @@ class MSI:
         if self.row.upstream and not has_upstream_relation and not self.row.local_road_properties[self.lane_nr] == "Invoegstrook":
             logger.debug(f"{self.name} kan een bovenstroomse secundaire relatie gebruiken: {self.properties}")
 
-            if self.row.msi_network.add_secondary_relations:
-                u_row, desc = next(iter(self.row.upstream.items()))
-                shift, annotation, lane_bounds = desc
-                if lane_bounds and u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
-                    lane_to_connect_to = min(max(lane_bounds), u_row.highest_msi_number)
-                    if check(annotation, self.lane_nr, "TaperDivergentie"):
-                        lane_to_connect_to -= 1
+            u_row, desc = next(iter(self.row.upstream.items()))
+            shift, annotation, lane_bounds = desc
+            if lane_bounds and u_row.local_road_info.pos_eigs.hectoletter == self.row.local_road_info.pos_eigs.hectoletter:
+                lane_to_connect_to = min(max(lane_bounds), u_row.highest_msi_number)
+                if check(annotation, self.lane_nr, "TaperDivergentie"):
+                    lane_to_connect_to -= 1
 
-                    logger.debug(f"Relatie wordt toegepast.")
-                    self.make_secondary_connection(self, u_row.MSIs[lane_to_connect_to])
-                else:
-                    logger.debug(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
-                                 f"omdat dit geval nog niet ingeprogrammeerd is.")
+                logger.debug(f"Relatie wordt toegepast.")
+                self.make_secondary_connection(self, u_row.MSIs[lane_to_connect_to])
+            else:
+                logger.debug(f"{self.name} heeft alsnog geen bovenstroomse relatie, "
+                             f"omdat dit geval nog niet ingeprogrammeerd is.")
 
     @staticmethod
     def make_connection(row1, row2, relation_type_letter: str = ""):
