@@ -658,8 +658,8 @@ class MSI:
 
             self.properties["CW"] = self.row.cw[cw_number]
             self.properties["CW_num"] = cw_number
-            self.properties["CW_right"] = self.row.cw[cw_number + 1] if cw_number + 1 in self.row.cw.keys() else None
-            self.properties["CW_left"] = self.row.cw[cw_number - 1] if cw_number - 1 in self.row.cw.keys() else None
+            self.properties["CW_right"] = self.row.cw.get(cw_number + 1, None)
+            self.properties["CW_left"] = self.row.cw.get(cw_number - 1, None)
 
             # Assumption: traffic stream == carriageway
             self.properties["TS"] = self.properties["CW"]
