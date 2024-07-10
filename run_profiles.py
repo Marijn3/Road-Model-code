@@ -8,6 +8,7 @@ class Profile:
             msi_relaties_overschrijven: bool = False,
             afbeeldingsformaat: int = 1000,
             msis_boven_weg: bool = False,
+            strookbreedte: float = 3.5,
             data_folder: str = "WEGGEG",
             ilp_wegmodel_folder: str = "Server/Data/RoadModel",
             msi_relatie_uitvoerbestand: str = "msi_relations_roadmodel.txt",
@@ -22,6 +23,7 @@ class Profile:
             msi_relaties_overschrijven (bool): Keuze om (aangepaste) MSI relaties te behouden of overschrijven.
             afbeeldingsformaat (int): Pixels breedte van afbeelding.
             msis_boven_weg (bool): Keuze voor tekenmodus op de weg of langs de weg.
+            strookbreedte (float): Breedte van stroken in meters bij visualisatie.
             data_folder (str): Folder waar WEGGEG brondata in geplaatst is.
             ilp_wegmodel_folder (str): Pad naar locatie waar waar svg en JSON uitvoer geplaatst worden (voor ILP)
             msi_relatie_uitvoerbestand (str): Pad naar MSI-relatie uitvoerbestand.
@@ -33,6 +35,7 @@ class Profile:
         self.calculation_precision = precisie
         self.cross_relations = secundaire_kruisrelaties
         self.msis_on_road = msis_boven_weg
+        self.lane_width = strookbreedte
         self.maximum_row_search_distance = maximale_afstand
         self.ilp_roadmodel_folder = ilp_wegmodel_folder
         self.msi_relations_file = msi_relatie_uitvoerbestand
@@ -51,79 +54,81 @@ class Run:
         self.vught = Profile(
             locatie="Vught",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.bavel = Profile(
             locatie="Bavel",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.a2vk = Profile(
             locatie="A2VK",
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.oosterhout = Profile(
             locatie="Oosterhout",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.vinkeveen = Profile(
             locatie="Vinkeveen",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.zonzeel = Profile(
             locatie="Zonzeel",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.goirle = Profile(
             locatie="Goirle",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.zuidasdok = Profile(
             locatie="Zuidasdok",
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
+            strookbreedte=3.0,
         )
 
         self.everdingen = Profile(
             locatie="Everdingen",
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.a27 = Profile(
             locatie="A27",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.grijsoord = Profile(
             locatie="Grijsoord",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.lankhorst = Profile(
             locatie="Lankhorst",
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.amstel = Profile(
             locatie="Amstel",
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
+            strookbreedte=3.0,
         )
 
         self.amstel_casestudy = Profile(
@@ -131,19 +136,20 @@ class Run:
             data_folder="WEGGEG-Zuidasdok",  # Folder met case study data.
             precisie=0.0001,  # [m] Aangepast op grid van case study data.
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
+            strookbreedte=3.0,
         )
 
         self.a27recht = Profile(
             locatie="A27Recht",
             secundaire_kruisrelaties=True,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
         self.custom = Profile(
             locatie={"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831},
             secundaire_kruisrelaties=False,
-            msi_relaties_overschrijven=msi_relaties_overschrijven
+            msi_relaties_overschrijven=msi_relaties_overschrijven,
         )
 
 

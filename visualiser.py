@@ -135,25 +135,23 @@ class SvgMaker:
         "n": "yellow",  # Narrowing
     }
     
-    def __init__(self, wegmodel: WegModel, msis: MSINetwerk, naam_relatiebestand: str,
-                 output_folder: str, formaat: int = 1000, msis_boven_weg_tekenen: bool = False):
+    def __init__(self, wegmodel: WegModel, msis: MSINetwerk):
         self.__wegmodel = wegmodel
         self.__msi_network = msis
-        self.__relation_file = naam_relatiebestand
-        self.__outfile = f"{output_folder}/RoadModelVisualisation.svg"
-        self.__size = formaat
-        self.__msis_on_road = msis_boven_weg_tekenen
+        self.profile = self.__wegmodel.profile
+        self.__relation_file = self.profile.msi_relations_file
+        self.__outfile = f"{self.profile.ilp_roadmodel_folder}/RoadModelVisualisation.svg"
+        self.__size = self.profile.image_size
+        self.__msis_on_road = self.profile.msis_on_road
         self.__element_by_id = {}
 
         # Generate road model output folder if it does not exist.
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+        if not os.path.exists(self.profile.ilp_roadmodel_folder):
+            os.makedirs(self.profile.ilp_roadmodel_folder)
 
         # Visualiser parameters (constants)
-        self.__LANE_WIDTH = 3.5
-
-        if msis_boven_weg_tekenen:
-            self.__MSIBOX_SIZE = self.__LANE_WIDTH * 0.8
+        if self.__msis_on_road:
+            self.__MSIBOX_SIZE = self.profile.lane_width * 0.8
             self.__TEXT_SIZE = max(4.0, self.__MSIBOX_SIZE * 0.8)
             self.__VISUAL_PLAY = self.__MSIBOX_SIZE * 0.2
             self.__BASE_STROKE = self.__MSIBOX_SIZE * 0.07
@@ -287,9 +285,9 @@ class SvgMaker:
             return geom
 
         if section_info.obj_eigs["Special"][1] > marking_number:
-            adjacent_lane_offset = -0.5 * self.__LANE_WIDTH
+            adjacent_lane_offset = -0.5 * self.profile.lane_width
         else:
-            adjacent_lane_offset = 0.5 * self.__LANE_WIDTH
+            adjacent_lane_offset = 0.5 * self.profile.lane_width
 
         if section_info.obj_eigs["Special"][0] in ["StrookStart", "TaperDivergentie"]:
             change_start = True
@@ -305,10 +303,10 @@ class SvgMaker:
 
     def __adjust_for_exit_entry(self, section_info: ObjectInfo, geom: LineString, marking_number: int) -> LineString:
         if marking_number == 0:
-            adjacent_lane_offset = -self.__LANE_WIDTH
+            adjacent_lane_offset = -self.profile.lane_width
             lane_number = 1
         else:
-            adjacent_lane_offset = self.__LANE_WIDTH
+            adjacent_lane_offset = self.profile.lane_width
             lane_number = marking_number
 
         # Move first point of line
@@ -420,10 +418,12 @@ class SvgMaker:
                                or this_section_info.obj_eigs[this_section_min_lane_nr] == "Puntstuk")
 
         if this_is_continuous and other_is_continuous:
-            logger.warning(f"Twee secties met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
+            logger.warning(f"Twee secties met puntstuk bij {point_info.pos_eigs}:\n"
+                           f"{this_section_info}\n{other_section_info}")
             return line_geom
         if not (this_is_continuous or other_is_continuous):
-            logger.warning(f"Geen sectie met puntstuk bij {point_info.pos_eigs}\n{this_section_info}\n{other_section_info}")
+            logger.warning(f"Geen sectie met puntstuk bij {point_info.pos_eigs}:\n"
+                           f"{this_section_info}\n{other_section_info}")
             return line_geom
 
         displacement = 0
@@ -431,13 +431,13 @@ class SvgMaker:
 
         if this_is_continuous:
             n_lanes_a = this_section_info.verw_eigs.aantal_hoofdstroken
-            displacement = self.__LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
+            displacement = self.profile.lane_width / 2 * (n_lanes_largest - n_lanes_a)
 
         elif other_is_continuous:
             n_lanes_a = other_section_info.verw_eigs.aantal_hoofdstroken
             n_lanes_b = this_section_info.verw_eigs.aantal_hoofdstroken
-            displacement = (self.__LANE_WIDTH / 2 * (n_lanes_largest - n_lanes_a)
-                            - self.__LANE_WIDTH / 2 * (n_lanes_a + n_lanes_b))
+            displacement = (self.profile.lane_width / 2 * (n_lanes_largest - n_lanes_a)
+                            - self.profile.lane_width / 2 * (n_lanes_a + n_lanes_b))
 
         if change_start:
             point_to_displace = line_geom.coords[0]
@@ -501,11 +501,11 @@ class SvgMaker:
             return False
 
         # Offset centered around normal lanes. Positive offset distance is on the left side of the line.
-        offset = self.__LANE_WIDTH * (n_lanes_left - n_lanes_right) / 2
+        offset = self.profile.lane_width * (n_lanes_left - n_lanes_right) / 2
 
         asphalt_coords = self.__get_offset_coords(section_info, adjusted_geom, offset)
         color = self.__get_road_color(section_info)
-        width = self.__LANE_WIDTH * n_total_lanes
+        width = self.profile.lane_width * n_total_lanes
 
         self.__g_road.add(
             self.__dwg.polyline(
@@ -531,14 +531,14 @@ class SvgMaker:
 
         n_main_lanes = section_info.verw_eigs.aantal_hoofdstroken
         n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
-        n_lanes_right = section_info.verw_eigs.aantal_rijstroken_rechts
 
         # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-        marking_offsets = [self.__LANE_WIDTH * (n_lanes_left + n_main_lanes / 2 - i) for i in range(len(lane_numbers) + 1)]
+        marking_offsets = [self.profile.lane_width * (n_main_lanes / 2 + n_lanes_left - i) for i in range(len(lane_numbers) + 1)]
 
         # Ensure there is a 'lane number' for the left side of the road.
         marking_numbers = lane_numbers.copy()
-        marking_numbers.insert(0, min(lane_numbers) - 1)
+        if self.__determine_lane_name(section_info.obj_eigs, 1) != "Puntstuk":
+            marking_numbers.insert(0, min(lane_numbers) - 1)
 
         for marking_number in marking_numbers:
             line_coords = self.__get_offset_coords(section_info, geom, marking_offsets.pop(0), marking_number)
@@ -601,8 +601,8 @@ class SvgMaker:
             self.__draw_triangle(coords, linetype, direction)
             self.__draw_line(coords, 0.4)
         elif linetype == PUNTSTUK_BREED:
-            offset_geom = offset_curve(LineString(coords), self.__LANE_WIDTH/2)
-            self.__draw_line([(coord[0], coord[1]) for coord in offset_geom.coords], self.__LANE_WIDTH)
+            offset_geom = offset_curve(LineString(coords), self.profile.lane_width/2)
+            self.__draw_line([(coord[0], coord[1]) for coord in offset_geom.coords], self.profile.lane_width)
             self.__draw_line(coords, 0.4)
         elif linetype == GEEN_STREEP:
             return
@@ -622,8 +622,8 @@ class SvgMaker:
 
         vec = [coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]]
         mag = math.sqrt(vec[0] ** 2 + vec[1] ** 2)
-        third_point = (triangle_end[0] + self.__LANE_WIDTH * direction * -vec[1] / mag,
-                       triangle_end[1] + self.__LANE_WIDTH * direction * vec[0] / mag)
+        third_point = (triangle_end[0] + self.profile.lane_width * direction * -vec[1] / mag,
+                       triangle_end[1] + self.profile.lane_width * direction * vec[0] / mag)
         all_points = coords + [third_point]
 
         triangle = self.__dwg.polygon(points=all_points, fill=self.__C_WHITE)
@@ -633,7 +633,7 @@ class SvgMaker:
         point_info = msi_row.info
         coords = self.__get_flipped_coords(point_info.pos_eigs.geometrie)[0]
         # TODO: Update these calculations so they are uniform with the others (lanes left and right of...)
-        info_offset = self.__LANE_WIDTH * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken -
+        info_offset = self.profile.lane_width * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken -
                                            point_info.verw_eigs.aantal_hoofdstroken) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
@@ -650,13 +650,13 @@ class SvgMaker:
         if msi_row.info.pos_eigs.hectoletter in ["", "w"]:
             hecto_offset = 0
         elif msi_row.info.pos_eigs.hectoletter in ["n"]:
-            hecto_offset = self.__LANE_WIDTH * 45
+            hecto_offset = self.profile.lane_width * 45
         elif msi_row.info.pos_eigs.hectoletter in ["s"]:
-            hecto_offset = self.__LANE_WIDTH * 20
+            hecto_offset = self.profile.lane_width * 20
         elif msi_row.info.pos_eigs.hectoletter in ["t"]:
-            hecto_offset = self.__LANE_WIDTH * 30
+            hecto_offset = self.profile.lane_width * 30
         else:
-            hecto_offset = self.__LANE_WIDTH * 25
+            hecto_offset = self.profile.lane_width * 25
         displacement = 0
 
         for nr in msi_row.rijstrooknummers:
@@ -680,12 +680,12 @@ class SvgMaker:
 
     def __display_MSI_onroad(self, msi_row: MSIRow, coords: tuple, rotate_angle: float):
         g_msi_row = self.__g_points.add(self.__dwg.g())
-        play = (self.__LANE_WIDTH - self.__MSIBOX_SIZE) / 2
+        play = (self.profile.lane_width - self.__MSIBOX_SIZE) / 2
         displacement = 0
 
         for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:
             msi_name = make_name(msi_row.info, nr)
-            displacement = self.__LANE_WIDTH * (nr - 1) - msi_row.info.verw_eigs.aantal_hoofdstroken * self.__LANE_WIDTH / 2
+            displacement = self.profile.lane_width * (nr - 1) - msi_row.info.verw_eigs.aantal_hoofdstroken * self.profile.lane_width / 2
             box_pos = (coords[0] + displacement + play, coords[1] - self.__MSIBOX_SIZE / 2)
 
             square = self.__draw_msi(box_pos, msi_row.MSIs[nr].properties["CW_num"], msi_name)

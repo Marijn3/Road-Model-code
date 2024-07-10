@@ -29,8 +29,7 @@ if profile.overwrite_msi_relations:
 msi_network_time = time.time()
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(wegmodel, MSIs, profile.msi_relations_file,
-         profile.ilp_roadmodel_folder, profile.image_size, profile.msis_on_road)
+SvgMaker(wegmodel, MSIs)
 visualization_time = time.time()
 
 # Exporteer de MSI-eigenschappen naar een bestand.
