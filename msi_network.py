@@ -538,9 +538,9 @@ class MSINetwerk:
                 return msi_row
         return None
 
-    def make_print(self, output_pad: str) -> None:
+    def make_print(self) -> None:
         relation_types = ["d", "ds", "dt", "db", "dn", "u", "us", "ut", "ub", "un"]
-        with open(output_pad, "w") as out_file:
+        with open(self.profile.msi_relations_file, "w") as out_file:
             for msi_row in self.MSIrows:
                 for msi in msi_row.MSIs.values():
                     for relation, other_msi in msi.properties.items():

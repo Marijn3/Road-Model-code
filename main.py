@@ -25,7 +25,7 @@ wegmodel_time = time.time()
 MSIs = MSINetwerk(wegmodel)
 
 if profile.overwrite_msi_relations:
-    MSIs.make_print(profile.msi_relations_file)
+    MSIs.make_print()
 msi_network_time = time.time()
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
@@ -33,7 +33,7 @@ SvgMaker(wegmodel, MSIs)
 visualization_time = time.time()
 
 # Exporteer de MSI-eigenschappen naar een bestand.
-ilp_input = make_ILP_input(MSIs, profile.msi_relations_file)
+ilp_input = make_ILP_input(MSIs)
 generate_file(ilp_input, profile.ilp_roadmodel_folder)
 ilp_creation_time = time.time()
 
@@ -123,7 +123,8 @@ if profile.location == "A27Recht":
                                   "R": Rand(rijstrook=2, afstand=-0.3)},
                           afzetting=AFZETTINGEN.BAKENS,
                           )
-    aanvraagBarriers = Aanvraag(wegmodel=wegmodel,
+    aanvraagBarriers = Aanvraag(
+                          wegmodel=wegmodel,
                           km=[16.1, 16.6],
                           wegkant="R",
                           hectoletter="",

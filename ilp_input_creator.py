@@ -85,12 +85,11 @@ def transform_row_name(name: str) -> list | str | None:
     return f"RSU_{road}_{km}"
 
 
-def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
+def make_ILP_input(network: MSINetwerk) -> dict:
     """
     Generates ILP input file dictionary based on the framework provided by JvM.
     Args:
         network (MSINetwerk): A network of MSIs with all required properties.
-        relation_file_name (str): File containing latest version of MSI relations.
     Returns:
         dictionary with required elements. Unspecified elements will contain None.
     """
@@ -124,7 +123,7 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
                                   "s": "Secondary", "t": "Taper", "b": "Broadening", "n": "Narrowing"}
 
     # Extract MSI relations from the (possibly edited) msi relations file.
-    with open(relation_file_name, "r") as rel_file:
+    with open(network.profile.msi_relations_file, "r") as rel_file:
         lines = rel_file.readlines()
 
     for line in lines:
