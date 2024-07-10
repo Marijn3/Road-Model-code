@@ -2,8 +2,9 @@ from road_model import DataFrameLader, WegModel
 from msi_network import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
-from safety_areas import Rand, Aanvraag, AFZETTINGEN
+from safety_areas import Aanvraag
 from run_profiles import Profile
+from area_requests import aanvragen
 import logging
 import time
 
@@ -76,85 +77,3 @@ def run_application(profiel: Profile, msi_relaties_overschrijven: bool = True) -
         for naam, instellingen in aanvragen.items():
             logger.info(f"Aanvraag {naam} wordt gedaan.")
             Aanvraag(wegmodel=wegmodel, instellingen=instellingen)
-
-
-aanvragen = {
-    "Categorie A links": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": True,
-        "randen": {"L": Rand(rijstrook=None, afstand=-1.8), "R": Rand(rijstrook=None, afstand=-1.2)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie A rechts": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": True,
-        "randen": {"L": Rand(rijstrook=None, afstand=1.2), "R": Rand(rijstrook=None, afstand=1.8)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie B links": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": True,
-        "randen": {"L": Rand(rijstrook=None, afstand=-1.0), "R": Rand(rijstrook=None, afstand=-0.2)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie B rechts": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": True,
-        "randen": {"L": Rand(rijstrook=None, afstand=0.2), 
-                   "R": Rand(rijstrook=None, afstand=1.0)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie C links": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": False,
-        "randen": {"L": Rand(rijstrook=None, afstand=-1.0), 
-                   "R": Rand(rijstrook=None, afstand=-0.22)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie C rechts": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": False,
-        "randen": {"L": Rand(rijstrook=None, afstand=0.22), 
-                   "R": Rand(rijstrook=None, afstand=1.0)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie D links": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": True,
-        "randen": {"L": Rand(rijstrook=1, afstand=0.3), 
-                   "R": Rand(rijstrook=1, afstand=-1.1)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie D rechts": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": True,
-        "randen": {"L": Rand(rijstrook=2, afstand=1.1), 
-                   "R": Rand(rijstrook=2, afstand=-0.3)},
-        "afzetting": AFZETTINGEN.BAKENS,
-    },
-    "Categorie A links met barriers": {
-        "km": [16.1, 16.6],
-        "wegkant": "R",
-        "hectoletter": "",
-        "korter_dan_24h": False,
-        "randen": {"L": Rand(rijstrook=None, afstand=-1.8), 
-                   "R": Rand(rijstrook=None, afstand=-0.4)},
-        "afzetting": AFZETTINGEN.BARRIER_BOVEN_80CM,
-    },
-}
