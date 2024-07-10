@@ -45,7 +45,8 @@ Defines functions to convert a combination of the `MSINetwork` class and an
 MSI network file to input for the ILP formulation.
 
 ## Safety_areas/safety_areas.py
-Defines classes and functions to enable processing of a workspace request.
+Defines classes and functions to enable processing of a workspace request. Workspace requests
+are set in `Settings/area_requests.py`.
 When the ILP process is active, it performs a legend request based on the workspace request.
 Plots are generated of the safety areas. For now, this code makes some assumptions that are
 valid only in the _A27Recht_ profile.
@@ -55,3 +56,10 @@ valid only in the _A27Recht_ profile.
 [here](https://downloads.rijkswaterstaatdata.nl/weggeg/geogegevens/shapefile/Documentatie/Handleiding%20Weggeg/).
 * Documentation of the main file and the profiles file is in Dutch, as this should be accessible for DEMO purposes.
 Logs are in Dutch. Other files, containing the majority of the code, are mostly English.
+
+# Known issues
+* Wedge (Puntstuk) registrations on the left side of the road are not accounted for in determining the lane bounds.
+This causes missing primary relations in some cases.
+* Left emergency lane does not always properly affect the lane shift value.
+* The determination of whether a property starts or ends on a section does not 
+take into account the shift value between the sections.
