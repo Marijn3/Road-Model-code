@@ -1,6 +1,5 @@
 import geopandas as gpd
 import pandas as pd
-import csv
 from shapely import *
 from utils import *
 logger = logging.getLogger(__name__)
@@ -101,44 +100,36 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, locatie: str | dict, locations_csv_pad: str, data_folder: str) -> None:
+    def __init__(self, location: dict, weggeg_data_folder: str) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            locatie (str or dict): The name of the location or a dict of coordinates,
-                indicating the bounding box to the area to be loaded.
-            locations_csv_pad (str): Path towards csv file defining locations by coordinates.
-            data_folder (str): Path to WEGGEG data folder.
+            location (dict): A dict of coordinates indicating the bounding box to the area to be loaded.
+            weggeg_data_folder (str): Path to WEGGEG data folder.
         Example:
             dfl = DataFrameLader("Everdingen")
             dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
         """
-        # List all data layer files to be loaded. Same structure as WEGGEG.
+        # List all data layer files to be loaded. Uses same structure as WEGGEG.
         self.__FILE_PATHS = [
-            f"{data_folder}/Wegvakken/wegvakken.dbf",
-            f"{data_folder}/Rijstroken/rijstroken.dbf",
-            f"{data_folder}/Mengstroken/mengstroken.dbf",
-            f"{data_folder}/Kantstroken/kantstroken.dbf",
-            f"{data_folder}/Maximum snelheid/max_snelheden.dbf",
-            f"{data_folder}/Convergenties/convergenties.dbf",
-            f"{data_folder}/Divergenties/divergenties.dbf",
-            f"{data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
+            f"{weggeg_data_folder}/Wegvakken/wegvakken.dbf",
+            f"{weggeg_data_folder}/Rijstroken/rijstroken.dbf",
+            f"{weggeg_data_folder}/Mengstroken/mengstroken.dbf",
+            f"{weggeg_data_folder}/Kantstroken/kantstroken.dbf",
+            f"{weggeg_data_folder}/Maximum snelheid/max_snelheden.dbf",
+            f"{weggeg_data_folder}/Convergenties/convergenties.dbf",
+            f"{weggeg_data_folder}/Divergenties/divergenties.dbf",
+            f"{weggeg_data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
         ]
         
         self.data = {}
-        self.__locations_csv_path = locations_csv_pad
         self.__lane_mapping_h = self.__construct_lane_mapping("H")
         self.__lane_mapping_t = self.__construct_lane_mapping("T")
 
-        if isinstance(locatie, str):
-            coords = self.__get_coords_from_csv(locatie)
-        elif isinstance(locatie, dict):
-            coords = locatie
-        else:
-            raise NotImplementedError(f"Input of type {type(locatie)} is not supported. "
-                                      f"Use a str or dict instead.")
+        if not isinstance(location, dict):
+            raise NotImplementedError(f"Locatie van type {type(location)} is niet ondersteund. Gebruik een dict.")
 
-        self.extent = box(xmin=coords["west"], ymin=coords["zuid"], xmax=coords["oost"], ymax=coords["noord"])
+        self.extent = box(xmin=location["west"], ymin=location["zuid"], xmax=location["oost"], ymax=location["noord"])
         self.__load_dataframes()
 
     @staticmethod
@@ -184,35 +175,6 @@ class DataFrameLader:
             mapping["2 -> 1.6"] = (1, "TaperDivergentie")  # eigenlijk 2 stroken breed, maar niet zo geregistreerd
             mapping["1.6 -> 2"] = (2, "TaperConvergentie")  # wel 2 stroken breed, want 2 breed bij start
         return mapping
-
-    def __get_coords_from_csv(self, location: str) -> dict[str, float]:
-        """
-        Load the extent coordinates of the specified location from the csv file.
-        Args:
-            location (str): The name of the location.
-        Returns:
-            dict: The extent coordinates (north, east, south, west).
-        Raises:
-            ValueError: If the specified location is not found in the csv file.
-            FileNotFoundError: If the file in the location of the filepath is not found.
-            ValueError: If there is an error reading the csv file.
-        """
-        try:
-            with open(self.__locations_csv_path, "r") as file:
-                csv_reader = csv.DictReader(file, delimiter=";")
-                for row in csv_reader:
-                    if row["locatie"] == location:
-                        return {
-                            "noord": float(row["noord"]),
-                            "oost": float(row["oost"]),
-                            "zuid": float(row["zuid"]),
-                            "west": float(row["west"]),
-                        }
-            raise ValueError(f"Ongeldige locatie: '{location}'. Voer een geldige naam van een locatie in.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Bestand niet gevonden: {self.__locations_csv_path}")
-        except csv.Error as e:
-            raise ValueError(f"Fout bij het lezen van het csv bestand: {e}")
 
     def __load_dataframes(self) -> None:
         """
