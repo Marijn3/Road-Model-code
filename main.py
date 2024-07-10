@@ -1,5 +1,5 @@
 from road_model import DataFrameLader, WegModel
-from msi_relations import MSINetwerk
+from msi_network import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
 from safety_areas import Rand, Aanvraag, AFZETTINGEN

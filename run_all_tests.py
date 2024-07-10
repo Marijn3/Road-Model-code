@@ -1,5 +1,5 @@
 from road_model import DataFrameLader, WegModel
-from msi_relations import MSINetwerk
+from msi_network import MSINetwerk
 from utils import *
 import traceback
 logger = logging.getLogger(__name__)

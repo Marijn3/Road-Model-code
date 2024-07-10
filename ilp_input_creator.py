@@ -1,4 +1,4 @@
-from msi_relations import MSINetwerk
+from msi_network import MSINetwerk
 import json
 import os
 from utils import *

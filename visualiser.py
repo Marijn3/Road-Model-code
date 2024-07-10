@@ -1,5 +1,5 @@
 from road_model import WegModel, ObjectInfo, PositieEigenschappen
-from msi_relations import MSINetwerk, MSIRow
+from msi_network import MSINetwerk, MSIRow
 import svgwrite
 import os
 from shapely import *
