@@ -1,9 +1,10 @@
-from road_model import WegModel, ObjectInfo, PositieEigenschappen
+from road_model import WegModel, ObjectInfo, PositieEigenschappen, DISTANCE_TOLERANCE
 from msi_network import MSINetwerk, MSIRow
 import svgwrite
 import os
 from shapely import *
-from utils import *
+import logging
+import math
 
 logger = logging.getLogger(__name__)
 

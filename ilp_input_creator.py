@@ -1,7 +1,8 @@
 from msi_network import MSINetwerk
 import json
 import os
-from utils import *
+import logging
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 

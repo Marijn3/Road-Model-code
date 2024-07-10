@@ -1,11 +1,15 @@
 import geopandas as gpd
 import pandas as pd
 from shapely import *
-from utils import *
+from copy import deepcopy
+from run_profiles import Profile
+import logging
+import math
 logger = logging.getLogger(__name__)
 
 
-TINY_DEVIATION_LOW = 0.001
+DISTANCE_TOLERANCE = 0.1  # [m] Tolerantie-afstand voor overlap tussen punt- en lijngeometrieën.
+TINY_DEVIATION_LOW = 0.001  # Fractie, gebruikt om gelijk-startende of eindigende geometrieën te bepalen.
 TINY_DEVIATION_HIGH = 1.0 - TINY_DEVIATION_LOW
 
 

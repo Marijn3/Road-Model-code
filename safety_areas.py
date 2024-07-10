@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from road_model import WegModel, ObjectInfo
 from ilp_communication import ILPSender
-from utils import *
+import logging
+from copy import deepcopy
 from Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)

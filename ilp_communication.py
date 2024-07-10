@@ -1,5 +1,5 @@
 import requests
-from utils import *
+import logging
 
 HOST = "http://127.0.0.1:5000"
 
