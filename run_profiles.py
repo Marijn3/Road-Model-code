@@ -150,4 +150,3 @@ locatie_coords = {
     "Amstel": {"noord": 484200, "oost": 126100, "zuid": 480900, "west": 118300},
     "A27Recht": {"noord": 410600, "oost": 121000, "zuid": 407000, "west": 119000},
 }
-

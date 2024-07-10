@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class ILPSender:
     def __init__(self):
-        self.scenarios = None
+        self.scenario = None
         self.requests = None
         self.response = {}
 
@@ -29,7 +29,8 @@ class ILPSender:
         self.execute_step(scenario["step"])
         return self.determine_group_names(self.response)
 
-    def translate_jvm_to_mtm(self, name_jvm: str) -> str:
+    @staticmethod
+    def translate_jvm_to_mtm(name_jvm: str) -> str:
         rsu, wegnummer, rijrichting_or_hecto, km = name_jvm.split("_")
         if rijrichting_or_hecto in ["L", "R"]:
             return f"{wegnummer}{rijrichting_or_hecto}:{km}"

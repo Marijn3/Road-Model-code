@@ -85,20 +85,17 @@ markeringen = {
         GEEN_STROOK: KANTSTREEP,
         VLUCHTSTROOK: KANTSTREEP,
         INVOEGSTROOK: DEELSTREEP_3_9,
-        # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
     },
     UITRIJSTROOK: {
         GEEN_STROOK: KANTSTREEP,
         VLUCHTSTROOK: KANTSTREEP,
         RIJSTROOK: BLOKSTREEP,
         UITRIJSTROOK: DEELSTREEP_3_9,
-        # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
     },
     WEEFSTROOK: {
         GEEN_STROOK: KANTSTREEP,
         VLUCHTSTROOK: KANTSTREEP,
         WEEFSTROOK: DEELSTREEP_3_9,
-        # SPITSSTROOK_RECHTS_LAATSTE: KANTSTREEP,
     },
     SPITSSTROOK_RECHTS_NIET_LAATSTE: {
         VLUCHTSTROOK: KANTSTREEP,
@@ -534,7 +531,8 @@ class SvgMaker:
         n_lanes_left = section_info.verw_eigs.aantal_rijstroken_links
 
         # Offset centered around main lanes. Positive offset distance is on the left side of the LineString.
-        marking_offsets = [self.profile.lane_width * (n_main_lanes / 2 + n_lanes_left - i) for i in range(len(lane_numbers) + 1)]
+        marking_offsets = [self.profile.lane_width * (n_main_lanes / 2 + n_lanes_left - i)
+                           for i in range(len(lane_numbers) + 1)]
 
         # Ensure there is a 'lane number' for the left side of the road.
         marking_numbers = lane_numbers.copy()
@@ -634,8 +632,9 @@ class SvgMaker:
         point_info = msi_row.info
         coords = self.__get_flipped_coords(point_info.pos_eigs.geometrie)[0]
         # TODO: Update these calculations so they are uniform with the others (lanes left and right of...)
-        info_offset = self.profile.lane_width * (point_info.verw_eigs.aantal_stroken + point_info.verw_eigs.aantal_stroken -
-                                           point_info.verw_eigs.aantal_hoofdstroken) / 2
+        info_offset = self.profile.lane_width * (point_info.verw_eigs.aantal_stroken +
+                                                 point_info.verw_eigs.aantal_stroken -
+                                                 point_info.verw_eigs.aantal_hoofdstroken) / 2
         rotate_angle = 90 - point_info.verw_eigs.lokale_hoek
 
         if point_info.obj_eigs["Type"] == "Signalering":
@@ -686,7 +685,8 @@ class SvgMaker:
 
         for nr in msi_row.info.obj_eigs["Rijstrooknummers"]:
             msi_name = make_name(msi_row.info, nr)
-            displacement = self.profile.lane_width * (nr - 1) - msi_row.info.verw_eigs.aantal_hoofdstroken * self.profile.lane_width / 2
+            displacement = (self.profile.lane_width * (nr - 1) -
+                            msi_row.info.verw_eigs.aantal_hoofdstroken * self.profile.lane_width / 2)
             box_pos = (coords[0] + displacement + play, coords[1] - self.__MSIBOX_SIZE / 2)
 
             square = self.__draw_msi(box_pos, msi_row.MSIs[nr].properties["CW_num"], msi_name)
@@ -776,12 +776,16 @@ class SvgMaker:
             end=(box_west + box_size / 2, box_south - clearance * 1.5),
             stroke="#00FF00", stroke_width=self.__BASE_STROKE))  # |
         g_green_arrow.add(self.__dwg.line(
-            start=(box_west + box_size / 2 + math.sqrt(self.__BASE_STROKE / 2) / 2, box_south - clearance / 2),
-            end=(box_west + clearance + math.sqrt(self.__BASE_STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
+            start=(box_west + box_size / 2 + math.sqrt(self.__BASE_STROKE / 2) / 2,
+                   box_south - clearance / 2),
+            end=(box_west + clearance + math.sqrt(self.__BASE_STROKE / 2) / 2,
+                 box_south - box_size / 2 + clearance / 2),
             stroke="#00FF00", stroke_width=self.__BASE_STROKE))  # \
         g_green_arrow.add(self.__dwg.line(
-            start=(box_west + box_size / 2 - math.sqrt(self.__BASE_STROKE / 2) / 2, box_south - clearance / 2),
-            end=(box_east - clearance - math.sqrt(self.__BASE_STROKE / 2) / 2, box_south - box_size / 2 + clearance / 2),
+            start=(box_west + box_size / 2 - math.sqrt(self.__BASE_STROKE / 2) / 2,
+                   box_south - clearance / 2),
+            end=(box_east - clearance - math.sqrt(self.__BASE_STROKE / 2) / 2,
+                 box_south - box_size / 2 + clearance / 2),
             stroke="#00FF00", stroke_width=self.__BASE_STROKE))  # /
 
         g_left_arrow = g_msi_row.add(self.__dwg.g(id=f"l[{msi_name}]", visibility="hidden"))
@@ -931,6 +935,7 @@ def make_info_text(section_info: ObjectInfo) -> list[str]:
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
-            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys])
+            [f"{key}: {section_info.obj_eigs[key]}" for key in other_keys]
             # + [f"Start kenmerk: {section_info.verw_eigs.start_kenmerk}",
-            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"])
+            #    f"Einde kenmerk: {section_info.verw_eigs.einde_kenmerk}"]
+            )

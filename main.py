@@ -13,6 +13,6 @@ run = Run()
 
 # Maak aanpassingen in onderstaande regels:
 run_application(
-    profiel=run.a2vk,  # Locatie om uit te voeren.
+    profiel=run.a27recht,  # Locatie om uit te voeren.
     msi_relaties_overschrijven=True,  # Keuze om (aangepaste) MSI relaties te behouden of overschrijven.
 )
