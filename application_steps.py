@@ -31,7 +31,7 @@ def init_logger() -> logging.Logger:
 def run_application(profiel: Profile, msi_relaties_overschrijven: bool = True) -> None:
     logger = init_logger()
 
-    print(f"Proces voor {profiel.name} gestart...")
+    print(f"Verwerkingsproces voor {profiel.name} gestart...")
     start_time = time.time()
 
     # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
@@ -68,90 +68,93 @@ def run_application(profiel: Profile, msi_relaties_overschrijven: bool = True) -
                 f"Totale tijd: {ilp_creation_time - start_time:.2f} seconden.\n"
                 f"==============================================")
 
-    print(f"Proces succesvol afgerond in {ilp_creation_time - start_time:.2f} seconden. "
+    print(f"Verwerkingsproces succesvol afgerond in {ilp_creation_time - start_time:.2f} seconden. "
           f"Zie voor meer informatie het log-bestand.")
 
     # Instantieer een aanvraag (A27 Oosterhout)
-    if profiel.location == "A27Recht":
-        aanvraagAL = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=True,
-                              randen={"L": Rand(rijstrook=None, afstand=-1.8),
-                                      "R": Rand(rijstrook=None, afstand=-1.2)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagAR = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=True,
-                              randen={"L": Rand(rijstrook=None, afstand=1.2),
-                                      "R": Rand(rijstrook=None, afstand=1.8)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagBL = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=True,
-                              randen={"L": Rand(rijstrook=None, afstand=-1.0),
-                                      "R": Rand(rijstrook=None, afstand=-0.2)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagBR = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=True,
-                              randen={"L": Rand(rijstrook=None, afstand=0.2),
-                                      "R": Rand(rijstrook=None, afstand=1.0)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagCL = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=False,
-                              randen={"L": Rand(rijstrook=None, afstand=-1.0),
-                                      "R": Rand(rijstrook=None, afstand=-0.22)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagCR = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=False,
-                              randen={"L": Rand(rijstrook=None, afstand=0.22),
-                                      "R": Rand(rijstrook=None, afstand=1.0)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagDL = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=True,
-                              randen={"L": Rand(rijstrook=1, afstand=0.3),
-                                      "R": Rand(rijstrook=1, afstand=-1.1)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagDR = Aanvraag(wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=True,
-                              randen={"L": Rand(rijstrook=2, afstand=1.1),
-                                      "R": Rand(rijstrook=2, afstand=-0.3)},
-                              afzetting=AFZETTINGEN.BAKENS,
-                              )
-        aanvraagBarriers = Aanvraag(
-                              wegmodel=wegmodel,
-                              km=[16.1, 16.6],
-                              wegkant="R",
-                              hectoletter="",
-                              korter_dan_24h=False,
-                              randen={"L": Rand(rijstrook=None, afstand=-1.8),
-                                      "R": Rand(rijstrook=None, afstand=-0.4)},
-                              afzetting=AFZETTINGEN.BARRIER_BOVEN_80CM,
-                              )
+    if profiel.name == "A27Recht":
+        for naam, instellingen in aanvragen.items():
+            logger.info(f"Aanvraag {naam} wordt gedaan.")
+            Aanvraag(wegmodel=wegmodel, instellingen=instellingen)
+
+
+aanvragen = {
+    "Categorie A links": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": True,
+        "randen": {"L": Rand(rijstrook=None, afstand=-1.8), "R": Rand(rijstrook=None, afstand=-1.2)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie A rechts": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": True,
+        "randen": {"L": Rand(rijstrook=None, afstand=1.2), "R": Rand(rijstrook=None, afstand=1.8)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie B links": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": True,
+        "randen": {"L": Rand(rijstrook=None, afstand=-1.0), "R": Rand(rijstrook=None, afstand=-0.2)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie B rechts": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": True,
+        "randen": {"L": Rand(rijstrook=None, afstand=0.2), 
+                   "R": Rand(rijstrook=None, afstand=1.0)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie C links": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": False,
+        "randen": {"L": Rand(rijstrook=None, afstand=-1.0), 
+                   "R": Rand(rijstrook=None, afstand=-0.22)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie C rechts": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": False,
+        "randen": {"L": Rand(rijstrook=None, afstand=0.22), 
+                   "R": Rand(rijstrook=None, afstand=1.0)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie D links": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": True,
+        "randen": {"L": Rand(rijstrook=1, afstand=0.3), 
+                   "R": Rand(rijstrook=1, afstand=-1.1)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie D rechts": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": True,
+        "randen": {"L": Rand(rijstrook=2, afstand=1.1), 
+                   "R": Rand(rijstrook=2, afstand=-0.3)},
+        "afzetting": AFZETTINGEN.BAKENS,
+    },
+    "Categorie A links met barriers": {
+        "km": [16.1, 16.6],
+        "wegkant": "R",
+        "hectoletter": "",
+        "korter_dan_24h": False,
+        "randen": {"L": Rand(rijstrook=None, afstand=-1.8), 
+                   "R": Rand(rijstrook=None, afstand=-0.4)},
+        "afzetting": AFZETTINGEN.BARRIER_BOVEN_80CM,
+    },
+}
