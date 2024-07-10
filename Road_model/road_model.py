@@ -2,7 +2,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely import *
 from copy import deepcopy
-from Settings.run_profiles import Profile
+from Settings.profiles import Profile
 import logging
 import math
 logger = logging.getLogger(__name__)

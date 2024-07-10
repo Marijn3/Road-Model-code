@@ -1,4 +1,4 @@
-from Road_Model.road_model import WegModel, ObjectInfo, PositieEigenschappen, DISTANCE_TOLERANCE
+from Road_model.road_model import WegModel, ObjectInfo, PositieEigenschappen, DISTANCE_TOLERANCE
 from MSI_network.msi_network import MSINetwerk, MSIRow
 import svgwrite
 import os

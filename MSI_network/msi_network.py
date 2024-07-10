@@ -1,4 +1,4 @@
-from Road_Model.road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
+from Road_model.road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
 from shapely import Point, dwithin, line_locate_point
 import logging
 logger = logging.getLogger(__name__)

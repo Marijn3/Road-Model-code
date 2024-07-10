@@ -1,4 +1,4 @@
-from Safety_Areas.safety_areas import Rand, AFZETTINGEN
+from Safety_areas.safety_areas import Rand, AFZETTINGEN
 
 aanvragen = {
     "Categorie A links": {

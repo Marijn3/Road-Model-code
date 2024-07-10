@@ -1,8 +1,8 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from Road_Model.road_model import WegModel, ObjectInfo
-from Safety_Areas.ilp_communication import ILPSender
+from Road_model.road_model import WegModel, ObjectInfo
+from Safety_areas.ilp_communication import ILPSender
 import logging
 from copy import deepcopy
 from ILP.Server.Library.svg_library import toggle_visibility
