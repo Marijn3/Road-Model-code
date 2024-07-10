@@ -4,16 +4,17 @@ from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
 from safety_areas import Rand, Aanvraag, AFZETTINGEN
 from utils import *
+from run_profiles import Run
 logger = logging.getLogger(__name__)
 
-ILP_ROADMODEL_FOLDER = "Server/Data/RoadModel"
-MSI_RELATIONS_FILE = "msi_relations_roadmodel.txt"
+run = Run(msi_relaties_overschrijven=True)
+profile = run.grijsoord
 
-print(f"Proces voor {locatie} gestart...")
+print(f"Proces voor {profile.name} gestart...")
 start_time = time.time()
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader(locatie, "locaties.csv", data_folder)
+dfl = DataFrameLader(location=profile.location, weggeg_data_folder=profile.data_folder)
 import_time = time.time()
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
@@ -21,17 +22,22 @@ wegmodel = WegModel(dfl)
 wegmodel_time = time.time()
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-MSIs = MSINetwerk(wegmodel, maximale_zoekafstand=2000, kruisrelaties=False)
-MSIs.make_print(MSI_RELATIONS_FILE)  # Deze regel weglaten bij handmatig aanpassen bestand.
+MSIs = MSINetwerk(wegmodel,
+                  maximale_zoekafstand=profile.maximum_row_search_distance,
+                  kruisrelaties=profile.cross_relations)
+
+if profile.overwrite_msi_relations:
+    MSIs.make_print(profile.msi_relations_file)
 msi_network_time = time.time()
 
 # Maak een visualisatie van het wegmodel en de afgeleide MSI-relaties.
-SvgMaker(wegmodel, MSIs, MSI_RELATIONS_FILE, ILP_ROADMODEL_FOLDER, 1000, False)
+SvgMaker(wegmodel, MSIs, profile.msi_relations_file,
+         profile.ilp_roadmodel_folder, profile.image_size, profile.msis_on_road)
 visualization_time = time.time()
 
 # Exporteer de MSI-eigenschappen naar een bestand.
-ilp_input = make_ILP_input(MSIs, MSI_RELATIONS_FILE)
-generate_file(ilp_input, ILP_ROADMODEL_FOLDER)
+ilp_input = make_ILP_input(MSIs, profile.msi_relations_file)
+generate_file(ilp_input, profile.ilp_roadmodel_folder)
 ilp_creation_time = time.time()
 
 logger.info(f"\n==============================================\n"
