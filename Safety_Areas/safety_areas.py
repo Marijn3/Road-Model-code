@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from road_model import WegModel, ObjectInfo
+from Road_Model.road_model import WegModel, ObjectInfo
 from ilp_communication import ILPSender
 import logging
 from copy import deepcopy

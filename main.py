@@ -8,7 +8,7 @@
 # Uitvoer: MSI-relatiebestand, SVG-visualisatie, JSON-invoerbestand voor ILP.
 # =====================================
 
-from run_profiles import Run
+from Settings.run_profiles import Run
 from application_steps import run_application
 
 run = Run()

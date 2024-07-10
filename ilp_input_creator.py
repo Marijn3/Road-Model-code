@@ -1,4 +1,4 @@
-from msi_network import MSINetwerk
+from MSI_network.msi_network import MSINetwerk
 import json
 import os
 import logging

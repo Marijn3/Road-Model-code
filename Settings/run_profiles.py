@@ -8,8 +8,8 @@ class Profile:
             afbeeldingsformaat: int = 1000,
             msis_boven_weg: bool = False,
             strookbreedte: float = 3.5,
-            data_folder: str = "WEGGEG",
-            ilp_wegmodel_folder: str = "Server/Data/RoadModel",
+            data_folder: str = "Input_data/WEGGEG",
+            ilp_wegmodel_folder: str = "ILP/Server/Data/RoadModel",
             msi_relatie_uitvoerbestand: str = "msi_relations_roadmodel.txt",
             ) -> None:
         """
@@ -41,7 +41,8 @@ class Profile:
 
 class Run:
     """
-    Deze class bevat alle afwijkende instellingen per locatie. De volgende locaties zijn ingesteld:
+    Deze class stelt alle instellingen in per locatie.
+    De volgende locaties zijn ingesteld:
     - Correcte import: Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel, A27Recht, A2VK*
     - Verwerkingsfouten in MSI-relaties : Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*, Zonzeel
     * = Na het oplossen van registratiefouten
@@ -117,7 +118,7 @@ class Run:
 
         self.amstel_casestudy = Profile(
             locatie="Amstel",
-            data_folder="WEGGEG-Zuidasdok",  # Folder met case study data.
+            data_folder="Input_data/WEGGEG-Zuidasdok",  # Folder met case study data.
             precisie=0.0001,  # [m] Aangepast op grid van case study data.
             secundaire_kruisrelaties=False,
             strookbreedte=3.0,

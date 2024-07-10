@@ -1,10 +1,10 @@
-from road_model import DataFrameLader, WegModel
-from msi_network import MSINetwerk
+from Road_Model.road_model import DataFrameLader, WegModel
+from MSI_network.msi_network import MSINetwerk
 from visualiser import SvgMaker
 from ilp_input_creator import make_ILP_input, generate_file
-from safety_areas import Aanvraag
-from run_profiles import Profile
-from area_requests import aanvragen
+from Safety_Areas.safety_areas import Aanvraag
+from Settings.run_profiles import Profile
+from Safety_Areas.area_requests import aanvragen
 import logging
 import time
 
