@@ -2,10 +2,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from Road_Model.road_model import WegModel, ObjectInfo
-from ilp_communication import ILPSender
+from Safety_Areas.ilp_communication import ILPSender
 import logging
 from copy import deepcopy
-from Server.Library.svg_library import toggle_visibility
+from ILP.Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +308,7 @@ class Aanvraag:
 
     def visualize_response(self) -> None:
         """Visualize legend pattern in svg"""
-        svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
+        svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
         toggle_visibility(svg_file, self.legend_pattern)
         logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
 

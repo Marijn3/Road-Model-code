@@ -1,5 +1,5 @@
 msi_rel_file = "msi_relations_roadmodel.txt"
-cggtop_rel_file = "msi_relations_cggtop.txt"
+cggtop_rel_file = "msi_relations_mtm.txt"
 
 ALLOWED_KM_DIFFERENCE = 0.080
 

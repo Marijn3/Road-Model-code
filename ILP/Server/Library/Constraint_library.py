@@ -1,6 +1,6 @@
 import gurobipy as gp
 
-from Server.Library.Model_objects import MsiVariables, Molecule, LEGEND_ORDER
+from Library.Model_objects import MsiVariables, Molecule, LEGEND_ORDER
 
 
 def addConstraints(msi_data, row_data, ts_data, model):

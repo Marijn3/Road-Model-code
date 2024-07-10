@@ -10,7 +10,7 @@ class Profile:
             strookbreedte: float = 3.5,
             data_folder: str = "Input_data/WEGGEG",
             ilp_wegmodel_folder: str = "ILP/Server/Data/RoadModel",
-            msi_relatie_uitvoerbestand: str = "msi_relations_roadmodel.txt",
+            msi_relatie_uitvoerbestand: str = "MSI_relation_comparison/msi_relations_roadmodel.txt",
             ) -> None:
         """
         Maakt een run-profiel aan met alle instellingen om de hoofdapplicatie te draaien.

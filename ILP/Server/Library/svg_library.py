@@ -287,7 +287,7 @@ def toggle_visibility(svg_file, groups_to_activate):
 
 def createSVG_roadmodel(model, json_data):
     results, json_data = getMyVars(model, json_data)
-    svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
+    svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
 
     id_to_image = {key: value["State"] for key, value in json_data.items()}
     # print("New legends:", id_to_image)

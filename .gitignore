@@ -8,25 +8,17 @@ __pycache__/
 *.json
 
 *.pyc
-Server/ILP/model.mps
-Server/Solution/active_variables.txt
-Server/Solution/Constraints_list.json
-Server/Solution/time_log.txt
-Server/Solution/active_variables.txt
-Server/Solution/Constraints_list.json
-Server/Solution/model_solved.mps
-Server/Solution/time_log.txt
-
-Server/Solution/
+ILP/Server/ILP/model.mps
+ILP/Server/Solution/
 
 .idea/
 
 *.00295
 
-msi_relations_roadmodel.txt
-msi_relations_cggtop.txt
+MSI_relation_comparison/msi_relations_roadmodel.txt
+msi_relations_mtm.txt
 
 MeasureRequest.json
 
-relation_comparison.log
+MSI_relation_comparison/relation_comparison.log
 data_processing.log
