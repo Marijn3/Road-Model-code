@@ -118,7 +118,6 @@ class DataFrameLader:
             f"{self.profile.data_folder}/Divergenties/divergenties.dbf",
             f"{self.profile.data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
         ]
-        
         self.data = {}
         self.__lane_mapping_h = self.__construct_lane_mapping("H")
         self.__lane_mapping_t = self.__construct_lane_mapping("T")
@@ -194,7 +193,7 @@ class DataFrameLader:
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with selected data.
         """
-        return gpd.read_file(file_path, bbox=self.extent)
+        return gpd.read_file(file_path, bbox=self.extent)  # This part takes relatively long for small areas.
 
     @staticmethod
     def __get_layer_name(file_path) -> str:
