@@ -129,7 +129,7 @@ else:
 # Write comparison output log
 # --------------------------------------------
 
-with open("relation_comparison_log.txt", "w") as outfile:
+with open("relation_comparison.log", "w") as outfile:
     outfile.write(f"This is an automatically generated relation comparison log between files {msi_rel_file}\n"
                   f"and {cggtop_rel_file}, obtained by running relation_file_comparer.py.\n\n")
     outfile.write(f"Roads in road model dataset: {roadmodel_dataset_extent}\n\n")

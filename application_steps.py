@@ -9,13 +9,22 @@ import logging
 import time
 
 
-def init_logger() -> logging.Logger:
+def init_logger(level: str = "DEBUG") -> logging.Logger:
     logger = logging.getLogger(__name__)
+
+    if level == "DEBUG":
+        logging_level = logging.DEBUG
+    elif level == "INFO":
+        logging_level = logging.INFO
+    elif level == "WARNING":
+        logging_level = logging.WARNING
+    else:
+        logging_level = logging.DEBUG
 
     # Initialize the logger
     logging.basicConfig(filename="data_processing.log",
                         filemode="w",
-                        level=logging.DEBUG,
+                        level=logging_level,
                         format='[%(asctime)s] (%(levelname)s) %(name)s -> %(funcName)s: %(message)s')
     # Shorter format: '[%(asctime)s] (%(levelname)s): %(message)s'
 
@@ -30,7 +39,7 @@ def init_logger() -> logging.Logger:
 
 
 def run_application(profiel: Profile, msi_relaties_overschrijven: bool = True) -> None:
-    logger = init_logger()
+    logger = init_logger(level="INFO")
 
     print(f"Verwerkingsproces voor {profiel.name} gestart...")
     start_time = time.time()

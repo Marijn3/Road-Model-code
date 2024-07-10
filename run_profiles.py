@@ -28,24 +28,24 @@ class Profile:
         """
         self.name = locatie if isinstance(locatie, str) else "custom"
         self.location = locatie_coords.get(locatie) if isinstance(locatie, str) else locatie
-        self.image_size = afbeeldingsformaat
-        self.data_folder = data_folder
         self.calculation_precision = precisie
         self.cross_relations = secundaire_kruisrelaties
+        self.maximum_row_search_distance = maximale_afstand
+        self.image_size = afbeeldingsformaat
         self.msis_on_road = msis_boven_weg
         self.lane_width = strookbreedte
-        self.maximum_row_search_distance = maximale_afstand
+        self.data_folder = data_folder
         self.ilp_roadmodel_folder = ilp_wegmodel_folder
         self.msi_relations_file = msi_relatie_uitvoerbestand
 
 
-# ========= Gedefinieerde locaties =========
-# Correcte import : Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel, A27Recht, A2VK*
-# Verwerkingsfouten in MSI-relaties : Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*, Zonzeel
-# * = Na het oplossen van registratiefouten
-
-
 class Run:
+    """
+    Deze class bevat alle afwijkende instellingen per locatie. De volgende locaties zijn ingesteld:
+    - Correcte import: Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel, A27Recht, A2VK*
+    - Verwerkingsfouten in MSI-relaties : Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*, Zonzeel
+    * = Na het oplossen van registratiefouten
+    """
     def __init__(self):
 
         self.vught = Profile(

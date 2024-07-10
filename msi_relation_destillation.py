@@ -1,5 +1,5 @@
 
-CGGTOP_FOLDER = "data/ZUIDNEDERLAND.00295"
+CGGTOP_FOLDER = "ZUIDNEDERLAND.00295"
 MSI_RELATIONS_OUTPUT = "msi_relations_cggtop.txt"
 
 msi_network = []
