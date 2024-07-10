@@ -969,8 +969,8 @@ class WegModel:
             if change_made:
                 logger.debug(f"Overlap aangepakt door vluchtstrook op te schuiven: {dict_new}")
             else:
-                logger.warning(f"Onopgeloste overlappende rijstrooknummers {overlap_numbers} "
-                               f"tussen {dict_model} en {dict_new}. Dit gebeurt voor {roadmodel_section.pos_eigs}.")
+                logger.warning(f"Onopgeloste overlappende rijstrooknummers {overlap_numbers}\n"
+                               f"tussen {dict_model} en {dict_new}. Dit gebeurt voor {roadmodel_section.pos_eigs}")
 
         return {**dict_model, **dict_new}
 
@@ -1229,6 +1229,9 @@ class WegModel:
             if main_down is not None and not skip_end_check:
                 section_verw_eigs.einde_kenmerk = (
                     self.__get_start_or_end_prop(section_info.obj_eigs, self.sections[main_down].obj_eigs))
+
+            if 1 not in [lane_nr for lane_nr, lane_type in section_info.obj_eigs.items() if isinstance(lane_nr, int)]:
+                logger.warning(f"Strooknummer 1 mist in sectie\n{section_info.pos_eigs} => {section_info.obj_eigs}")
 
             hoofdstrooknummers, strooknummers = self.get_lane_numbers(section_info.obj_eigs)
             strooknummers_links = [lane_nr for lane_nr in strooknummers if

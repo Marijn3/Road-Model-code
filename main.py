@@ -36,14 +36,14 @@ ilp_creation_time = time.time()
 
 logger.info(f"\n==============================================\n"
             f"Data import gedaan in {import_time - start_time:.2f} seconden.\n"
-            f"Wegmodel opgesteld in {wegmodel_time - import_time :.2f} seconden.\n"
-            f"MSI netwerk opgesteld in {msi_network_time - wegmodel_time :.2f} seconden.\n"
-            f"Afbeelding gemaakt in {visualization_time - msi_network_time :.2f} seconden.\n"
-            f"ILP input gemaakt in {ilp_creation_time - visualization_time :.2f} seconden.\n"
-            f"Totale tijd: {ilp_creation_time - start_time :.2f} seconden.\n"
+            f"Wegmodel opgesteld in {wegmodel_time - import_time:.2f} seconden.\n"
+            f"MSI netwerk opgesteld in {msi_network_time - wegmodel_time:.2f} seconden.\n"
+            f"Afbeelding gemaakt in {visualization_time - msi_network_time:.2f} seconden.\n"
+            f"ILP input gemaakt in {ilp_creation_time - visualization_time:.2f} seconden.\n"
+            f"Totale tijd: {ilp_creation_time - start_time:.2f} seconden.\n"
             f"==============================================")
 
-print(f"Proces succesvol afgerond in {ilp_creation_time - start_time :.2f} seconden. "
+print(f"Proces succesvol afgerond in {ilp_creation_time - start_time:.2f} seconden. "
       f"Zie voor meer informatie het log-bestand.")
 
 # Instantieer een aanvraag (A27 Oosterhout)
