@@ -1,0 +1,15 @@
+\ Model Legend_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+  0 x_rhl[RSU_A10_R_17.137,4]
+Subject To
+ Request_[A10R]_closed: rhl_closed[A10R] = 1
+ [RSU_A10_R_17.137,4]_exit_lane_present: exit_lane[RSU_A10_R_17.137,4] = 1
+ request_13.48.47_x[RSU_A10_R_17.137,4]: x[RSU_A10_R_17.137,4] = 1
+ GC3024: rhl_closed[A10R] = 1 -> x[RSU_A10_R_17.137,4]
+   + x_rhl[RSU_A10_R_17.137,4] + exit_lane[RSU_A10_R_17.137,4] = 1
+Bounds
+Binaries
+ x[RSU_A10_R_17.137,4] rhl_closed[A10R] x_rhl[RSU_A10_R_17.137,4]
+ exit_lane[RSU_A10_R_17.137,4]
+End

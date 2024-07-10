@@ -1,10 +1,9 @@
 import os
 import time
 
+from Library import *
 from Library.Constraint_library import *
 from Library.Function_library import *
-from Server.Library import *
-from Server.Library.svg_library import *
 
 
 def create_model(model_number):

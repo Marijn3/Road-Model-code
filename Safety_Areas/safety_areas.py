@@ -1,12 +1,11 @@
-import json
-
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from road_model import WegModel, ObjectInfo
-from ilp_communication import ILPSender
-from utils import *
-from Server.Library.svg_library import toggle_visibility
+from Road_Model.road_model import WegModel, ObjectInfo
+from Safety_Areas.ilp_communication import ILPSender
+import logging
+from copy import deepcopy
+from ILP.Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)
 
@@ -120,22 +119,20 @@ class Aanvraag:
         50: 4.5
     }
 
-    def __init__(self, wegmodel: WegModel, wegkant: str, km: list[float], hectoletter: str,
-                 randen: dict[str: Rand], maximumsnelheid: int = 70,
-                 korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
+    def __init__(self, wegmodel: WegModel, instellingen) -> None:
         self.roadmodel = wegmodel
-        self.roadside = wegkant
-        self.km = [min(km), max(km)]
-        self.hecto_character = hectoletter
-        self.edges = randen
-        self.max_v = maximumsnelheid
-        self.under_24h = korter_dan_24h
-        self.demarcation = afzetting
+        self.roadside = instellingen["wegkant"]
+        self.km = [min(instellingen["km"]), max(instellingen["km"])]
+        self.hecto_character = instellingen["hectoletter"]
+        self.edges = instellingen["randen"]
+        self.under_24h = instellingen["korter_dan_24h"]
+        self.demarcation = instellingen["afzetting"]
+        self.max_v = 70
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange {km[0]} - {km[1]} km, "
-                    f"randen {randen}, korter dan 24h = {korter_dan_24h}.")
+        logger.info(f"Aanvraag met kmrange {self.km[0]} - {self.km[1]} km, "
+                    f"randen {self.edges}, korter dan 24h = {self.under_24h}.")
 
         self.surface_type = REQUEST
         self.requires_lane_narrowing = False
@@ -311,7 +308,7 @@ class Aanvraag:
 
     def visualize_response(self) -> None:
         """Visualize legend pattern in svg"""
-        svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
+        svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
         toggle_visibility(svg_file, self.legend_pattern)
         logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
 
@@ -347,7 +344,6 @@ class Aanvraag:
         plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
-            west = y_min
             south = (lane_number - 1) * WIDTH.LANE
             if lane_number not in self.main_lane_nrs:
                 if lane_number == 1:
@@ -407,7 +403,9 @@ class Workspace:
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
             self.determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
-            # TODO: This is still onroad, so still category D. But now certain to expand in the direction of the off-road edge.
+            # TODO: Implement this situation.
+            #  This is still onroad, so still category D.
+            #  It is now certain to expand in the direction of the off-road edge.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
         else:
             self.determine_request_category_roadside()

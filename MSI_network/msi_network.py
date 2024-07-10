@@ -1,6 +1,6 @@
-from road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
-from utils import *
+from Road_Model.road_model import WegModel, ObjectInfo, PositieEigenschappen, LijnVerwerkingsEigenschappen
 from shapely import Point, dwithin, line_locate_point
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -120,18 +120,16 @@ class MSIRow:
 
 
 class MSINetwerk:
-    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, kruisrelaties: bool = True):
+    def __init__(self, wegmodel: WegModel):
         """
         Instantiates an MSI network based on the provided road model and settings.
+        Args:
             wegmodel (WegModel): The road model on which the lane signalling relations will be based.
-            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
-                at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
-            bovenstroomse_secundaire_relaties (bool): Indication whether all additionally determined
-                secondary relation types, which are not in the guidelines, should be added.
         """
         self.wegmodel = wegmodel
-        self.max_search_depth = maximale_zoekafstand
-        self.add_cross_relations = kruisrelaties
+        self.profile = wegmodel.profile
+        self.max_search_depth = self.profile.maximum_row_search_distance
+        self.add_cross_relations = self.profile.cross_relations
 
         self.MSIrows = []
         self.__construct_msi_network()
@@ -540,9 +538,9 @@ class MSINetwerk:
                 return msi_row
         return None
 
-    def make_print(self, output_pad: str) -> None:
+    def make_print(self) -> None:
         relation_types = ["d", "ds", "dt", "db", "dn", "u", "us", "ut", "ub", "un"]
-        with open(output_pad, "w") as out_file:
+        with open(self.profile.msi_relations_file, "w") as out_file:
             for msi_row in self.MSIrows:
                 for msi in msi_row.MSIs.values():
                     for relation, other_msi in msi.properties.items():
