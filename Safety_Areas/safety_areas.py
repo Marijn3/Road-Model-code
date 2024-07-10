@@ -1,12 +1,11 @@
-import json
-
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from road_model import WegModel, ObjectInfo
-from ilp_communication import ILPSender
-from utils import *
-from Server.Library.svg_library import toggle_visibility
+from Road_Model.road_model import WegModel, ObjectInfo
+from Safety_Areas.ilp_communication import ILPSender
+import logging
+from copy import deepcopy
+from ILP.Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)
 
@@ -120,22 +119,20 @@ class Aanvraag:
         50: 4.5
     }
 
-    def __init__(self, wegmodel: WegModel, wegkant: str, km: list[float], hectoletter: str,
-                 randen: dict[str: Rand], maximumsnelheid: int = 70,
-                 korter_dan_24h: bool = True, afzetting: int = AFZETTINGEN.BAKENS) -> None:
+    def __init__(self, wegmodel: WegModel, instellingen) -> None:
         self.roadmodel = wegmodel
-        self.roadside = wegkant
-        self.km = [min(km), max(km)]
-        self.hecto_character = hectoletter
-        self.edges = randen
-        self.max_v = maximumsnelheid
-        self.under_24h = korter_dan_24h
-        self.demarcation = afzetting
+        self.roadside = instellingen["wegkant"]
+        self.km = [min(instellingen["km"]), max(instellingen["km"])]
+        self.hecto_character = instellingen["hectoletter"]
+        self.edges = instellingen["randen"]
+        self.under_24h = instellingen["korter_dan_24h"]
+        self.demarcation = instellingen["afzetting"]
+        self.max_v = 70
 
         self.run_sanity_checks()
 
-        logger.info(f"Aanvraag met kmrange {km[0]} - {km[1]} km, "
-                    f"randen {randen}, korter dan 24h = {korter_dan_24h}.")
+        logger.info(f"Aanvraag met kmrange {self.km[0]} - {self.km[1]} km, "
+                    f"randen {self.edges}, korter dan 24h = {self.under_24h}.")
 
         self.surface_type = REQUEST
         self.requires_lane_narrowing = False
@@ -180,8 +177,11 @@ class Aanvraag:
         self.step_2_determine_area_sizes()
         self.step_3_generate_measure_request()
 
-        self.step_4_solve_measure_request()
-        self.step_5_adjust_area_sizes()
+        if not self.measure_request["legend_requests"]:
+            logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
+        else:
+            self.step_4_solve_measure_request()
+            self.step_5_adjust_area_sizes()
 
     def run_sanity_checks(self) -> None:
         assert len(self.edges) == 2, \
@@ -196,16 +196,16 @@ class Aanvraag:
         self.workspace.apply_category_measures()
 
     def step_2_determine_area_sizes(self) -> None:
-        # Determine minimal width from the original area
+        # Part 1: Determine minimal width from the original area
         self.empty_space.adjust_edges_to_workspace()
         self.closed_space.adjust_edges_to_empty_space()
 
-        # Determine convenient width in regard to the road
+        # Part 2: Determine convenient width in regard to the road
         self.closed_space.adjust_edges_to_road()
         self.empty_space.adjust_edges_to_closed_space()
         self.workspace.adjust_edges_to_empty_space()
 
-        # Determine minimal length with respect to the MSIs
+        # Part 3: Determine minimal length with respect to the MSIs
         self.closed_space.adjust_length_to_msis()
         self.empty_space.adjust_length_to_closed_space()
         self.workspace.adjust_length_to_empty_space()
@@ -218,28 +218,8 @@ class Aanvraag:
         self.report_request()
 
     def step_4_solve_measure_request(self) -> None:
-        if not self.measure_request["legend_requests"]:
-            logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
-            return
-
-        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.measure_request}")
-
-        scenario = {
-            "name": "SafetyAreaA27",
-            "dataset": "WEGGEG-based data",
-            "step": {"name": "SafetyAreaBasedRequest", "type": "add"},
-            "result": {}
-        }
-
-        # Add code to communicate with ILP
-        ilp = ILPSender()
-        self.legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
-        logger.info(f"Antwoord van ILP: {self.legend_pattern}")
-
-        # Visualise response in svg
-        svg_file = "Server/Data/RoadModel/RoadModelVisualisation.svg"
-        toggle_visibility(svg_file, self.legend_pattern)
-        logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
+        self.send_request()
+        self.visualize_response()
 
     def step_5_adjust_area_sizes(self) -> None:
         self.final_closed_spaces.add(self.closed_space)
@@ -250,6 +230,9 @@ class Aanvraag:
             logger.info("De gebieden veranderen niet, want er is geen effect op de signaalgevers.")
             return
 
+        self.determine_final_closed_spaces()
+
+    def determine_final_closed_spaces(self) -> None:
         cross_locations = {}
 
         for legend in self.legend_pattern:
@@ -314,14 +297,35 @@ class Aanvraag:
             km_range_covered = \
                 ((km_range[0] <= self.closed_space.km[0] and km_range[1] >= self.closed_space.km[1]
                   and self.roadside == "L")
-                or (km_range[0] >= self.closed_space.km[0] and km_range[1] <= self.closed_space.km[1]
-                    and self.roadside == "R"))
+                 or (km_range[0] >= self.closed_space.km[0] and km_range[1] <= self.closed_space.km[1]
+                     and self.roadside == "R"))
 
             if not edges == self.closed_space.edges and not km_range_covered:
                 partial_closed_space = ClosedSpace(self, edges, km_range)
                 self.final_closed_spaces.add(partial_closed_space)
 
         logger.info([(space.edges, space.km) for space in self.final_closed_spaces])
+
+    def visualize_response(self) -> None:
+        """Visualize legend pattern in svg"""
+        svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
+        toggle_visibility(svg_file, self.legend_pattern)
+        logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
+
+    def send_request(self) -> None:
+        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.measure_request}")
+
+        scenario = {
+            "name": "SafetyAreaA27",
+            "dataset": "WEGGEG-based data",
+            "step": {"name": "SafetyAreaBasedRequest", "type": "add"},
+            "result": {}
+        }
+
+        ilp = ILPSender()
+        self.legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
+
+        logger.info(f"Antwoord van ILP: {self.legend_pattern}")
 
     def plot_areas(self) -> None:
         fig = plt.figure()
@@ -340,7 +344,6 @@ class Aanvraag:
         plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
-            west = y_min
             south = (lane_number - 1) * WIDTH.LANE
             if lane_number not in self.main_lane_nrs:
                 if lane_number == 1:
@@ -400,7 +403,9 @@ class Workspace:
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
             self.determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
-            # TODO: This is still onroad, so still category D. But now certain to expand in the direction of the off-road edge.
+            # TODO: Implement this situation.
+            #  This is still onroad, so still category D.
+            #  It is now certain to expand in the direction of the off-road edge.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
         else:
             self.determine_request_category_roadside()

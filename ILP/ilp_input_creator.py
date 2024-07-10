@@ -1,7 +1,8 @@
-from msi_relations import MSINetwerk
+from MSI_network.msi_network import MSINetwerk
 import json
 import os
-from utils import *
+import logging
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +86,11 @@ def transform_row_name(name: str) -> list | str | None:
     return f"RSU_{road}_{km}"
 
 
-def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
+def make_ILP_input(network: MSINetwerk) -> dict:
     """
     Generates ILP input file dictionary based on the framework provided by JvM.
     Args:
         network (MSINetwerk): A network of MSIs with all required properties.
-        relation_file_name (str): File containing latest version of MSI relations.
     Returns:
         dictionary with required elements. Unspecified elements will contain None.
     """
@@ -105,10 +105,12 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
             road_dict[row_name]["MSI"][msi.lane_nr] = deepcopy(msi_dict)
             road_dict[row_name]["MSI"][msi.lane_nr]["Rush_hour_lane"] = msi.properties["RHL"]
             road_dict[row_name]["MSI"][msi.lane_nr]["Exit-Entry"] = msi.properties["Exit_Entry"]
-            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = str(msi.properties["TS_num"]) if msi.properties["TS_num"] else "99"
+            road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream"] = (
+                str(msi.properties["TS_num"])) if msi.properties["TS_num"] else "99"
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Left"] = msi.properties["DIF_V_left"]
             road_dict[row_name]["MSI"][msi.lane_nr]["TrafficStream_Influence"]["Right"] = msi.properties["DIF_V_right"]
-            road_dict[row_name]["MSI"][msi.lane_nr]["Carriageway"] = str(msi.properties["CW_num"]) if msi.properties["CW_num"] else "99"
+            road_dict[row_name]["MSI"][msi.lane_nr]["Carriageway"] = (
+                str(msi.properties["CW_num"])) if msi.properties["CW_num"] else "99"
 
         # These properties are the same for the entire row, so the value taken from the last iteration.
         road_dict[row_name]["Continue-V"] = msi.properties["C_V"]
@@ -124,7 +126,7 @@ def make_ILP_input(network: MSINetwerk, relation_file_name: str) -> dict:
                                   "s": "Secondary", "t": "Taper", "b": "Broadening", "n": "Narrowing"}
 
     # Extract MSI relations from the (possibly edited) msi relations file.
-    with open(relation_file_name, "r") as rel_file:
+    with open(network.profile.msi_relations_file, "r") as rel_file:
         lines = rel_file.readlines()
 
     for line in lines:
