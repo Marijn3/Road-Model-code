@@ -2,6 +2,7 @@ from copy import deepcopy
 import math
 import time
 import logging
+from run_profiles import Profile
 
 # Initialize the logger
 logging.basicConfig(filename="data_processing_log.txt",

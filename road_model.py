@@ -100,36 +100,35 @@ class DataFrameLader:
         "I": "Invoeging"
     }
 
-    def __init__(self, location: dict, weggeg_data_folder: str) -> None:
+    def __init__(self, profile: Profile) -> None:
         """
         Load GeoDataFrames for each layer based on the specified location.
         Args:
-            location (dict): A dict of coordinates indicating the bounding box to the area to be loaded.
-            weggeg_data_folder (str): Path to WEGGEG data folder.
-        Example:
-            dfl = DataFrameLader("Everdingen")
-            dfl = DataFrameLader({"noord": 433158.9132, "oost": 100468.8980, "zuid": 430753.1611, "west": 96885.3299})
+            profile (Profile): A profile with the appropriate run settings.
         """
+        self.profile = profile
         # List all data layer files to be loaded. Uses same structure as WEGGEG.
         self.__FILE_PATHS = [
-            f"{weggeg_data_folder}/Wegvakken/wegvakken.dbf",
-            f"{weggeg_data_folder}/Rijstroken/rijstroken.dbf",
-            f"{weggeg_data_folder}/Mengstroken/mengstroken.dbf",
-            f"{weggeg_data_folder}/Kantstroken/kantstroken.dbf",
-            f"{weggeg_data_folder}/Maximum snelheid/max_snelheden.dbf",
-            f"{weggeg_data_folder}/Convergenties/convergenties.dbf",
-            f"{weggeg_data_folder}/Divergenties/divergenties.dbf",
-            f"{weggeg_data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
+            f"{self.profile.data_folder}/Wegvakken/wegvakken.dbf",
+            f"{self.profile.data_folder}/Rijstroken/rijstroken.dbf",
+            f"{self.profile.data_folder}/Mengstroken/mengstroken.dbf",
+            f"{self.profile.data_folder}/Kantstroken/kantstroken.dbf",
+            f"{self.profile.data_folder}/Maximum snelheid/max_snelheden.dbf",
+            f"{self.profile.data_folder}/Convergenties/convergenties.dbf",
+            f"{self.profile.data_folder}/Divergenties/divergenties.dbf",
+            f"{self.profile.data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
         ]
         
         self.data = {}
         self.__lane_mapping_h = self.__construct_lane_mapping("H")
         self.__lane_mapping_t = self.__construct_lane_mapping("T")
 
-        if not isinstance(location, dict):
-            raise NotImplementedError(f"Locatie van type {type(location)} is niet ondersteund. Gebruik een dict.")
+        if not isinstance(self.profile.location, dict):
+            raise NotImplementedError(f"Locatie van type {type(self.profile.location)} "
+                                      f"is niet ondersteund. Gebruik een dict.")
 
-        self.extent = box(xmin=location["west"], ymin=location["zuid"], xmax=location["oost"], ymax=location["noord"])
+        self.extent = box(xmin=self.profile.location["west"], ymin=self.profile.location["zuid"],
+                          xmax=self.profile.location["oost"], ymax=self.profile.location["noord"])
         self.__load_dataframes()
 
     @staticmethod
@@ -335,19 +334,17 @@ class DataFrameLader:
 class WegModel:
     """
     A class for loading GeoDataFrames from shapefiles based on a specified location extent.
-
     Public attributes:
         extent (box): The extent of the specified location.
         points (dict): Points in the road model, indexed by ID.
         sections (dict): Sections in the road model, indexed by ID.
     """
-
     # The order of the layer names given here dictates the loading order. The first two are fixed.
     # It is important to import all layers with line geometries first, then point geometries.
     __LAYER_NAMES = [
         "Wegvakken",  # Used as 'reference layer'
         "Rijstroken",  # Used as 'initial layer'
-        "Mengstroken", "Kantstroken", "Maximum snelheid", # Contain line geometries
+        "Mengstroken", "Kantstroken", "Maximum snelheid",  # Contain line geometries
         "Rijstrooksignaleringen", "Convergenties", "Divergenties"  # Contain point geometries
     ]
 
@@ -362,6 +359,7 @@ class WegModel:
             roadmodel = Wegmodel(DataFrameLader("Vught"))
         """
         self.__dfl = dfl
+        self.profile = dfl.profile
         self.extent = self.__dfl.extent
 
         self.__reference = {}
@@ -469,8 +467,7 @@ class WegModel:
 
         return point_info
 
-    @staticmethod
-    def __extract_line_properties(row: pd.Series, name: str) -> ObjectInfo:
+    def __extract_line_properties(self, row: pd.Series, name: str) -> ObjectInfo:
         """
         Determines line info based on a row in the dataframe
         Args:
@@ -487,7 +484,7 @@ class WegModel:
 
         section_info.pos_eigs.km = [round(min(row["BEGINKM"], row["EINDKM"]), 3),
                                     round(max(row["BEGINKM"], row["EINDKM"]), 3)]
-        section_info.pos_eigs.geometrie = set_precision(row["geometry"], CALCULATION_PRECISION)
+        section_info.pos_eigs.geometrie = set_precision(row["geometry"], self.profile.calculation_precision)
 
         if name == "Wegvakken":
             section_info.pos_eigs.wegnummer = row["WEGNR_HMP"]
@@ -523,7 +520,7 @@ class WegModel:
 
             if pd.isna(lane_number):
                 logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
-                first_lane_number = 1
+                lane_number = 1
 
             section_info.obj_eigs[lane_number] = row["OMSCHR"]
             if row["MAX_SNELH"]:
@@ -737,9 +734,9 @@ class WegModel:
                                  f"{geom1}\n{geom2}\n"
                                  f"Zijn de kilometerregistraties juist?\n")
 
-        geom1 = set_precision(geom1, CALCULATION_PRECISION)
-        geom2 = set_precision(geom2, CALCULATION_PRECISION)
-        remainders = difference(geom1, geom2, grid_size=CALCULATION_PRECISION)
+        geom1 = set_precision(geom1, self.profile.calculation_precision)
+        geom2 = set_precision(geom2, self.profile.calculation_precision)
+        remainders = difference(geom1, geom2, grid_size=self.profile.calculation_precision)
 
         if isinstance(remainders, LineString) and not remainders.is_empty:
             return [remainders]
@@ -762,7 +759,7 @@ class WegModel:
         remainders = self.__get_remainders(geom1, geom2)
 
         if len(remainders) == 1 and not remainders[0].is_empty:
-            return set_precision(remainders[0], CALCULATION_PRECISION)
+            return set_precision(remainders[0], self.profile.calculation_precision)
         elif len(remainders) > 1 and not remainders[0].is_empty:
             # TODO: There may be a more reliable method to extract the correct diff.
             start_point_geom1, end_point_geom1 = get_endpoints(geom1)
@@ -789,11 +786,11 @@ class WegModel:
                 selected_diff = remainders[0]
                 logger.debug(f"Gekozen geometrie: {selected_diff}")
 
-            return set_precision(selected_diff, CALCULATION_PRECISION)
+            return set_precision(selected_diff, self.profile.calculation_precision)
         else:
             logger.warning(f"Lege of onjuiste overgebleven geometrie ({remainders}) tussen\n"
                            f"{geom1} en \n{geom2}")
-            return set_precision(remainders, CALCULATION_PRECISION)
+            return set_precision(remainders, self.profile.calculation_precision)
 
     @staticmethod
     def __check_geometry_equality(geom1: LineString, geom2: LineString) -> bool:
@@ -820,8 +817,7 @@ class WegModel:
 
         return False
 
-    @staticmethod
-    def __get_overlap(pos1: PositieEigenschappen, pos2: PositieEigenschappen) -> LineString | None:
+    def __get_overlap(self, pos1: PositieEigenschappen, pos2: PositieEigenschappen) -> LineString | None:
         """
         Finds the overlap geometry between two sections by their positional properties.
         Args:
@@ -845,7 +841,7 @@ class WegModel:
         # if not overlaps(pos1.geometrie, pos2.geometrie):
         #     return None
 
-        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=CALCULATION_PRECISION)
+        overlap_geometry = intersection(pos1.geometrie, pos2.geometrie, grid_size=self.profile.calculation_precision)
 
         # Attempt to convert to linestring if necessary
         if isinstance(overlap_geometry, MultiLineString) and not overlap_geometry.is_empty:
@@ -864,7 +860,7 @@ class WegModel:
                 dwithin(Point(pos1.geometrie.coords[-1]), Point(overlap_geometry.coords[-1]), DISTANCE_TOLERANCE)):
             overlap_geometry = LineString([coord for coord in overlap_geometry.coords] + [pos1.geometrie.coords[-1]])
 
-        return set_precision(overlap_geometry, CALCULATION_PRECISION)
+        return set_precision(overlap_geometry, self.profile.calculation_precision)
 
     def __remove_sections(self, indices: set[int]) -> None:
         """

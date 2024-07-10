@@ -30,7 +30,7 @@ class Profile:
         self.location = locatie_coords.get(locatie) if isinstance(locatie, str) else locatie
         self.image_size = afbeeldingsformaat
         self.data_folder = data_folder
-        self.precision = precisie
+        self.calculation_precision = precisie
         self.cross_relations = secundaire_kruisrelaties
         self.msis_on_road = msis_boven_weg
         self.maximum_row_search_distance = maximale_afstand

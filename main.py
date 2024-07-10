@@ -14,7 +14,7 @@ print(f"Proces voor {profile.name} gestart...")
 start_time = time.time()
 
 # Laad WEGGEG-bestanden in voor een gedefinieerd gebied, of voer coordinaten in.
-dfl = DataFrameLader(location=profile.location, weggeg_data_folder=profile.data_folder)
+dfl = DataFrameLader(profile)
 import_time = time.time()
 
 # Stel een wegmodel op met de ingeladen GeoDataFrames.
@@ -22,9 +22,7 @@ wegmodel = WegModel(dfl)
 wegmodel_time = time.time()
 
 # Bepaal MSI relaties en eigenschappen gebaseerd op het wegmodel.
-MSIs = MSINetwerk(wegmodel,
-                  maximale_zoekafstand=profile.maximum_row_search_distance,
-                  kruisrelaties=profile.cross_relations)
+MSIs = MSINetwerk(wegmodel)
 
 if profile.overwrite_msi_relations:
     MSIs.make_print(profile.msi_relations_file)
@@ -53,7 +51,7 @@ print(f"Proces succesvol afgerond in {ilp_creation_time - start_time:.2f} second
       f"Zie voor meer informatie het log-bestand.")
 
 # Instantieer een aanvraag (A27 Oosterhout)
-if locatie == "A27Recht":
+if profile.location == "A27Recht":
     aanvraagAL = Aanvraag(wegmodel=wegmodel,
                           km=[16.1, 16.6],
                           wegkant="R",

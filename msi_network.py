@@ -120,18 +120,16 @@ class MSIRow:
 
 
 class MSINetwerk:
-    def __init__(self, wegmodel: WegModel, maximale_zoekafstand: int = 1500, kruisrelaties: bool = True):
+    def __init__(self, wegmodel: WegModel):
         """
         Instantiates an MSI network based on the provided road model and settings.
+        Args:
             wegmodel (WegModel): The road model on which the lane signalling relations will be based.
-            maximale_zoekafstand (int): Max search distance in meters. Guidelines say there should be
-                at most 1200 m between MSI rows. In terms of geometry lengths, this can sometimes be exceeded.
-            bovenstroomse_secundaire_relaties (bool): Indication whether all additionally determined
-                secondary relation types, which are not in the guidelines, should be added.
         """
         self.wegmodel = wegmodel
-        self.max_search_depth = maximale_zoekafstand
-        self.add_cross_relations = kruisrelaties
+        self.profile = wegmodel.profile
+        self.max_search_depth = self.profile.maximum_row_search_distance
+        self.add_cross_relations = self.profile.cross_relations
 
         self.MSIrows = []
         self.__construct_msi_network()
