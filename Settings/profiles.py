@@ -39,84 +39,79 @@ class Profile:
         self.msi_relations_file = msi_relatie_uitvoerbestand
 
 
-class Run:
-    """
-    Deze class stelt alle instellingen in per locatie.
-    De volgende locaties zijn ingesteld:
-    - Correcte import: Vught, Oosterhout, Goirle, Vinkeveen, A27, Bavel, A27Recht, A2VK*
-    - Verwerkingsfouten in MSI-relaties : Grijsoord*, Zuidasdok*, Everdingen*, Lankhorst, Amstel*, Zonzeel
-    * = Na het oplossen van registratiefouten
-    """
+class Vught(Profile):
     def __init__(self):
+        super().__init__(locatie="Vught", secundaire_kruisrelaties=True)
 
-        self.vught = Profile(
-            locatie="Vught",
-            secundaire_kruisrelaties=True,
-        )
 
-        self.bavel = Profile(
-            locatie="Bavel",
-            secundaire_kruisrelaties=True,
-        )
+class Oosterhout(Profile):
+    def __init__(self):
+        super().__init__(locatie="Oosterhout", secundaire_kruisrelaties=True)
 
-        self.a2vk = Profile(
-            locatie="A2VK",
-            secundaire_kruisrelaties=False,
-        )
 
-        self.oosterhout = Profile(
-            locatie="Oosterhout",
-            secundaire_kruisrelaties=True,
-        )
+class Goirle(Profile):
+    def __init__(self):
+        super().__init__(locatie="Goirle", secundaire_kruisrelaties=True)
 
-        self.vinkeveen = Profile(
-            locatie="Vinkeveen",
-            secundaire_kruisrelaties=True,
-        )
 
-        self.zonzeel = Profile(
-            locatie="Zonzeel",
-            secundaire_kruisrelaties=True,
-        )
+class Vinkeveen(Profile):
+    def __init__(self):
+        super().__init__(locatie="Vinkeveen", secundaire_kruisrelaties=True)
 
-        self.goirle = Profile(
-            locatie="Goirle",
-            secundaire_kruisrelaties=True,
-        )
 
-        self.zuidasdok = Profile(
-            locatie="Zuidasdok",
-            secundaire_kruisrelaties=False,
-            strookbreedte=3.0,
-        )
+class Zonzeel(Profile):
+    def __init__(self):
+        super().__init__(locatie="Zonzeel", secundaire_kruisrelaties=False)
 
-        self.everdingen = Profile(
-            locatie="Everdingen",
-            secundaire_kruisrelaties=False,
-        )
 
-        self.a27 = Profile(
-            locatie="A27",
-            secundaire_kruisrelaties=True,
-        )
+class A27(Profile):
+    def __init__(self):
+        super().__init__(locatie="A27", secundaire_kruisrelaties=True)
 
-        self.grijsoord = Profile(
-            locatie="Grijsoord",
-            secundaire_kruisrelaties=True,
-        )
 
-        self.lankhorst = Profile(
-            locatie="Lankhorst",
-            secundaire_kruisrelaties=False,
-        )
+class Bavel(Profile):
+    def __init__(self):
+        super().__init__(locatie="Bavel", secundaire_kruisrelaties=True)
 
-        self.amstel = Profile(
-            locatie="Amstel",
-            secundaire_kruisrelaties=False,
-            strookbreedte=3.0,
-        )
 
-        self.amstel_casestudy = Profile(
+class A27Recht(Profile):
+    def __init__(self):
+        super().__init__(locatie="A27Recht", secundaire_kruisrelaties=True)
+
+
+class A2VK(Profile):
+    def __init__(self):
+        super().__init__(locatie="A2VK", secundaire_kruisrelaties=False)
+
+
+class Grijsoord(Profile):
+    def __init__(self):
+        super().__init__(locatie="Grijsoord", secundaire_kruisrelaties=True)
+
+
+class Zuidasdok(Profile):
+    def __init__(self):
+        super().__init__(locatie="Zuidasdok", secundaire_kruisrelaties=False, strookbreedte=3.0)
+
+
+class Everdingen(Profile):
+    def __init__(self):
+        super().__init__(locatie="Everdingen", secundaire_kruisrelaties=False)
+
+
+class Lankhorst(Profile):
+    def __init__(self):
+        super().__init__(locatie="Lankhorst", secundaire_kruisrelaties=False)
+
+
+class Amstel(Profile):
+    def __init__(self):
+        super().__init__(locatie="Amstel", secundaire_kruisrelaties=False, strookbreedte=3.0)
+
+
+class AmstelCasestudy(Profile):
+    def __init__(self):
+        super().__init__(
             locatie="Amstel",
             data_folder="Input_data/WEGGEG-Zuidasdok",  # Folder met case study data.
             precisie=0.0001,  # [m] Aangepast op grid van case study data.
@@ -124,12 +119,10 @@ class Run:
             strookbreedte=3.0,
         )
 
-        self.a27recht = Profile(
-            locatie="A27Recht",
-            secundaire_kruisrelaties=True,
-        )
 
-        self.custom = Profile(
+class Custom(Profile):
+    def __init__(self):
+        super().__init__(
             locatie={"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831},
             secundaire_kruisrelaties=False,
         )
