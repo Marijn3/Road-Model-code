@@ -340,16 +340,7 @@ class Aanvraag:
         plt.ylim([y_min, y_max])
         plt.xlabel("Length [km]")
         plt.ylabel("Width [m] (estimate for visualization)")
-
-        if self.demarcation == AFZETTINGEN.BAKENS:
-            barriertype = "beacons"
-        elif self.demarcation == AFZETTINGEN.BARRIER_ONDER_80CM:
-            barriertype = "barriers < 0.80 m"
-        elif self.demarcation == AFZETTINGEN.BARRIER_BOVEN_80CM:
-            barriertype = "barriers \u2265 0.80 m"
-
-        duration = "less than a day" if self.under_24h else "over a day"
-        plt.title(f"Safety areas for request with {barriertype}, {duration}")
+        plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
             south = (lane_number - 1) * WIDTH.LANE
@@ -517,11 +508,11 @@ class Workspace:
             self.category = "A"
 
         elif ((self.request.under_24h and side_of_road == "L" and 0.0 <= crit_dist <= 1.10)
-              or (self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10)):
+                or (self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 1.10)):
             self.category = "B"
 
         elif ((not self.request.under_24h and side_of_road == "L" and 0.0 <= crit_dist <= 0.25)
-              or (not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 0.25)):
+                or (not self.request.under_24h and side_of_road == "R" and 0.0 <= crit_dist <= 0.25)):
             self.category = "C"
 
         else:
