@@ -38,8 +38,8 @@ def init_logger(level: str = "DEBUG") -> logging.Logger:
     return logger
 
 
-def run_application(profiel: Profile, msi_relaties_overschrijven: bool = True) -> None:
-    logger = init_logger(level="INFO")
+def run_application(profiel: Profile, msi_relaties_overschrijven: bool = True, logger_instelling: str = "INFO") -> None:
+    logger = init_logger(level=logger_instelling)
 
     print(f"Verwerkingsproces voor {profiel.name} gestart...")
     start_time = time.time()
