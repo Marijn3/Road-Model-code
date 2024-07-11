@@ -8,13 +8,11 @@
 # Uitvoer: MSI-relatiebestand, SVG-visualisatie, JSON-invoerbestand voor ILP.
 # =====================================
 
-from Settings.profiles import Run
+from Settings.profiles import *
 from application_steps import run_application
-
-run = Run()
 
 # Maak aanpassingen in onderstaande regels:
 run_application(
-    profiel=run.vught,  # Locatie om uit te voeren.
+    profiel=Vught(),  # Profiel en locatie om uit te voeren.
     msi_relaties_overschrijven=True,  # Keuze om (aangepaste) MSI relaties te behouden of overschrijven.
 )
