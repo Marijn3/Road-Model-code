@@ -4,6 +4,8 @@ from Settings.profiles import *
 from application_steps import init_logger
 import traceback
 
+# Runs a number of examples, to test for processing errors.
+
 logger = init_logger(level="INFO")
 profiles = [Vught(), Oosterhout(), Goirle(), Vinkeveen(), A27(), A27Recht(), Zonzeel(), Bavel(),
             Grijsoord(), Zuidasdok(), Everdingen(), A2VK(), Lankhorst(), Amstel()]
