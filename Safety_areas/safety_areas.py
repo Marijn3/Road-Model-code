@@ -107,7 +107,6 @@ class Rand:
 
 
 class Aanvraag:
-
     # Source: "WIU 2020 - Werken op autosnelwegen 03-10-2023 Rijkswaterstaat", p24
     __SPHERE_OF_INFLUENCE = {
         130: 13,  # maximum velocity in km/h -> sphere of influence in m
@@ -376,8 +375,8 @@ class Aanvraag:
         edgecolor = "brown" if area.surface_type == REQUEST else "none"
 
         rect = matplotlib.patches.Rectangle(xy=(area.km[0], y),
-                                            width=area.km[1]-area.km[0],
-                                            height=x-y,
+                                            width=area.km[1] - area.km[0],
+                                            height=x - y,
                                             facecolor=COLORMAP[area.surface_type],
                                             edgecolor=edgecolor,
                                             linewidth=2.0,
@@ -421,10 +420,12 @@ class Workspace:
             self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
         if self.category == "A":
-            self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
+            if abs(self.edges[self.request.open_side].distance) > 0.80:
+                self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
             lane = self.request.first_main_lane_nr if self.request.open_side == "R" else self.request.last_main_lane_nr
-            self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
+            if abs(self.edges[self.request.open_side].distance) > 0.80:
+                self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
         elif self.category == "C":
             self.request.requires_lane_narrowing = True
             self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
