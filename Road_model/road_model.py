@@ -113,14 +113,14 @@ class DataFrameLader:
         self.profile = profile
         # List all data layer files to be loaded. Uses same structure as WEGGEG.
         self.__FILE_PATHS = [
-            f"{self.profile.data_folder}/Wegvakken/wegvakken.dbf",
-            f"{self.profile.data_folder}/Rijstroken/rijstroken.dbf",
-            f"{self.profile.data_folder}/Mengstroken/mengstroken.dbf",
-            f"{self.profile.data_folder}/Kantstroken/kantstroken.dbf",
-            f"{self.profile.data_folder}/Maximum snelheid/max_snelheden.dbf",
-            f"{self.profile.data_folder}/Convergenties/convergenties.dbf",
-            f"{self.profile.data_folder}/Divergenties/divergenties.dbf",
-            f"{self.profile.data_folder}/Rijstrooksignaleringen/strksignaleringn.dbf",
+            f"{self.profile.data_folder}/Wegvakken/wegvakken.shp",
+            f"{self.profile.data_folder}/Rijstroken/rijstroken.shp",
+            f"{self.profile.data_folder}/Mengstroken/mengstroken.shp",
+            f"{self.profile.data_folder}/Kantstroken/kantstroken.shp",
+            f"{self.profile.data_folder}/Maximum snelheid/max_snelheden.shp",
+            f"{self.profile.data_folder}/Convergenties/convergenties.shp",
+            f"{self.profile.data_folder}/Divergenties/divergenties.shp",
+            f"{self.profile.data_folder}/Rijstrooksignaleringen/strksignaleringn.shp",
         ]
         self.data = {}
         self.__lane_mapping_h = self.__construct_lane_mapping("H")
@@ -197,7 +197,8 @@ class DataFrameLader:
         Returns:
             gpd.GeoDataFrame: The GeoDataFrame with selected data.
         """
-        return gpd.read_file(file_path, bbox=self.extent)  # This part takes relatively long for small areas.
+        # Note: For small areas, the majority of processing time is spent on this step.
+        return gpd.read_file(file_path, bbox=self.extent)
 
     @staticmethod
     def __get_layer_name(file_path) -> str:

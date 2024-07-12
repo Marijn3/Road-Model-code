@@ -1,9 +1,9 @@
 # =====================================
-# Code behorende aan afstudeerproject "Derivation and analysis of lane signaling".
-# Geschreven door Marijn Minkenberg, 2024, MSc kandidaat aan TU/e.
+# Script bij afstudeerproject "Derivation and analysis of lane signaling".
+# Geschreven door Marijn Minkenberg, 2024, TU/e MSc kandidaat.
 #
 # Dit is het hoofdbestand. Stel hieronder uw voorkeuren in.
-# Profielen kunen worden toegevoegd en aangepast in run_profiles.py.
+# Profielen kunen worden toegevoegd en aangepast in Settings/profiles.py.
 # Invoer: WEGGEG-data.
 # Uitvoer: MSI-relatiebestand, SVG-visualisatie, JSON-invoerbestand voor ILP.
 # =====================================
