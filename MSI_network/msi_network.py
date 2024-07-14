@@ -721,11 +721,12 @@ class MSI:
 
             if annotation:
                 # Broadening relation
-                if check(annotation, self.lane_nr, "StrookStart"):
-                    if self.lane_nr == 1 and this_lane_projected - 1 in d_row.MSIs.keys():  # Left side
-                        self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
-                    elif self.lane_nr > 1 and this_lane_projected + 1 in d_row.MSIs.keys():  # Right side
-                        self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
+                if (check(annotation, self.lane_nr + 1, "StrookStart")
+                        and this_lane_projected + 1 in d_row.MSIs.keys()):  # Right side
+                    self.make_connection(d_row.MSIs[this_lane_projected + 1], self, "b")
+                if (check(annotation, self.lane_nr, "StrookStart")
+                        and this_lane_projected - 1 in d_row.MSIs.keys()):  # Left side
+                    self.make_connection(d_row.MSIs[this_lane_projected - 1], self, "b")
 
                 # Narrowing relation
                 if check(annotation, self.lane_nr, "StrookEinde"):
