@@ -418,7 +418,7 @@ class WegModel:
             elif isinstance(feature_info.pos_eigs.geometrie, LineString):
                 self.__merge_section(feature_info)
             else:
-                logger.warning(f"Het volgende wordt niet toegevoegd. Controleer dit onderdeel in WEGGEG-data:\n{row}")
+                logger.warning(f"De volgende feature wordt niet toegevoegd. Controleer dit onderdeel in WEGGEG-data:\n{row}")
 
         if df_name == "Wegvakken":
             self.__has_reference_layer = True
@@ -846,10 +846,10 @@ class WegModel:
         # First, check whether the sections have an overlapping range at all, which
         # means the more complex intersection() function doesn't need to be called.
         if not determine_range_overlap(pos1.km, pos2.km):
-            return None  # TODO : Check whether this should stay or go.
+            return None
 
         # Then, check if the overlap between the geometries is of the same dimension as the geometries.
-        # (This not used, as it is too strict)
+        # (This check is not used, as it is too strict)
         # if not overlaps(pos1.geometrie, pos2.geometrie):
         #     return None
 
@@ -937,7 +937,7 @@ class WegModel:
                 change_made = True
 
             if change_made:
-                logger.debug(f"Overlap aangepakt door vluchtstrook op te schuiven: {dict_new}")
+                logger.debug(f"Overlap aangepakt door strook op te schuiven: {dict_new}")
             else:
                 logger.warning(f"Onopgeloste overlappende rijstrooknummers {overlap_numbers}\n"
                                f"tussen {dict_model} en {dict_new}. Dit gebeurt voor {roadmodel_section.pos_eigs}")
@@ -1392,7 +1392,6 @@ class WegModel:
 
         angles = []
         for line in overlapping_lines:
-            # TODO: speed up using shapely.boundary()
             line_points = [point for point in line.pos_eigs.geometrie.coords]
             closest_point = min(line_points, key=lambda coord: distance(point_geom, Point(coord)))
             closest_index = line_points.index(closest_point)

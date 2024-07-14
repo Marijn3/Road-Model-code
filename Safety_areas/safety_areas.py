@@ -142,7 +142,7 @@ class Aanvraag:
             raise Exception(f"Combinatie van km, wegkant en hectoletter niet gevonden in wegmodel:\n"
                             f"{self.km} {self.roadside} {self.hecto_character}")
 
-        # Temporary assumption: only one section below request (first section) TODO: Remove assumption.
+        # Assumption: only one section below request (first section)
         self.road_id = next(iter(self.sections.keys()))
         self.road_info = next(iter(self.sections.values()))
         self.n_lanes = self.road_info.verw_eigs.aantal_stroken

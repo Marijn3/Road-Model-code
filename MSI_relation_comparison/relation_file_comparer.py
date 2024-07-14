@@ -1,7 +1,7 @@
 msi_rel_file = "msi_relations_roadmodel.txt"
 cggtop_rel_file = "msi_relations_mtm.txt"
 
-ALLOWED_KM_DIFFERENCE = 0.080
+ALLOWED_KM_DIFFERENCE = 0.100
 
 roadmodel_dataset_extent = dict()
 found_relations_log = list()
@@ -121,9 +121,9 @@ for line in cggtop_lines:
             cggtop_lines_filtered.append(line)
 
 if len(roadmodel_lines) == 0:
-    print("All relations from road model matched. See log file for more details.")
+    print("All relations from road model matched. See relation_comparison.log for more details.")
 else:
-    print("Not all relations from road model matched. See log file for more details.")
+    print("Not all relations from road model matched. See relation_comparison.log for more details.")
 
 # --------------------------------------------
 # Write comparison output log

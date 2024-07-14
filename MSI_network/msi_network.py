@@ -622,7 +622,7 @@ class MSI:
             self.properties["DYN_V"] = dyn_v2
 
         # TODO: Determine when C_V and C_X are true, based on road properties.
-        #  This can be found through WEGGEG/kunstinweg 'viaduct', 'tunnel', 'brug' registrations,
+        #  This can be found through WEGGEG -> kunstinweg -> 'viaduct', 'tunnel', 'brug' registrations,
         #  as described in the report. Additionally, MSIs which are nearby each other have
         #  a continue-X relation with the upstream MSI rows.
         self.properties["C_X"] = False  # Unfinished
@@ -664,7 +664,7 @@ class MSI:
         self.properties["row"] = [msi.name for msi in self.row.MSIs.values()]
 
         if check(self.row.local_road_properties, self.lane_nr, ["Spitsstrook", "Plusstrook"]):
-            # TODO: Replace 'self.name' with RHL trajectory name. See report J. van Meurs p67 for a description.
+            # TODO: Replace this with RHL trajectory name. (See report J. van Meurs p67 for expected format)
             self.properties["RHL"] = (f"{self.row.local_road_info.pos_eigs.wegnummer}"
                                       f"{self.row.local_road_info.pos_eigs.rijrichting}")  # Unfinished
             if self.row.n_lanes > self.lane_nr > 1:
