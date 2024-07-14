@@ -554,7 +554,7 @@ class SvgMaker:
                 self.__handle_puntstuk(section_info, line_coords, right_lane_type)
                 break
 
-            lane_marking_type = markeringen[left_lane_type].get(right_lane_type, None)
+            lane_marking_type = markeringen.get(left_lane_type, {}).get(right_lane_type, None)
             if lane_marking_type is None:
                 logger.warning(f"Lijn tussen {left_lane_type} en {right_lane_type} niet gevonden. "
                                f"Wegmarkering werd uitgewerkt voor: {section_info}")
