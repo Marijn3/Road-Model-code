@@ -89,6 +89,11 @@ class Grijsoord(Profile):
         super().__init__(locatie="Grijsoord", secundaire_kruisrelaties=True)
 
 
+class Tilburg(Profile):
+    def __init__(self):
+        super().__init__(locatie="Tilburg", secundaire_kruisrelaties=True)
+
+
 class Zuidasdok(Profile):
     def __init__(self):
         super().__init__(locatie="Zuidasdok", secundaire_kruisrelaties=False, strookbreedte=3.0)
@@ -123,7 +128,7 @@ class AmstelCasestudy(Profile):
 class Custom(Profile):
     def __init__(self):
         super().__init__(
-            locatie={"west": 112962, "zuid": 371521, "oost": 181731, "noord": 418831},
+            locatie={"noord": 393700, "oost": 112700, "zuid": 393100, "west": 111800},
             secundaire_kruisrelaties=False,
         )
 
@@ -143,4 +148,5 @@ locatie_coords = {
     "Lankhorst": {"noord": 520800, "oost": 210800, "zuid": 519100, "west": 209300},
     "Amstel": {"noord": 484200, "oost": 126100, "zuid": 480900, "west": 118300},
     "A27Recht": {"noord": 410600, "oost": 121000, "zuid": 407000, "west": 119000},
+    "Tilburg": {"noord": 394500, "oost": 135400, "zuid": 393000, "west": 133800},
 }
