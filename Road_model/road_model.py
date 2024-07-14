@@ -253,13 +253,13 @@ class DataFrameLader:
 
     def __edit_point_registration_columns(self, dataframe: pd.DataFrame, name) -> pd.DataFrame:
         df = dataframe.copy()
-        if name == "Convergenties":
+        if name == "Convergenties" and not df.empty:
             df["TYPE"] = df["TYPE_CONV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
 
-        if name == "Divergenties":
+        if name == "Divergenties" and not df.empty:
             df["TYPE"] = df["TYPE_DIV"].apply(lambda entry: self.__VERGENCE_NAME_MAPPING[entry])
 
-        if name == "Rijstrooksignaleringen":
+        if name == "Rijstrooksignaleringen" and not df.empty:
             df = df[df["CODE"] == "KP"]  # Select only the KP (kruis-pijl) signaling (same as AU)
             df = df.assign(TYPE="Signalering")
 
