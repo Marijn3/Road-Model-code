@@ -518,18 +518,6 @@ class WegModel:
                 lane_nr_special = row["VOLGNRSTRK"]
                 section_info.obj_eigs["Special"] = (special, lane_nr_special)
 
-        elif name == "Kantstroken":
-            # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
-            lane_number = row["VNRWOL"]
-
-            if pd.isna(lane_number):
-                logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
-                lane_number = 1
-
-            section_info.obj_eigs[lane_number] = row["OMSCHR"]
-            if row["MAX_SNELH"]:
-                section_info.obj_eigs["Maximumsnelheid_Open_Spitsstrook"] = int(row["MAX_SNELH"])
-
         elif name == "Mengstroken":
             first_lane_number = row["VNRWOL"]
             n_lanes, special = row["LANE_INFO"]
@@ -544,7 +532,27 @@ class WegModel:
 
             # Take note of special circumstances on this feature.
             if special:
-                section_info.obj_eigs["Special"] = (special, first_lane_number)
+                # The broadening / narrowing happens on either on the leftmost lane of the registation
+                # or on the rightmost. Always the rightmost if the special is not on the first lane.
+                if special in ["StrookStart", "StrookEinde"] and first_lane_number != 1:
+                    section_info.obj_eigs["Special"] = (special, first_lane_number + n_lanes - 1)
+                else:
+                    section_info.obj_eigs["Special"] = (special, first_lane_number)
+
+        elif name == "Kantstroken":
+            # Indicate lane number and type of kantstrook. Example: {3: "Spitsstrook"}
+            lane_number = row["VNRWOL"]
+
+            if pd.isna(lane_number):
+                logger.warning(f"Registratie heeft geen VNRWOL:\n{row}")
+                lane_number = 1
+
+            section_info.obj_eigs[lane_number] = row["OMSCHR"]
+            if section_info.obj_eigs[lane_number] == "Plusstrook":
+                section_info.obj_eigs[lane_number] = "Spitsstrook"
+
+            if row["MAX_SNELH"]:
+                section_info.obj_eigs["Maximumsnelheid_Open_Spitsstrook"] = int(row["MAX_SNELH"])
 
         elif name == "Maximum snelheid":
             if (not row["BEGINTIJD"] or pd.isna(row["BEGINTIJD"])
