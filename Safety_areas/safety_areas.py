@@ -340,6 +340,18 @@ class Aanvraag:
         plt.ylim([y_min, y_max])
         plt.xlabel("Length [km]")
         plt.ylabel("Width [m] (estimate for visualization)")
+
+        # Alternative plot titles
+        # if self.demarcation == AFZETTINGEN.BAKENS:
+        #     barriertype = "beacons"
+        # elif self.demarcation == AFZETTINGEN.BARRIER_ONDER_80CM:
+        #     barriertype = "barriers < 0.80 m"
+        # elif self.demarcation == AFZETTINGEN.BARRIER_BOVEN_80CM:
+        #     barriertype = "barriers \u2265 0.80 m"
+        #
+        # duration = "less than a day" if self.under_24h else "over a day"
+        # plt.title(f"Safety areas for request with {barriertype}, {duration}")
+
         plt.title(f"Safety areas for request with category {self.workspace.category}")
 
         for lane_number in self.all_lane_nrs:
@@ -424,8 +436,7 @@ class Workspace:
                 self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
             lane = self.request.first_main_lane_nr if self.request.open_side == "R" else self.request.last_main_lane_nr
-            if abs(self.edges[self.request.open_side].distance) > 0.80:
-                self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
+            self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
         elif self.category == "C":
             self.request.requires_lane_narrowing = True
             self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
