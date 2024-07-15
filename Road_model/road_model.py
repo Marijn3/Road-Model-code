@@ -625,6 +625,14 @@ class WegModel:
             # Case 1: overlap_geometry == other_info, the road model section is completely covered by the new section
             if startpoint_overlap and endpoint_overlap:
                 logger.debug("Deze overlap valt onder situatie 1")
+                if (road_model_info.pos_eigs.rijrichting == "L"
+                        and not (road_model_info.pos_eigs.km[0] <= feature_info.pos_eigs.km[0] and
+                                 road_model_info.pos_eigs.km[1] >= feature_info.pos_eigs.km[1]) or
+                   road_model_info.pos_eigs.rijrichting == "R"
+                        and not (road_model_info.pos_eigs.km[0] >= feature_info.pos_eigs.km[0] and
+                                 road_model_info.pos_eigs.km[1] <= feature_info.pos_eigs.km[1])):
+                    logger.warning(f"(Case1) Fout in de verwerking of in de km-registraties "
+                                   f"van {road_model_info} / {feature_info}.")
                 self.__update_section(road_model_index, new_obj_eigs=feature_info.obj_eigs)
 
             # Case 2: overlap and road model section start at the same point, but overlap ends earlier
@@ -637,7 +645,8 @@ class WegModel:
                     road_model_info.pos_eigs.km[1]
                 ]
                 if km_registrations[2] == km_registrations[3]:
-                    logger.warning(f"Fout in de verwerking of in de km-registraties van {feature_info} / {road_model_info}.")
+                    logger.warning(f"(Case2) Fout in de verwerking of in de km-registraties "
+                                   f"van {road_model_info} / {feature_info}.")
                     continue
 
                 remainder_geometry = self.__get_first_remainder(road_model_info.pos_eigs.geometrie, overlap_geometry)
@@ -668,7 +677,8 @@ class WegModel:
                     road_model_info.pos_eigs.km[1]
                 ]
                 if km_registrations[0] == km_registrations[1]:
-                    logger.warning(f"Fout in de verwerking of in de km-registraties van {feature_info} / {road_model_info}.")
+                    logger.warning(f"(Case3) Fout in de verwerking of in de km-registraties "
+                                   f"van {road_model_info} / {feature_info}.")
                     continue
 
                 remainder_geometry = self.__get_first_remainder(road_model_info.pos_eigs.geometrie, overlap_geometry)
@@ -699,7 +709,8 @@ class WegModel:
                     road_model_info.pos_eigs.km[1]
                 ]
                 if km_registrations[0] == km_registrations[1] or km_registrations[2] == km_registrations[3]:
-                    logger.warning(f"Fout in de verwerking of in de km-registraties van {feature_info} / {road_model_info}.")
+                    logger.warning(f"(Case4) Fout in de verwerking of in de km-registraties "
+                                   f"van {road_model_info} / {feature_info}.")
                     continue
 
                 remainder_geometries = self.__get_remainders(road_model_info.pos_eigs.geometrie, overlap_geometry)
