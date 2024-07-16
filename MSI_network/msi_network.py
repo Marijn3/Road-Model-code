@@ -377,7 +377,6 @@ class MSINetwerk:
                 shift, annotation, current_section.verw_eigs, downstream, first_iteration
             )
 
-
             return self.__find_msi_recursive(next_section_id, other_point.pos_eigs, downstream,
                                              shift, current_distance, lane_bounds, annotation)
 
@@ -391,7 +390,12 @@ class MSINetwerk:
         assert cont_section_id is not None and div_section_id is not None,\
             "Er gaat waarschijnlijk iets mis met een *vergentiepunt"
 
-        lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
+        if check(self.wegmodel.sections[div_section_id].obj_eigs, 1, "Puntstuk"):
+            shift_adjustment = 1
+        else:
+            shift_adjustment = 0
+
+        lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift + shift_adjustment, annotation)
 
         _, shift_div = self.wegmodel.get_n_lanes(self.wegmodel.sections[cont_section_id].obj_eigs)
 
@@ -404,7 +408,8 @@ class MSINetwerk:
                                                         shift, current_distance, lane_bounds, annotation)
 
         option_diversion = self.__find_msi_recursive(div_section_id, other_point.pos_eigs, downstream,
-                                                     shift - shift_div, current_distance, lane_bounds, annotation)
+                                                     shift - shift_div + shift_adjustment, current_distance,
+                                                     lane_bounds, annotation)
 
         # Combine both options as one list, without nesting.
         if isinstance(option_continuation, list):
@@ -469,6 +474,8 @@ class MSINetwerk:
             elif ((downstream and new_annotation[1] == "StrookEinde")
                     or (not downstream and new_annotation[1] == "StrookStart")):
                 shift = shift - 1
+            elif downstream and new_annotation[1] == "Puntstuk":
+                shift = shift - 1
 
         # Join dicts while preventing aliasing issues.
         return shift, dict(list(annotation.items()) + list(new_annotation.items()))
@@ -521,7 +528,8 @@ class MSINetwerk:
                                if keyword == "Special" and value[0] in ["TaperConvergentie", "StrookEinde"]})
             annotation.update({lane_nr - shift: lane_type
                                for lane_nr, lane_type in section_verw_eigs.einde_kenmerk.items()
-                               if lane_type == "Invoegstrook"})
+                               if lane_type in ["Invoegstrook", "Puntstuk"]})
+            # Puntstuk is added here to adjust the shift when wedge is on the left side of the road
 
         return annotation
 
