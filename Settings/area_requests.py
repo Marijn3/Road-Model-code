@@ -76,7 +76,7 @@ aanvragen = {
         "hectoletter": "",
         "korter_dan_24h": True,
         "randen": {"L": Rand(rijstrook=None, afstand=-1.8),
-                   "R": Rand(rijstrook=None, afstand=-0.8)},
+                   "R": Rand(rijstrook=None, afstand=-0.45)},
         "afzetting": AFZETTINGEN.BAKENS,
     },
     "Bakens, lang": {
@@ -85,7 +85,7 @@ aanvragen = {
         "hectoletter": "",
         "korter_dan_24h": False,
         "randen": {"L": Rand(rijstrook=None, afstand=-1.8),
-                   "R": Rand(rijstrook=None, afstand=-0.8)},
+                   "R": Rand(rijstrook=None, afstand=-0.45)},
         "afzetting": AFZETTINGEN.BAKENS,
     },
     "Barriers laag, kort": {
@@ -94,7 +94,7 @@ aanvragen = {
         "hectoletter": "",
         "korter_dan_24h": True,
         "randen": {"L": Rand(rijstrook=None, afstand=-1.8),
-                   "R": Rand(rijstrook=None, afstand=-0.8)},
+                   "R": Rand(rijstrook=None, afstand=-0.45)},
         "afzetting": AFZETTINGEN.BARRIER_ONDER_80CM,
     },
     "Barriers laag, lang": {
@@ -103,7 +103,7 @@ aanvragen = {
         "hectoletter": "",
         "korter_dan_24h": False,
         "randen": {"L": Rand(rijstrook=None, afstand=-1.8),
-                   "R": Rand(rijstrook=None, afstand=-0.8)},
+                   "R": Rand(rijstrook=None, afstand=-0.45)},
         "afzetting": AFZETTINGEN.BARRIER_ONDER_80CM,
     },
     "Barriers hoog, kort": {
@@ -112,7 +112,7 @@ aanvragen = {
         "hectoletter": "",
         "korter_dan_24h": True,
         "randen": {"L": Rand(rijstrook=None, afstand=-1.8),
-                   "R": Rand(rijstrook=None, afstand=-0.8)},
+                   "R": Rand(rijstrook=None, afstand=-0.45)},
         "afzetting": AFZETTINGEN.BARRIER_BOVEN_80CM,
     },
     "Barriers hoog, lang": {
@@ -121,7 +121,7 @@ aanvragen = {
         "hectoletter": "",
         "korter_dan_24h": False,
         "randen": {"L": Rand(rijstrook=None, afstand=-1.8),
-                   "R": Rand(rijstrook=None, afstand=-0.8)},
+                   "R": Rand(rijstrook=None, afstand=-0.45)},
         "afzetting": AFZETTINGEN.BARRIER_BOVEN_80CM,
     },
 }
