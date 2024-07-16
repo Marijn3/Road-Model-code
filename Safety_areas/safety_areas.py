@@ -9,8 +9,8 @@ from ILP.Server.Library.svg_library import toggle_visibility
 
 logger = logging.getLogger(__name__)
 
-NEG_ZERO = -0.00001
 POS_ZERO = 0.00001
+NEG_ZERO = -POS_ZERO
 
 REQUEST = 200
 WORKSPACE = 201
@@ -22,13 +22,6 @@ COLORMAP = {
     CLOSED_SPACE: "#13AFE1",
     EMPTY_SPACE: "#FBD799",
     WORKSPACE: "#F49510",
-}
-
-RUIMTE_NAMEN = {
-    REQUEST: "Aanvraag",
-    CLOSED_SPACE: "Werkvak",
-    EMPTY_SPACE: "Veiligheidsruimte",
-    WORKSPACE: "Werkruimte",
 }
 
 AREA_NAMES = {
@@ -128,7 +121,7 @@ class Aanvraag:
         self.demarcation = instellingen["afzetting"]
         self.max_v = 70
 
-        self.run_sanity_checks()
+        self.__run_sanity_checks()
 
         logger.info(f"Aanvraag met kmrange {self.km[0]} - {self.km[1]} km, "
                     f"randen {self.edges}, korter dan 24h = {self.under_24h}.")
@@ -159,30 +152,29 @@ class Aanvraag:
         self.last_main_lane_nr = max(self.main_lane_nrs)
         self.n_main_lanes = len(self.main_lane_nrs)
 
-        self.msis_red_cross = []
-        self.measure_request = {}
-
         self.workspace = Workspace(self)
         self.empty_space = EmptySpace(self)
         self.closed_space = ClosedSpace(self)
 
-        self.legend_pattern = []
+        self.__measure_request = {}
+        self.__legend_pattern = []
+        self.msis_red_cross = []
 
-        self.final_workspaces = set()
-        self.final_empty_spaces = set()
-        self.final_closed_spaces = set()
+        self.__final_workspaces = set()
+        self.__final_empty_spaces = set()
+        self.__final_closed_spaces = set()
 
-        self.step_1_determine_initial_workspace()
-        self.step_2_determine_area_sizes()
-        self.step_3_generate_measure_request()
+        self.__step_1_determine_initial_workspace()
+        self.__step_2_determine_area_sizes()
+        self.__step_3_generate_measure_request()
 
-        if not self.measure_request["legend_requests"]:
+        if not self.__measure_request["legend_requests"]:
             logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
         else:
-            self.step_4_solve_measure_request()
-            self.step_5_adjust_area_sizes()
+            self.__step_4_solve_measure_request()
+            self.__step_5_adjust_area_sizes()
 
-    def run_sanity_checks(self) -> None:
+    def __run_sanity_checks(self) -> None:
         assert len(self.edges) == 2, \
             "Specificeer beide randen."
         assert self.edges["L"].distance and self.edges["R"].distance, \
@@ -190,11 +182,11 @@ class Aanvraag:
         assert abs(self.edges["L"].distance) != abs(self.edges["R"].distance), \
             "Specificeer ongelijke afstanden."  # TODO: Specify when this is an issue
 
-    def step_1_determine_initial_workspace(self) -> None:
+    def __step_1_determine_initial_workspace(self) -> None:
         self.workspace.determine_category()
         self.workspace.apply_category_measures()
 
-    def step_2_determine_area_sizes(self) -> None:
+    def __step_2_determine_area_sizes(self) -> None:
         # Part 1: Determine minimal width from the original area
         self.empty_space.adjust_edges_to_workspace()
         self.closed_space.adjust_edges_to_empty_space()
@@ -209,32 +201,32 @@ class Aanvraag:
         self.empty_space.adjust_length_to_closed_space()
         self.workspace.adjust_length_to_empty_space()
 
-        self.plot_areas()
+        self.__plot_areas()
 
-    def step_3_generate_measure_request(self) -> None:
+    def __step_3_generate_measure_request(self) -> None:
         self.closed_space.obtain_msis_inside()
         self.closed_space.determine_measure_request()
-        self.report_request()
+        self.__report_request()
 
-    def step_4_solve_measure_request(self) -> None:
-        self.send_request()
-        self.visualize_response()
+    def __step_4_solve_measure_request(self) -> None:
+        self.__send_request()
+        self.__visualize_response()
 
-    def step_5_adjust_area_sizes(self) -> None:
-        self.final_closed_spaces.add(self.closed_space)
-        self.final_empty_spaces.add(self.empty_space)
-        self.final_workspaces.add(self.workspace)
+    def __step_5_adjust_area_sizes(self) -> None:
+        self.__final_closed_spaces.add(self.closed_space)
+        self.__final_empty_spaces.add(self.empty_space)
+        self.__final_workspaces.add(self.workspace)
 
-        if not self.legend_pattern:
+        if not self.__legend_pattern:
             logger.info("De gebieden veranderen niet, want er is geen effect op de signaalgevers.")
             return
 
-        self.determine_final_closed_spaces()
+        self.__determine_final_closed_spaces()
 
-    def determine_final_closed_spaces(self) -> None:
+    def __determine_final_closed_spaces(self) -> None:
         cross_locations = {}
 
-        for legend in self.legend_pattern:
+        for legend in self.__legend_pattern:
             if legend[0] == "x":  # Filter for cross legends
                 lane_number = int(legend[-2])
                 km = float(legend[-9:-3])
@@ -282,8 +274,6 @@ class Aanvraag:
         km_range = [km_string[0], km_string[1]]
         change_analysis.append((km_range, current_lanes))
 
-        logger.info(change_analysis)
-
         for change_data in change_analysis:
             km_range, lanes = change_data
             if self.open_side == "L":
@@ -301,18 +291,12 @@ class Aanvraag:
 
             if not edges == self.closed_space.edges and not km_range_covered:
                 partial_closed_space = ClosedSpace(self, edges, km_range)
-                self.final_closed_spaces.add(partial_closed_space)
+                self.__final_closed_spaces.add(partial_closed_space)
 
-        logger.info([(space.edges, space.km) for space in self.final_closed_spaces])
+        logger.info([(space.edges, space.km) for space in self.__final_closed_spaces])
 
-    def visualize_response(self) -> None:
-        """Visualize legend pattern in svg"""
-        svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
-        toggle_visibility(svg_file, self.legend_pattern)
-        logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
-
-    def send_request(self) -> None:
-        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.measure_request}")
+    def __send_request(self) -> None:
+        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.__measure_request}")
 
         scenario = {
             "name": "SafetyAreaA27",
@@ -322,11 +306,17 @@ class Aanvraag:
         }
 
         ilp = ILPSender()
-        self.legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
+        self.__legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.__measure_request})
 
-        logger.info(f"Antwoord van ILP: {self.legend_pattern}")
+        logger.info(f"Antwoord van ILP: {self.__legend_pattern}")
 
-    def plot_areas(self) -> None:
+    def __visualize_response(self) -> None:
+        """Visualize legend pattern in svg"""
+        svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
+        toggle_visibility(svg_file, self.__legend_pattern)
+        logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
+
+    def __plot_areas(self) -> None:
         fig = plt.figure()
         ax = fig.add_subplot()
 
@@ -370,17 +360,17 @@ class Aanvraag:
                                                 facecolor=color)
             ax.add_patch(lane)
 
-        self.plot_area(ax, self.closed_space)
-        self.plot_area(ax, self.empty_space)
-        self.plot_area(ax, self.workspace)
-        self.plot_area(ax, self)
+        self.__plot_area(ax, self.closed_space)
+        self.__plot_area(ax, self.empty_space)
+        self.__plot_area(ax, self.workspace)
+        self.__plot_area(ax, self)
 
         plt.gca().invert_yaxis()
 
         ax.legend()
         plt.show()
 
-    def plot_area(self, ax, area) -> None:
+    def __plot_area(self, ax, area) -> None:
         y = area.edges["L"].express_wrt_left_marking(self.n_main_lanes)
         x = area.edges["R"].express_wrt_left_marking(self.n_main_lanes)
 
@@ -395,7 +385,7 @@ class Aanvraag:
                                             label=AREA_NAMES[area.surface_type])
         ax.add_patch(rect)
 
-    def report_request(self) -> None:
+    def __report_request(self) -> None:
         logger.info(f"Aanvraag aangemaakt met km {self.km} en randen {self.edges}")
         logger.info(f"Werkruimte aangemaakt met km {self.workspace.km} en randen {self.workspace.edges}")
         logger.info(f"Veiligheidsruimte aangemaakt met km {self.empty_space.km} en randen {self.empty_space.edges}")
@@ -412,14 +402,14 @@ class Workspace:
 
     def determine_category(self) -> None:
         if self.request.edges["L"].lane and self.request.edges["R"].lane:
-            self.determine_request_category_onroad()
+            self.__determine_request_category_onroad()
         elif self.request.edges["L"].lane or self.request.edges["R"].lane:
             # TODO: Implement this situation.
             #  This is still onroad, so still category D.
             #  It is now certain to expand in the direction of the off-road edge.
             logger.warning("Deze situatie is nog niet uitgewerkt. De werkruimte wordt even groot als de aanvraag.")
         else:
-            self.determine_request_category_roadside()
+            self.__determine_request_category_roadside()
 
         if not self.category:
             logger.info("De randen van deze aanvraag hoeven niet te worden uitgebreid (geen effect op de weg).")
@@ -429,27 +419,28 @@ class Workspace:
     def apply_category_measures(self) -> None:
         other_side = "R" if self.request.open_side == "L" else "L"
         if self.edges[other_side].distance < WIDTH.EMERGENCY_LANE:
-            self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
+            self.__make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
         if self.category == "A":
             if abs(self.edges[self.request.open_side].distance) > 0.80:
                 self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
         elif self.category == "B":
             lane = self.request.first_main_lane_nr if self.request.open_side == "R" else self.request.last_main_lane_nr
-            self.make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
+            if abs(self.edges[self.request.open_side].distance) > 0.80:
+                self.__make_edge(side=self.request.open_side, lane=lane, distance_r=-0.81)
         elif self.category == "C":
             self.request.requires_lane_narrowing = True
-            self.make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
+            self.__make_edge(side=self.request.open_side, lane=None, distance_r=NEG_ZERO)
         elif self.category == "D":
-            self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
+            self.__make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
-    def make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
+    def __make_edge(self, side: str, lane: int | None, distance_r: float) -> None:
         if side == "L":
             distance_r = -distance_r
         self.edges[side] = Rand(rijstrook=lane, afstand=+distance_r)
 
-    def determine_request_category_onroad(self) -> None:
-        self.do_onroad_sanity_checks()
+    def __determine_request_category_onroad(self) -> None:
+        self.__do_onroad_sanity_checks()
         self.category = "D"
 
         # Determine if expansion is not necessary. When the request goes all the way up
@@ -463,9 +454,9 @@ class Workspace:
             self.request.open_side = "L"
             return
 
-        self.request.open_side = self.determine_open_side()
+        self.request.open_side = self.__determine_open_side()
 
-    def do_onroad_sanity_checks(self) -> None:
+    def __do_onroad_sanity_checks(self) -> None:
         assert self.request.edges["L"].lane is None or self.request.edges["L"].lane in self.request.main_lane_nrs, \
             "Opgegeven rijstrooknummer voor rand links behoort niet tot de hoofdstroken."
         assert self.request.edges["R"].lane is None or self.request.edges["R"].lane in self.request.main_lane_nrs, \
@@ -475,7 +466,7 @@ class Workspace:
         assert self.request.edges["R"].distance is None or self.request.edges["R"].distance <= 0, \
             "Geef een negatieve afstand voor de rechterrand op."
 
-    def determine_open_side(self) -> str:
+    def __determine_open_side(self) -> str:
         n_main_lanes_left = self.request.edges["L"].lane - self.request.first_main_lane_nr
         n_main_lanes_right = self.request.last_main_lane_nr - self.request.edges["R"].lane
 
@@ -493,7 +484,7 @@ class Workspace:
                 open_side = "L"
             return open_side
 
-    def determine_request_category_roadside(self) -> None:
+    def __determine_request_category_roadside(self) -> None:
         if abs(self.edges["L"].distance) < abs(self.edges["R"].distance):
             crit_dist = self.edges["L"].distance  # Space closest to road
         else:
@@ -627,7 +618,7 @@ class ClosedSpace:
                     msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi.obj_eigs["Rijstrooknummers"]]
                     msi_rows_inside.append((msi, msis_for_crosses))
 
-        self.request.msis_red_cross = msi_rows_inside
+        self.request.__msis_red_cross = msi_rows_inside
 
     def determine_measure_request(self) -> None:
         # See report J. van Meurs page 71 for an explanation of this request structure
@@ -638,12 +629,12 @@ class ClosedSpace:
             "options": {}
         }
 
-        for msi, lane_nrs in self.request.msis_red_cross:
+        for msi, lane_nrs in self.request.__msis_red_cross:
             if not lane_nrs:
                 continue
             for lane_nr in lane_nrs:
                 request_options["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
-        self.request.measure_request = request_options
+        self.request.__measure_request = request_options
 
 
 def make_ILP_name(point_info: ObjectInfo, nr: int) -> str:
