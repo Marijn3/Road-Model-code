@@ -219,9 +219,10 @@ class DataFrameLader:
         attempting to join convert to LineStrings."""
         s1 = len(dataframe)
 
-        # Try to convert any MultiLineStrings to LineStrings.
-        # dataframe.loc[:, "geometry"] = dataframe["geometry"].apply(lambda geom: self.__convert_to_linestring(geom)
-        #                                                            if isinstance(geom, MultiLineString) else geom)
+        # One might try to convert any MultiLineStrings to LineStrings as follows:
+        # if isinstance(geom, MultiLineString):
+        #     line_merge(geom)
+        # However, this has little success.
 
         # Filter so only entries are imported where the geometry column contains a LineString or Point
         dataframe = dataframe[dataframe["geometry"].apply(lambda x: isinstance(x, (LineString, Point)))]
@@ -291,48 +292,6 @@ class DataFrameLader:
             return self.__lane_mapping_h.get(row[column], (0, None))
         else:
             return self.__lane_mapping_t.get(row[column], (0, None))
-
-    @staticmethod
-    def __convert_to_linestring(geom: MultiLineString) -> MultiLineString | LineString:
-        """
-        WIP function. This function should attempt to fix as many MultiLineString registrations as possible.
-        """
-        merged = line_merge(geom)
-        if isinstance(merged, LineString):
-            return merged
-
-        # # Catching a specific case where there is a slight mismatch in the endpoints of a MultiLineString
-        # if get_num_geometries(geom) == 2:
-        #     line1 = geom.geoms[0]
-        #     line1_points = [line1.coords[0], line1.coords[1], line1.coords[-2], line1.coords[-1]]
-        #
-        #     line2 = geom.geoms[1]
-        #     line2_points = [line2.coords[0], line2.coords[1], line2.coords[-2], line2.coords[-1]]
-        #
-        #     common_points = [point for point in line1_points if point in line2_points]
-        #     if len(common_points) == 0:
-        #         logger.debug(f"Onverbonden MultiLineString wordt overgeslagen: {line1} en {line2}")
-        #         return geom
-        #
-        #     assert not len(common_points) > 1, f"Meer dan één punt gemeen tussen {line1} en {line2}: {common_points}"
-        #
-        #     common_point = common_points[0]
-        #     index_line1 = line1_points.index(common_point)
-        #     index_line2 = line2_points.index(common_point)
-        #
-        #     if index_line1 == 1:
-        #         line1 = LineString([coord for coord in line1.coords if coord != line1_points[0]])
-        #     if index_line1 == 2:
-        #         line1 = LineString([coord for coord in line1.coords if coord != line1_points[-1]])
-        #     if index_line2 == 1:
-        #         line2 = LineString([coord for coord in line2.coords if coord != line2_points[0]])
-        #     if index_line2 == 2:
-        #         line2 = LineString([coord for coord in line2.coords if coord != line2_points[-1]])
-        #
-        #     return line_merge(MultiLineString([line1, line2]))
-
-        logger.debug(f"Omzetting naar LineString niet mogelijk (meer dan 2 geoms) voor {geom}")
-        return geom
 
 
 class WegModel:
