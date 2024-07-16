@@ -420,8 +420,7 @@ class Workspace:
             self.make_edge(side=other_side, lane=None, distance_r=+WIDTH.EMERGENCY_LANE)
 
         if self.category == "A":
-            if abs(self.edges[self.request.open_side].distance) > 0.80:
-                self.make_edge(side=self.request.open_side, lane=None, distance_r=-0.81)
+            return  # No edges need to be moved
         elif self.category == "B":
             lane = self.request.first_main_lane_nr if self.request.open_side == "R" else self.request.last_main_lane_nr
             if abs(self.edges[self.request.open_side].distance) > 0.80:
