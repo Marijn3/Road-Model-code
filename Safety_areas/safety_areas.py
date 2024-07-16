@@ -156,8 +156,8 @@ class Aanvraag:
         self.empty_space = EmptySpace(self)
         self.closed_space = ClosedSpace(self)
 
-        self.__measure_request = {}
-        self.__legend_pattern = []
+        self.measure_request = {}
+        self.legend_pattern = []
         self.msis_red_cross = []
 
         self.__final_workspaces = set()
@@ -168,7 +168,7 @@ class Aanvraag:
         self.__step_2_determine_area_sizes()
         self.__step_3_generate_measure_request()
 
-        if not self.__measure_request["legend_requests"]:
+        if not self.measure_request["legend_requests"]:
             logger.info("Deze aanvraag heeft geen effect op de signaalgevers.")
         else:
             self.__step_4_solve_measure_request()
@@ -217,7 +217,7 @@ class Aanvraag:
         self.__final_empty_spaces.add(self.empty_space)
         self.__final_workspaces.add(self.workspace)
 
-        if not self.__legend_pattern:
+        if not self.legend_pattern:
             logger.info("De gebieden veranderen niet, want er is geen effect op de signaalgevers.")
             return
 
@@ -226,7 +226,7 @@ class Aanvraag:
     def __determine_final_closed_spaces(self) -> None:
         cross_locations = {}
 
-        for legend in self.__legend_pattern:
+        for legend in self.legend_pattern:
             if legend[0] == "x":  # Filter for cross legends
                 lane_number = int(legend[-2])
                 km = float(legend[-9:-3])
@@ -296,7 +296,7 @@ class Aanvraag:
         logger.info([(space.edges, space.km) for space in self.__final_closed_spaces])
 
     def __send_request(self) -> None:
-        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.__measure_request}")
+        logger.info(f"De volgende aanvraag wordt naar ILP gestuurd: {self.measure_request}")
 
         scenario = {
             "name": "SafetyAreaA27",
@@ -306,14 +306,14 @@ class Aanvraag:
         }
 
         ilp = ILPSender()
-        self.__legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.__measure_request})
+        self.legend_pattern = ilp.send_request(scenario, {"SafetyAreaBasedRequest": self.measure_request})
 
-        logger.info(f"Antwoord van ILP: {self.__legend_pattern}")
+        logger.info(f"Antwoord van ILP: {self.legend_pattern}")
 
     def __visualize_response(self) -> None:
         """Visualize legend pattern in svg"""
         svg_file = "ILP/Server/Data/RoadModel/RoadModelVisualisation.svg"
-        toggle_visibility(svg_file, self.__legend_pattern)
+        toggle_visibility(svg_file, self.legend_pattern)
         logger.info("Signaalgeverbeelden zijn toegevoegd aan de visualisatie.")
 
     def __plot_areas(self) -> None:
@@ -617,7 +617,7 @@ class ClosedSpace:
                     msis_for_crosses = [nr for nr in lanes_for_crosses if nr in msi.obj_eigs["Rijstrooknummers"]]
                     msi_rows_inside.append((msi, msis_for_crosses))
 
-        self.request.__msis_red_cross = msi_rows_inside
+        self.request.msis_red_cross = msi_rows_inside
 
     def determine_measure_request(self) -> None:
         # See report J. van Meurs page 71 for an explanation of this request structure
@@ -628,12 +628,12 @@ class ClosedSpace:
             "options": {}
         }
 
-        for msi, lane_nrs in self.request.__msis_red_cross:
+        for msi, lane_nrs in self.request.msis_red_cross:
             if not lane_nrs:
                 continue
             for lane_nr in lane_nrs:
                 request_options["legend_requests"].append(f"x[{make_ILP_name(msi, lane_nr)}]")
-        self.request.__measure_request = request_options
+        self.request.measure_request = request_options
 
 
 def make_ILP_name(point_info: ObjectInfo, nr: int) -> str:

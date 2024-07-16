@@ -63,7 +63,7 @@ class ILPSender:
                     print("App server is active.")
                 return True
         except requests.ConnectionError:
-            print("A Connection error occurred.")
+            print("A connection error occurred. Is the ILP server running?")
             return False
         except requests.Timeout:
             print("The request timed out.")
