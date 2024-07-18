@@ -461,7 +461,7 @@ class SvgMaker:
     def __svg_draw_section_info(self, section_id: int, section_info: ObjectInfo):
         origin = self.__get_flipped_coords(line_interpolate_point(
             section_info.pos_eigs.geometrie, 0.5, normalized=True))[0]
-        lines = make_info_text(section_info)
+        lines = make_info_text(section_id, section_info)
         height = 6 * (len(lines) + 1)
 
         g_infobox = self.__g_road_info.add(self.__dwg.g(id=f"SECTION_INFO_{section_id}", visibility="hidden",
@@ -928,10 +928,10 @@ def make_msi_text(pos_eigs: PositieEigenschappen) -> str:
     return f"{pos_eigs.wegnummer}  {pos_eigs.km} {pos_eigs.rijrichting}"
 
 
-def make_info_text(section_info: ObjectInfo) -> list[str]:
+def make_info_text(section_id: int, section_info: ObjectInfo) -> list[str]:
     lane_keys = sorted([key for key in section_info.obj_eigs.keys() if isinstance(key, int)])
     other_keys = sorted([key for key in section_info.obj_eigs.keys() if not isinstance(key, int)])
-    return ([f"Sectie {section_info.pos_eigs.wegnummer} "
+    return ([f"[{section_id}] Sectie {section_info.pos_eigs.wegnummer} "
              f"{section_info.pos_eigs.rijrichting} {section_info.pos_eigs.hectoletter} "
              f"van {section_info.pos_eigs.km[0]} tot {section_info.pos_eigs.km[1]} km", "Eigenschappen:"] +
             [f"{key}: {section_info.obj_eigs[key]}" for key in lane_keys] +
