@@ -83,6 +83,9 @@ class MSIRow:
                     self.cw[cw_index] = self.get_msi_names(lanes_in_current_cw)
                 break
 
+            if lane_number + 1 not in self.local_road_properties.keys():
+                continue
+
             next_lane = self.local_road_properties[lane_number + 1]
 
             if current_lane == next_lane or current_lane in ["Plusstrook"] or next_lane in ["Spitsstrook"]:
