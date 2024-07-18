@@ -134,7 +134,7 @@ class Custom(Profile):
 
 
 locatie_coords = {
-    "Vught": {"noord": 411600, "oost": 153000, "zuid": 407500, "west": 148300},
+    "Vught": {"noord": 411600, "oost": 153000, "zuid": 406000, "west": 148300},
     "A2VK": {"noord": 349300, "oost": 190650, "zuid": 331350, "west": 182500},
     "Oosterhout": {"noord": 407500, "oost": 120800, "zuid": 405700, "west": 119300},
     "Vinkeveen": {"noord": 472500, "oost": 129600, "zuid": 469700, "west": 125300},
