@@ -44,6 +44,7 @@ markeringen = {
     VLUCHTSTROOK: {
         GEEN_STROOK: GEEN_STREEP,
         RIJSTROOK: KANTSTREEP,
+        SPLITSING: KANTSTREEP,
     },
     SPITSSTROOK_LINKS: {
         RIJSTROOK: DEELSTREEP_9_3,
@@ -556,7 +557,7 @@ class SvgMaker:
 
             lane_marking_type = markeringen.get(left_lane_type, {}).get(right_lane_type, None)
             if lane_marking_type is None:
-                logger.warning(f"Lijn tussen {left_lane_type} en {right_lane_type} niet gevonden. "
+                logger.warning(f"Lijnsoort tussen {left_lane_type} en {right_lane_type} niet bepaald. "
                                f"Wegmarkering werd uitgewerkt voor: {section_info}")
 
             self.__draw_markerline(line_coords, lane_marking_type)
