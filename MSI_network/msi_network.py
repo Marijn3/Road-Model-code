@@ -300,38 +300,48 @@ class MSINetwerk:
                                                           current_section.verw_eigs.sectie_afbuigend_stroomopwaarts)
                                           if sid is not None]
 
+            # Check if there are no further sections connected to the current one.
             if not connecting_section_ids:
-                # There are no further sections connected to the current one. Return empty-handed.
-                return {None: (shift, annotation, lane_bounds)}
-            elif len(connecting_section_ids) > 1:
-                # This happens in the case of intersections. These are of no interest for MSI relations.
+                return {None: (shift, annotation, lane_bounds)}  # Return empty-handed.
+
+            # Check for intersections, where more than 2 sections connect without a divergence/convergence point.
+            if len(connecting_section_ids) > 1:
                 logger.debug(f"Er lijkt meer dan één sectie verbonden te zijn met sectie {current_section_id}, "
                              f"zonder een *vergentiepunt: {connecting_section_ids}. Stop zoektocht.")
                 return {None: (shift, annotation, lane_bounds)}
-            else:
-                # Find an MSI row in the next section.
-                next_section_id = connecting_section_ids[0]
-                lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
-                shift, annotation = self.__update_trackers(
-                    shift, annotation, current_section.verw_eigs, downstream, first_iteration
-                )
-                if downstream:
-                    next_point_geom = Point(current_section.pos_eigs.geometrie.coords[-1])
-                    next_km = current_section.pos_eigs.km[-1]
-                else:  # Upstream
-                    next_point_geom = Point(current_section.pos_eigs.geometrie.coords[0])
-                    next_km = current_section.pos_eigs.km[0]
 
-                next_point_pos_eigs = PositieEigenschappen(
-                    rijrichting=current_section.pos_eigs.rijrichting,
-                    wegnummer=current_section.pos_eigs.wegnummer,
-                    hectoletter=current_section.pos_eigs.hectoletter,
-                    km=next_km,
-                    geometrie=next_point_geom
-                )
+            next_section_id = connecting_section_ids[0]
+            next_section_info = self.wegmodel.sections[next_section_id]
 
-                return self.__find_msi_recursive(next_section_id, next_point_pos_eigs, downstream,
-                                                 shift, current_distance, lane_bounds, annotation)
+            # Check for hecto transitions that indicate intersections with the underlying road network.
+            if (current_section.pos_eigs.hectoletter in ["a", "b", "c", "d"]
+                    and next_section_info.pos_eigs.hectoletter in ["a", "b", "c", "d"]
+                    and current_section.pos_eigs.hectoletter != next_section_info.pos_eigs.hectoletter):
+                logger.debug(f"Overgang vanaf sectie {current_section_id} gaat over kruising. Stop zoektocht.")
+                return {None: (shift, annotation, lane_bounds)}
+
+            # Find an MSI row in the next section.
+            lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
+            shift, annotation = self.__update_trackers(
+                shift, annotation, current_section.verw_eigs, downstream, first_iteration
+            )
+            if downstream:
+                next_point_geom = Point(current_section.pos_eigs.geometrie.coords[-1])
+                next_km = current_section.pos_eigs.km[-1]
+            else:  # Upstream
+                next_point_geom = Point(current_section.pos_eigs.geometrie.coords[0])
+                next_km = current_section.pos_eigs.km[0]
+
+            next_point_pos_eigs = PositieEigenschappen(
+                rijrichting=current_section.pos_eigs.rijrichting,
+                wegnummer=current_section.pos_eigs.wegnummer,
+                hectoletter=current_section.pos_eigs.hectoletter,
+                km=next_km,
+                geometrie=next_point_geom
+            )
+
+            return self.__find_msi_recursive(next_section_id, next_point_pos_eigs, downstream,
+                                             shift, current_distance, lane_bounds, annotation)
 
         assert len(other_points_on_section) == 1 or len(other_points_on_section) == 2, \
             f"Onverwacht aantal punten op lijn: {[point for point in other_points_on_section]}"
