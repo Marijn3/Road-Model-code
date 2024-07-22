@@ -276,9 +276,15 @@ class MSINetwerk:
 
         # Base case 2: Multiple MSI rows found.
         if len(msis_on_section) > 1:
-            nearest_msi = min(msis_on_section, key=lambda msi: abs(current_point_eigs.km - msi.pos_eigs.km))
+            if downstream:
+                nearest_msi = min(msis_on_section, key=lambda msi: line_locate_point(current_section.pos_eigs.geometrie,
+                                                                                     msi.pos_eigs.geometrie))
+            else:
+                nearest_msi = max(msis_on_section, key=lambda msi: line_locate_point(current_section.pos_eigs.geometrie,
+                                                                                     msi.pos_eigs.geometrie))
+
             logger.debug(f"Meerdere MSI rows gevonden op sectie {current_section_id}. "
-                         f"Dichtstbijzijnde wordt geselecteerd: {nearest_msi.pos_eigs.km} km")
+                         f"Dichtstbijzijnde wordt geselecteerd, op {nearest_msi.pos_eigs.km} km.")
             lane_bounds = self.__update_lane_bounds(lane_bounds, section_lanes, shift, annotation)
             shift, annotation = self.__update_trackers(
                 shift, annotation, current_section.verw_eigs, downstream, first_iteration, True
