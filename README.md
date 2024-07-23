@@ -58,8 +58,8 @@ valid only in the _A27Recht_ profile.
 Logs are in Dutch. Other files, containing the majority of the code, are mostly English.
 
 # Known issues
-* Wedge (Puntstuk) registrations on the left side of the road are not accounted for in determining the lane bounds.
-This causes missing primary relations in some cases.
-* Left emergency lane does not always properly affect the lane shift value.
+* Left emergency lane does not properly affect the lane shift value.
 * The determination of whether a property starts or ends on a section does not 
 take into account the shift value between the sections.
+* VNRWOL registrations are taken as lane registrations. This works 99% of the time. To create lenience
+for the 1% of cases where it does not work, VNRWOL should be interpreted as an 'ordering' but not a lane numbering.
